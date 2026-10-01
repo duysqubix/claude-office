@@ -15,10 +15,10 @@
   "anchors": {
     "glassCenter": [
       0,
-      0.585,
+      0.75,
       0
     ]
   },
-  "mount": "wall opening: origin at the bottom centre of a 2.2 x 1.17 m opening (the 0.95 m sill line), centred in the 0.3 m wall. Place at wallPoint(side, mid, 0.95); scale X for other widths.",
+  "mount": "wall opening: origin at the bottom centre of the 2.2 x 1.5 m main window opening (sill 0.95, head 2.45), centred in the 0.3 m wall. Place at wallPoint(side, mid, 0.95); scale X for other bay widths. Transom at 55 % of the height.",
   "notes": "Glass material is 'Glass' (alpha 0.35); swap it for the game's glare glass by name."
 }

@@ -26,7 +26,7 @@ def sdf():
         r = np.linalg.norm(P, axis=1)
         shell = np.maximum(kit.R - 0.012 - r, r - (kit.R + 0.034))
         # Keep the jaw: below a line that rises toward the ears (sideburns), front half only.
-        zcut = -0.05 + 0.07 * (x / kit.R) ** 2
+        zcut = -0.1 + 0.09 * (x / kit.R) ** 2
         d = kit.smax(shell, z - zcut, 0.02)
         d = kit.smax(d, y - 0.02, 0.03)
         # Lumpy, chunky surface.

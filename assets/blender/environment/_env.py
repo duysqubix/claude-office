@@ -10,6 +10,7 @@
 
 Conventions are lib's: metres, Z-up, front faces -Y, origin at the floor-contact point.
 """
+import json
 import math
 import os
 import random
@@ -43,6 +44,11 @@ P = dict(
 )
 
 ARTIST = "Claude Lorrain"
+
+# Sizes shared with the procedural world (door, windows, walls): build to these, so a change
+# there is one rebuild away.
+with open(os.path.join(lib.ROOT, "client", "src", "world", "dimensions.json")) as _f:
+    DIMS = json.load(_f)
 
 
 def rng(seed):
@@ -499,6 +505,24 @@ def mottle(ob, materials, weights=None, seed=0, where=None):
         if where is None or where(p):
             p.material_index = r.choices(idx, weights=weights)[0]
     return ob
+
+
+def wall_window(M, w, h, transom=None, wall_t=0.3):
+    """Window unit for a w × h wall opening, origin at the bottom centre (the sill line),
+    centred in the wall: a soft round-cornered frame ring wrapping the opening, a chunky
+    vertical mullion, a transom bar at `transom` × h if given, a deep sill ledge on both faces
+    and one glass pane. M needs "trim", "sill" and "glass" materials. Mirrors the procedural
+    windows in client/src/world/building.ts."""
+    depth = wall_t + 0.08
+    rr_ring("Frame", (w + 0.22, h + 0.22, 0.17), (w - 0.08, h - 0.08, 0.1), depth,
+            (0, 0, h / 2), M["trim"], seg=8, bevel=0.035)
+    lib.rbox("MullionV", (0.12, 0.13, h - 0.04), (0, 0, h / 2), M["trim"], r=0.02, seg=2)
+    if transom is not None:
+        lib.rbox("MullionH", (w - 0.04, 0.12, 0.1), (0, 0, h * transom), M["trim"], r=0.02,
+                 seg=2)
+    rr_prism("SillLedge", w + 0.36, wall_t + 0.26, 0.075, 0.06, (0, 0, -0.07), M["sill"],
+             seg=5, bevel=0.03, bseg=3)
+    lib.rbox("Glass", (w - 0.06, 0.02, h - 0.06), (0, 0, h / 2), M["glass"], r=0.006, seg=1)
 
 
 def rr_points(w, h, r, seg=6):

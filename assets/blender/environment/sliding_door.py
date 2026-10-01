@@ -1,7 +1,7 @@
 """Sliding glass entrance doors: a chunky slate frame (two posts, a header with a little
 glowing motion sensor, a threshold strip) and two glass panels as separate nodes `DoorL` and
-`DoorR` that the game slides into the wall. Fits the south-wall opening in
-client/src/world/layout.ts (3.0 m wide, 2.25 m high, wall 0.3 m thick).
+`DoorR` that the game slides into the wall. Sized from client/src/world/dimensions.json
+(`door`: 3.0 m wide, 2.25 m high, 0.16 m frame, 0.07 m panels; wall 0.3 m thick).
 
 Origin: floor centre of the opening, centred in the wall thickness. Front (-Y, three.js +Z)
 faces outside. Each panel's pivot is its own bottom centre in the closed position; open by
@@ -13,13 +13,15 @@ NAME = "sliding_door"
 AO_RES = 512
 AO_DISTANCE = 0.3
 
-OPEN_W = 3.0     # opening width (OFFICE.doorHalf * 2)
-OPEN_H = 2.25    # opening height (OFFICE.doorH)
-WALL_T = 0.3     # OFFICE.wallT
+DOOR = _env.DIMS["door"]        # client/src/world/dimensions.json, shared with the world
+OPEN_W = DOOR["w"]
+OPEN_H = DOOR["h"]
+WALL_T = _env.DIMS["building"]["wallT"]
+POST_W = DOOR["frameW"]
+RAIL = DOOR["panelT"]
 PANEL_W = OPEN_W / 2 + 0.03
 PANEL_H = OPEN_H - 0.02
-OPEN_TRAVEL = PANEL_W - 0.06
-RAIL = 0.07
+OPEN_TRAVEL = DOOR["travel"]
 
 
 def materials():
@@ -39,8 +41,8 @@ def frame(M):
     depth = WALL_T + 0.14
     for s in (-1, 1):
         x = s * (OPEN_W / 2 + 0.04)
-        lib.rbox(f"Post{'LR'[s > 0]}", (0.16, depth, OPEN_H + 0.12), (x, 0, (OPEN_H + 0.12) / 2),
-                 M["frame"], r=0.05, seg=3)
+        lib.rbox(f"Post{'LR'[s > 0]}", (POST_W, depth, OPEN_H + 0.12),
+                 (x, 0, (OPEN_H + 0.12) / 2), M["frame"], r=0.05, seg=3)
         # Rubber bumper feet so the posts don't just stop at the floor.
         lib.rbox(f"PostFoot{'LR'[s > 0]}", (0.2, depth + 0.04, 0.06), (x, 0, 0.03), M["frame"],
                  r=0.025, seg=2)
