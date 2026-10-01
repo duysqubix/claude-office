@@ -1,0 +1,39 @@
+{
+  "name": "claude-office",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A wobbly little 3D office where your live Claude Code sessions are the employees and you're the manager.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false server/index.ts",
+    "build": "vite build",
+    "start": "vite build && NODE_ENV=production tsx server/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "snap": "node scripts/snap.mjs",
+    "postinstall": "node scripts/fix-pty.mjs"
+  },
+  "dependencies": {
+    "@fontsource/fredoka": "^5.3.0",
+    "node-pty": "^1.1.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.2",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "puppeteer-core": "^25.12.0",
+    "three": "^0.186.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "node-pty@1.1.0": true
+  }
+}
