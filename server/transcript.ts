@@ -79,6 +79,10 @@ export class TranscriptTail {
   private firstPrompt?: string;
   private pending = new Map<string, PendingTool>();
   chatter: ChatLine[] = [];
+  /** Background task ids (= subagent file ids) that reported completed/failed/killed. */
+  readonly finishedTasks = new Set<string>();
+  /** tool_use ids that got a tool_result. */
+  readonly completedToolUses = new Set<string>();
 
   constructor(
     readonly sessionId: string,
@@ -148,6 +152,7 @@ export class TranscriptTail {
     }
     if (typeof e.cwd === 'string') this.cwd = e.cwd;
     if (typeof e.gitBranch === 'string' && e.gitBranch) this.branch = e.gitBranch;
+    if (line.includes('<task-notification>')) this.noteTaskNotifications(line);
     switch (e.type) {
       case 'ai-title':
         if (typeof e.aiTitle === 'string' && e.aiTitle.trim()) this.title = e.aiTitle.trim();
@@ -182,12 +187,22 @@ export class TranscriptTail {
           if (!e.isMeta) this.humanPrompt(c, e.timestamp);
         } else if (Array.isArray(c)) {
           for (const b of c) {
-            if (b?.type === 'tool_result' && typeof b.tool_use_id === 'string') this.pending.delete(b.tool_use_id);
-            else if (b?.type === 'text' && typeof b.text === 'string' && !e.isMeta) this.humanPrompt(b.text, e.timestamp);
+            if (b?.type === 'tool_result' && typeof b.tool_use_id === 'string') {
+              this.pending.delete(b.tool_use_id);
+              remember(this.completedToolUses, b.tool_use_id);
+            } else if (b?.type === 'text' && typeof b.text === 'string' && !e.isMeta) this.humanPrompt(b.text, e.timestamp);
           }
         }
         break;
       }
+    }
+  }
+
+  /** `<task-notification><task-id>X</task-id>…<status>completed</status>` arrives as an attachment or a user turn. */
+  private noteTaskNotifications(rawLine: string): void {
+    // The block sits inside a JSON string, so newlines are escaped; match across them.
+    for (const m of rawLine.matchAll(/<task-id>([^<]{1,200})<\/task-id>[\s\S]{0,2000}?<status>([a-z_]{1,20})<\/status>/g)) {
+      if (/^(completed|failed|killed|stopped|cancelled|canceled|error)$/.test(m[2])) remember(this.finishedTasks, m[1].trim());
     }
   }
 
@@ -250,6 +265,12 @@ export class TranscriptTail {
     for (const p of this.pending.values()) if (!latest || p.at >= latest.at) latest = p;
     return latest ? describeTool(latest.name, latest.input) : { kind: 'thinking', label: 'Thinking…' };
   }
+}
+
+/** Add to a set that only needs recent history; keeps memory bounded on huge transcripts. */
+function remember(set: Set<string>, value: string, cap = 2000): void {
+  set.add(value);
+  if (set.size > cap) set.delete(set.values().next().value as string);
 }
 
 async function readRange(path: string, start: number, end: number): Promise<Buffer> {

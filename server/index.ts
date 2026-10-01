@@ -13,6 +13,7 @@ import { findPastSession, listPastSessions, listProjects } from './archive';
 import { HOME, HOST, IS_PROD, PORT, ROOT } from './config';
 import { Roster } from './roster';
 import { attachTerminal } from './terminal';
+import { run } from './exec';
 import { assertDirectory, hire, initTmux, kill, newSessionId, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -291,7 +292,9 @@ async function main(): Promise<void> {
     process.exit(1);
   });
   server.listen(PORT, HOST, () => {
-    console.log(`\n  Claude Office is open → http://${HOST}:${PORT}  (${IS_PROD ? 'production' : 'dev'})\n`);
+    const url = `http://${HOST}:${PORT}`;
+    console.log(`\n  Claude Office is open → ${url}  (${IS_PROD ? 'production' : 'dev'})\n`);
+    if (process.argv.includes('--open')) void run(process.platform === 'darwin' ? 'open' : 'xdg-open', [url]);
   });
 }
 

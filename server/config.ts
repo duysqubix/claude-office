@@ -16,5 +16,5 @@ export const IS_PROD = process.env.NODE_ENV === 'production';
 export const TMUX_PREFIX = 'office-';
 
 export const POLL_MS = 1000;
-/** Subagent transcripts written within this window count as working interns. */
-export const INTERN_ACTIVE_MS = 30_000;
+/** A subagent whose transcript hasn't moved for this long (and never finished) is presumed gone. */
+export const INTERN_STALE_MS = 15 * 60_000;

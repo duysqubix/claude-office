@@ -134,7 +134,7 @@ export class Roster extends EventEmitter {
           this.tails.set(e.sessionId, t);
         }
         await t.update();
-        if (slow && t.path) this.interns.set(e.sessionId, await activeInterns(t.path, e.sessionId));
+        if ((slow || !this.interns.has(e.sessionId)) && t.path) this.interns.set(e.sessionId, await activeInterns(t.path, e.sessionId, t));
         const tmuxName = this.hostedBySession.get(e.sessionId);
         if (tmuxName && (slow || !this.screens.has(e.sessionId))) this.screens.set(e.sessionId, await capture(tmuxName));
       }),

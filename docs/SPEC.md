@@ -37,8 +37,11 @@ One JSON file per running Claude Code process. Example:
 - `status` ∈ `busy` | `idle` | `waiting`. `waiting` means blocked on the human; the
   optional `waitingFor` string says why ("permission", "input needed", "dialog open",
   "sandbox request", …).
-- Files can be stale: always confirm the pid is alive **and** is a `claude` process
-  (`ps -o pid=,comm= -p …`). Skip entries with a truthy `spare` field (pre-warmed spares).
+- Files can be stale: always confirm the pid is alive **and** is the same process.
+  `procStart` is written in **UTC**, so compare it against `TZ=UTC ps -o lstart=`; fall
+  back to "comm is a claude binary". Skip entries with a truthy `spare` field.
+- `name` is Claude's peer name; `nameSource: "user"` means a human chose it (e.g. via
+  `claude -n <name>`), so the office keeps it as the employee's name.
 - Sibling `<pid>.<hash>.key` files are secrets. Never read them.
 
 ### 2.2 Transcripts: `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`
@@ -71,7 +74,9 @@ is **active** while its `.jsonl` was modified in the last 30 s. Show active inte
 ### 2.4 Past sessions (for "call back in")
 
 All `*.jsonl` directly under `~/.claude/projects/*/`, newest first (limit 60). Title from
-the last `ai-title` in the last 256 KB; cwd from any entry's `cwd` field.
+the last `ai-title` in the last 256 KB. The launch folder is the first `cwd` whose encoding
+matches the project dir name: later entries carry wherever the session `cd`'d to, and
+`claude --resume` only finds the session from its launch folder.
 
 ## 3. Hosted sessions (hired in-game)
 
@@ -83,6 +88,14 @@ tmux new-session -d -s office-<first 8 of uuid> -x 160 -y 48 -c <cwd> \
 
 - Multi-argument commands are exec'd directly by tmux (no shell), so prompts are never
   shell-parsed. Verified.
+- Target sessions as `=office-xxxx:` (exact match + colon). tmux 3.6 rejects `=name`
+  without the colon for `set-option`. Office sessions get `status off` and
+  `remain-on-exit on` (a crashed hire is reported as a notice, then reaped).
+- A hire into a never-used folder opens Claude's trust dialog first, and its default
+  answer is **"No, exit"**. Until Claude registers, the server reports the hire as
+  `needs-you` / "Trust this folder?" (detected from the tmux screen). The manager answers
+  it in the terminal overlay. Quick messages are refused (409) while `needs-you`.
+- Hosted detection: tmux execs claude directly, so `#{pane_pid}` is claude's pid.
 - Resume: same, with `--resume <sessionId>` instead of `--session-id`. Refuse if live.
 - `hosted` = the registry pid equals a `#{pane_pid}` of a tmux session named `office-*`.
 - Fire: `tmux kill-session -t office-…` (only `office-*` sessions, never anything else).

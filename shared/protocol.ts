@@ -35,7 +35,7 @@ export interface Intern {
   /** agentType from the subagent's meta.json, e.g. "Explore", "oh-my-claudecode:executor". */
   type: string;
   description: string;
-  /** True while its transcript was written recently. */
+  /** True while it's writing (last minute); false while it waits or thinks for a long time. */
   active: boolean;
 }
 

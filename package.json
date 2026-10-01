@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch --clear-screen=false server/index.ts",
     "build": "vite build",
-    "start": "vite build && NODE_ENV=production tsx server/index.ts",
+    "start": "vite build && NODE_ENV=production tsx server/index.ts --open",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "snap": "node scripts/snap.mjs",
     "postinstall": "node scripts/fix-pty.mjs",
