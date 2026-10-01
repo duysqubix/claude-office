@@ -40,7 +40,7 @@ export interface DeskSlot {
   yaw: number;
   /** Walkable floor point (y = 0) next to the chair where a character stands before sitting / after standing. */
   approach: THREE.Vector3;
-  /** Walkable floor points (y = 0) around the desk where interns can stand (2–4 spots). */
+  /** @deprecated Interns now work at the intern desk (World.internSlots), not around their boss's desk. */
   internSpots: THREE.Vector3[];
   /** The chair group. Gameplay slides it along its local +Z (away from the desk) by up to 0.45 m when someone sits or stands. */
   chair: THREE.Object3D;
@@ -52,7 +52,22 @@ export interface DeskSlot {
   accent: string;
 }
 
-export type InteractableKind = 'reception' | 'archive' | 'whiteboard' | 'coffee' | 'desk' | 'teamboard';
+/** One station at the long intern desk: where a subagent sits while it works. */
+export interface InternSlot {
+  index: number;
+  /** Stool seat point (pelvis position for a 0.7-scale intern). */
+  seat: THREE.Vector3;
+  /** Yaw a seated intern faces (toward their little monitor). */
+  yaw: number;
+  /** Walkable floor point next to the stool. */
+  approach: THREE.Vector3;
+  /** The station's small monitor. */
+  setScreen(state: ScreenState, lines?: string[]): void;
+  /** Little station label: intern type and who they work for. '' = free. */
+  setLabel(name: string, subtitle?: string): void;
+}
+
+export type InteractableKind = 'reception' | 'archive' | 'whiteboard' | 'coffee' | 'desk' | 'teamboard' | 'interns';
 
 export interface Interactable {
   /** Unique id: 'reception', 'archive', 'whiteboard', 'coffee', or `desk:<index>`. */
@@ -112,4 +127,11 @@ export interface World {
   setTeamBoard(stats: TeamStats): void;
   /** Add desks until at least `n` exist (overflow pods). Returns the new desk count. */
   ensureDesks(n: number): number;
+  /**
+   * The intern desk: one long bench of small computer stations (≥ 12 to start) where every
+   * subagent works, wherever its boss sits. Interactable `{ id: 'interns', kind: 'interns' }`.
+   */
+  internSlots: InternSlot[];
+  /** Add stations (extend the bench or add a second one) until at least `n` exist. Returns the count. */
+  ensureInternSlots(n: number): number;
 }

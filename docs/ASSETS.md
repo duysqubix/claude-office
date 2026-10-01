@@ -103,6 +103,10 @@ Categories: `furniture`, `appliance`, `decor`, `desk-item`, `food`, `building`, 
 
 | id | P | notes |
 | --- | --- | --- |
+| intern_bench | P0 | long intern desk module: 2 stations per 1.6 m segment, chainable end to end, tint `Accent` |
+| intern_station | P0 | small monitor (`Screen`) + keyboard for one intern spot |
+| intern_stool | P0 | round stool sized for 0.7-scale interns, tint `Seat` |
+| intern_sign | P0 | hanging or standing sign "INTERNS" |
 | wall_screen | P0 | Team Room display ≈3.2 × 1.8 m, chunky bezel, `Screen` (planar UVs; the stats board draws on it) |
 | conference_table | P0 | rounded table for 8 |
 | conference_chair | P0 | puffy, tint `Seat` |
