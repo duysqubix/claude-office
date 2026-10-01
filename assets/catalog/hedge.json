@@ -1,0 +1,18 @@
+{
+  "id": "hedge",
+  "name": "Hedge section",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "2 m section of clipped hedge: one faceted block with facets mottled in three greens, sunlit on top",
+  "tags": [
+    "hedge",
+    "garden",
+    "boundary",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "Sections tile end to end along X at 2.0 m (soft rounded ends read as separate clipped bushes)."
+}

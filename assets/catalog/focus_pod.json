@@ -1,0 +1,32 @@
+{
+  "id": "focus_pod",
+  "name": "Focus pod",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Phone booth for heads-down focus, with a swing-open glass door",
+  "tags": [
+    "team-room",
+    "focus",
+    "booth"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "inside": [
+      0,
+      0,
+      -0.05
+    ],
+    "front": [
+      0,
+      0,
+      0.85
+    ]
+  },
+  "nodes": {
+    "Door": "pivot on the hinge (left edge); rotate about +Y (three) to open"
+  }
+}

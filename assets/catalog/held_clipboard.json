@@ -1,0 +1,25 @@
+{
+  "id": "held_clipboard",
+  "name": "Clipboard (held)",
+  "category": "character-held",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Wooden clipboard with a checklist and a pen; held by its bottom edge",
+  "tags": [
+    "held",
+    "clipboard",
+    "planning",
+    "paper"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "handGrip": [
+      0,
+      0,
+      0
+    ]
+  }
+}

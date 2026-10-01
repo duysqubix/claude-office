@@ -29,12 +29,25 @@ import lib
 RIG_JSON = os.path.join(lib.ROOT, "client", "src", "chars", "rig-dimensions.json")
 DIM = dict(pelvisY=0.42, hipX=0.105, shoulderX=0.215, shoulderY=0.25, neckY=0.34,
            headR=0.27, headUp=0.21, armLen=0.29, legLen=0.345)
+# Head shape (three.js metres): "sphere" (rig.ts today) or "roundedBox" (ART-REFERENCE §1.1:
+# 0.58 w × 0.54 h × 0.50 d, corner radius 0.19, jaw 6 % narrower).
+HEAD = dict(shape="sphere", size=[0.54, 0.54, 0.54], radius=0.27, jaw=0.0)
+RIG = {}
 if os.path.exists(RIG_JSON):
     with open(RIG_JSON) as f:
-        _rig = json.load(f)
-    DIM.update({k: v for k, v in _rig.items() if isinstance(v, (int, float))})
+        RIG = json.load(f)
+    DIM.update({k: v for k, v in RIG.items() if isinstance(v, (int, float))})
+    if isinstance(RIG.get("head"), dict):
+        HEAD.update(RIG["head"])
+    elif "headR" in RIG:
+        HEAD.update(shape="sphere", size=[2 * RIG["headR"]] * 3, radius=RIG["headR"])
 
-R = DIM["headR"]
+if os.environ.get("RODIN_HEAD") == "box":  # what-if previews of the ART-REFERENCE head
+    HEAD.update(shape="roundedBox", size=[0.58, 0.54, 0.50], radius=0.19, jaw=0.06)
+
+R = DIM["headR"]  # nominal head radius (spherical helpers)
+# Blender half extents of the head: x = width, y = depth, z = height.
+HX, HY, HZ = HEAD["size"][0] / 2, HEAD["size"][2] / 2, HEAD["size"][1] / 2
 HEAD_Y = DIM["neckY"] + DIM["headUp"]  # head centre above the pelvis
 
 # Torso bean profile from rig.ts (radius, height above pelvis); scaled 0.85 front-to-back.
@@ -132,16 +145,74 @@ def frame_from(out, up=(0, 0, 1)):
     return Matrix((x, y, u)).transposed()
 
 
+def head_sdf(P):
+    """Signed distance to the head (N×3 Blender coords, head centre at the origin)."""
+    if HEAD["shape"] == "sphere":
+        return np.linalg.norm(P, axis=1) - HEAD["radius"]
+    Q = np.array(P, dtype=np.float32, copy=True)
+    if HEAD.get("jaw"):
+        t = np.clip(-Q[:, 2] / HZ, 0.0, 1.0)
+        Q[:, 0] /= 1.0 - HEAD["jaw"] * t * t * (3 - 2 * t)
+    rr = HEAD["radius"]
+    q = np.abs(Q) - (np.array([HX, HY, HZ], dtype=np.float32) - rr)
+    return (np.linalg.norm(np.maximum(q, 0.0), axis=1) + np.minimum(np.max(q, axis=1), 0.0)
+            - rr)
+
+
+def ray_hits(fn, origins, dirs, t0=0.0, t1=0.7, iters=28):
+    """Vectorised bisection: for each ray origin + t*dir (fn < 0 at t0, > 0 at t1) the t
+    where fn crosses zero."""
+    o = np.asarray(origins, dtype=np.float32).reshape(-1, 3)
+    d = np.asarray(dirs, dtype=np.float32).reshape(-1, 3)
+    lo = np.full(len(d), t0, dtype=np.float32)
+    hi = np.full(len(d), t1, dtype=np.float32)
+    for _ in range(iters):
+        m = 0.5 * (lo + hi)
+        out = fn(o + d * m[:, None]) > 0
+        hi = np.where(out, m, hi)
+        lo = np.where(out, lo, m)
+    return 0.5 * (lo + hi)
+
+
+def sdf_normal(fn, p, eps=1e-4):
+    p = np.asarray(p, dtype=np.float32).reshape(1, 3)
+    g = []
+    for i in range(3):
+        e = np.zeros((1, 3), dtype=np.float32)
+        e[0, i] = eps
+        g.append(float(fn(p + e)[0] - fn(p - e)[0]))
+    return Vector(g).normalized()
+
+
+def head_front(fx, fy):
+    """(surface point, outward normal) of the head's face at face coords (fx char-left,
+    fy up), found along -Y."""
+    t = float(ray_hits(head_sdf, [(fx, 0.0, fy)], [(0.0, -1.0, 0.0)])[0])
+    p = Vector((fx, -t, fy))
+    return p, sdf_normal(head_sdf, p)
+
+
+def face_point(fx, fy, out=0.0):
+    p, n = head_front(fx, fy)
+    return p + n * out
+
+
 def face_dir(fx, fy, r=R):
-    """Unit direction from the head centre to face coords (fx char-left, fy up)."""
-    z = math.sqrt(max(0.0, r * r - fx * fx - fy * fy))
-    return Vector((fx, -z, fy)).normalized()
+    """Outward normal of the face at face coords."""
+    return head_front(fx, fy)[1]
 
 
 def on_head(fx, fy, out=0.0, r=R):
     """(location, 3x3 frame) of a feature at face coords, `out` metres off the surface."""
-    n = face_dir(fx, fy, r)
-    return n * (r + out), frame_from(n)
+    p, n = head_front(fx, fy)
+    return p + n * out, frame_from(n)
+
+
+def head_point(direction, out=0.0):
+    """Head surface point along a direction from the centre, pushed `out` along it."""
+    d = Vector(direction).normalized()
+    t = float(ray_hits(head_sdf, [(0, 0, 0)], [tuple(d)])[0])
+    return d * (t + out)
 
 
 def sph(theta, phi, r=R):
@@ -156,6 +227,15 @@ def place(ob, loc, frame):
     ob.location = loc
     ob.rotation_euler = frame.to_euler()
     return ob
+
+
+def transform(objs, m):
+    """Pre-multiply 4x4 `m` onto each object's own transform. Uses matrix_basis, which is
+    built from loc/rot/scale directly (matrix_world is stale on objects created since the
+    last depsgraph update)."""
+    for ob in objs:
+        ob.matrix_basis = m @ ob.matrix_basis
+    return objs
 
 
 # ---------------------------------------------------------------- curves + tubes
@@ -477,6 +557,39 @@ def sd_groove(P, pts, r_start, r_end=None, k=0.004):
     return bounded(P, lo, hi, lambda Q: sd_lock(Q, pts, radii, k=k))
 
 
+def sph_angles(P, centre=(0, 0, 0)):
+    """(theta, phi, r) per point: theta degrees from the crown, phi degrees around
+    (0 = front -Y, +90 = character-left +X, ±180 = back)."""
+    Q = P - _arr(centre)
+    r = np.linalg.norm(Q, axis=1)
+    theta = np.degrees(np.arccos(np.clip(Q[:, 2] / np.maximum(r, 1e-9), -1.0, 1.0)))
+    phi = np.degrees(np.arctan2(Q[:, 0], -Q[:, 1]))
+    return theta, phi, r
+
+
+def sd_hairline(P, edge, r_ref=None, centre=(0, 0, 0)):
+    """Negative on the hair side of a hairline: theta < edge(phi) (both degrees; `edge`
+    takes a numpy array of phi). Combine with smax to cut hair along any edge curve:
+    fringes, scallops, sideburns, napes."""
+    theta, phi, r = sph_angles(P, centre)
+    return np.radians(theta - edge(phi)) * (r_ref or (R + 0.03))
+
+
+def bumps(phi, centres, width, height):
+    """Sum of gaussian bumps over phi (degrees): scalloped tips along an edge."""
+    out = np.zeros_like(phi, dtype=np.float32)
+    for c in centres:
+        d = (phi - c + 180.0) % 360.0 - 180.0
+        out += height * np.exp(-(d / width) ** 2)
+    return out
+
+
+def ramp(x, a, b):
+    """Smoothstep from 0 at a to 1 at b (vectorised)."""
+    t = np.clip((x - a) / (b - a), 0.0, 1.0)
+    return t * t * (3 - 2 * t)
+
+
 def sd_shell(P, r_in, r_out, centre=(0, 0, 0)):
     """Spherical shell between r_in and r_out."""
     dist = np.linalg.norm(P - _arr(centre), axis=1)
@@ -624,10 +737,9 @@ def sdf_mesh(name, fn, lo, hi, material, voxel=0.004, adaptivity=0.0, trim=None,
     return ob
 
 
-def outside_head(margin=0.004, r=R, centre=(0, 0, 0)):
+def outside_head(margin=0.004):
     """trim() for head-worn SDF parts: cut what is buried inside the head."""
-    c = _arr(centre)
-    return lambda P: np.linalg.norm(P - c, axis=1) - (r - margin)
+    return lambda P: head_sdf(P) + margin
 
 
 def bake_away(ob, mat_names=()):
@@ -653,8 +765,19 @@ def head_deform(d):
     return s
 
 
-def head_mesh(name, material, radius=R, cuts=11, loc=(0, 0, 0)):
-    return quad_sphere(name, radius, material, cuts=cuts, deform=head_deform, loc=loc)
+def head_mesh(name, material, cuts=11, loc=(0, 0, 0)):
+    """The head surface as an evenly spread quad mesh: the rig's sphere (with a soft-egg
+    jaw) or the rounded box, whichever HEAD says."""
+    ob = quad_sphere(name, 1.0, material, cuts=cuts, loc=loc)
+    me = ob.data
+    dirs = np.array([v.co.normalized() for v in me.vertices], dtype=np.float32)
+    if HEAD["shape"] == "sphere":
+        t = np.array([HEAD["radius"] * head_deform(Vector(d)) for d in dirs], dtype=np.float32)
+    else:
+        t = ray_hits(head_sdf, np.zeros_like(dirs), dirs)
+    me.vertices.foreach_set("co", (dirs * t[:, None]).ravel())
+    me.update()
+    return ob
 
 
 def cheeks(prefix, material, at=Vector((0, 0, 0)), scale=1.0):
@@ -711,7 +834,7 @@ def brow(prefix, side, material, at=Vector((0, 0, 0)), fy=0.096, length=0.062, t
         t = i / (n - 1) - 0.5
         fx = side * (0.092 + t * length)
         y = fy + arch * (1 - 4 * t * t) + tilt * t * side
-        pts.append(face_dir(fx, y) * (R + thick * 0.35))
+        pts.append(face_point(fx, y, thick * 0.35))
     rad = lambda t: thick * (0.78 + 0.22 * math.sin(math.pi * t))
     ob = tube(f"{prefix}Brow", [at + p for p in pts], rad, material, ring=10, cap_rings=3)
     return ob
@@ -723,7 +846,7 @@ def smile(prefix, material, at=Vector((0, 0, 0)), width=0.042, depth=0.026, fy=-
     ctrl = [(-width, fy), (-width * 0.55, fy - depth * 0.72), (0, fy - depth),
             (width * 0.55, fy - depth * 0.72), (width, fy)]
     pts = catmull([(x, y, 0) for x, y in ctrl], 16)
-    pts = [face_dir(p.x, p.y) * (R + thick * 0.2) for p in pts]
+    pts = [face_point(p.x, p.y, thick * 0.2) for p in pts]
     rad = lambda t: thick * (0.8 + 0.2 * math.sin(math.pi * t))
     return tube(f"{prefix}Smile", [at + p for p in pts], rad, material, ring=10, cap_rings=3)
 

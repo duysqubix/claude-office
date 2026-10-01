@@ -1,0 +1,33 @@
+{
+  "id": "held_box",
+  "name": "Box of desk stuff (held)",
+  "category": "character-held",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Open cardboard box with a plant, photo and rubber duck; carried in both hands",
+  "tags": [
+    "held",
+    "box",
+    "leaving",
+    "fired"
+  ],
+  "tintable": [],
+  "anchors": {
+    "handGrip": [
+      0,
+      0,
+      0
+    ],
+    "handL": [
+      0.225,
+      0,
+      0
+    ],
+    "handR": [
+      -0.225,
+      0,
+      0
+    ]
+  }
+}

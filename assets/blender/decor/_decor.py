@@ -382,6 +382,26 @@ def face(name, outline, material, loc=(0, 0, 0), rot=(0, 0, 0)):
     return bm_object(name, bm, material, loc, rot, sharp=30)
 
 
+def band(name, outer, inner, material, loc=(0, 0, 0), rot=(0, 0, 0)):
+    """Flat closed band between two outlines with matching points (a drawn ring, a stamp's
+    border); far lighter than a swept tube."""
+    bm = bmesh.new()
+    vo = [bm.verts.new((x, y, 0.0)) for x, y in outer]
+    vi = [bm.verts.new((x, y, 0.0)) for x, y in inner]
+    n = len(vo)
+    for i in range(n):
+        j = (i + 1) % n
+        f = bm.faces.new((vo[i], vo[j], vi[j], vi[i]))
+        f.normal_update()
+        if f.normal.z < 0:
+            f.normal_flip()
+    return bm_object(name, bm, material, loc, rot, sharp=30)
+
+
+def ring(name, r_out, r_in, material, n=24, loc=(0, 0, 0), rot=(0, 0, 0)):
+    return band(name, circle_pts(r_out, n), circle_pts(r_in, n), material, loc, rot)
+
+
 def slab(name, outline, depth, material, loc=(0, 0, 0), rot=(0, 0, 0), r=0.004, seg=2):
     """prism() centred on its thickness (z from -depth/2 to depth/2)."""
     ob = prism(name, outline, depth, material, loc, rot, r=r, seg=seg)
@@ -550,6 +570,9 @@ def bake_ao(ob, res=256, distance=0.06, strength=1.0, samples=1024, margin=None)
         scene.world = bpy.data.worlds.new("World")
     scene.world.light_settings.distance = distance
     scene.render.bake.margin = 8
+    # EXTEND (nearest island texel) instead of ADJACENT_FACES, which leaves dark notches
+    # along diagonal island borders at these small sizes.
+    scene.render.bake.margin_type = "EXTEND"
     bpy.ops.object.bake(type="AO", use_clear=True)
     _drop(floor)
     lib._set_engine(scene, prev_engine)

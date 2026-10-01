@@ -24,7 +24,7 @@ META = dict(
 
 def materials():
     return dict(
-        board=kit.flat("Board", "#C98F5A", rough=0.6),
+        board=kit.flat("Masonite", "#C98F5A", rough=0.6),
         chrome=kit.flat("Chrome", "#C8D0DC", rough=0.3, metal=0.4),
         paper=kit.flat("Paper", kit.COL["paper"], rough=0.7),
         ink=kit.flat("Ink", "#8A8FA8", rough=0.6),
@@ -42,18 +42,19 @@ def build():
     lib.rbox("Paper", (BW - 0.03, 0.002, BH - 0.06), (0, face + 0.001, BH / 2 - 0.012),
              M["paper"], r=0.004, seg=1)
     # Scribbles: a title bar, then checkbox rows with lines of different lengths.
-    lib.rbox("Title", (0.12, 0.0015, 0.012), (-0.03, face + 0.0025, BH - 0.075), M["ink"],
+    # Laid out as the holder reads it (from +Y, so their left is +X).
+    lib.rbox("Title", (0.12, 0.0015, 0.012), (0.03, face + 0.0025, BH - 0.075), M["ink"],
              r=0.003, seg=1)
     for i, (ln, ticked) in enumerate([(0.12, True), (0.1, True), (0.13, False), (0.08, False),
                                       (0.11, False)]):
         z = BH - 0.11 - i * 0.034
-        lib.rbox(f"Box{i}", (0.016, 0.0015, 0.016), (-0.075, face + 0.0025, z), M["ink"],
+        lib.rbox(f"Box{i}", (0.016, 0.0015, 0.016), (0.075, face + 0.0025, z), M["ink"],
                  r=0.003, seg=1)
-        lib.rbox(f"Line{i}", (ln, 0.0015, 0.007), (-0.06 + ln / 2, face + 0.0025, z),
+        lib.rbox(f"Line{i}", (ln, 0.0015, 0.007), (0.06 - ln / 2, face + 0.0025, z),
                  M["ink"], r=0.0025, seg=1)
         if ticked:
-            pts = [(-0.083, face + 0.004, z + 0.001), (-0.077, face + 0.004, z - 0.006),
-                   (-0.064, face + 0.004, z + 0.011)]
+            pts = [(0.083, face + 0.004, z + 0.001), (0.077, face + 0.004, z - 0.006),
+                   (0.064, face + 0.004, z + 0.011)]
             kit.tube(f"Tick{i}", pts, 0.0028, M["tick"], ring=6, cap_rings=1)
     # The clip: a rounded base plate, the lever arch and its rivets.
     lib.rbox("ClipPlate", (0.1, 0.008, 0.034), (0, face + 0.004, BH - 0.02), M["chrome"],
@@ -64,17 +65,16 @@ def build():
         lib.sphere(f"Rivet{s}", 0.005, (s * 0.038, face + 0.009, BH - 0.02), M["chrome"],
                    u=10, v=6)
     # A pen tucked under the clip.
-    pen_dir = Matrix.Rotation(math.radians(-24), 3, "Y")
-    a = (0.07, face + 0.012, BH - 0.06)
+    pen_dir = Matrix.Rotation(math.radians(24), 3, "Y")
+    a = (-0.07, face + 0.012, BH - 0.06)
     lib.cyl("Pen", 0.0065, 0.13, a, M["pen"], r=0.003, seg=1, verts=12,
             rot=pen_dir.to_euler())
-    lib.cyl("PenCap", 0.007, 0.03, (a[0] + 0.045 * math.sin(math.radians(-24)), a[1],
-                                    a[2] + 0.045 * math.cos(math.radians(-24))),
+    lib.cyl("PenCap", 0.007, 0.03, (a[0] + 0.045 * math.sin(math.radians(24)), a[1],
+                                    a[2] + 0.045 * math.cos(math.radians(24))),
             M["pen_cap"], r=0.003, seg=1, verts=12, rot=pen_dir.to_euler())
     # Lean the whole board back about its bottom edge, and drop it onto the grip.
     tf = Matrix.Translation((0, 0, GRIP_DROP)) @ Matrix.Rotation(LEAN, 4, "X")
-    for ob in lib.coll().objects:
-        ob.matrix_world = tf @ ob.matrix_world
+    kit.transform(lib.coll().objects, tf)
 
 
 def finalize(name):

@@ -1,4 +1,4 @@
-"""Round bush: a low, flat-bottomed mound of lumpy puffs, darker underneath and lighter on
+"""Round bush: a low, flat-bottomed mound of faceted low-poly puffs, darker underneath and lighter on
 top (PALETTE.treeLeaf). About 1.3 m across, 0.85 m tall. Origin at the ground centre."""
 import math
 
@@ -8,6 +8,7 @@ from environment import _env
 NAME = "bush_round"
 AO_RES = 512
 AO_DISTANCE = 0.45
+FACETED = True  # ART-REFERENCE: WL nature is flat-shaded low-poly; False = smooth puffs
 
 # (x, y, z, radius, material, cuts). Materials: 0 Leaf, 1 LeafDark, 2 LeafLight.
 PUFFS = [
@@ -30,7 +31,7 @@ def materials():
 
 
 def puffs(M):
-    _env.puff_cluster("Puff", PUFFS, M, seed=10)
+    _env.puff_cluster("Puff", PUFFS, M, seed=10, faceted=FACETED)
 
 
 STEPS = [puffs]

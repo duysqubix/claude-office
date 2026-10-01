@@ -1,0 +1,16 @@
+{
+  "id": "intern_sign",
+  "name": "Intern sign",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Scrappy cardboard INTERNS sign on a pole in a traffic cone",
+  "tags": [
+    "interns",
+    "sign",
+    "text"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

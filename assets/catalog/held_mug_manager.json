@@ -1,0 +1,33 @@
+{
+  "id": "held_mug_manager",
+  "name": "Manager's mug (held)",
+  "category": "character-held",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "The WORLD'S OKAYEST MANAGER mug, gripped by its handle; pivot at the hand",
+  "tags": [
+    "held",
+    "manager",
+    "coffee",
+    "mug"
+  ],
+  "tintable": [],
+  "anchors": {
+    "handGrip": [
+      0,
+      0,
+      0
+    ],
+    "coffee": [
+      0,
+      0.0319,
+      0.1296
+    ],
+    "rim": [
+      0,
+      0.0462,
+      0.1296
+    ]
+  }
+}

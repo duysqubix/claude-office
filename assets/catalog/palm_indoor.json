@@ -1,0 +1,18 @@
+{
+  "id": "palm_indoor",
+  "name": "Indoor palm",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "Three slim canes in a ribbed woven basket, crowned by arching fronds of slender leaflets",
+  "tags": [
+    "plant",
+    "indoor",
+    "decor",
+    "pot",
+    "palm"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

@@ -1,0 +1,23 @@
+{
+  "id": "intern_stool",
+  "name": "Intern stool",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Little wobbly stool for interns",
+  "tags": [
+    "interns",
+    "seating"
+  ],
+  "tintable": [
+    "Seat"
+  ],
+  "anchors": {
+    "seat": [
+      0,
+      0.41,
+      0
+    ]
+  }
+}

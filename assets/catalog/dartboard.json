@@ -1,0 +1,23 @@
+{
+  "id": "dartboard",
+  "name": "Dartboard",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Wall dartboard with three darts stuck in",
+  "tags": [
+    "game-room",
+    "fun",
+    "wall"
+  ],
+  "tintable": [],
+  "anchors": {
+    "bull": [
+      0,
+      0,
+      0.06
+    ]
+  },
+  "mount": "wall: origin is the back centre (bull \u2248 1.73 m up)"
+}

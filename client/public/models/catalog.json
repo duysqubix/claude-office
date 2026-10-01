@@ -1,15 +1,15 @@
 {
-  "generated": "2026-10-01T18:45:08.708Z",
+  "generated": "2026-10-01T19:02:17.473Z",
   "totals": {
-    "all": 228,
-    "done": 74,
-    "planned": 154
+    "all": 232,
+    "done": 110,
+    "planned": 122
   },
   "byArtist": {
     "Claude Cézanne": 53,
     "Claude Lorrain": 37,
-    "Claude Monet": 44,
-    "Claude Monet (round 2)": 21,
+    "Claude Monet": 62,
+    "Claude Monet (round 2)": 7,
     "Claude Rodin": 73
   },
   "items": [
@@ -20,7 +20,7 @@
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "Open moving box of desk stuff for someone being let go: droopy plant, red stapler, photo, poster roll and the duck",
+      "description": "Open moving box of desk stuff for someone being let go: wilting plant, red stapler, photo, poster roll and the duck peeking out",
       "tags": [
         "let-go",
         "carry",
@@ -49,8 +49,8 @@
       "thumb": "models/thumbs/cardboard_box.jpg",
       "dims": {
         "w": 0.66,
-        "h": 0.368,
-        "d": 0.575
+        "h": 0.384,
+        "d": 0.563
       },
       "bbox": {
         "min": [
@@ -60,42 +60,32 @@
         ],
         "max": [
           0.333,
-          0.368,
-          0.28
+          0.384,
+          0.269
         ]
       },
-      "tris": 6439,
+      "tris": 5559,
       "materials": [
         "Cardboard",
-        "Hole",
-        "Tape",
-        "CardboardInner",
-        "Marker",
+        "Brown",
+        "CardboardLight",
+        "Ink",
+        "Red",
         "Pot",
-        "Soil",
-        "Stem",
         "Leaf",
         "LeafSad",
-        "StaplerBase",
         "Chrome",
-        "StaplerRed",
-        "Frame",
-        "PhotoSky",
-        "PhotoHill",
-        "PhotoSun",
-        "PosterRoll",
-        "PosterInside",
-        "Duck",
-        "Bill",
-        "Eye",
-        "Shine",
-        "Cheek"
+        "Sky",
+        "Yellow",
+        "Paper",
+        "Pink",
+        "Orange"
       ],
       "nodes": [
         "cardboard_box"
       ],
       "textures": 1,
-      "bytes": 332752
+      "bytes": 302284
     },
     {
       "id": "clipboard",
@@ -286,7 +276,7 @@
         "laptop"
       ],
       "textures": 1,
-      "bytes": 148124
+      "bytes": 148184
     },
     {
       "id": "mug",
@@ -467,7 +457,7 @@
         "nameplate"
       ],
       "textures": 1,
-      "bytes": 21512
+      "bytes": 20868
     },
     {
       "id": "paper_stack",
@@ -495,7 +485,7 @@
       "thumb": "models/thumbs/paper_stack.jpg",
       "dims": {
         "w": 0.249,
-        "h": 0.038,
+        "h": 0.041,
         "d": 0.315
       },
       "bbox": {
@@ -506,7 +496,7 @@
         ],
         "max": [
           0.123,
-          0.038,
+          0.041,
           0.154
         ]
       },
@@ -527,7 +517,7 @@
         "paper_stack"
       ],
       "textures": 1,
-      "bytes": 99464
+      "bytes": 100988
     },
     {
       "id": "pen_cup",
@@ -609,7 +599,7 @@
       "file": "models/rubber_duck.glb",
       "thumb": "models/thumbs/rubber_duck.jpg",
       "dims": {
-        "w": 0.076,
+        "w": 0.075,
         "h": 0.088,
         "d": 0.114
       },
@@ -625,7 +615,7 @@
           0.053
         ]
       },
-      "tris": 3476,
+      "tris": 2682,
       "materials": [
         "Duck",
         "Bill",
@@ -637,7 +627,7 @@
         "rubber_duck"
       ],
       "textures": 1,
-      "bytes": 124952
+      "bytes": 104908
     },
     {
       "id": "service_bell",
@@ -666,23 +656,23 @@
       "file": "models/service_bell.glb",
       "thumb": "models/thumbs/service_bell.jpg",
       "dims": {
-        "w": 0.116,
-        "h": 0.075,
-        "d": 0.116
+        "w": 0.136,
+        "h": 0.077,
+        "d": 0.136
       },
       "bbox": {
         "min": [
-          -0.058,
+          -0.068,
           0,
-          -0.058
+          -0.068
         ],
         "max": [
-          0.058,
-          0.075,
-          0.058
+          0.068,
+          0.077,
+          0.068
         ]
       },
-      "tris": 1340,
+      "tris": 1484,
       "materials": [
         "Accent",
         "Gold",
@@ -692,7 +682,7 @@
         "service_bell"
       ],
       "textures": 1,
-      "bytes": 57328
+      "bytes": 59904
     },
     {
       "id": "sticky_notes",
@@ -752,6 +742,65 @@
       "bytes": 74760
     },
     {
+      "id": "cactus",
+      "name": "Cactus",
+      "category": "plant",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky ribbed cactus with stubby arms and a pink flower, in a little pot",
+      "tags": [
+        "desk",
+        "plant",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.168,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/cactus.glb",
+      "thumb": "models/thumbs/cactus.jpg",
+      "dims": {
+        "w": 0.13,
+        "h": 0.161,
+        "d": 0.094
+      },
+      "bbox": {
+        "min": [
+          -0.063,
+          0,
+          -0.047
+        ],
+        "max": [
+          0.067,
+          0.161,
+          0.047
+        ]
+      },
+      "tris": 2912,
+      "materials": [
+        "Accent",
+        "Soil",
+        "Pebble",
+        "Cactus",
+        "Spine",
+        "Petal",
+        "FlowerCentre"
+      ],
+      "nodes": [
+        "cactus"
+      ],
+      "textures": 1,
+      "bytes": 127640
+    },
+    {
       "id": "stapler",
       "name": "Stapler",
       "category": "desk-item",
@@ -778,23 +827,23 @@
       "file": "models/stapler.glb",
       "thumb": "models/thumbs/stapler.jpg",
       "dims": {
-        "w": 0.16,
-        "h": 0.051,
+        "w": 0.163,
+        "h": 0.054,
         "d": 0.05
       },
       "bbox": {
         "min": [
-          -0.08,
+          -0.083,
           0,
           -0.025
         ],
         "max": [
           0.08,
-          0.051,
+          0.054,
           0.025
         ]
       },
-      "tris": 708,
+      "tris": 1144,
       "materials": [
         "Base",
         "Chrome",
@@ -804,7 +853,63 @@
         "stapler"
       ],
       "textures": 1,
-      "bytes": 45992
+      "bytes": 60132
+    },
+    {
+      "id": "succulent",
+      "name": "Succulent",
+      "category": "plant",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Tiny echeveria rosette of plump leaves in a chunky glazed pot",
+      "tags": [
+        "desk",
+        "plant",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.108,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/succulent.glb",
+      "thumb": "models/thumbs/succulent.jpg",
+      "dims": {
+        "w": 0.1,
+        "h": 0.095,
+        "d": 0.102
+      },
+      "bbox": {
+        "min": [
+          -0.048,
+          0,
+          -0.051
+        ],
+        "max": [
+          0.052,
+          0.095,
+          0.051
+        ]
+      },
+      "tris": 3120,
+      "materials": [
+        "Accent",
+        "Soil",
+        "Leaf",
+        "LeafLight"
+      ],
+      "nodes": [
+        "succulent"
+      ],
+      "textures": 1,
+      "bytes": 126104
     },
     {
       "id": "award_plaque",
@@ -839,21 +944,6 @@
     {
       "id": "books_stack",
       "name": "Books stack",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "cactus",
-      "name": "Cactus",
       "category": null,
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
@@ -1227,21 +1317,6 @@
       "thumb": null
     },
     {
-      "id": "succulent",
-      "name": "Succulent",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "tiny desk plant",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "tissue_box",
       "name": "Tissue box",
       "category": null,
@@ -1413,12 +1488,12 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Low flat-bottomed mound of lumpy puffs, darker underneath and lighter on top",
+      "description": "Low flat-bottomed mound of faceted low-poly puffs, darker underneath and lighter on top",
       "tags": [
         "bush",
         "garden",
-        "hedge",
-        "foliage"
+        "foliage",
+        "faceted"
       ],
       "tintable": [],
       "anchors": {},
@@ -1426,23 +1501,23 @@
       "file": "models/bush_round.glb",
       "thumb": "models/thumbs/bush_round.jpg",
       "dims": {
-        "w": 1.526,
-        "h": 1.018,
-        "d": 1.314
+        "w": 1.533,
+        "h": 1.04,
+        "d": 1.347
       },
       "bbox": {
         "min": [
-          -0.751,
-          -0.02,
-          -0.654
+          -0.756,
+          -0.031,
+          -0.672
         ],
         "max": [
-          0.775,
-          0.998,
-          0.66
+          0.776,
+          1.009,
+          0.675
         ]
       },
-      "tris": 3822,
+      "tris": 598,
       "materials": [
         "Leaf",
         "LeafDark",
@@ -1452,7 +1527,7 @@
         "bush_round"
       ],
       "textures": 1,
-      "bytes": 147392
+      "bytes": 94620
     },
     {
       "id": "cloud_a",
@@ -1461,7 +1536,7 @@
       "artist": "Claude Lorrain",
       "group": null,
       "priority": "P0",
-      "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 5 m long",
+      "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 5 m long; faintly blue white (#E6F4FC) like WL's",
       "tags": [
         "cloud",
         "sky",
@@ -1497,7 +1572,7 @@
         "cloud_a"
       ],
       "textures": 1,
-      "bytes": 120372
+      "bytes": 120448
     },
     {
       "id": "cloud_b",
@@ -1506,7 +1581,7 @@
       "artist": "Claude Lorrain",
       "group": null,
       "priority": "P0",
-      "description": "Tall bumpy cumulus dome on a flat belly, about 3.8 m wide",
+      "description": "Tall bumpy cumulus dome on a flat belly, about 3.8 m wide; faintly blue white (#E6F4FC) like WL's",
       "tags": [
         "cloud",
         "sky",
@@ -1542,7 +1617,7 @@
         "cloud_b"
       ],
       "textures": 1,
-      "bytes": 112180
+      "bytes": 112260
     },
     {
       "id": "cloud_c",
@@ -1551,7 +1626,7 @@
       "artist": "Claude Lorrain",
       "group": null,
       "priority": "P0",
-      "description": "Small three-bump wisp, about 2.9 m long",
+      "description": "Small three-bump wisp, about 2.9 m long; faintly blue white (#E6F4FC) like WL's",
       "tags": [
         "cloud",
         "sky",
@@ -1587,7 +1662,7 @@
         "cloud_c"
       ],
       "textures": 1,
-      "bytes": 72112
+      "bytes": 72192
     },
     {
       "id": "company_sign",
@@ -1704,12 +1779,16 @@
     {
       "id": "flower_bed",
       "name": "Flower bed",
-      "category": null,
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "",
-      "tags": [],
+      "description": "Chunky wooden raised bed: fat tulips on leafy stems at the back, leafy mounds crowned with daisies in front",
+      "tags": [
+        "garden",
+        "flowers",
+        "planter"
+      ],
       "tintable": [],
       "anchors": {},
       "status": "done",
@@ -1810,14 +1889,34 @@
     {
       "id": "park_bench",
       "name": "Park bench",
-      "category": null,
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "",
-      "tags": [],
+      "description": "Honey-wood slats on rounded deep-green iron frames with armrests",
+      "tags": [
+        "seating",
+        "garden",
+        "bench"
+      ],
       "tintable": [],
-      "anchors": {},
+      "anchors": {
+        "seatL": [
+          -0.45,
+          0.45,
+          0.02
+        ],
+        "seatC": [
+          0,
+          0.45,
+          0.02
+        ],
+        "seatR": [
+          0.45,
+          0.45,
+          0.02
+        ]
+      },
       "status": "done",
       "file": "models/park_bench.glb",
       "thumb": "models/thumbs/park_bench.jpg",
@@ -1851,14 +1950,21 @@
     },
     {
       "id": "plant_monstera",
-      "name": "Plant monstera",
-      "category": null,
+      "name": "Monstera",
+      "category": "plant",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "big indoor plant",
-      "tags": [],
-      "tintable": [],
+      "description": "Big indoor monstera: nine split leaves on arching stems in a chunky rolled-rim ceramic pot",
+      "tags": [
+        "plant",
+        "indoor",
+        "decor",
+        "pot"
+      ],
+      "tintable": [
+        "Accent"
+      ],
       "anchors": {},
       "status": "done",
       "file": "models/plant_monstera.glb",
@@ -1974,14 +2080,25 @@
     {
       "id": "street_lamp",
       "name": "Street lamp",
-      "category": null,
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "emissive head",
-      "tags": [],
+      "description": "Slate post with sunny collar rings and a big glowing globe under a domed cap",
+      "tags": [
+        "lamp",
+        "light",
+        "garden",
+        "path"
+      ],
       "tintable": [],
-      "anchors": {},
+      "anchors": {
+        "light": [
+          0,
+          2.92,
+          0
+        ]
+      },
       "status": "done",
       "file": "models/street_lamp.glb",
       "thumb": "models/thumbs/street_lamp.jpg",
@@ -2021,13 +2138,14 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Four stacked soft cones with wavy scalloped hems on a stubby trunk",
+      "description": "Four stacked faceted cones with zig-zag scalloped hems on a stubby trunk",
       "tags": [
         "tree",
         "pine",
         "garden",
         "lawn",
-        "foliage"
+        "foliage",
+        "faceted"
       ],
       "tintable": [],
       "anchors": {
@@ -2041,23 +2159,23 @@
       "file": "models/tree_pine.glb",
       "thumb": "models/thumbs/tree_pine.jpg",
       "dims": {
-        "w": 2.709,
+        "w": 2.749,
         "h": 3.76,
-        "d": 2.74
+        "d": 2.791
       },
       "bbox": {
         "min": [
-          -1.318,
+          -1.332,
           0,
-          -1.37
+          -1.395
         ],
         "max": [
-          1.391,
+          1.417,
           3.76,
-          1.37
+          1.395
         ]
       },
-      "tris": 4600,
+      "tris": 1248,
       "materials": [
         "Trunk",
         "LeafDark",
@@ -2068,7 +2186,7 @@
         "tree_pine"
       ],
       "textures": 1,
-      "bytes": 152680
+      "bytes": 106648
     },
     {
       "id": "tree_round",
@@ -2077,12 +2195,13 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Chunky leaning trunk with soft buttress roots under a wide puffy canopy, darker green below and lighter on top",
+      "description": "Chunky leaning trunk with soft buttress roots under a wide canopy of faceted low-poly puffs, darker green below and lighter on top",
       "tags": [
         "tree",
         "garden",
         "lawn",
-        "foliage"
+        "foliage",
+        "faceted"
       ],
       "tintable": [],
       "anchors": {
@@ -2090,34 +2209,29 @@
           0,
           2.7,
           0
-        ],
-        "trunkTop": [
-          0.1,
-          1.5,
-          0
         ]
       },
       "status": "done",
       "file": "models/tree_round.glb",
       "thumb": "models/thumbs/tree_round.jpg",
       "dims": {
-        "w": 3.117,
-        "h": 4.035,
-        "d": 3.272
+        "w": 3.086,
+        "h": 4.049,
+        "d": 3.315
       },
       "bbox": {
         "min": [
-          -1.525,
+          -1.517,
           0,
-          -1.641
+          -1.658
         ],
         "max": [
-          1.593,
-          4.035,
-          1.631
+          1.57,
+          4.049,
+          1.658
         ]
       },
-      "tris": 5480,
+      "tris": 1234,
       "materials": [
         "Trunk",
         "Leaf",
@@ -2128,7 +2242,532 @@
         "tree_round"
       ],
       "textures": 1,
-      "bytes": 196008
+      "bytes": 135304
+    },
+    {
+      "id": "fence_picket",
+      "name": "Picket fence",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "2 m section of chunky cream pickets with pointed tops on two rails, with a ball-capped post at the left end",
+      "tags": [
+        "fence",
+        "garden",
+        "boundary"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/fence_picket.glb",
+      "thumb": "models/thumbs/fence_picket.jpg",
+      "dims": {
+        "w": 2.08,
+        "h": 1.05,
+        "d": 0.16
+      },
+      "bbox": {
+        "min": [
+          -1.08,
+          0,
+          -0.08
+        ],
+        "max": [
+          1,
+          1.05,
+          0.08
+        ]
+      },
+      "tris": 1888,
+      "materials": [
+        "Paint",
+        "PostPaint"
+      ],
+      "nodes": [
+        "fence_picket"
+      ],
+      "textures": 1,
+      "bytes": 101644
+    },
+    {
+      "id": "grass_tuft",
+      "name": "Grass tuft",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Clump of chunky faceted grass blades fanning out, about 0.35 m tall",
+      "tags": [
+        "grass",
+        "lawn",
+        "scatter",
+        "faceted"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/grass_tuft.glb",
+      "thumb": "models/thumbs/grass_tuft.jpg",
+      "dims": {
+        "w": 0.62,
+        "h": 0.31,
+        "d": 0.456
+      },
+      "bbox": {
+        "min": [
+          -0.274,
+          -0.013,
+          -0.244
+        ],
+        "max": [
+          0.346,
+          0.297,
+          0.212
+        ]
+      },
+      "tris": 390,
+      "materials": [
+        "Grass",
+        "GrassDark",
+        "GrassLight"
+      ],
+      "nodes": [
+        "grass_tuft"
+      ],
+      "textures": 1,
+      "bytes": 37720
+    },
+    {
+      "id": "hedge",
+      "name": "Hedge section",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "2 m section of clipped hedge: one faceted block with facets mottled in three greens, sunlit on top",
+      "tags": [
+        "hedge",
+        "garden",
+        "boundary",
+        "faceted"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/hedge.glb",
+      "thumb": "models/thumbs/hedge.jpg",
+      "dims": {
+        "w": 2.048,
+        "h": 0.915,
+        "d": 0.858
+      },
+      "bbox": {
+        "min": [
+          -1.03,
+          0,
+          -0.431
+        ],
+        "max": [
+          1.018,
+          0.915,
+          0.427
+        ]
+      },
+      "tris": 1200,
+      "materials": [
+        "Leaf",
+        "LeafLight",
+        "LeafDark"
+      ],
+      "nodes": [
+        "hedge"
+      ],
+      "textures": 1,
+      "bytes": 97696
+    },
+    {
+      "id": "palm_indoor",
+      "name": "Indoor palm",
+      "category": "plant",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Three slim canes in a ribbed woven basket, crowned by arching fronds of slender leaflets",
+      "tags": [
+        "plant",
+        "indoor",
+        "decor",
+        "pot",
+        "palm"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/palm_indoor.glb",
+      "thumb": "models/thumbs/palm_indoor.jpg",
+      "dims": {
+        "w": 1.358,
+        "h": 1.525,
+        "d": 1.005
+      },
+      "bbox": {
+        "min": [
+          -0.639,
+          0,
+          -0.511
+        ],
+        "max": [
+          0.719,
+          1.525,
+          0.494
+        ]
+      },
+      "tris": 6460,
+      "materials": [
+        "Basket",
+        "BasketBand",
+        "Soil",
+        "Cane",
+        "Rachis",
+        "LeafletDark",
+        "LeafletLight",
+        "Leaflet"
+      ],
+      "nodes": [
+        "palm_indoor"
+      ],
+      "textures": 1,
+      "bytes": 295460
+    },
+    {
+      "id": "plant_fern",
+      "name": "Boston fern",
+      "category": "plant",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "A fountain of arching fronds of little leaflets spilling over a chunky terracotta pot",
+      "tags": [
+        "plant",
+        "indoor",
+        "decor",
+        "pot"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/plant_fern.glb",
+      "thumb": "models/thumbs/plant_fern.jpg",
+      "dims": {
+        "w": 0.91,
+        "h": 0.423,
+        "d": 0.862
+      },
+      "bbox": {
+        "min": [
+          -0.488,
+          0,
+          -0.473
+        ],
+        "max": [
+          0.422,
+          0.423,
+          0.388
+        ]
+      },
+      "tris": 5916,
+      "materials": [
+        "Pot",
+        "PotRim",
+        "Soil",
+        "Rachis",
+        "FrondDark",
+        "FrondLight",
+        "Frond"
+      ],
+      "nodes": [
+        "plant_fern"
+      ],
+      "textures": 1,
+      "bytes": 333304
+    },
+    {
+      "id": "plant_hanging",
+      "name": "Hanging pothos",
+      "category": "plant",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Curly iron wall bracket holding a round ceramic bowl on jute ropes, heart-leaf vines tumbling over the rim",
+      "tags": [
+        "plant",
+        "indoor",
+        "decor",
+        "wall",
+        "hanging"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "bowl": [
+          0,
+          -0.62,
+          0.38
+        ]
+      },
+      "status": "done",
+      "file": "models/plant_hanging.glb",
+      "thumb": "models/thumbs/plant_hanging.jpg",
+      "dims": {
+        "w": 0.576,
+        "h": 1.269,
+        "d": 0.689
+      },
+      "bbox": {
+        "min": [
+          -0.288,
+          -1.189,
+          0
+        ],
+        "max": [
+          0.288,
+          0.08,
+          0.689
+        ]
+      },
+      "tris": 3546,
+      "materials": [
+        "Iron",
+        "Accent",
+        "Soil",
+        "Rope",
+        "Leaf",
+        "LeafDark",
+        "LeafVariegated",
+        "Vine"
+      ],
+      "nodes": [
+        "plant_hanging"
+      ],
+      "textures": 1,
+      "bytes": 212536
+    },
+    {
+      "id": "plant_snake",
+      "name": "Snake plant",
+      "category": "plant",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Thick upright sword leaves in three greens in a tall cream ceramic pot with a chunky coloured band",
+      "tags": [
+        "plant",
+        "indoor",
+        "decor",
+        "pot"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {},
+      "status": "done",
+      "file": "models/plant_snake.glb",
+      "thumb": "models/thumbs/plant_snake.jpg",
+      "dims": {
+        "w": 0.407,
+        "h": 0.926,
+        "d": 0.364
+      },
+      "bbox": {
+        "min": [
+          -0.213,
+          0,
+          -0.182
+        ],
+        "max": [
+          0.194,
+          0.926,
+          0.182
+        ]
+      },
+      "tris": 1756,
+      "materials": [
+        "PotCream",
+        "Accent",
+        "Soil",
+        "LeafDark",
+        "Leaf",
+        "LeafLight"
+      ],
+      "nodes": [
+        "plant_snake"
+      ],
+      "textures": 1,
+      "bytes": 104692
+    },
+    {
+      "id": "planter_box",
+      "name": "Planter box",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Long wooden plank trough with corner posts, overflowing with faceted greenery and flowers",
+      "tags": [
+        "planter",
+        "garden",
+        "flowers",
+        "patio"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/planter_box.glb",
+      "thumb": "models/thumbs/planter_box.jpg",
+      "dims": {
+        "w": 1.274,
+        "h": 0.715,
+        "d": 0.565
+      },
+      "bbox": {
+        "min": [
+          -0.644,
+          0,
+          -0.279
+        ],
+        "max": [
+          0.63,
+          0.715,
+          0.286
+        ]
+      },
+      "tris": 3918,
+      "materials": [
+        "Wood",
+        "WoodDark",
+        "Leaf",
+        "LeafLight",
+        "LeafDark",
+        "Petal0",
+        "FlowerCentre",
+        "Petal1",
+        "Petal2",
+        "Petal3",
+        "Petal4"
+      ],
+      "nodes": [
+        "planter_box"
+      ],
+      "textures": 1,
+      "bytes": 258308
+    },
+    {
+      "id": "rock_cluster",
+      "name": "Rock cluster",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Faceted warm-grey boulders half-sunk in the lawn, moss on their sky-facing facets",
+      "tags": [
+        "rock",
+        "garden",
+        "lawn",
+        "faceted"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/rock_cluster.glb",
+      "thumb": "models/thumbs/rock_cluster.jpg",
+      "dims": {
+        "w": 1.407,
+        "h": 0.488,
+        "d": 1.04
+      },
+      "bbox": {
+        "min": [
+          -0.634,
+          -0.052,
+          -0.588
+        ],
+        "max": [
+          0.773,
+          0.436,
+          0.452
+        ]
+      },
+      "tris": 320,
+      "materials": [
+        "Rock",
+        "Moss",
+        "RockLight",
+        "RockWarm"
+      ],
+      "nodes": [
+        "rock_cluster"
+      ],
+      "textures": 1,
+      "bytes": 53504
+    },
+    {
+      "id": "tree_blossom",
+      "name": "Blossom tree",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Cherry tree in full pink bloom: a stout forked trunk, a wide umbrella of faceted pink puffs and fallen petals on the grass",
+      "tags": [
+        "tree",
+        "garden",
+        "lawn",
+        "foliage",
+        "faceted",
+        "pink"
+      ],
+      "tintable": [],
+      "anchors": {
+        "canopy": [
+          0,
+          2.6,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/tree_blossom.glb",
+      "thumb": "models/thumbs/tree_blossom.jpg",
+      "dims": {
+        "w": 3.577,
+        "h": 3.785,
+        "d": 3.503
+      },
+      "bbox": {
+        "min": [
+          -1.805,
+          -0.005,
+          -1.761
+        ],
+        "max": [
+          1.771,
+          3.78,
+          1.742
+        ]
+      },
+      "tris": 1642,
+      "materials": [
+        "Trunk",
+        "Blossom",
+        "BlossomDeep",
+        "BlossomLight"
+      ],
+      "nodes": [
+        "tree_blossom"
+      ],
+      "textures": 1,
+      "bytes": 180220
     },
     {
       "id": "cloud",
@@ -2176,21 +2815,6 @@
       "thumb": null
     },
     {
-      "id": "fence_picket",
-      "name": "Fence picket",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "fire_hydrant",
       "name": "Fire hydrant",
       "category": null,
@@ -2208,36 +2832,6 @@
     {
       "id": "flag_pole",
       "name": "Flag pole",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "grass_tuft",
-      "name": "Grass tuft",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hedge",
-      "name": "Hedge",
       "category": null,
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
@@ -2281,98 +2875,8 @@
       "thumb": null
     },
     {
-      "id": "palm_indoor",
-      "name": "Palm indoor",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "picnic_table",
       "name": "Picnic table",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "plant_fern",
-      "name": "Plant fern",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "plant_hanging",
-      "name": "Plant hanging",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "plant_snake",
-      "name": "Plant snake",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "planter_box",
-      "name": "Planter box",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "rock_cluster",
-      "name": "Rock cluster",
       "category": null,
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
@@ -2393,21 +2897,6 @@
       "group": "building, outdoors, plants",
       "priority": "P1",
       "description": "cute parked car",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "tree_blossom",
-      "name": "Tree blossom",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "pink",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -2536,7 +3025,7 @@
         "coffee_machine"
       ],
       "textures": 1,
-      "bytes": 231484
+      "bytes": 227092
     },
     {
       "id": "computer_mouse",
@@ -2590,7 +3079,159 @@
         "computer_mouse"
       ],
       "textures": 1,
-      "bytes": 19812
+      "bytes": 19456
+    },
+    {
+      "id": "conference_chair",
+      "name": "Conference chair",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Puffy swivel tub chair for the Team Room",
+      "tags": [
+        "seating",
+        "team-room",
+        "meeting-room"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.52,
+          0.02
+        ]
+      },
+      "status": "done",
+      "file": "models/conference_chair.glb",
+      "thumb": "models/thumbs/conference_chair.jpg",
+      "dims": {
+        "w": 0.698,
+        "h": 0.86,
+        "d": 0.68
+      },
+      "bbox": {
+        "min": [
+          -0.349,
+          0,
+          -0.35
+        ],
+        "max": [
+          0.349,
+          0.86,
+          0.33
+        ]
+      },
+      "tris": 1700,
+      "materials": [
+        "Chrome",
+        "Shell",
+        "Seat"
+      ],
+      "nodes": [
+        "conference_chair"
+      ],
+      "textures": 1,
+      "bytes": 79184
+    },
+    {
+      "id": "conference_table",
+      "name": "Conference table",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Rounded conference table for eight with a glowing cable hub",
+      "tags": [
+        "team-room",
+        "meeting-room",
+        "table"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.75,
+          0
+        ],
+        "seat0": [
+          -0.9,
+          0,
+          0.95
+        ],
+        "seat1": [
+          0,
+          0,
+          0.95
+        ],
+        "seat2": [
+          0.9,
+          0,
+          0.95
+        ],
+        "seat3": [
+          -0.9,
+          0,
+          -0.95
+        ],
+        "seat4": [
+          0,
+          0,
+          -0.95
+        ],
+        "seat5": [
+          0.9,
+          0,
+          -0.95
+        ],
+        "seat6": [
+          -1.85,
+          0,
+          0
+        ],
+        "seat7": [
+          1.85,
+          0,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/conference_table.glb",
+      "thumb": "models/thumbs/conference_table.jpg",
+      "dims": {
+        "w": 3.02,
+        "h": 0.775,
+        "d": 1.32
+      },
+      "bbox": {
+        "min": [
+          -1.51,
+          0,
+          -0.66
+        ],
+        "max": [
+          1.51,
+          0.775,
+          0.66
+        ]
+      },
+      "tris": 2068,
+      "materials": [
+        "Wood",
+        "Accent",
+        "Hub",
+        "Glow",
+        "Base"
+      ],
+      "nodes": [
+        "conference_table"
+      ],
+      "textures": 1,
+      "bytes": 117784
     },
     {
       "id": "couch",
@@ -2654,7 +3295,7 @@
         "couch"
       ],
       "textures": 1,
-      "bytes": 149972
+      "bytes": 146284
     },
     {
       "id": "desk",
@@ -2733,7 +3374,7 @@
         "desk"
       ],
       "textures": 1,
-      "bytes": 108500
+      "bytes": 106176
     },
     {
       "id": "desk_divider",
@@ -2780,7 +3421,7 @@
         "desk_divider"
       ],
       "textures": 1,
-      "bytes": 51488
+      "bytes": 51008
     },
     {
       "id": "desk_setup",
@@ -2855,7 +3496,7 @@
         "desk_setup"
       ],
       "textures": 1,
-      "bytes": 303496
+      "bytes": 300740
     },
     {
       "id": "filing_cabinet",
@@ -2914,7 +3555,71 @@
         "Drawer3"
       ],
       "textures": 1,
-      "bytes": 141472
+      "bytes": 138828
+    },
+    {
+      "id": "flipchart",
+      "name": "Flipchart",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Easel flipchart with a drawable paper pad",
+      "tags": [
+        "team-room",
+        "meeting-room",
+        "board"
+      ],
+      "tintable": [
+        "Board"
+      ],
+      "anchors": {
+        "padCenter": [
+          0,
+          1.22,
+          0
+        ],
+        "presenter": [
+          0.55,
+          0,
+          0.4
+        ]
+      },
+      "status": "done",
+      "file": "models/flipchart.glb",
+      "thumb": "models/thumbs/flipchart.jpg",
+      "dims": {
+        "w": 0.78,
+        "h": 1.769,
+        "d": 0.707
+      },
+      "bbox": {
+        "min": [
+          -0.39,
+          -0.003,
+          -0.567
+        ],
+        "max": [
+          0.39,
+          1.766,
+          0.141
+        ]
+      },
+      "tris": 890,
+      "materials": [
+        "Wood",
+        "Backer",
+        "MarkerRed",
+        "MarkerBlue",
+        "Board",
+        "Clamp",
+        "Pages"
+      ],
+      "nodes": [
+        "flipchart"
+      ],
+      "textures": 1,
+      "bytes": 55112
     },
     {
       "id": "fridge",
@@ -2969,7 +3674,306 @@
         "Door"
       ],
       "textures": 1,
-      "bytes": 72184
+      "bytes": 71468
+    },
+    {
+      "id": "glass_partition",
+      "name": "Glass partition",
+      "category": "building",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Frosted glass wall module (2 m) with a chunky frame; tiles along its length",
+      "tags": [
+        "team-room",
+        "wall",
+        "glass"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {},
+      "status": "done",
+      "file": "models/glass_partition.glb",
+      "thumb": "models/thumbs/glass_partition.jpg",
+      "dims": {
+        "w": 2,
+        "h": 2.3,
+        "d": 0.09
+      },
+      "bbox": {
+        "min": [
+          -1,
+          0,
+          -0.045
+        ],
+        "max": [
+          1,
+          2.3,
+          0.045
+        ]
+      },
+      "tris": 520,
+      "materials": [
+        "Frame",
+        "Accent",
+        "Glass",
+        "FrostBand"
+      ],
+      "nodes": [
+        "glass_partition"
+      ],
+      "textures": 1,
+      "bytes": 30644
+    },
+    {
+      "id": "intern_bench",
+      "name": "Intern bench",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Scrappy chainable intern desk module with two stations",
+      "tags": [
+        "interns",
+        "desk",
+        "workstation",
+        "modular"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.56,
+          0
+        ],
+        "station0": [
+          -0.4,
+          0.56,
+          -0.02
+        ],
+        "station1": [
+          0.4,
+          0.56,
+          -0.02
+        ],
+        "stool0": [
+          -0.4,
+          0,
+          0.5
+        ],
+        "stool1": [
+          0.4,
+          0,
+          0.5
+        ]
+      },
+      "status": "done",
+      "file": "models/intern_bench.glb",
+      "thumb": "models/thumbs/intern_bench.jpg",
+      "dims": {
+        "w": 1.6,
+        "h": 0.564,
+        "d": 0.671
+      },
+      "bbox": {
+        "min": [
+          -0.8,
+          0,
+          -0.333
+        ],
+        "max": [
+          0.8,
+          0.564,
+          0.338
+        ]
+      },
+      "tris": 1232,
+      "materials": [
+        "Plywood",
+        "PlyEdge",
+        "Tape",
+        "Note",
+        "Sawhorse",
+        "BookA",
+        "BookB",
+        "Accent",
+        "Cable"
+      ],
+      "nodes": [
+        "intern_bench"
+      ],
+      "textures": 1,
+      "bytes": 96268
+    },
+    {
+      "id": "intern_sign",
+      "name": "Intern sign",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Scrappy cardboard INTERNS sign on a pole in a traffic cone",
+      "tags": [
+        "interns",
+        "sign",
+        "text"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/intern_sign.glb",
+      "thumb": "models/thumbs/intern_sign.jpg",
+      "dims": {
+        "w": 0.649,
+        "h": 1.431,
+        "d": 0.34
+      },
+      "bbox": {
+        "min": [
+          -0.325,
+          0,
+          -0.17
+        ],
+        "max": [
+          0.325,
+          1.431,
+          0.17
+        ]
+      },
+      "tris": 946,
+      "materials": [
+        "Cone",
+        "Stripe",
+        "Pole",
+        "Cardboard",
+        "Marker",
+        "Tape"
+      ],
+      "nodes": [
+        "intern_sign"
+      ],
+      "textures": 1,
+      "bytes": 57412
+    },
+    {
+      "id": "intern_station",
+      "name": "Intern station",
+      "category": "desk-item",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Hand-me-down little monitor and keyboard for one intern",
+      "tags": [
+        "interns",
+        "desk",
+        "computer",
+        "screen"
+      ],
+      "tintable": [
+        "Screen"
+      ],
+      "anchors": {
+        "screenCenter": [
+          0,
+          0.2,
+          0.012
+        ],
+        "keyboard": [
+          0,
+          0,
+          0.17
+        ]
+      },
+      "status": "done",
+      "file": "models/intern_station.glb",
+      "thumb": "models/thumbs/intern_station.jpg",
+      "dims": {
+        "w": 0.344,
+        "h": 0.335,
+        "d": 0.48
+      },
+      "bbox": {
+        "min": [
+          -0.165,
+          0,
+          -0.26
+        ],
+        "max": [
+          0.179,
+          0.335,
+          0.22
+        ]
+      },
+      "tris": 1306,
+      "materials": [
+        "Beige",
+        "Vent",
+        "Screen",
+        "Note",
+        "Keys"
+      ],
+      "nodes": [
+        "intern_station"
+      ],
+      "textures": 1,
+      "bytes": 85044
+    },
+    {
+      "id": "intern_stool",
+      "name": "Intern stool",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Little wobbly stool for interns",
+      "tags": [
+        "interns",
+        "seating"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.41,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/intern_stool.glb",
+      "thumb": "models/thumbs/intern_stool.jpg",
+      "dims": {
+        "w": 0.34,
+        "h": 0.425,
+        "d": 0.34
+      },
+      "bbox": {
+        "min": [
+          -0.17,
+          0,
+          -0.17
+        ],
+        "max": [
+          0.17,
+          0.425,
+          0.17
+        ]
+      },
+      "tris": 640,
+      "materials": [
+        "Seat",
+        "Wood",
+        "Paper"
+      ],
+      "nodes": [
+        "intern_stool"
+      ],
+      "textures": 1,
+      "bytes": 38824
     },
     {
       "id": "keyboard",
@@ -3021,7 +4025,7 @@
         "keyboard"
       ],
       "textures": 1,
-      "bytes": 114220
+      "bytes": 115452
     },
     {
       "id": "kitchen_counter",
@@ -3084,7 +4088,7 @@
         "kitchen_counter"
       ],
       "textures": 1,
-      "bytes": 124516
+      "bytes": 120744
     },
     {
       "id": "manager_chair",
@@ -3139,7 +4143,7 @@
         "manager_chair"
       ],
       "textures": 1,
-      "bytes": 264504
+      "bytes": 255064
     },
     {
       "id": "manager_desk",
@@ -3213,7 +4217,7 @@
         "manager_desk"
       ],
       "textures": 1,
-      "bytes": 150160
+      "bytes": 147304
     },
     {
       "id": "monitor",
@@ -3267,7 +4271,7 @@
         "monitor"
       ],
       "textures": 1,
-      "bytes": 45748
+      "bytes": 45288
     },
     {
       "id": "now_hiring_sign",
@@ -3315,7 +4319,7 @@
         "now_hiring_sign"
       ],
       "textures": 1,
-      "bytes": 241936
+      "bytes": 240232
     },
     {
       "id": "office_chair",
@@ -3370,7 +4374,7 @@
         "office_chair"
       ],
       "textures": 1,
-      "bytes": 251196
+      "bytes": 241636
     },
     {
       "id": "plant_pot",
@@ -3421,7 +4425,7 @@
         "plant_pot"
       ],
       "textures": 1,
-      "bytes": 213748
+      "bytes": 203820
     },
     {
       "id": "reception_desk",
@@ -3490,7 +4494,67 @@
         "reception_desk"
       ],
       "textures": 1,
-      "bytes": 226276
+      "bytes": 222060
+    },
+    {
+      "id": "sticky_wall",
+      "name": "Sticky wall",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Kanban wall board covered in sticky notes",
+      "tags": [
+        "team-room",
+        "wall",
+        "planning"
+      ],
+      "tintable": [],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.04
+        ]
+      },
+      "status": "done",
+      "file": "models/sticky_wall.glb",
+      "thumb": "models/thumbs/sticky_wall.jpg",
+      "dims": {
+        "w": 1.92,
+        "h": 1.22,
+        "d": 0.066
+      },
+      "bbox": {
+        "min": [
+          -0.96,
+          -0.61,
+          0
+        ],
+        "max": [
+          0.96,
+          0.61,
+          0.066
+        ]
+      },
+      "tris": 2441,
+      "materials": [
+        "Cork",
+        "Frame",
+        "Divider",
+        "Ink",
+        "Note3",
+        "Note0",
+        "Note4",
+        "Note5",
+        "Note1",
+        "Note2"
+      ],
+      "nodes": [
+        "sticky_wall"
+      ],
+      "textures": 1,
+      "bytes": 177104
     },
     {
       "id": "wall_clock",
@@ -3546,7 +4610,65 @@
         "MinuteHand"
       ],
       "textures": 1,
-      "bytes": 105796
+      "bytes": 104492
+    },
+    {
+      "id": "wall_screen",
+      "name": "Wall screen",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Huge Team Room wall display for live plan usage and team stats",
+      "tags": [
+        "team-room",
+        "wall",
+        "screen"
+      ],
+      "tintable": [
+        "Screen"
+      ],
+      "anchors": {
+        "screenCenter": [
+          0,
+          0,
+          0.122
+        ]
+      },
+      "status": "done",
+      "file": "models/wall_screen.glb",
+      "thumb": "models/thumbs/wall_screen.jpg",
+      "dims": {
+        "w": 3.38,
+        "h": 2.12,
+        "d": 0.151
+      },
+      "bbox": {
+        "min": [
+          -1.69,
+          -1.13,
+          0
+        ],
+        "max": [
+          1.69,
+          0.99,
+          0.151
+        ]
+      },
+      "tris": 646,
+      "materials": [
+        "Bezel",
+        "Soundbar",
+        "Led",
+        "Logo",
+        "Screen",
+        "Grille"
+      ],
+      "nodes": [
+        "wall_screen"
+      ],
+      "textures": 1,
+      "bytes": 59624
     },
     {
       "id": "water_cooler",
@@ -3606,7 +4728,7 @@
         "water_cooler"
       ],
       "textures": 1,
-      "bytes": 112668
+      "bytes": 110836
     },
     {
       "id": "whiteboard",
@@ -3667,7 +4789,74 @@
         "whiteboard"
       ],
       "textures": 1,
-      "bytes": 102992
+      "bytes": 101600
+    },
+    {
+      "id": "aquarium",
+      "name": "Aquarium",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Fish tank on a cabinet with three swimmable cartoon fish",
+      "tags": [
+        "team-room",
+        "lounge",
+        "decor"
+      ],
+      "tintable": [],
+      "anchors": {
+        "tankCenter": [
+          0,
+          1.04,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/aquarium.glb",
+      "thumb": "models/thumbs/aquarium.jpg",
+      "dims": {
+        "w": 1.06,
+        "h": 1.365,
+        "d": 0.532
+      },
+      "bbox": {
+        "min": [
+          -0.53,
+          0,
+          -0.25
+        ],
+        "max": [
+          0.53,
+          1.365,
+          0.282
+        ]
+      },
+      "tris": 2548,
+      "materials": [
+        "Fish1",
+        "Eye",
+        "Pupil",
+        "Fish2",
+        "Fish3",
+        "Cabinet",
+        "Trim",
+        "Glass",
+        "Water",
+        "Light",
+        "Gravel",
+        "Plant",
+        "Plant2",
+        "Castle"
+      ],
+      "nodes": [
+        "aquarium",
+        "Fish1",
+        "Fish2",
+        "Fish3"
+      ],
+      "textures": 1,
+      "bytes": 147940
     },
     {
       "id": "armchair",
@@ -3721,7 +4910,64 @@
         "armchair"
       ],
       "textures": 1,
-      "bytes": 109012
+      "bytes": 105620
+    },
+    {
+      "id": "basketball_hoop",
+      "name": "Basketball hoop",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Wall-mounted basketball hoop with a rope net",
+      "tags": [
+        "game-room",
+        "fun",
+        "wall"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "rim": [
+          0,
+          -0.22,
+          0.32
+        ]
+      },
+      "status": "done",
+      "file": "models/basketball_hoop.glb",
+      "thumb": "models/thumbs/basketball_hoop.jpg",
+      "dims": {
+        "w": 0.9,
+        "h": 0.736,
+        "d": 0.536
+      },
+      "bbox": {
+        "min": [
+          -0.45,
+          -0.426,
+          0
+        ],
+        "max": [
+          0.45,
+          0.31,
+          0.536
+        ]
+      },
+      "tris": 1776,
+      "materials": [
+        "Backboard",
+        "Accent",
+        "Bracket",
+        "Rim",
+        "Net"
+      ],
+      "nodes": [
+        "basketball_hoop"
+      ],
+      "textures": 1,
+      "bytes": 95748
     },
     {
       "id": "beanbag",
@@ -3775,7 +5021,7 @@
         "beanbag"
       ],
       "textures": 1,
-      "bytes": 53500
+      "bytes": 53320
     },
     {
       "id": "bookshelf",
@@ -3830,7 +5076,7 @@
         "bookshelf"
       ],
       "textures": 1,
-      "bytes": 216372
+      "bytes": 210436
     },
     {
       "id": "coat_rack",
@@ -3877,7 +5123,7 @@
         "coat_rack"
       ],
       "textures": 1,
-      "bytes": 89508
+      "bytes": 89708
     },
     {
       "id": "coffee_table",
@@ -3929,7 +5175,64 @@
         "coffee_table"
       ],
       "textures": 1,
-      "bytes": 55016
+      "bytes": 53792
+    },
+    {
+      "id": "dartboard",
+      "name": "Dartboard",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Wall dartboard with three darts stuck in",
+      "tags": [
+        "game-room",
+        "fun",
+        "wall"
+      ],
+      "tintable": [],
+      "anchors": {
+        "bull": [
+          0,
+          0,
+          0.06
+        ]
+      },
+      "status": "done",
+      "file": "models/dartboard.glb",
+      "thumb": "models/thumbs/dartboard.jpg",
+      "dims": {
+        "w": 0.6,
+        "h": 0.6,
+        "d": 0.2
+      },
+      "bbox": {
+        "min": [
+          -0.3,
+          -0.3,
+          0
+        ],
+        "max": [
+          0.3,
+          0.3,
+          0.2
+        ]
+      },
+      "tris": 2892,
+      "materials": [
+        "Rim",
+        "Dark",
+        "Cream",
+        "Red",
+        "Green",
+        "Brass",
+        "Flight"
+      ],
+      "nodes": [
+        "dartboard"
+      ],
+      "textures": 1,
+      "bytes": 174932
     },
     {
       "id": "desk_lamp",
@@ -3983,7 +5286,65 @@
         "desk_lamp"
       ],
       "textures": 1,
-      "bytes": 62460
+      "bytes": 61484
+    },
+    {
+      "id": "employee_of_month",
+      "name": "Employee of the Month",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Wall frame with a drawable portrait for the employee of the month",
+      "tags": [
+        "wall",
+        "reward",
+        "team-room"
+      ],
+      "tintable": [
+        "Label"
+      ],
+      "anchors": {
+        "labelCenter": [
+          0,
+          -0.03,
+          0.032
+        ]
+      },
+      "status": "done",
+      "file": "models/employee_of_month.glb",
+      "thumb": "models/thumbs/employee_of_month.jpg",
+      "dims": {
+        "w": 0.755,
+        "h": 0.77,
+        "d": 0.068
+      },
+      "bbox": {
+        "min": [
+          -0.378,
+          -0.35,
+          0
+        ],
+        "max": [
+          0.378,
+          0.42,
+          0.068
+        ]
+      },
+      "tris": 1215,
+      "materials": [
+        "Backing",
+        "Frame",
+        "Label",
+        "Ribbon",
+        "Letters",
+        "Star"
+      ],
+      "nodes": [
+        "employee_of_month"
+      ],
+      "textures": 1,
+      "bytes": 73308
     },
     {
       "id": "floor_lamp",
@@ -4035,7 +5396,73 @@
         "floor_lamp"
       ],
       "textures": 1,
-      "bytes": 42468
+      "bytes": 42128
+    },
+    {
+      "id": "focus_pod",
+      "name": "Focus pod",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Phone booth for heads-down focus, with a swing-open glass door",
+      "tags": [
+        "team-room",
+        "focus",
+        "booth"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "inside": [
+          0,
+          0,
+          -0.05
+        ],
+        "front": [
+          0,
+          0,
+          0.85
+        ]
+      },
+      "status": "done",
+      "file": "models/focus_pod.glb",
+      "thumb": "models/thumbs/focus_pod.jpg",
+      "dims": {
+        "w": 1.14,
+        "h": 2.27,
+        "d": 1.175
+      },
+      "bbox": {
+        "min": [
+          -0.57,
+          0,
+          -0.57
+        ],
+        "max": [
+          0.57,
+          2.27,
+          0.605
+        ]
+      },
+      "tris": 1508,
+      "materials": [
+        "Glass",
+        "DoorFrame",
+        "Handle",
+        "Accent",
+        "Felt",
+        "Shelf",
+        "Cushion",
+        "Light"
+      ],
+      "nodes": [
+        "focus_pod",
+        "Door"
+      ],
+      "textures": 1,
+      "bytes": 105608
     },
     {
       "id": "locker",
@@ -4086,7 +5513,7 @@
         "locker"
       ],
       "textures": 1,
-      "bytes": 93360
+      "bytes": 92084
     },
     {
       "id": "meeting_chair",
@@ -4139,7 +5566,7 @@
         "meeting_chair"
       ],
       "textures": 1,
-      "bytes": 41868
+      "bytes": 41988
     },
     {
       "id": "meeting_table",
@@ -4233,7 +5660,7 @@
         "meeting_table"
       ],
       "textures": 1,
-      "bytes": 105200
+      "bytes": 103640
     },
     {
       "id": "microwave",
@@ -4282,7 +5709,7 @@
         "microwave"
       ],
       "textures": 1,
-      "bytes": 64492
+      "bytes": 64444
     },
     {
       "id": "printer_copier",
@@ -4345,7 +5772,7 @@
         "printer_copier"
       ],
       "textures": 1,
-      "bytes": 106840
+      "bytes": 105792
     },
     {
       "id": "recycling_bin",
@@ -4400,7 +5827,7 @@
         "recycling_bin"
       ],
       "textures": 1,
-      "bytes": 43212
+      "bytes": 43380
     },
     {
       "id": "server_rack",
@@ -4456,7 +5883,7 @@
         "server_rack"
       ],
       "textures": 1,
-      "bytes": 173532
+      "bytes": 172712
     },
     {
       "id": "standing_desk",
@@ -4526,7 +5953,7 @@
         "standing_desk"
       ],
       "textures": 1,
-      "bytes": 75684
+      "bytes": 74496
     },
     {
       "id": "stool",
@@ -4580,7 +6007,7 @@
         "stool"
       ],
       "textures": 1,
-      "bytes": 67316
+      "bytes": 66696
     },
     {
       "id": "trash_bin",
@@ -4634,7 +6061,169 @@
         "trash_bin"
       ],
       "textures": 1,
-      "bytes": 59816
+      "bytes": 56636
+    },
+    {
+      "id": "trophy_bronze",
+      "name": "Bronze trophy",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Chunky bronze trophy, an achievement reward for the in-game economy",
+      "tags": [
+        "reward",
+        "shop",
+        "achievement",
+        "desk"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          0.336,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/trophy_bronze.glb",
+      "thumb": "models/thumbs/trophy_bronze.jpg",
+      "dims": {
+        "w": 0.206,
+        "h": 0.284,
+        "d": 0.141
+      },
+      "bbox": {
+        "min": [
+          -0.103,
+          0,
+          -0.07
+        ],
+        "max": [
+          0.103,
+          0.284,
+          0.07
+        ]
+      },
+      "tris": 1228,
+      "materials": [
+        "Base",
+        "Plaque",
+        "Metal"
+      ],
+      "nodes": [
+        "trophy_bronze"
+      ],
+      "textures": 1,
+      "bytes": 57616
+    },
+    {
+      "id": "trophy_gold",
+      "name": "Gold trophy",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Chunky gold trophy, an achievement reward for the in-game economy",
+      "tags": [
+        "reward",
+        "shop",
+        "achievement",
+        "desk"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          0.42,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/trophy_gold.glb",
+      "thumb": "models/thumbs/trophy_gold.jpg",
+      "dims": {
+        "w": 0.258,
+        "h": 0.454,
+        "d": 0.176
+      },
+      "bbox": {
+        "min": [
+          -0.129,
+          0,
+          -0.088
+        ],
+        "max": [
+          0.129,
+          0.454,
+          0.088
+        ]
+      },
+      "tris": 1372,
+      "materials": [
+        "Base",
+        "Plaque",
+        "Metal"
+      ],
+      "nodes": [
+        "trophy_gold"
+      ],
+      "textures": 1,
+      "bytes": 66896
+    },
+    {
+      "id": "trophy_silver",
+      "name": "Silver trophy",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Chunky silver trophy, an achievement reward for the in-game economy",
+      "tags": [
+        "reward",
+        "shop",
+        "achievement",
+        "desk"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          0.378,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/trophy_silver.glb",
+      "thumb": "models/thumbs/trophy_silver.jpg",
+      "dims": {
+        "w": 0.232,
+        "h": 0.319,
+        "d": 0.158
+      },
+      "bbox": {
+        "min": [
+          -0.116,
+          0,
+          -0.079
+        ],
+        "max": [
+          0.116,
+          0.319,
+          0.079
+        ]
+      },
+      "tris": 1228,
+      "materials": [
+        "Base",
+        "Plaque",
+        "Metal"
+      ],
+      "nodes": [
+        "trophy_silver"
+      ],
+      "textures": 1,
+      "bytes": 59076
     },
     {
       "id": "tv_stand",
@@ -4693,7 +6282,7 @@
         "tv_stand"
       ],
       "textures": 1,
-      "bytes": 103136
+      "bytes": 101368
     },
     {
       "id": "vending_machine",
@@ -4763,7 +6352,7 @@
         "vending_machine"
       ],
       "textures": 1,
-      "bytes": 276120
+      "bytes": 276212
     },
     {
       "id": "arcade_cabinet",
@@ -4831,7 +6420,7 @@
         "arcade_cabinet"
       ],
       "textures": 1,
-      "bytes": 164224
+      "bytes": 160452
     },
     {
       "id": "foosball_table",
@@ -4895,7 +6484,7 @@
         "foosball_table"
       ],
       "textures": 1,
-      "bytes": 257620
+      "bytes": 254512
     },
     {
       "id": "massage_chair",
@@ -4951,7 +6540,7 @@
         "massage_chair"
       ],
       "textures": 1,
-      "bytes": 124896
+      "bytes": 122600
     },
     {
       "id": "nap_pod",
@@ -5012,7 +6601,7 @@
         "nap_pod"
       ],
       "textures": 1,
-      "bytes": 110316
+      "bytes": 108548
     },
     {
       "id": "ping_pong_table",
@@ -5080,127 +6669,7 @@
         "ping_pong_table"
       ],
       "textures": 1,
-      "bytes": 139720
-    },
-    {
-      "id": "conference_chair",
-      "name": "Conference chair",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P0",
-      "description": "puffy, tint `Seat`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "conference_table",
-      "name": "Conference table",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P0",
-      "description": "rounded table for 8",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "flipchart",
-      "name": "Flipchart",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P0",
-      "description": "easel + paper pad `Board`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "glass_partition",
-      "name": "Glass partition",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P0",
-      "description": "frosted glass wall panel with chunky frame, 2 m module",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "sticky_wall",
-      "name": "Sticky wall",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P0",
-      "description": "wall board covered in sticky notes",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "wall_screen",
-      "name": "Wall screen",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P0",
-      "description": "Team Room display ≈3.2 × 1.8 m, chunky bezel, `Screen` (planar UVs; the stats board draws on it)",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "aquarium",
-      "name": "Aquarium",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "fish nodes `Fish1..3`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "basketball_hoop",
-      "name": "Basketball hoop",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "bytes": 136956
     },
     {
       "id": "coffee_bar",
@@ -5218,21 +6687,6 @@
       "thumb": null
     },
     {
-      "id": "dartboard",
-      "name": "Dartboard",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "dj_booth",
       "name": "Dj booth",
       "category": null,
@@ -5240,36 +6694,6 @@
       "group": "Team Room, shop items, game room",
       "priority": "P1",
       "description": "two turntables (nodes `PlatterL`, `PlatterR` spin) + mixer, glowing front",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "employee_of_month",
-      "name": "Employee of month",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "wall frame, portrait area `Label`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "focus_pod",
-      "name": "Focus pod",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "phone booth with door node `Door`",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -5300,51 +6724,6 @@
       "group": "Team Room, shop items, game room",
       "priority": "P1",
       "description": "living green wall panel",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "trophy_bronze",
-      "name": "Trophy bronze",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "achievement trophies (shop / rewards)",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "trophy_gold",
-      "name": "Trophy gold",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "achievement trophies (shop / rewards)",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "trophy_silver",
-      "name": "Trophy silver",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "achievement trophies (shop / rewards)",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -5453,7 +6832,7 @@
         "EyeR"
       ],
       "textures": 0,
-      "bytes": 34320
+      "bytes": 35940
     },
     {
       "id": "char_head",
@@ -5522,7 +6901,7 @@
         "char_head"
       ],
       "textures": 1,
-      "bytes": 67184
+      "bytes": 68544
     },
     {
       "id": "hair_bob",
@@ -5531,7 +6910,7 @@
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "Chunky jaw-length bob with a side-swept fringe",
+      "description": "Chunky jaw-length bob with a scalloped side-swept fringe",
       "tags": [
         "hair",
         "bob"
@@ -5550,23 +6929,23 @@
       "file": "models/hair_bob.glb",
       "thumb": "models/thumbs/hair_bob.jpg",
       "dims": {
-        "w": 0.627,
-        "h": 0.483,
-        "d": 0.587
+        "w": 0.628,
+        "h": 0.484,
+        "d": 0.578
       },
       "bbox": {
         "min": [
-          -0.313,
-          -0.165,
-          -0.316
+          -0.314,
+          -0.166,
+          -0.317
         ],
         "max": [
-          0.313,
+          0.314,
           0.318,
-          0.271
+          0.261
         ]
       },
-      "tris": 1900,
+      "tris": 1949,
       "materials": [
         "Hair"
       ],
@@ -5574,7 +6953,401 @@
         "hair_bob"
       ],
       "textures": 1,
-      "bytes": 64072
+      "bytes": 67104
+    },
+    {
+      "id": "hair_tuft",
+      "name": "Tuft",
+      "category": "character-hair",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "A cheeky three-lock sprout on a bald crown; node Tuft jiggles at the crown",
+      "tags": [
+        "hair",
+        "tuft",
+        "bald",
+        "jiggle"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4392,
+          -0.0264
+        ],
+        "tuftBase": [
+          0,
+          0.2695,
+          -0.0162
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_tuft.glb",
+      "thumb": "models/thumbs/hair_tuft.jpg",
+      "dims": {
+        "w": 0.193,
+        "h": 0.192,
+        "d": 0.154
+      },
+      "bbox": {
+        "min": [
+          -0.1,
+          0.246,
+          -0.074
+        ],
+        "max": [
+          0.093,
+          0.439,
+          0.08
+        ]
+      },
+      "tris": 1530,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_tuft",
+        "Tuft"
+      ],
+      "textures": 1,
+      "bytes": 53748
+    },
+    {
+      "id": "held_box",
+      "name": "Box of desk stuff (held)",
+      "category": "character-held",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Open cardboard box with a plant, photo and rubber duck; carried in both hands",
+      "tags": [
+        "held",
+        "box",
+        "leaving",
+        "fired"
+      ],
+      "tintable": [],
+      "anchors": {
+        "handGrip": [
+          0,
+          0,
+          0
+        ],
+        "handL": [
+          0.225,
+          0,
+          0
+        ],
+        "handR": [
+          -0.225,
+          0,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/held_box.glb",
+      "thumb": "models/thumbs/held_box.jpg",
+      "dims": {
+        "w": 0.646,
+        "h": 0.366,
+        "d": 0.518
+      },
+      "bbox": {
+        "min": [
+          -0.327,
+          -0.142,
+          -0.265
+        ],
+        "max": [
+          0.319,
+          0.224,
+          0.253
+        ]
+      },
+      "tris": 2084,
+      "materials": [
+        "Kraft",
+        "KraftDark",
+        "Tape",
+        "Pot",
+        "Soil",
+        "Leaf",
+        "Frame",
+        "PhotoSky",
+        "PhotoGrass",
+        "PhotoSun",
+        "Duck",
+        "Beak",
+        "DuckEye"
+      ],
+      "nodes": [
+        "held_box"
+      ],
+      "textures": 1,
+      "bytes": 114160
+    },
+    {
+      "id": "held_clipboard",
+      "name": "Clipboard (held)",
+      "category": "character-held",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Wooden clipboard with a checklist and a pen; held by its bottom edge",
+      "tags": [
+        "held",
+        "clipboard",
+        "planning",
+        "paper"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "handGrip": [
+          0,
+          0,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/held_clipboard.glb",
+      "thumb": "models/thumbs/held_clipboard.jpg",
+      "dims": {
+        "w": 0.23,
+        "h": 0.301,
+        "d": 0.153
+      },
+      "bbox": {
+        "min": [
+          -0.115,
+          0.034,
+          -0.004
+        ],
+        "max": [
+          0.115,
+          0.335,
+          0.149
+        ]
+      },
+      "tris": 1660,
+      "materials": [
+        "Masonite",
+        "Paper",
+        "Ink",
+        "Tick",
+        "Chrome",
+        "Accent",
+        "PenCap"
+      ],
+      "nodes": [
+        "held_clipboard"
+      ],
+      "textures": 1,
+      "bytes": 92080
+    },
+    {
+      "id": "held_laptop",
+      "name": "Laptop (held)",
+      "category": "character-held",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Tiny chunky laptop with stickers, carried open on the hands; Screen faces the holder",
+      "tags": [
+        "held",
+        "intern",
+        "laptop",
+        "screen"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "handGrip": [
+          0,
+          0,
+          0
+        ],
+        "handL": [
+          0.12,
+          -0.045,
+          -0.05
+        ],
+        "handR": [
+          -0.12,
+          -0.045,
+          -0.05
+        ],
+        "screen": [
+          0,
+          0.1323,
+          0.1275
+        ]
+      },
+      "status": "done",
+      "file": "models/held_laptop.glb",
+      "thumb": "models/thumbs/held_laptop.jpg",
+      "dims": {
+        "w": 0.34,
+        "h": 0.238,
+        "d": 0.291
+      },
+      "bbox": {
+        "min": [
+          -0.17,
+          0,
+          -0.115
+        ],
+        "max": [
+          0.17,
+          0.238,
+          0.176
+        ]
+      },
+      "tris": 1876,
+      "materials": [
+        "Accent",
+        "Deck",
+        "Keys",
+        "Trackpad",
+        "Screen",
+        "Logo",
+        "StickerPink",
+        "StickerYellow",
+        "StickerMint"
+      ],
+      "nodes": [
+        "held_laptop"
+      ],
+      "textures": 1,
+      "bytes": 122236
+    },
+    {
+      "id": "held_mug_manager",
+      "name": "Manager's mug (held)",
+      "category": "character-held",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "The WORLD'S OKAYEST MANAGER mug, gripped by its handle; pivot at the hand",
+      "tags": [
+        "held",
+        "manager",
+        "coffee",
+        "mug"
+      ],
+      "tintable": [],
+      "anchors": {
+        "handGrip": [
+          0,
+          0,
+          0
+        ],
+        "coffee": [
+          0,
+          0.0319,
+          0.1296
+        ],
+        "rim": [
+          0,
+          0.0462,
+          0.1296
+        ]
+      },
+      "status": "done",
+      "file": "models/held_mug_manager.glb",
+      "thumb": "models/thumbs/held_mug_manager.jpg",
+      "dims": {
+        "w": 0.101,
+        "h": 0.111,
+        "d": 0.145
+      },
+      "bbox": {
+        "min": [
+          -0.05,
+          -0.064,
+          0.035
+        ],
+        "max": [
+          0.05,
+          0.048,
+          0.18
+        ]
+      },
+      "tris": 2983,
+      "materials": [
+        "Glaze",
+        "GlazeInside",
+        "Coffee",
+        "Print",
+        "Gold"
+      ],
+      "nodes": [
+        "held_mug_manager"
+      ],
+      "textures": 1,
+      "bytes": 116472
+    },
+    {
+      "id": "held_phone",
+      "name": "Phone (held)",
+      "category": "character-held",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Chunky smartphone in a bright case; Screen faces the holder",
+      "tags": [
+        "held",
+        "phone",
+        "screen"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "handGrip": [
+          0,
+          0,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/held_phone.glb",
+      "thumb": "models/thumbs/held_phone.jpg",
+      "dims": {
+        "w": 0.078,
+        "h": 0.148,
+        "d": 0.053
+      },
+      "bbox": {
+        "min": [
+          -0.039,
+          -0.035,
+          -0.084
+        ],
+        "max": [
+          0.039,
+          0.113,
+          -0.032
+        ]
+      },
+      "tris": 1152,
+      "materials": [
+        "Accent",
+        "Bezel",
+        "Screen",
+        "Lens",
+        "LensRing"
+      ],
+      "nodes": [
+        "held_phone"
+      ],
+      "textures": 1,
+      "bytes": 60908
     },
     {
       "id": "char_brow",
@@ -5877,21 +7650,6 @@
       "thumb": null
     },
     {
-      "id": "hair_tuft",
-      "name": "Hair tuft",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Hair`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "hat_beanie",
       "name": "Hat beanie",
       "category": null,
@@ -5959,81 +7717,6 @@
       "group": "characters",
       "priority": "P0",
       "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "held_box",
-      "name": "Held box",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "pivot `handGrip`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "held_clipboard",
-      "name": "Held clipboard",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "pivot `handGrip`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "held_laptop",
-      "name": "Held laptop",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "pivot `handGrip`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "held_mug_manager",
-      "name": "Held mug manager",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "pivot `handGrip`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "held_phone",
-      "name": "Held phone",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "pivot `handGrip`",
       "tags": [],
       "tintable": [],
       "anchors": {},

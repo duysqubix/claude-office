@@ -3,14 +3,15 @@
   "name": "Round tree",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "priority": "P0",
   "status": "done",
-  "description": "Chunky leaning trunk with soft buttress roots under a wide puffy canopy, darker green below and lighter on top",
+  "priority": "P0",
+  "description": "Chunky leaning trunk with soft buttress roots under a wide canopy of faceted low-poly puffs, darker green below and lighter on top",
   "tags": [
     "tree",
     "garden",
     "lawn",
-    "foliage"
+    "foliage",
+    "faceted"
   ],
   "tintable": [],
   "anchors": {
@@ -18,11 +19,7 @@
       0,
       2.7,
       0
-    ],
-    "trunkTop": [
-      0.1,
-      1.5,
-      0
     ]
-  }
+  },
+  "notes": "About 1.2k tris, so it is cheap to scatter. FACETED=False in the script gives a smooth-puff version."
 }

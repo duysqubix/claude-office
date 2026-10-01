@@ -1,0 +1,28 @@
+{
+  "id": "plant_hanging",
+  "name": "Hanging pothos",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "Curly iron wall bracket holding a round ceramic bowl on jute ropes, heart-leaf vines tumbling over the rim",
+  "tags": [
+    "plant",
+    "indoor",
+    "decor",
+    "wall",
+    "hanging"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "bowl": [
+      0,
+      -0.62,
+      0.38
+    ]
+  },
+  "mount": "wall: origin at the wall-contact centre of the bracket plate; the plant hangs out along +Z and down to y -1.15. Mount about 2 m up.",
+  "notes": "The bowl is 'Accent' (default sky blue #5CC8FF)."
+}

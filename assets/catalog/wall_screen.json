@@ -1,0 +1,29 @@
+{
+  "id": "wall_screen",
+  "name": "Wall screen",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Huge Team Room wall display for live plan usage and team stats",
+  "tags": [
+    "team-room",
+    "wall",
+    "screen"
+  ],
+  "tintable": [
+    "Screen"
+  ],
+  "anchors": {
+    "screenCenter": [
+      0,
+      0,
+      0.122
+    ]
+  },
+  "screen": {
+    "width": 3.2,
+    "height": 1.8
+  },
+  "mount": "wall: origin is the back centre; picture centre at the origin"
+}

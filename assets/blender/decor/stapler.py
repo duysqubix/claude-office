@@ -35,23 +35,24 @@ ARM = [(0.075, 0.03), (0.075, 0.047), (0.064, 0.0545), (0.02, 0.0552), (-0.04, 0
 BASE = [(0.08, 0.0), (0.08, 0.012), (-0.07, 0.012), (-0.082, 0.008), (-0.083, 0.0)]
 
 
-def side(name, profile, width, material, r):
+def side(name, profile, width, material, r, light=False):
     """Prism from a side profile, centred across Y."""
-    return D.prism(name, D.rounded_pts(profile, r, steps=3), width, material,
-                   loc=(0, width / 2, 0), rot=D.FRONT, r=min(r, 0.006), seg=3, angle=30)
+    return D.prism(name, D.rounded_pts(profile, r, steps=2 if light else 3), width, material,
+                   loc=(0, width / 2, 0), rot=D.FRONT, r=min(r, 0.006), seg=1 if light else 2,
+                   angle=30)
 
 
-def make(M):
-    """The stapler at the origin."""
-    side("St_Base", BASE, 0.046, M["base"], 0.005)
+def make(M, light=False):
+    """The stapler at the origin (light: fewer bevel segments, for use inside other props)."""
+    side("St_Base", BASE, 0.046, M["base"], 0.005, light)
     lib.rbox("St_Anvil", (0.032, 0.026, 0.002), (-0.058, 0, 0.0125), M["chrome"], r=0.0009,
              seg=1)
     lib.rbox("St_Post", (0.03, 0.038, 0.024), (0.062, 0, 0.022), M["base"], r=0.007, seg=2)
     top = D.snapshot()
     lib.rbox("St_Magazine", (0.132, 0.027, 0.011), (-0.006, 0, 0.0265), M["chrome"], r=0.003,
              seg=1)
-    side("St_Arm", ARM, 0.045, M["arm"], 0.008)
-    lib.cyl("St_Pin", 0.0052, 0.05, HINGE, M["chrome"], r=0.0015, seg=1, verts=14,
+    side("St_Arm", ARM, 0.045, M["arm"], 0.008, light)
+    lib.cyl("St_Pin", 0.0052, 0.05, HINGE, M["chrome"], r=0.0015, seg=1, verts=10 if light else 14,
             rot=(math.pi / 2, 0, 0))
     D.turn(D.since(top), HINGE, (0, math.radians(-1), 0))
 

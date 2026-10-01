@@ -1,0 +1,20 @@
+{
+  "id": "plant_monstera",
+  "name": "Monstera",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P0",
+  "description": "Big indoor monstera: nine split leaves on arching stems in a chunky rolled-rim ceramic pot",
+  "tags": [
+    "plant",
+    "indoor",
+    "decor",
+    "pot"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {},
+  "notes": "Pot material is 'Accent' (default mustard #FFC94A); tint from PALETTE.deskAccents."
+}

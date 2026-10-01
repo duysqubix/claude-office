@@ -1,0 +1,25 @@
+{
+  "id": "basketball_hoop",
+  "name": "Basketball hoop",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Wall-mounted basketball hoop with a rope net",
+  "tags": [
+    "game-room",
+    "fun",
+    "wall"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "rim": [
+      0,
+      -0.22,
+      0.32
+    ]
+  },
+  "mount": "wall: origin is the back centre of the backboard (mount \u2248 2.6 m up)"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "trophy_gold",
+  "name": "Gold trophy",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky gold trophy, an achievement reward for the in-game economy",
+  "tags": [
+    "reward",
+    "shop",
+    "achievement",
+    "desk"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.42,
+      0
+    ]
+  },
+  "tier": "gold"
+}

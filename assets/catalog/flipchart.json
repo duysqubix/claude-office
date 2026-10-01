@@ -1,0 +1,33 @@
+{
+  "id": "flipchart",
+  "name": "Flipchart",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Easel flipchart with a drawable paper pad",
+  "tags": [
+    "team-room",
+    "meeting-room",
+    "board"
+  ],
+  "tintable": [
+    "Board"
+  ],
+  "anchors": {
+    "padCenter": [
+      0.0,
+      1.22,
+      -0.0
+    ],
+    "presenter": [
+      0.55,
+      0,
+      0.4
+    ]
+  },
+  "board": {
+    "width": 0.68,
+    "height": 0.9
+  }
+}

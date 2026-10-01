@@ -3,14 +3,15 @@
   "name": "Cloud (tall)",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "priority": "P0",
   "status": "done",
-  "description": "Tall bumpy cumulus dome on a flat belly, about 3.8 m wide",
+  "priority": "P0",
+  "description": "Tall bumpy cumulus dome on a flat belly, about 3.8 m wide; faintly blue white (#E6F4FC) like WL's",
   "tags": [
     "cloud",
     "sky",
     "decor"
   ],
   "tintable": [],
-  "anchors": {}
+  "anchors": {},
+  "notes": "Origin at the centre of the flat belly. Scale freely; drift slowly."
 }

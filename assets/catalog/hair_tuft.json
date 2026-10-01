@@ -1,0 +1,33 @@
+{
+  "id": "hair_tuft",
+  "name": "Tuft",
+  "category": "character-hair",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "A cheeky three-lock sprout on a bald crown; node Tuft jiggles at the crown",
+  "tags": [
+    "hair",
+    "tuft",
+    "bald",
+    "jiggle"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4392,
+      -0.0264
+    ],
+    "tuftBase": [
+      0.0,
+      0.2695,
+      -0.0162
+    ]
+  },
+  "nodes": {
+    "Tuft": "jiggle: rotate about its origin (the crown)"
+  }
+}

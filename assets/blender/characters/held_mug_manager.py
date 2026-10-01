@@ -33,13 +33,10 @@ def build():
     before = set(lib.coll().objects)
     MUG.make(M, s=S, heart=False)
     turn = Matrix.Rotation(math.pi / 2, 4, "Z")  # handle +X → +Y, back toward the hand
-    for ob in set(lib.coll().objects) - before:
-        ob.matrix_world = turn @ ob.matrix_world
+    kit.transform(set(lib.coll().objects) - before, turn)
     MM.lettering(M)  # wraps the front (-Y), opposite the handle
     MM.rim(M)
-    shift = Matrix.Translation((0, -GRIP_Y, -GRIP_Z))
-    for ob in lib.coll().objects:
-        ob.matrix_world = shift @ ob.matrix_world
+    kit.transform(lib.coll().objects, Matrix.Translation((0, -GRIP_Y, -GRIP_Z)))
 
 
 def finalize(name):

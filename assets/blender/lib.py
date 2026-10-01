@@ -38,6 +38,9 @@ P = {
     "treeLeaf": ["#5CCB5F", "#46B35A", "#7BD66B"],
     "stateWorking": "#4ADE80",
     "stateNeedsYou": "#FFB020",
+    "eye": "#1E1B2E",
+    "wallAccent": "#8FE0C8",
+    "wall": "#FFF3DE",
 }
 
 STUDIO = "_Studio"
@@ -58,8 +61,9 @@ def principled(mat):
     return next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
 
 
-def mat(name, hex_str, rough=0.7, metal=0.0, emit=None, strength=1.0):
-    """Flat palette material. `emit` (hex) makes it glow (screens, indicator lights)."""
+def mat(name, hex_str, rough=0.7, metal=0.0, emit=None, strength=1.0, alpha=None):
+    """Flat palette material. `emit` (hex) makes it glow (screens, indicator lights).
+    `alpha` < 1 makes it see-through (glass, water): exported as glTF alphaMode BLEND."""
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     m.use_nodes = True
     b = principled(m)
@@ -71,6 +75,14 @@ def mat(name, hex_str, rough=0.7, metal=0.0, emit=None, strength=1.0):
         b.inputs["Emission Strength"].default_value = strength
     m.diffuse_color = rgba(hex_str)
     m.use_backface_culling = True  # exports single-sided
+    if alpha is not None:
+        b.inputs["Alpha"].default_value = alpha
+        for attr, val in (("surface_render_method", "BLENDED"), ("blend_method", "BLEND")):
+            try:
+                setattr(m, attr, val)
+            except (AttributeError, TypeError):
+                pass
+        m["no_ao"] = True
     m["emissive"] = bool(emit)
     return m
 
@@ -478,8 +490,11 @@ def _join(parts, name, offset=Vector((0, 0, 0))):
         bm.from_mesh(me)
         bpy.data.meshes.remove(me)
     old = bpy.data.meshes.get(name)
-    if old is not None and old.users == 0:
-        bpy.data.meshes.remove(old)
+    if old is not None:
+        if old.users == 0:
+            bpy.data.meshes.remove(old)
+        else:
+            old.name = name + "@stale"
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -490,6 +505,10 @@ def _join(parts, name, offset=Vector((0, 0, 0))):
     me.attributes.remove(attr)
     me.shade_smooth()
     me.normals_split_custom_set(normals)
+    # Node names must export exactly (game looks them up); move any stale holder aside.
+    stale = bpy.data.objects.get(name)
+    if stale is not None:
+        stale.name = name + "@stale"
     ob = bpy.data.objects.new(name, me)
     ob.location = offset
     coll().objects.link(ob)
@@ -534,7 +553,7 @@ def _set_engine(scene, *names):
     raise RuntimeError("no render engine from %s" % (names,))
 
 
-def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256, ground="floor"):
+def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=None, ground="floor"):
     """Bake AO on a dedicated UV map 'AO' (shared atlas across the root and its node
     children) and multiply it into every non-emissive base colour."""
     scene = bpy.context.scene
@@ -551,7 +570,8 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256, ground="floor
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.mode_set(mode="EDIT")  # multi-object edit: one packed atlas
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.01,
+    # Margin scales with resolution so islands keep >= ~7 px apart (no bleed at 256²).
+    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=max(0.01, 7.0 / res),
                              scale_to_bounds=True)
     bpy.ops.object.mode_set(mode="OBJECT")
 
@@ -591,12 +611,15 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256, ground="floor
 
     prev_engine = scene.render.engine
     _set_engine(scene, "CYCLES")
-    scene.cycles.samples = samples
+    scene.cycles.samples = samples or (1024 if res <= 512 else 256)
     scene.cycles.device = "CPU"
     if scene.world is None:
         scene.world = bpy.data.worlds.new("World")
     scene.world.light_settings.distance = distance
     scene.render.bake.margin = 8
+    # EXTEND fills the margin by stretching edge pixels; ADJACENT_FACES left dark notches
+    # along diagonal island borders (dashed lines on rounded edges).
+    scene.render.bake.margin_type = "EXTEND"
     bpy.ops.object.bake(type="AO", use_clear=True)
     bpy.data.objects.remove(floor, do_unlink=True)
     bpy.data.meshes.remove(floor_me)
@@ -616,7 +639,8 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256, ground="floor
         _screen_uvs(o.data)
 
     for m, t in tex_nodes:
-        if m.get("emissive") or m.get("no_ao"):
+        # Planar-UV materials (Screen/Board/Label) overlap the atlas: never sample the AO.
+        if m.get("emissive") or m.get("no_ao") or m.name.split("@")[0] in UV_PLANAR:
             continue
         nt = m.node_tree
         b = principled(m)
@@ -712,7 +736,8 @@ def render_preview(ob, name, res=(1200, 1000)):
     bm.free()
     floor = bpy.data.objects.new("_floor", fme)
     fme.materials.append(mat("_studio_floor", P["skyHorizon"], rough=0.95))
-    floor.location.z = min(0.0, lo.z - 0.15)  # wall items hang above a lowered floor
+    # Floor items sit on z=0; wall items centred on the origin hang above a lowered floor.
+    floor.location.z = 0.0 if lo.z > -0.02 else lo.z - 0.15
     c.objects.link(floor)
 
     world = scene.world or bpy.data.worlds.new("World")
@@ -763,13 +788,13 @@ def render_preview(ob, name, res=(1200, 1000)):
     return path
 
 
-def finalize(name, ao_res=512, ao_distance=0.35, meta=None):
+def finalize(name, ao_res=512, ao_distance=0.35, meta=None, samples=None):
     """Join → bake AO → export GLB (WebP AO) → preview render (→ sidecar if `meta`, a dict
     of sidecar() kwargs). Returns a short report."""
     ob = join_asset(name)
     tris = tri_count(ob)
     wall = str((meta or {}).get("mount", "")).startswith("wall")
-    bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
+    bake_ao(ob, ao_res, ao_distance, samples=samples, ground="wall" if wall else "floor")
     glb = export_glb(ob, name)
     png = render_preview(ob, name)
     # Namespace materials and node objects in the .blend so the next asset gets fresh names.

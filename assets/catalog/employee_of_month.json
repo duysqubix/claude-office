@@ -1,0 +1,29 @@
+{
+  "id": "employee_of_month",
+  "name": "Employee of the Month",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Wall frame with a drawable portrait for the employee of the month",
+  "tags": [
+    "wall",
+    "reward",
+    "team-room"
+  ],
+  "tintable": [
+    "Label"
+  ],
+  "anchors": {
+    "labelCenter": [
+      0,
+      -0.03,
+      0.032
+    ]
+  },
+  "label": {
+    "width": 0.42,
+    "height": 0.5
+  },
+  "mount": "wall: origin is the back centre"
+}

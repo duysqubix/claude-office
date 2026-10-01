@@ -12,7 +12,7 @@ import lib
 from decor import _decor as D
 
 NAME = "nameplate"
-AO_RES = 512
+AO_RES = 256
 AO_DISTANCE = 0.04
 LEN, BASE, H = 0.34, 0.09, 0.135
 LABEL_W, LABEL_H = 0.30, 0.1035

@@ -1,0 +1,23 @@
+{
+  "id": "sticky_wall",
+  "name": "Sticky wall",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Kanban wall board covered in sticky notes",
+  "tags": [
+    "team-room",
+    "wall",
+    "planning"
+  ],
+  "tintable": [],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.04
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

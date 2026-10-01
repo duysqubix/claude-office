@@ -3,14 +3,15 @@
   "name": "Cloud (small)",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "priority": "P0",
   "status": "done",
-  "description": "Small three-bump wisp, about 2.9 m long",
+  "priority": "P0",
+  "description": "Small three-bump wisp, about 2.9 m long; faintly blue white (#E6F4FC) like WL's",
   "tags": [
     "cloud",
     "sky",
     "decor"
   ],
   "tintable": [],
-  "anchors": {}
+  "anchors": {},
+  "notes": "Origin at the centre of the flat belly. Scale freely; drift slowly."
 }

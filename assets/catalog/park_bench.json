@@ -1,0 +1,33 @@
+{
+  "id": "park_bench",
+  "name": "Park bench",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P0",
+  "description": "Honey-wood slats on rounded deep-green iron frames with armrests",
+  "tags": [
+    "seating",
+    "garden",
+    "bench"
+  ],
+  "tintable": [],
+  "anchors": {
+    "seatL": [
+      -0.45,
+      0.45,
+      0.02
+    ],
+    "seatC": [
+      0,
+      0.45,
+      0.02
+    ],
+    "seatR": [
+      0.45,
+      0.45,
+      0.02
+    ]
+  },
+  "notes": "Sitters face +Z; seat top at 0.455 m."
+}

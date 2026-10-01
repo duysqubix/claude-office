@@ -1,0 +1,27 @@
+{
+  "id": "aquarium",
+  "name": "Aquarium",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Fish tank on a cabinet with three swimmable cartoon fish",
+  "tags": [
+    "team-room",
+    "lounge",
+    "decor"
+  ],
+  "tintable": [],
+  "anchors": {
+    "tankCenter": [
+      0,
+      1.04,
+      0
+    ]
+  },
+  "nodes": {
+    "Fish1": "pivot at the fish centre; nose points -X (three)",
+    "Fish2": "pivot at the fish centre; nose points -X (three)",
+    "Fish3": "pivot at the fish centre; nose points -X (three)"
+  }
+}

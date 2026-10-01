@@ -1,0 +1,17 @@
+{
+  "id": "plant_fern",
+  "name": "Boston fern",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "A fountain of arching fronds of little leaflets spilling over a chunky terracotta pot",
+  "tags": [
+    "plant",
+    "indoor",
+    "decor",
+    "pot"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

@@ -56,8 +56,7 @@ def build():
     # The mitten (r ≈ 0.08) holds it from behind and below: the phone sits between the
     # hand and the holder (+Y), clear of the mitten.
     tf = Matrix.Translation((0, 0.078, -0.035)) @ Matrix.Rotation(LEAN, 4, "X")
-    for ob in lib.coll().objects:
-        ob.matrix_world = tf @ ob.matrix_world
+    kit.transform(lib.coll().objects, tf)
 
 
 def finalize(name):

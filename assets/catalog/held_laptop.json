@@ -1,0 +1,40 @@
+{
+  "id": "held_laptop",
+  "name": "Laptop (held)",
+  "category": "character-held",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Tiny chunky laptop with stickers, carried open on the hands; Screen faces the holder",
+  "tags": [
+    "held",
+    "intern",
+    "laptop",
+    "screen"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "handGrip": [
+      0,
+      0,
+      0
+    ],
+    "handL": [
+      0.12,
+      -0.045,
+      -0.05
+    ],
+    "handR": [
+      -0.12,
+      -0.045,
+      -0.05
+    ],
+    "screen": [
+      0,
+      0.1323,
+      0.1275
+    ]
+  }
+}

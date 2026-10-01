@@ -6,7 +6,7 @@ poster and the rubber duck peeking over the rim. 0.4 × 0.3 × 0.26 m box; origi
 floor-contact centre; the label faces -Y."""
 import math
 
-from mathutils import Matrix, Vector
+from mathutils import Vector
 
 import lib
 from decor import _decor as D
@@ -86,29 +86,36 @@ def scribbles(M):
     D.text("Label_MyStuff", "MY STUFF", 0.05, M["ink"], loc=(0.025, yf, 0.192), depth=0, res=2,
            rot=(math.pi / 2 - math.radians(2), math.radians(-3), 0))
     y = -DP / 2 - 0.0009
-    cx, cz, r = 0.0, 0.062, 0.028
-    ring = [(cx + r * math.cos(a), y, cz + r * math.sin(a))
-            for a in [2 * math.pi * k / 18 for k in range(19)]]
-    D.tube("Label_Face", ring, 0.0026, M["ink"], verts=5, caps=None)
+    cx, cz = 0.0, 0.062
+    D.ring("Label_Face", 0.0305, 0.0255, M["ink"], n=22, loc=(cx, y, cz), rot=D.FRONT)
     for s in (-1, 1):
         D.face(f"Label_Eye{s}", D.circle_pts(0.004, 10), M["ink"],
                loc=(cx + s * 0.01, y + 0.0004, cz + 0.008), rot=D.FRONT)
     D.tube("Label_Frown", [(cx - 0.013, y, cz - 0.015), (cx, y, cz - 0.007),
                            (cx + 0.013, y, cz - 0.015)], 0.0024, M["ink"], verts=5, smooth=3)
     # A red FRAGILE stamp on the right side (their feelings are).
-    xs = W / 2 + 0.0008
-    D.text("Stamp_Fragile", "FRAGILE", 0.036, M["red"], loc=(xs, 0.005, 0.1), depth=0, res=2,
-           rot=(math.pi / 2, math.radians(8), math.pi / 2))
-    frame = D.rrect_pts(0.2, 0.06, 0.012, steps=3)
-    pts = [Vector((0, x, z)) for x, z in frame] + [Vector((0, frame[0][0], frame[0][1]))]
-    rot = Matrix.Rotation(math.radians(-8), 4, "X")  # same in-plane spin as the text
-    D.tube("Stamp_Border", [tuple(Vector((xs + 0.0004, 0.005, 0.1)) + (rot @ p)) for p in pts],
-           0.0022, M["red"], verts=5, caps=None)
+    xs, ys, zs = W / 2 + 0.0008, -0.03, 0.085
+    spin = (math.pi / 2, math.radians(8), math.pi / 2)
+    D.text("Stamp_Fragile", "FRAGILE", 0.036, M["red"], loc=(xs, ys, zs), depth=0, res=2,
+           rot=spin)
+    D.band("Stamp_Border", D.rrect_pts(0.2, 0.058, 0.012, steps=3),
+           D.rrect_pts(0.192, 0.05, 0.008, steps=3), M["red"], loc=(xs, ys, zs), rot=spin)
+
+
+def leaf_pts(length, width, n=16):
+    """Pointed lens-shaped leaf outline along Y."""
+    pts = []
+    for i in range(n):
+        t = 2 * math.pi * i / n
+        x = width / 2 * math.sin(t) * (1 - 0.25 * math.cos(t))
+        y = length / 2 * math.cos(t)
+        pts.append((x * abs(math.sin(t)) ** 0.15, y))
+    return pts
 
 
 def plant(M):
     """Wilting desk plant at the back-left; the stems flop over the front-left rim."""
-    px, py, pz = -0.1, 0.035, 0.16
+    px, py, pz = -0.122, -0.02, 0.16
     D.lathe("Plant_Pot", [(0.0, pz), (0.04, pz), (0.044, pz + 0.004), (0.054, pz + 0.085),
                           (0.06, pz + 0.088), (0.061, pz + 0.1), (0.056, pz + 0.103),
                           (0.05, pz + 0.098), (0.0, pz + 0.098)], M["pot"], loc=(px, py, 0),
@@ -116,28 +123,29 @@ def plant(M):
     lib.cyl("Plant_Soil", 0.05, 0.006, (px, py, pz + 0.097), M["brown"], r=0, verts=16)
     top = Vector((px, py, pz + 0.1))
     # (yaw degrees, reach, droop below the rim, leaf)
-    leaves = ((205, 0.15, 0.09, "leaf"), (240, 0.17, 0.12, "leaf"), (265, 0.16, 0.1, "leafSad"),
-              (180, 0.12, 0.07, "leaf"), (290, 0.12, 0.05, "leaf"), (120, 0.07, 0.0, "leaf"))
+    leaves = ((185, 0.12, 0.09, "leaf"), (222, 0.13, 0.11, "leafSad"), (255, 0.12, 0.09, "leaf"),
+              (150, 0.1, 0.06, "leaf"), (300, 0.08, 0.03, "leaf"), (85, 0.07, -0.01, "leaf"),
+              (20, 0.08, 0.02, "leaf"))
     for i, (yaw, reach, droop, key) in enumerate(leaves):
         a = math.radians(yaw)
         d = Vector((math.cos(a), math.sin(a), 0))
-        pts = [top, top + d * reach * 0.25 + Vector((0, 0, 0.055)),
-               top + d * reach * 0.7 + Vector((0, 0, 0.05)),
-               top + d * reach + Vector((0, 0, 0.01 - droop * 0.4))]
-        D.tube(f"Plant_Stem{i}", pts, 0.0042, M["leaf"], verts=5, smooth=3)
-        hang = (d * 0.3 + Vector((0, 0, -1))).normalized()
-        lib.sphere(f"Plant_Leaf{i}", 1.0, tuple(pts[-1] + hang * 0.036), M[key],
-                   scale=(0.028, 0.045, 0.0075), u=10, v=5,
+        pts = [top, top + d * reach * 0.3 + Vector((0, 0, 0.045)),
+               top + d * reach * 0.8 + Vector((0, 0, 0.035)),
+               top + d * reach + Vector((0, 0, 0.012 - droop * 0.3))]
+        D.tube(f"Plant_Stem{i}", pts, 0.0045, M["leaf"], verts=5, smooth=3, caps=None)
+        hang = (d * 0.45 + Vector((0, 0, -1))).normalized()
+        lib.sphere(f"Plant_Leaf{i}", 1.0, tuple(pts[-1] + hang * 0.044), M[key],
+                   scale=(0.036, 0.056, 0.009), u=10, v=5,
                    rot=hang.to_track_quat("Y", "Z").to_euler())
     # One leaf has already given up.
-    lib.sphere("Plant_Fallen", 1.0, (-0.17, -0.235, 0.0075), M["leafSad"],
-               scale=(0.028, 0.045, 0.0075), u=10, v=5, rot=(0, 0, math.radians(35)))
+    D.prism("Plant_Fallen", leaf_pts(0.075, 0.044), 0.005, M["leafSad"],
+            loc=(-0.2, -0.235, 0.0), rot=(0, 0, math.radians(35)), r=0.002, seg=1)
 
 
 def contents(M):
     st = D.snapshot()
-    stapler.make(M)
-    D.place(D.since(st), loc=(0.115, -0.05, 0.228), rot=(0, math.radians(24), math.radians(135)))
+    stapler.make(M, light=True)
+    D.place(D.since(st), loc=(0.115, -0.045, 0.235), rot=(0, math.radians(34), math.radians(135)))
     fr = D.snapshot()
     fw, fh = 0.11, 0.14
     D.slab("Photo_Frame", D.rrect_pts(fw, fh, 0.01), 0.014, M["brown"], rot=D.FRONT, r=0.003)
@@ -153,11 +161,11 @@ def contents(M):
     lib.cyl("Poster_Roll", 0.021, 0.38, (0, 0, 0.19), M["sky"], r=0.004, seg=1, verts=14)
     lib.cyl("Poster_End", 0.0145, 0.004, (0, 0, 0.3795), M["paper"], r=0, verts=14)
     lib.cyl("Poster_Hole", 0.0055, 0.004, (0, 0, 0.3815), M["ink"], r=0, verts=10)
-    lib.torus("Poster_Band", 0.0215, 0.0024, (0, 0, 0.25), M["pink"], seg=14, ring=5)
+    lib.torus("Poster_Band", 0.0215, 0.0024, (0, 0, 0.25), M["pink"], seg=12, ring=4)
     D.place(D.since(ro), loc=(0.16, 0.1, 0.02), rot=(math.radians(-15), math.radians(13), 0))
     du = D.snapshot()
-    rubber_duck.make(M, detail=0.5)
-    D.place(D.since(du), loc=(-0.015, -0.1, 0.198), rot=(math.radians(6), 0, math.radians(-8)))
+    rubber_duck.make(M, detail=0.45)
+    D.place(D.since(du), loc=(0.0, -0.1, 0.212), rot=(math.radians(6), 0, math.radians(-8)))
 
 
 def build():

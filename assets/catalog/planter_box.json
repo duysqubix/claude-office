@@ -1,0 +1,17 @@
+{
+  "id": "planter_box",
+  "name": "Planter box",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "Long wooden plank trough with corner posts, overflowing with faceted greenery and flowers",
+  "tags": [
+    "planter",
+    "garden",
+    "flowers",
+    "patio"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

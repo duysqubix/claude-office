@@ -1,0 +1,50 @@
+{
+  "id": "intern_bench",
+  "name": "Intern bench",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Scrappy chainable intern desk module with two stations",
+  "tags": [
+    "interns",
+    "desk",
+    "workstation",
+    "modular"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "top": [
+      0,
+      0.56,
+      0
+    ],
+    "station0": [
+      -0.4,
+      0.56,
+      -0.02
+    ],
+    "station1": [
+      0.4,
+      0.56,
+      -0.02
+    ],
+    "stool0": [
+      -0.4,
+      0,
+      0.5
+    ],
+    "stool1": [
+      0.4,
+      0,
+      0.5
+    ]
+  },
+  "module": {
+    "length": 1.6,
+    "axis": "x",
+    "chain": "place modules every 1.6 m along X"
+  }
+}

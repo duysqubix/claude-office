@@ -1,4 +1,4 @@
-"""Pine tree: four stacked soft cones with wavy scalloped hems, darkest at the bottom and
+"""Pine tree: four stacked faceted cones with zig-zag scalloped hems, darkest at the bottom and
 lightest at the tip (PALETTE.treeLeaf), on a short chunky trunk with buttress roots.
 About 4.0 m tall, 2.6 m across. Origin at the trunk foot."""
 import lib
@@ -7,6 +7,7 @@ from environment import _env
 NAME = "tree_pine"
 AO_RES = 512
 AO_DISTANCE = 0.45
+FACETED = True  # ART-REFERENCE: WL nature is flat-shaded low-poly; False = smooth tiers
 
 # Tiers bottom → top: (radius, height, base z, material, scallops, phase).
 TIERS = [
@@ -29,15 +30,20 @@ def materials():
 def trunk(M):
     prof = [(0.0, 0.0), (0.3, 0.0), (0.295, 0.025), (0.27, 0.07), (0.24, 0.15), (0.215, 0.3),
             (0.2, 0.6), (0.18, 1.3), (0.0, 1.3)]
-    _env.trunk("Trunk", prof, M["trunk"], verts=20, seed=3, wobble=0.03, roots=5,
+    _env.trunk("Trunk", prof, M["trunk"], verts=12, seed=3, wobble=0.03, roots=5,
                root_amp=0.32, root_h=0.4)
 
 
 def tiers(M):
     for i, (r, h, z0, k, n, ph) in enumerate(TIERS):
         top = i == len(TIERS) - 1
-        _env.skirt(f"Tier{i}", r, h, z0, M["leaves"][k], verts=4 * n * 2, scallops=n,
-                   amp=0.07, droop=0.06, phase=ph, tip=0.3 if top else 0.22)
+        if FACETED:
+            # Low-poly: one vertex per scallop crest and trough, flat shaded.
+            _env.skirt(f"Tier{i}", r, h, z0, M["leaves"][k], verts=2 * n, scallops=n,
+                       amp=0.09, droop=0.08, phase=ph, tip=0.3 if top else 0.22, smooth=False)
+        else:
+            _env.skirt(f"Tier{i}", r, h, z0, M["leaves"][k], verts=4 * n * 2, scallops=n,
+                       amp=0.07, droop=0.06, phase=ph, tip=0.3 if top else 0.22)
 
 
 STEPS = [trunk, tiers]

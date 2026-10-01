@@ -40,19 +40,19 @@ def materials():
 
 
 def base(M):
-    lib.rbox("Base", (W, D, H), (0, 0, H / 2), M["shell"], r=0.011, seg=3)
+    lib.rbox("Base", (W, D, H), (0, 0, H / 2), M["shell"], r=0.011, seg=2)
     lib.rbox("Deck", (W - 0.04, 0.115, 0.006), (0, -0.04, H - 0.0015), M["deck"], r=0.003,
              seg=1)
-    kw, kd, gap = 0.026, 0.024, 0.0045
+    kw, kd, gap = 0.029, 0.024, 0.0045
     for row in range(3):
         y = -0.083 + row * (kd + gap)
-        for i in range(9):
-            x = (i - 4) * (kw + gap)
+        for i in range(8):
+            x = (i - 3.5) * (kw + gap)
             lib.rbox(f"Key{row}{i}", (kw, kd, 0.007), (x, y, H + 0.002), M["keys"], r=0.0025,
                      seg=1)
     lib.rbox("Space", (0.13, kd, 0.007), (0, -0.083 + 3 * (kd + gap), H + 0.002), M["keys"],
              r=0.0025, seg=1)
-    lib.rbox("Trackpad", (0.1, 0.05, 0.003), (0, 0.072, H), M["pad"], r=0.006, seg=2)
+    lib.rbox("Trackpad", (0.1, 0.05, 0.003), (0, 0.072, H), M["pad"], r=0.006, seg=1)
     lib.cyl("Hinge", 0.008, W - 0.06, HINGE, M["deck"], r=0.003, seg=1, verts=12,
             rot=(0, math.pi / 2, 0))
 
@@ -66,22 +66,22 @@ def lid(M):
     def at(along, off):
         return (hx, hy + up[1] * along + out[1] * off, hz + up[2] * along + out[2] * off)
 
-    lib.rbox("Lid", (W, LID_T, LID_H), at(LID_H / 2, -0.004), M["shell"], r=0.008, seg=3,
+    lib.rbox("Lid", (W, LID_T, LID_H), at(LID_H / 2, -0.004), M["shell"], r=0.008, seg=2,
              rot=rot)
     lib.rbox("Screen", (W - 0.04, 0.003, LID_H - 0.045), at(LID_H / 2 + 0.004, LID_T / 2 - 0.004),
              M["screen"], r=0.004, seg=1, rot=rot)
     # Stickers on the lid back (it faces forward, -Y).
     back = -LID_T / 2 - 0.0045
     lib.cyl("Logo", 0.026, 0.004, at(LID_H / 2 + 0.01, back), M["logo"], r=0.0015, seg=1,
-            verts=24, rot=(TILT + math.pi / 2, 0, 0))
+            verts=18, rot=(TILT + math.pi / 2, 0, 0))
     lib.rbox("Sticker1", (0.04, 0.003, 0.03), at(0.05, back + 0.0003), M["sticker1"], r=0.006,
-             seg=2, rot=(TILT, 0, math.radians(-12)))
+             seg=1, rot=(TILT, 0, math.radians(-12)))
     x0 = 0.1
     s2 = lib.cyl("Sticker2", 0.016, 0.003, at(0.16, back + 0.0003), M["sticker2"], r=0.001,
-                 seg=1, verts=20, rot=(TILT + math.pi / 2, 0, 0))
+                 seg=1, verts=14, rot=(TILT + math.pi / 2, 0, 0))
     s2.location.x = x0
     s3 = lib.rbox("Sticker3", (0.034, 0.003, 0.022), at(0.07, back + 0.0003), M["sticker3"],
-                  r=0.007, seg=2, rot=(TILT, 0, math.radians(8)))
+                  r=0.007, seg=1, rot=(TILT, 0, math.radians(8)))
     s3.location.x = -0.1
 
 

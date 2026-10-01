@@ -27,7 +27,7 @@ P = dict(
     grassDark="#5FBF45",
     path="#F2E3C6",
     treeTrunk="#9C6B43",
-    cloud="#FFFFFF",
+    cloud="#E6F4FC",  # WL clouds are faintly blue (ART-REFERENCE §3.1)
     wall="#FFF3DE",
     wallAccent="#8FE0C8",
     wallTrim="#F6B76E",
@@ -114,15 +114,23 @@ def icoblob(name, r, loc=(0, 0, 0), material=None, scale=(1, 1, 1), subdiv=2, ro
     return ob
 
 
-def puff_cluster(prefix, puffs, mats, lump=0.06, seed=0, ground=0.0, scale=(1, 1, 1)):
+def puff_cluster(prefix, puffs, mats, lump=0.06, seed=0, ground=0.0, scale=(1, 1, 1),
+                 faceted=False):
     """Lumpy puffs [(x, y, z, radius, material index, cuts)]; any that dip below `ground`
-    get a flat bottom there. Faces buried inside neighbours are culled."""
+    get a flat bottom there. Faces buried inside neighbours are culled. `faceted` swaps the
+    smooth quad spheres for flat-shaded low-poly icospheres (ART-REFERENCE: WL nature is
+    faceted); `cuts` then only matters for the smooth look."""
     obs = []
     for i, (x, y, z, r, k, cuts) in enumerate(puffs):
         low = z - r * scale[2]
         flat = (ground - z) / (r * scale[2]) + 0.02 if low < ground else None
-        obs.append(qsphere(f"{prefix}{i}", r, (x, y, z), mats[k], scale=scale, cuts=cuts,
-                           lump=lump, seed=seed + i + 1, flat=flat))
+        if faceted:
+            obs.append(icoblob(f"{prefix}{i}", r * 1.03, (x, y, z), mats[k], scale=scale,
+                               subdiv=3 if r > 1.0 else 2, lump=lump * 1.6,
+                               seed=seed + i + 1, flat=flat))
+        else:
+            obs.append(qsphere(f"{prefix}{i}", r, (x, y, z), mats[k], scale=scale, cuts=cuts,
+                               lump=lump, seed=seed + i + 1, flat=flat))
     cull_hidden(obs)
     return obs
 
@@ -221,7 +229,7 @@ def trunk(name, profile, material, verts=14, bend=(0.0, 0.0), seed=0, wobble=0.0
 
 
 def skirt(name, radius, height, z0, material, verts=40, scallops=0, amp=0.0, droop=0.0,
-          tip=0.22, phase=0.0):
+          tip=0.22, phase=0.0, smooth=True):
     """Pine tier: a soft cone with a rounded, slightly tucked-under hem. `scallops` waves
     the hem in and out (amp, fraction of radius) and dips it (droop, metres) at each lobe."""
     R, h = radius, height
@@ -230,6 +238,8 @@ def skirt(name, radius, height, z0, material, verts=40, scallops=0, amp=0.0, dro
             (R * 0.62, z0 + 0.5 * h), (R * tip * 1.35, z0 + 0.86 * h), (R * tip, z0 + 0.95 * h),
             (R * tip * 0.55, z0 + 0.995 * h), (0.0, z0 + h)]
     ob = lib.lathe(name, prof, material=material, verts=verts)
+    if not smooth:
+        ob.data.shade_flat()
     if scallops:
         for v in ob.data.vertices:
             rr = math.hypot(v.co.x, v.co.y)
@@ -332,16 +342,17 @@ def blade(name, base, yaw, pitch, length, width, thick, material, droop=0.0, seg
 
 def fan_leaf(name, base, yaw, pitch, length, material, slits=(), slit_depth=0.55,
              slit_w=0.07, thick=0.018, droop=0.25, cup=0.0, samples=64, rings=3, roll=0.0,
-             back=0.18):
+             back=0.18, pointy=0.9):
     """Heart-shaped leaf around its petiole point (a cardioid: long ahead, notched behind),
     with V slits radiating from the petiole at the given angles (radians from the midrib):
-    a cartoon monstera leaf. Droops toward the rim; `cup` lifts the sides."""
+    a cartoon monstera leaf. Droops toward the rim; `cup` lifts the sides; a higher `pointy`
+    sharpens the tip (pothos hearts)."""
     R = _orient(yaw, pitch, roll)
     b = Vector(base)
     bm = bmesh.new()
 
     def rho(phi):
-        r = length * (back + (1 - back) * (0.5 + 0.5 * math.cos(phi)) ** 0.9)
+        r = length * (back + (1 - back) * (0.5 + 0.5 * math.cos(phi)) ** pointy)
         for s in slits:
             d = (phi - s + math.pi) % (2 * math.pi) - math.pi
             r *= 1 - slit_depth * math.exp(-(d / slit_w) ** 2)
@@ -377,6 +388,33 @@ def fan_leaf(name, base, yaw, pitch, length, material, slits=(), slit_depth=0.55
     return lib._link(name, bm, material)
 
 
+def pinnate_frond(prefix, start, yaw, pitch, length, sag, rachis_mat, leaf_mats, pairs=9,
+                  leaflet=(0.1, 0.2), width=0.04, spread=0.85, rachis_r=0.012, segs=3,
+                  fall=0.35, seed=0):
+    """Palm / fern frond: a sagging rachis (tube) with `pairs` of slim leaflet blades, longest
+    mid-frond (leaflet = (min, extra) length). Leaflets angle forward and out by `spread`
+    and hang by `fall`."""
+    d = Vector((-math.sin(yaw) * math.cos(pitch), math.cos(yaw) * math.cos(pitch),
+                math.sin(pitch)))
+    S = Vector(start)
+    pts = [S + d * length * t + Vector((0, 0, -sag * t * t)) for t in (k / 7 for k in range(8))]
+    sweep_tube(prefix + "Rachis", pts, rachis_r, rachis_mat, verts=6, r_end=rachis_r * 0.4)
+    across = Vector((math.cos(yaw), math.sin(yaw), 0))
+    for k in range(1, pairs + 1):
+        t = k / (pairs + 1)
+        p = S + d * length * t + Vector((0, 0, -sag * t * t))
+        tangent = (d * length + Vector((0, 0, -2 * sag * t))).normalized()
+        ll = leaflet[0] + leaflet[1] * math.sin(math.pi * (0.15 + 0.85 * t)) * (1 - 0.3 * t)
+        for sgn in (-1, 1):
+            out = (tangent * 0.55 + across * sgn * spread).normalized()
+            out.z -= fall
+            out.normalize()
+            blade(f"{prefix}L{k}{'ab'[sgn > 0]}", tuple(p), math.atan2(-out.x, out.y),
+                  math.asin(max(-1.0, min(1.0, out.z))), ll, width, width * 0.2,
+                  leaf_mats[(seed + k) % len(leaf_mats)], droop=0.25, segs=segs, base_w=0.3,
+                  belly=0.35, roll=sgn * 0.5)
+
+
 def tulip(prefix, loc, material, r=0.05, rot=(0, 0, 0)):
     """Tulip head: a plump egg cup whose rim rises into three rounded petal tips."""
     prof = [(0.0, 0.0), (r * 0.55, r * 0.12), (r * 0.92, r * 0.55), (r, r * 1.05),
@@ -388,6 +426,129 @@ def tulip(prefix, loc, material, r=0.05, rot=(0, 0, 0)):
             v.co.z += r * 0.38 * (0.5 + 0.5 * math.cos(3 * a)) ** 2 * (v.co.z / (r * 1.72))
     ob.location = loc
     ob.rotation_euler = rot
+    return ob
+
+
+def sweep_tube(name, pts, r, material=None, verts=10, r_end=None, caps=True, closed=False):
+    """Round tube swept along a polyline of world points (parallel-transport frames), radius
+    tapering linearly to `r_end`; domed caps at open ends. For bent rails, frames, ropes."""
+    P = [Vector(p) for p in pts]
+    n = len(P)
+    r_end = r if r_end is None else r_end
+    T = []
+    for i in range(n):
+        if closed:
+            d = P[(i + 1) % n] - P[i - 1]
+        else:
+            d = P[min(i + 1, n - 1)] - P[max(i - 1, 0)]
+        T.append(d.normalized())
+    up = Vector((0, 0, 1)) if abs(T[0].z) < 0.9 else Vector((1, 0, 0))
+    N = [T[0].cross(up).normalized()]
+    for i in range(1, n):
+        q = T[i - 1].rotation_difference(T[i])
+        N.append((q @ N[-1]).normalized())
+    bm = bmesh.new()
+    rings = []
+    total = sum((P[i + 1] - P[i]).length for i in range(n - 1)) or 1.0
+    acc = 0.0
+    for i in range(n):
+        if i:
+            acc += (P[i] - P[i - 1]).length
+        rr = r + (r_end - r) * acc / total
+        B = T[i].cross(N[i])
+        rings.append([bm.verts.new(tuple(P[i] + rr * (math.cos(a) * N[i] + math.sin(a) * B)))
+                      for a in (2 * math.pi * k / verts for k in range(verts))])
+    segs = n if closed else n - 1
+    for i in range(segs):
+        a, b = rings[i], rings[(i + 1) % n]
+        for k in range(verts):
+            bm.faces.new((a[k], a[(k + 1) % verts], b[(k + 1) % verts], b[k]))
+    if caps and not closed:
+        for idx, sign, rr in ((0, -1, r), (n - 1, 1, r_end)):
+            ring = rings[idx]
+            tip = bm.verts.new(tuple(P[idx] + T[idx] * sign * rr * 0.6))
+            for k in range(verts):
+                f = (ring[k], ring[(k + 1) % verts], tip)
+                bm.faces.new(f if sign > 0 else f[::-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return lib._link(name, bm, material)
+
+
+def extrude_outline(name, pts, depth, loc=(0, 0, 0), material=None, bevel=0.01, bseg=2,
+                    rot=(0, 0, 0)):
+    """Board cut from a 2D outline [(x, z)] standing in the XZ plane, `depth` thick along Y,
+    edges softened by a bevel: pickets, flags, signs."""
+    bm = bmesh.new()
+    front = [bm.verts.new((x, -depth / 2, z)) for x, z in pts]
+    back = [bm.verts.new((x, depth / 2, z)) for x, z in pts]
+    bm.faces.new(front)
+    bm.faces.new(list(reversed(back)))
+    k = len(pts)
+    for i in range(k):
+        j = (i + 1) % k
+        bm.faces.new((front[j], front[i], back[i], back[j]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    ob = lib._link(name, bm, material, loc, rot)
+    if bevel > 0:
+        lib.bevel(ob, min(bevel, depth * 0.45), bseg, angle=30)
+    return ob
+
+
+def faceted_block(name, size, loc=(0, 0, 0), material=None, cuts=5, power=6.0, jitter=0.04,
+                  seed=0, freq=2.2):
+    """Low-poly rounded block (faceted nature: clipped hedges, boulders): a subdivided cube
+    pushed onto a superellipsoid (higher `power` = boxier) with noisy vertices, flat shaded.
+    `size` is full extents; it sits on loc's z (bottom at loc.z)."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=2.0)
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=cuts, use_grid_fill=True)
+    half = Vector(size) / 2
+    off = Vector((seed * 3.1, seed * 1.7, seed * 2.3))
+    for v in bm.verts:
+        q = v.co.copy()
+        k = sum(abs(c) ** power for c in q) ** (-1.0 / power)
+        q *= k
+        d = q.normalized()
+        w = Vector((q.x * half.x, q.y * half.y, q.z * half.z))
+        w += Vector((d.x / half.x, d.y / half.y, d.z / half.z)).normalized() * jitter * \
+            noise.noise(w * freq + off)
+        v.co = Vector((w.x, w.y, max(0.0, w.z + half.z)))
+    return lib._link(name, bm, material, loc, smooth=False)
+
+
+def paint_up(ob, material, min_nz=0.7, min_z=None):
+    """Give the upward-facing faces of `ob` another material (moss on rocks, sunlit tops)."""
+    me = ob.data
+    if material.name not in me.materials:
+        me.materials.append(material)
+    idx = list(me.materials).index(material)
+    for p in me.polygons:
+        if p.normal.z > min_nz and (min_z is None or p.center.z > min_z):
+            p.material_index = idx
+    return ob
+
+
+def mottle(ob, materials, weights=None, seed=0, where=None):
+    """Scatter faces of `ob` across `materials` (a cheap leafy texture for faceted foliage).
+    `where(poly)` limits which faces are touched."""
+    me = ob.data
+    for m in materials:
+        if m.name not in me.materials:
+            me.materials.append(m)
+    idx = [list(me.materials).index(m) for m in materials]
+    r = rng(seed)
+    for p in me.polygons:
+        if where is None or where(p):
+            p.material_index = r.choices(idx, weights=weights)[0]
+    return ob
+
+
+def facet(ob):
+    """Flat-shade a part (faceted nature), dropping bevel normal hardening."""
+    ob.data.shade_flat()
+    for m in ob.modifiers:
+        if m.type == "BEVEL":
+            m.harden_normals = False
     return ob
 
 

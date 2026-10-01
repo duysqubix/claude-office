@@ -1,0 +1,25 @@
+{
+  "id": "tree_blossom",
+  "name": "Blossom tree",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "Cherry tree in full pink bloom: a stout forked trunk, a wide umbrella of faceted pink puffs and fallen petals on the grass",
+  "tags": [
+    "tree",
+    "garden",
+    "lawn",
+    "foliage",
+    "faceted",
+    "pink"
+  ],
+  "tintable": [],
+  "anchors": {
+    "canopy": [
+      0,
+      2.6,
+      0
+    ]
+  }
+}

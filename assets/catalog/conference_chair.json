@@ -1,0 +1,24 @@
+{
+  "id": "conference_chair",
+  "name": "Conference chair",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Puffy swivel tub chair for the Team Room",
+  "tags": [
+    "seating",
+    "team-room",
+    "meeting-room"
+  ],
+  "tintable": [
+    "Seat"
+  ],
+  "anchors": {
+    "seat": [
+      0,
+      0.52,
+      0.02
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "glass_partition",
+  "name": "Glass partition",
+  "category": "building",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Frosted glass wall module (2 m) with a chunky frame; tiles along its length",
+  "tags": [
+    "team-room",
+    "wall",
+    "glass"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {},
+  "module": {
+    "length": 2.0,
+    "height": 2.3,
+    "axis": "x"
+  }
+}

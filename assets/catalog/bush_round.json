@@ -3,15 +3,16 @@
   "name": "Round bush",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "priority": "P0",
   "status": "done",
-  "description": "Low flat-bottomed mound of lumpy puffs, darker underneath and lighter on top",
+  "priority": "P0",
+  "description": "Low flat-bottomed mound of faceted low-poly puffs, darker underneath and lighter on top",
   "tags": [
     "bush",
     "garden",
-    "hedge",
-    "foliage"
+    "foliage",
+    "faceted"
   ],
   "tintable": [],
-  "anchors": {}
+  "anchors": {},
+  "notes": "About 600 tris; scatter or row them along walls."
 }

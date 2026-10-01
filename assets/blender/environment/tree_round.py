@@ -1,6 +1,6 @@
 """Round tree: a chunky, gently leaning trunk whose foot swells into soft buttress roots, two
-limbs, and a wide puffy canopy of lumpy quad-sphere puffs, darker green underneath and
-lighter on top (PALETTE.treeLeaf). About 3.9 m tall, 3.3 m across. Origin at the trunk foot."""
+limbs, and a wide canopy of faceted low-poly puffs (Wobbly Life nature), darker green
+underneath and lighter on top (PALETTE.treeLeaf). About 3.9 m tall, 3.3 m across. Origin at the trunk foot."""
 import math
 
 import lib
@@ -9,6 +9,7 @@ from environment import _env
 NAME = "tree_round"
 AO_RES = 512
 AO_DISTANCE = 0.5
+FACETED = True  # ART-REFERENCE: WL nature is flat-shaded low-poly; False = smooth puffs
 
 # Canopy puffs: (x, y, z, radius, material, cuts). Materials: 0 Leaf, 1 LeafDark, 2 LeafLight.
 PUFFS = [(0.0, 0.0, 2.7, 1.2, 0, 8)]
@@ -34,7 +35,7 @@ def materials():
 def trunk(M):
     prof = [(0.0, 0.0), (0.36, 0.0), (0.355, 0.025), (0.33, 0.07), (0.3, 0.14), (0.28, 0.24),
             (0.265, 0.4), (0.255, 0.7), (0.24, 1.2), (0.22, 1.7), (0.2, 2.4), (0.0, 2.4)]
-    _env.trunk("Trunk", prof, M["trunk"], verts=24, bend=(0.1, 0.04), seed=1, wobble=0.03,
+    _env.trunk("Trunk", prof, M["trunk"], verts=14, bend=(0.1, 0.04), seed=1, wobble=0.03,
                roots=5, root_amp=0.32, root_h=0.5)
     # Two limbs reaching into the canopy.
     _env.tube("LimbL", (0.0, 0.0, 1.5), (-0.6, -0.32, 2.2), 0.1, 0.07, M["trunk"], verts=10)
@@ -42,10 +43,8 @@ def trunk(M):
 
 
 def canopy(M):
-    puffs = [_env.qsphere(f"Puff{i}", r, (x, y, z), M["leaves"][k], scale=(1, 1, 0.9),
-                          cuts=cuts, lump=0.06, seed=i + 1)
-             for i, (x, y, z, r, k, cuts) in enumerate(PUFFS)]
-    _env.cull_hidden(puffs)
+    _env.puff_cluster("Puff", PUFFS, M["leaves"], seed=0, ground=-10, scale=(1, 1, 0.9),
+                      faceted=FACETED)
 
 
 STEPS = [trunk, canopy]
