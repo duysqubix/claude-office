@@ -17,7 +17,10 @@
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
     "smoke": "node scripts/smoke.mjs",
     "filmstrip": "node scripts/filmstrip.mjs",
-    "catalog": "node scripts/catalog.mjs"
+    "catalog": "node scripts/catalog.mjs",
+    "hooks:install": "node scripts/hooks.mjs install",
+    "hooks:uninstall": "node scripts/hooks.mjs uninstall",
+    "hooks:status": "node scripts/hooks.mjs status"
   },
   "dependencies": {
     "@fontsource/fredoka": "^5.3.0",

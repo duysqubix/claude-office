@@ -111,6 +111,10 @@ async function newSession(tmuxName: string, cwd: string, claudeArgs: string[], m
   await tmux(['set-option', '-w', '-t', `=${tmuxName}:`, 'remain-on-exit', 'on']);
   // The in-game terminal is the whole screen; tmux's status bar is just noise there.
   await tmux(['set-option', '-t', `=${tmuxName}:`, 'status', 'off']);
+  // No tmux prefix key: Ctrl+B (and every other key) must reach Claude Code, which uses
+  // Ctrl+B to send a running command to the background.
+  await tmux(['set-option', '-t', `=${tmuxName}:`, 'prefix', 'None']);
+  await tmux(['set-option', '-t', `=${tmuxName}:`, 'prefix2', 'None']);
 }
 
 export function newSessionId(): string {

@@ -1,7 +1,7 @@
 // The office roster: merges the live registry, transcripts, subagents and tmux into
 // Employee records, polls once a second, and emits 'change' / 'notice'.
 import { EventEmitter } from 'node:events';
-import type { Employee, EmployeeState, Intern, NoticeMessage } from '../shared/protocol';
+import type { Ask, Employee, EmployeeState, Intern, NoticeMessage } from '../shared/protocol';
 import { SLEEP_AFTER_MS } from '../shared/protocol';
 import { POLL_MS } from './config';
 import { projectName } from './archive';
@@ -22,8 +22,15 @@ interface PendingHire {
 
 const TRUST_PROMPT = /trust (the files in )?this folder|Do you trust/i;
 
+/** Open in-game questions per session (server/asks.ts). */
+export interface AskSource {
+  forSession(sessionId: string): Ask | undefined;
+}
+
 export class Roster extends EventEmitter {
   employees: Employee[] = [];
+  /** Employees as last polled, before open asks are applied. */
+  private base: Employee[] = [];
   private tails = new Map<string, TranscriptTail>();
   private memo = new Map<string, { state: EmployeeState; since: number }>();
   private interns = new Map<string, Intern[]>();
@@ -36,6 +43,10 @@ export class Roster extends EventEmitter {
   private tickN = 0;
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
+
+  constructor(private readonly asks?: AskSource) {
+    super();
+  }
 
   start(): void {
     const loop = async () => {
@@ -66,6 +77,15 @@ export class Roster extends EventEmitter {
 
   tail(sessionId: string): TranscriptTail | undefined {
     return this.tails.get(sessionId);
+  }
+
+  contextTokens(sessionId: string): number | undefined {
+    return this.tails.get(sessionId)?.contextTokens;
+  }
+
+  linesChanged(sessionId: string): { added: number; removed: number } | undefined {
+    const t = this.tails.get(sessionId);
+    return t?.linesAdded === undefined ? undefined : { added: t.linesAdded, removed: t.linesRemoved ?? 0 };
   }
 
   takenNames(): Set<string> {
@@ -189,12 +209,25 @@ export class Roster extends EventEmitter {
       });
     }
     employees.sort((a, b) => a.startedAt - b.startedAt);
-    this.employees = employees;
+    this.base = employees;
+    this.publish();
+  }
 
-    const json = JSON.stringify(employees);
+  /** Re-apply open asks to the last poll and broadcast if anything changed (no re-poll). */
+  refresh(): void {
+    this.publish();
+  }
+
+  private publish(): void {
+    this.employees = this.base.map((e) => {
+      const ask = this.asks?.forSession(e.sessionId);
+      if (!ask) return e;
+      return { ...e, ask, state: 'needs-you', waitingFor: ask.title, stateSince: this.since(e.sessionId, 'needs-you', ask.createdAt) };
+    });
+    const json = JSON.stringify(this.employees);
     if (json !== this.lastJson) {
       this.lastJson = json;
-      this.emit('change', employees);
+      this.emit('change', this.employees);
     }
   }
 

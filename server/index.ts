@@ -8,10 +8,12 @@ import { stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { ViteDevServer } from 'vite';
-import type { ApiResult, ServerMessage } from '../shared/protocol';
+import type { AnswerRequest, ApiResult, ClientMessage, ServerMessage } from '../shared/protocol';
 import { findPastSession, listPastSessions, listProjects } from './archive';
+import { AskBroker, type HookPayload } from './asks';
 import { HOME, HOST, IS_PROD, PORT, ROOT } from './config';
 import { Roster } from './roster';
+import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
 import { run } from './exec';
 import { assertDirectory, hire, initTmux, kill, newSessionId, rehire, say } from './tmux';
@@ -23,6 +25,8 @@ const ALLOWED_ORIGINS = new Set([...ALLOWED_HOSTS].map((h) => `http://${h}`));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NAME_OK = /^[\p{L}\p{N}][\p{L}\p{N} .'-]{0,31}$/u;
 const MAX_BODY = 64 * 1024;
+/** Hook payloads carry full tool input (a Write can hold a whole file). */
+const MAX_HOOK_BODY = 4 * 1024 * 1024;
 const MAX_TEXT = 8000;
 
 const MIME: Record<string, string> = {
@@ -53,7 +57,10 @@ class HttpError extends Error {
   }
 }
 
-const roster = new Roster();
+const asks = new AskBroker();
+const roster = new Roster(asks);
+asks.on('change', () => roster.refresh());
+const stats = new StatsService();
 const server = http.createServer((req, res) => {
   handle(req, res).catch((err: unknown) => {
     const status = err instanceof HttpError ? err.status : 500;
@@ -82,6 +89,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   const path = url.pathname;
   if (req.method === 'GET') {
     if (path === '/api/roster') return sendJson(res, 200, roster.employees);
+    if (path === '/api/stats') return sendJson(res, 200, await stats.build(roster.employees, roster));
     if (path === '/api/projects') return sendJson(res, 200, await listProjects(roster.employees.map((e) => e.cwd)));
     if (path === '/api/archive') return sendJson(res, 200, await listPastSessions(new Set(roster.employees.map((e) => e.sessionId))));
     const chatter = path.match(/^\/api\/session\/([0-9a-f-]{36})\/chatter$/i);
@@ -97,6 +105,21 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed');
   if (!originOk(req)) throw new HttpError(403, 'Cross-origin request refused');
   if (!String(req.headers['content-type'] ?? '').includes('application/json')) throw new HttpError(415, 'Send JSON');
+
+  if (path === '/api/hook') {
+    // From scripts/office-hook.mjs (a local process, never a browser). Long-polls until the
+    // manager answers in-game, or returns {output: null} so Claude shows its terminal prompt.
+    if (req.headers.origin !== undefined) throw new HttpError(403, 'Hooks only');
+    const payload = (await readJson(req, MAX_HOOK_BODY)) as HookPayload;
+    const sid = typeof payload.session_id === 'string' ? payload.session_id : '';
+    const output = await asks.hold(payload, Boolean(sid && roster.find(sid)), (cancel) => {
+      res.on('close', () => {
+        if (!res.writableEnded) cancel();
+      });
+    });
+    return sendJson(res, 200, { output });
+  }
+
   const body = await readJson(req);
 
   switch (path) {
@@ -137,6 +160,12 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       void roster.tick();
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
+    case '/api/answer': {
+      const sessionId = uuidFrom(body.sessionId);
+      const result = asks.answer({ ...(body as unknown as AnswerRequest), sessionId });
+      if (!result.ok) throw new HttpError(409, result.error);
+      return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
+    }
     case '/api/say': {
       const sessionId = uuidFrom(body.sessionId);
       const text = typeof body.text === 'string' ? body.text.slice(0, MAX_TEXT).trim() : '';
@@ -163,13 +192,13 @@ function expandHome(p: string): string {
   return p;
 }
 
-function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+function readJson(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
   return new Promise((resolveBody, reject) => {
     let size = 0;
     const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => {
       size += c.length;
-      if (size > MAX_BODY) {
+      if (size > max) {
         reject(new HttpError(413, 'Too much'));
         req.destroy();
       } else chunks.push(c);
@@ -231,9 +260,32 @@ const broadcast = (msg: ServerMessage) => {
 rosterSockets.on('connection', (ws) => {
   alive.set(ws, true);
   ws.on('pong', () => alive.set(ws, true));
+  ws.on('message', (raw) => {
+    let msg: ClientMessage;
+    try {
+      msg = JSON.parse(String(raw));
+    } catch {
+      return;
+    }
+    if (msg?.type === 'presence') asks.setPresence(ws, Boolean(msg.visible), Number(msg.lastInputAt));
+  });
+  ws.on('close', () => asks.dropClient(ws));
   send(ws, { type: 'hello', version: VERSION, home: HOME });
   send(ws, { type: 'roster', employees: roster.employees, now: Date.now() });
+  void stats.build(roster.employees, roster).then((s) => send(ws, { type: 'stats', stats: s }));
 });
+
+// Team Room numbers: re-check every 5 s (plan usage is cached inside), broadcast on change.
+let lastStats = '';
+async function pushStats(): Promise<void> {
+  const s = await stats.build(roster.employees, roster);
+  const json = JSON.stringify(s);
+  if (json === lastStats) return;
+  lastStats = json;
+  broadcast({ type: 'stats', stats: s });
+}
+const statsTimer = setInterval(() => void pushStats().catch(() => {}), 5000);
+roster.on('change', () => void pushStats().catch(() => {}));
 roster.on('change', (employees) => broadcast({ type: 'roster', employees, now: Date.now() }));
 roster.on('notice', (notice: ServerMessage) => broadcast(notice));
 
@@ -304,8 +356,10 @@ async function main(): Promise<void> {
 }
 
 function shutdown(): void {
+  asks.releaseAll();
   roster.stop();
   clearInterval(heartbeat);
+  clearInterval(statsTimer);
   for (const ws of termSockets.clients) ws.close(1001, 'office closing');
   for (const ws of rosterSockets.clients) ws.close(1001, 'office closing');
   void vite?.close();

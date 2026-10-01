@@ -9,6 +9,7 @@
 // - All positions are world space.
 
 import type * as THREE from 'three';
+import type { TeamStats } from '../../../shared/protocol';
 
 export interface Engine {
   renderer: THREE.WebGLRenderer;
@@ -51,7 +52,7 @@ export interface DeskSlot {
   accent: string;
 }
 
-export type InteractableKind = 'reception' | 'archive' | 'whiteboard' | 'coffee' | 'desk';
+export type InteractableKind = 'reception' | 'archive' | 'whiteboard' | 'coffee' | 'desk' | 'teamboard';
 
 export interface Interactable {
   /** Unique id: 'reception', 'archive', 'whiteboard', 'coffee', or `desk:<index>`. */
@@ -94,6 +95,12 @@ export interface World {
   setDoorOpen(open: boolean): void;
   /** Live numbers drawn on the whiteboard. */
   setStats(stats: OfficeStats): void;
+  /**
+   * Team Room wall display: plan usage gauges (5-hour, weekly, any extra limits) with reset
+   * countdowns, team numbers, and a context-fill bar per employee. Called on every 'stats'
+   * message; the world redraws it (and ticks the countdowns once a second).
+   */
+  setTeamBoard(stats: TeamStats): void;
   /** Add desks until at least `n` exist (overflow pods). Returns the new desk count. */
   ensureDesks(n: number): number;
 }

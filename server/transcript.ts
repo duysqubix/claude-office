@@ -76,6 +76,10 @@ export class TranscriptTail {
   branch?: string;
   cwd?: string;
   costUSD?: number;
+  linesAdded?: number;
+  linesRemoved?: number;
+  /** Tokens the last main-chain request sent (input + cache): how full the context window is. */
+  contextTokens?: number;
   private firstPrompt?: string;
   private pending = new Map<string, PendingTool>();
   chatter: ChatLine[] = [];
@@ -164,11 +168,17 @@ export class TranscriptTail {
       }
       case 'cost-state':
         if (typeof e.totalCostUSD === 'number') this.costUSD = e.totalCostUSD;
+        if (typeof e.totalLinesAdded === 'number') this.linesAdded = e.totalLinesAdded;
+        if (typeof e.totalLinesRemoved === 'number') this.linesRemoved = e.totalLinesRemoved;
         break;
       case 'assistant': {
         if (e.isSidechain) break;
         const m = e.message ?? {};
         if (typeof m.model === 'string' && !m.model.startsWith('<')) this.model = m.model;
+        const u = m.usage;
+        if (u && typeof u.input_tokens === 'number') {
+          this.contextTokens = u.input_tokens + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+        }
         const at = Date.parse(e.timestamp) || Date.now();
         for (const b of Array.isArray(m.content) ? m.content : []) {
           if (b?.type === 'text' && typeof b.text === 'string' && b.text.trim()) {

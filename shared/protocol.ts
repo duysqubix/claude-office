@@ -39,6 +39,38 @@ export interface Intern {
   active: boolean;
 }
 
+/** A choice the manager can make for an Ask. */
+export interface AskOption {
+  /** What to send back in POST /api/answer `choice`. */
+  id: string;
+  label: string;
+  /** Optional one-line explanation under the label. */
+  hint?: string;
+  style: 'primary' | 'secondary' | 'danger' | 'ghost';
+}
+
+/**
+ * Something an employee is waiting for the manager to answer IN THE GAME (v0.5), delivered
+ * through Claude Code hooks. While an Ask is open the employee's state is 'needs-you'.
+ * If nobody answers before `expiresAt`, the question falls back to the employee's own terminal.
+ */
+export interface Ask {
+  id: string;
+  kind: 'permission' | 'question' | 'plan';
+  /** Tool being asked about, e.g. "Bash", "Edit", "mcp__chrome__navigate", "AskUserQuestion". */
+  tool: string;
+  /** Short headline, e.g. "Run a command?", "Edit auth.ts?", "Pick a framework". */
+  title: string;
+  /** The specifics: the command, file path, URL, or the plan (≤ 4000 chars, may be markdown for plans). */
+  detail: string;
+  /** For permission/plan asks: the buttons. For question asks: one entry per question (see `questions`). */
+  options: AskOption[];
+  /** kind 'question' only: the questions with their options (answer with choice 'answer' + `answers`). */
+  questions?: { question: string; header?: string; multiSelect?: boolean; options: { label: string; description?: string }[] }[];
+  createdAt: number;
+  expiresAt: number;
+}
+
 export interface Employee {
   sessionId: string;
   pid: number;
@@ -74,6 +106,29 @@ export interface Employee {
   startedAt: number;
   /** Hosted only: last lines of the terminal as plain text (≤ 18 lines × 80 cols), for the desk monitor. */
   screen?: string[];
+  /** Open question the manager can answer in-game (see Ask). Implies state 'needs-you'. */
+  ask?: Ask;
+}
+
+/** Client → server over /ws. Tells the office someone is actually looking at it. */
+export interface PresenceMessage {
+  type: 'presence';
+  /** document.visibilityState === 'visible' */
+  visible: boolean;
+  /** Epoch ms of the last keyboard/mouse input in the game. */
+  lastInputAt: number;
+}
+
+export type ClientMessage = PresenceMessage;
+
+/** POST /api/answer body. `answers` (question text → chosen label(s), comma-joined) only for choice 'answer'. */
+export interface AnswerRequest {
+  sessionId: string;
+  askId: string;
+  choice: string;
+  /** Optional note: sent to Claude as the reason on deny, or as feedback on a plan. */
+  message?: string;
+  answers?: Record<string, string>;
 }
 
 export interface RosterMessage {
@@ -89,6 +144,56 @@ export interface HelloMessage {
   home: string;
 }
 
+/** One plan limit, e.g. the 5-hour window or the weekly quota. */
+export interface PlanLimit {
+  /** Key as Claude Code reports it, e.g. "five_hour", "seven_day". */
+  id: string;
+  /** Display label, e.g. "5-hour", "Weekly". */
+  label: string;
+  usedPct: number;
+  /** Epoch ms when it resets. */
+  resetsAt?: number;
+}
+
+/** One employee's context window fill (from their transcript's last request). */
+export interface ContextFill {
+  sessionId: string;
+  displayName: string;
+  tokens: number;
+  windowSize: number;
+  pct: number;
+}
+
+/** Live numbers for the Team Room wall (and the HUD). Pushed every ~15 s and on connect. */
+export interface TeamStats {
+  plan: {
+    limits: PlanLimit[];
+    /** Epoch ms the plan numbers were last reported by any Claude Code session; null = unknown. */
+    updatedAt: number | null;
+  };
+  team: {
+    staff: number;
+    working: number;
+    needsYou: number;
+    idle: number;
+    interns: number;
+    /** Sum of the in-office sessions' running costs. */
+    costUSD: number;
+    linesAdded: number;
+    linesRemoved: number;
+    /** Commits since local midnight across the in-office sessions' git repos. */
+    commitsToday: number;
+    /** Sessions with transcript activity since local midnight. */
+    sessionsToday: number;
+  };
+  context: ContextFill[];
+}
+
+export interface StatsMessage {
+  type: 'stats';
+  stats: TeamStats;
+}
+
 /** Something worth a toast that the roster alone doesn't show (e.g. a new hire that crashed on startup). */
 export interface NoticeMessage {
   type: 'notice';
@@ -96,7 +201,7 @@ export interface NoticeMessage {
   text: string;
 }
 
-export type ServerMessage = RosterMessage | HelloMessage | NoticeMessage;
+export type ServerMessage = RosterMessage | HelloMessage | NoticeMessage | StatsMessage;
 
 /** A directory Claude Code has been used in (from ~/.claude/projects). */
 export interface ProjectInfo {
@@ -141,6 +246,11 @@ export interface ApiResult {
 //   POST /api/rehire {sessionId}    -> ApiResult      (claude --resume in tmux)
 //   POST /api/fire   {sessionId}    -> ApiResult      (hosted only: ends the tmux session)
 //   POST /api/say    {sessionId, text} -> ApiResult   (hosted only: types text + Enter into their terminal)
+//   POST /api/answer AnswerRequest -> ApiResult      (answer an open Ask in-game; any session, via hooks)
+//   POST /api/hook   <Claude Code hook stdin JSON>    (from scripts/office-hook.mjs only; long-polls for the answer)
+//
+// Ask choices: permission → 'allow' | 'always' | 'deny' | 'terminal';  plan → 'approve' | 'revise' | 'terminal';
+//              question → 'answer' (with `answers`) | 'terminal'.  'terminal' = "answer in their own terminal instead".
 //
 // WebSocket /ws    server -> client: ServerMessage JSON (hello once, then roster on every change)
 // WebSocket /term?id=<sessionId>&cols=<n>&rows=<n>   (hosted only)
