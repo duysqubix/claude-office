@@ -15,7 +15,8 @@
     "snap": "node scripts/snap.mjs",
     "postinstall": "node scripts/fix-pty.mjs",
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "filmstrip": "node scripts/filmstrip.mjs"
   },
   "dependencies": {
     "@fontsource/fredoka": "^5.3.0",
