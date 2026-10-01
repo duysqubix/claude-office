@@ -1,15 +1,15 @@
 {
-  "generated": "2026-10-01T23:39:57.394Z",
+  "generated": "2026-10-01T23:41:27.323Z",
   "totals": {
     "all": 231,
-    "done": 173,
-    "planned": 58
+    "done": 175,
+    "planned": 56
   },
   "byArtist": {
     "Claude Cézanne": 53,
     "Claude Lorrain": 36,
-    "Claude Monet": 83,
-    "Claude Rodin": 59
+    "Claude Monet": 85,
+    "Claude Rodin": 57
   },
   "items": [
     {
@@ -6213,20 +6213,20 @@
       "file": "models/sunglasses.glb",
       "thumb": "models/thumbs/sunglasses.jpg",
       "dims": {
-        "w": 0.576,
-        "h": 0.146,
-        "d": 0.373
+        "w": 0.579,
+        "h": 0.15,
+        "d": 0.376
       },
       "bbox": {
         "min": [
-          -0.288,
-          -0.079,
-          -0.042
+          -0.29,
+          -0.081,
+          -0.043
         ],
         "max": [
-          0.288,
-          0.067,
-          0.331
+          0.29,
+          0.069,
+          0.333
         ]
       },
       "tris": 1600,
@@ -6238,7 +6238,7 @@
         "sunglasses"
       ],
       "textures": 1,
-      "bytes": 67508
+      "bytes": 67408
     },
     {
       "id": "wall_clock",
@@ -6706,6 +6706,59 @@
       ],
       "textures": 1,
       "bytes": 53320
+    },
+    {
+      "id": "beard_full",
+      "name": "Full beard",
+      "category": "character-face",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Big soft full beard with a mustache",
+      "tags": [
+        "facial-hair",
+        "beard",
+        "face"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "chin": [
+          0,
+          -0.24,
+          0.2
+        ]
+      },
+      "status": "done",
+      "file": "models/beard_full.glb",
+      "thumb": "models/thumbs/beard_full.jpg",
+      "dims": {
+        "w": 0.63,
+        "h": 0.423,
+        "d": 0.382
+      },
+      "bbox": {
+        "min": [
+          -0.315,
+          -0.32,
+          -0.075
+        ],
+        "max": [
+          0.315,
+          0.103,
+          0.307
+        ]
+      },
+      "tris": 1900,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "beard_full"
+      ],
+      "textures": 1,
+      "bytes": 77276
     },
     {
       "id": "bookshelf",
@@ -8137,6 +8190,59 @@
       ],
       "textures": 1,
       "bytes": 64444
+    },
+    {
+      "id": "mustache",
+      "name": "Mustache",
+      "category": "character-face",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Chunky curly handlebar mustache",
+      "tags": [
+        "facial-hair",
+        "mustache",
+        "face"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "center": [
+          0,
+          -0.0516,
+          0.2854
+        ]
+      },
+      "status": "done",
+      "file": "models/mustache.glb",
+      "thumb": "models/thumbs/mustache.jpg",
+      "dims": {
+        "w": 0.266,
+        "h": 0.087,
+        "d": 0.069
+      },
+      "bbox": {
+        "min": [
+          -0.133,
+          -0.088,
+          0.233
+        ],
+        "max": [
+          0.133,
+          0,
+          0.301
+        ]
+      },
+      "tris": 900,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "mustache"
+      ],
+      "textures": 1,
+      "bytes": 36924
     },
     {
       "id": "plant_wall",
@@ -10782,21 +10888,6 @@
       "thumb": null
     },
     {
-      "id": "beard_full",
-      "name": "Beard full",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "`Hair`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "bow_tie",
       "name": "Bow tie",
       "category": null,
@@ -10999,21 +11090,6 @@
       "group": "characters",
       "priority": "P1",
       "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "mustache",
-      "name": "Mustache",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "`Hair`",
       "tags": [],
       "tintable": [],
       "anchors": {},

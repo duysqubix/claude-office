@@ -1,0 +1,24 @@
+{
+  "id": "mustache",
+  "name": "Mustache",
+  "category": "character-face",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky curly handlebar mustache",
+  "tags": [
+    "facial-hair",
+    "mustache",
+    "face"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "center": [
+      0.0,
+      -0.0516,
+      0.2854
+    ]
+  }
+}

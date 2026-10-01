@@ -19,8 +19,8 @@ META = mo.meta("Mustache", "character-face", "Chunky curly handlebar mustache",
 def sdf():
     lobes = []
     for s in (1, -1):
-        for fx, fy, r in ((0.022, FY, 0.026), (0.055, FY - 0.006, 0.024), (0.085, FY + 0.004, 0.018),
-                          (0.1, FY + 0.024, 0.014)):
+        for fx, fy, r in ((0.024, FY, 0.034), (0.062, FY - 0.008, 0.031), (0.097, FY + 0.006, 0.023),
+                          (0.113, FY + 0.03, 0.018)):
             c = kit.face_point(s * fx, fy, 0.004)
             lobes.append((tuple(c), r))
     cs = [c for c, _ in lobes]
@@ -36,7 +36,7 @@ def sdf():
 def build():
     lib.begin(NAME)
     hair = kit.m_hair(COLOR)
-    kit.sdf_mesh("Mustache", sdf(), (-0.15, -0.34, -0.12), (0.15, -0.18, 0.04), hair,
+    kit.sdf_mesh("Mustache", sdf(), (-0.17, -0.35, -0.13), (0.17, -0.17, 0.06), hair,
                  voxel=0.0025, trim=kit.outside_head(), target=900, remesh="decimate")
 
 

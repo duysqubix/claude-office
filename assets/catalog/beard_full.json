@@ -1,0 +1,24 @@
+{
+  "id": "beard_full",
+  "name": "Full beard",
+  "category": "character-face",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Big soft full beard with a mustache",
+  "tags": [
+    "facial-hair",
+    "beard",
+    "face"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "chin": [
+      0,
+      -0.24,
+      0.2
+    ]
+  }
+}

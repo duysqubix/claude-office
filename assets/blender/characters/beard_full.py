@@ -24,14 +24,14 @@ def sdf():
     def fn(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         r = np.linalg.norm(P, axis=1)
-        shell = np.maximum(kit.R - 0.012 - r, r - (kit.R + 0.045))
+        shell = np.maximum(kit.R - 0.012 - r, r - (kit.R + 0.034))
         # Keep the jaw: below a line that rises toward the ears (sideburns), front half only.
-        zcut = -0.045 + 0.13 * (x / kit.R) ** 2
+        zcut = -0.05 + 0.07 * (x / kit.R) ** 2
         d = kit.smax(shell, z - zcut, 0.02)
-        d = kit.smax(d, y - 0.07, 0.03)
+        d = kit.smax(d, y - 0.02, 0.03)
         # Lumpy, chunky surface.
         d += 0.005 * np.sin(x * 70) * np.sin(z * 60)
-        chin = kit.sd_ellipsoid(P, (0.0, -0.17, -0.2), (0.15, 0.1, 0.12))
+        chin = kit.sd_ellipsoid(P, (0.0, -0.18, -0.19), (0.13, 0.09, 0.11))
         d = kit.smin(d, chin, 0.04)
         d = kit.smin(d, kit.sd_spheres(P, [c for c, _ in stache], [r for _, r in stache], 0.015),
                      0.01)
