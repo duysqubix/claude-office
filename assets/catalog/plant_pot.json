@@ -1,0 +1,16 @@
+{
+  "id": "plant_pot",
+  "name": "Potted plant",
+  "category": "plant",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky terracotta pot with a bushy pilea of soft round leaves",
+  "tags": [
+    "plant",
+    "decor",
+    "floor"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

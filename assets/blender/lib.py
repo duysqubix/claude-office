@@ -191,7 +191,11 @@ def sphere(name, radius, loc=(0, 0, 0), material=None, scale=(1, 1, 1), u=24, v=
 
 
 def torus(name, major, minor, loc=(0, 0, 0), material=None, seg=32, ring=12,
-          rot=(0, 0, 0)):
+          rot=(0, 0, 0), sweep=None):
+    """Torus in the XY plane. `sweep` (radians) makes an open bent tube from angle 0, with
+    flat-capped ends (handles, faucets, rails)."""
+    if sweep is not None:
+        return _bent_tube(name, major, minor, sweep, loc, material, seg, ring, rot)
     bm = bmesh.new()
     rows = []
     for i in range(seg):
@@ -207,6 +211,51 @@ def torus(name, major, minor, loc=(0, 0, 0), material=None, seg=32, ring=12,
             bm.faces.new((rows[i][j], rows[(i + 1) % seg][j],
                           rows[(i + 1) % seg][(j + 1) % ring], rows[i][(j + 1) % ring]))
     return _link(name, bm, material, loc, rot)
+
+
+def _bent_tube(name, major, minor, sweep, loc, material, seg, ring, rot):
+    bm = bmesh.new()
+    rows = []
+    for i in range(seg + 1):
+        a = sweep * i / seg
+        row = []
+        for j in range(ring):
+            b = 2 * math.pi * j / ring
+            rr = major + minor * math.cos(b)
+            row.append(bm.verts.new((rr * math.cos(a), rr * math.sin(a), minor * math.sin(b))))
+        rows.append(row)
+    for i in range(seg):
+        for j in range(ring):
+            bm.faces.new((rows[i][j], rows[i + 1][j], rows[i + 1][(j + 1) % ring],
+                          rows[i][(j + 1) % ring]))
+    bm.faces.new(list(reversed(rows[0])))
+    bm.faces.new(rows[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return _link(name, bm, material, loc, rot)
+
+
+def arc(name, r_in, r_out, a0, a1, z0, z1, loc=(0, 0, 0), material=None, segs=24, r=0.03,
+        seg=3, rot=(0, 0, 0)):
+    """Curved slab: the ring sector between radii r_in..r_out and angles a0..a1 (radians,
+    0 = +X, counter-clockwise), extruded z0..z1. Corners rounded by r (angle-limited)."""
+    bm = bmesh.new()
+    cols = []
+    for i in range(segs + 1):
+        a = a0 + (a1 - a0) * i / segs
+        ca, sa = math.cos(a), math.sin(a)
+        cols.append([bm.verts.new((rr * ca, rr * sa, z)) for rr, z in
+                     ((r_in, z0), (r_out, z0), (r_out, z1), (r_in, z1))])
+    for i in range(segs):
+        a, b = cols[i], cols[i + 1]
+        for k in range(4):
+            bm.faces.new((a[k], b[k], b[(k + 1) % 4], a[(k + 1) % 4]))
+    bm.faces.new(list(reversed(cols[0])))
+    bm.faces.new(cols[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    ob = _link(name, bm, material, loc, rot)
+    if r > 0:
+        bevel(ob, r, seg, angle=35)
+    return ob
 
 
 def lathe(name, profile, loc=(0, 0, 0), material=None, verts=32, rot=(0, 0, 0)):
@@ -271,27 +320,97 @@ def view(objs=None, shading="MATERIAL"):
         ob.select_set(False)
 
 
+# ---------------------------------------------------------------- nodes, text, sidecars
+
+CATALOG_DIR = os.path.join(ROOT, "assets", "catalog")
+FONT_ROUNDED = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
+
+
+def node(ob, name, pivot=None):
+    """Mark a part as belonging to a separate animated node `name` (e.g. "Door", "Drawer1").
+    All parts with the same node name are joined into one child object of the asset, with
+    its origin at `pivot` (Blender coords; default: centre of its bounding box)."""
+    ob["node"] = name
+    if pivot is not None:
+        ob["pivot"] = list(pivot)
+    return ob
+
+
+def text(name, body, size, loc=(0, 0, 0), material=None, rot=(math.pi / 2, 0, 0),
+         extrude=0.006, bevel=0.002, font=FONT_ROUNDED, align="CENTER"):
+    """Extruded text. Default rotation stands it up facing -Y (the front)."""
+    cu = bpy.data.curves.new(name, "FONT")
+    cu.body = body
+    cu.size = size
+    cu.extrude = extrude
+    cu.bevel_depth = bevel
+    cu.bevel_resolution = 1
+    cu.resolution_u = 3
+    cu.align_x = align
+    cu.align_y = "CENTER"
+    if font and os.path.exists(font):
+        cu.font = bpy.data.fonts.load(font, check_existing=True)
+    ob = bpy.data.objects.new(name, cu)
+    ob.location = loc
+    ob.rotation_euler = rot
+    if material:
+        cu.materials.append(material)
+    coll().objects.link(ob)
+    return ob
+
+
+def to_three(v):
+    """Blender (x, y, z) Z-up → three.js (x, y, z) Y-up, +Z front."""
+    return [round(v[0], 4), round(v[2], 4), round(-v[1], 4)]
+
+
+def sidecar(id, name, category, priority, description, tags=(), tintable=(), anchors=None,
+            anchors_bl=None, artist="Claude Monet", status="done", **extra):
+    """Write assets/catalog/<id>.json. `anchors` are three.js coords; `anchors_bl` are
+    Blender coords and get converted."""
+    import json
+    a = dict(anchors or {})
+    for k, v in (anchors_bl or {}).items():
+        a[k] = to_three(v)
+    data = dict(id=id, name=name, category=category, artist=artist, priority=priority,
+                status=status, description=description, tags=list(tags),
+                tintable=list(tintable), anchors=a)
+    data.update(extra)
+    os.makedirs(CATALOG_DIR, exist_ok=True)
+    path = os.path.join(CATALOG_DIR, id + ".json")
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    return path
+
+
 # ---------------------------------------------------------------- finalize: join, bake, export
+
+def asset_objects(ob):
+    """The asset root plus its animated node children."""
+    return [ob] + [c for c in ob.children if c.type == "MESH"]
+
 
 def tri_count(ob):
     dg = bpy.context.evaluated_depsgraph_get()
-    me = ob.evaluated_get(dg).to_mesh()
-    n = sum(len(p.vertices) - 2 for p in me.polygons)
-    ob.evaluated_get(dg).to_mesh_clear()
+    n = 0
+    for o in [ob] + [c for c in ob.children if c.type == "MESH"]:
+        me = o.evaluated_get(dg).to_mesh()
+        n += sum(len(p.vertices) - 2 for p in me.polygons)
+        o.evaluated_get(dg).to_mesh_clear()
     return n
 
 
-def join_asset(name):
-    """Apply modifiers + transforms on every part and join them into one object `name`."""
-    c = coll()
+def _join(parts, name, offset=Vector((0, 0, 0))):
+    """Apply modifiers + transforms on `parts` and join them into one new object `name`
+    whose origin sits at `offset` (world)."""
     dg = bpy.context.evaluated_depsgraph_get()
-    parts = [o for o in c.objects if o.type == "MESH"]
     bm = bmesh.new()
     mats = []
     for ob in parts:
         ev = ob.evaluated_get(dg)
         me = bpy.data.meshes.new_from_object(ev, depsgraph=dg)
-        me.transform(ob.matrix_world)
+        me.transform(Matrix.Translation(-offset) @ ob.matrix_world)
         if ob.matrix_world.determinant() < 0:
             me.flip_normals()
         # Remap material slots into the joined mesh.
@@ -307,8 +426,9 @@ def join_asset(name):
             "vector", [c for cn in me.corner_normals for c in cn.vector])
         bm.from_mesh(me)
         bpy.data.meshes.remove(me)
-    for ob in parts:
-        bpy.data.objects.remove(ob, do_unlink=True)
+    old = bpy.data.meshes.get(name)
+    if old is not None and old.users == 0:
+        bpy.data.meshes.remove(old)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -320,8 +440,37 @@ def join_asset(name):
     me.shade_smooth()
     me.normals_split_custom_set(normals)
     ob = bpy.data.objects.new(name, me)
-    c.objects.link(ob)
+    ob.location = offset
+    coll().objects.link(ob)
     return ob
+
+
+def _world_bounds(objs):
+    pts = [o.matrix_world @ Vector(v) for o in objs for v in o.bound_box]
+    lo = Vector([min(p[i] for p in pts) for i in range(3)])
+    hi = Vector([max(p[i] for p in pts) for i in range(3)])
+    return lo, hi
+
+
+def join_asset(name):
+    """Join every part into the asset object `name`; parts tagged with node() become named
+    child objects (separate glTF nodes the game can animate)."""
+    c = coll()
+    parts = [o for o in c.objects if o.type in ("MESH", "FONT", "CURVE")]
+    groups = {}
+    for o in parts:
+        groups.setdefault(o.get("node"), []).append(o)
+    root = _join(groups.pop(None, []), name)
+    for node_name, objs in groups.items():
+        pivot = next((Vector(o["pivot"]) for o in objs if "pivot" in o), None)
+        if pivot is None:
+            lo, hi = _world_bounds(objs)
+            pivot = (lo + hi) / 2
+        child = _join(objs, node_name, pivot)
+        child.parent = root
+    for ob in parts:
+        bpy.data.objects.remove(ob, do_unlink=True)
+    return root
 
 
 def _set_engine(scene, *names):
@@ -335,17 +484,21 @@ def _set_engine(scene, *names):
 
 
 def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256):
-    """Bake AO on a dedicated UV map 'AO' and multiply it into every non-emissive base colour."""
+    """Bake AO on a dedicated UV map 'AO' (shared atlas across the root and its node
+    children) and multiply it into every non-emissive base colour."""
     scene = bpy.context.scene
-    me = ob.data
-    while me.uv_layers:
-        me.uv_layers.remove(me.uv_layers[0])
-    me.uv_layers.new(name="AO")
+    objs = asset_objects(ob)
+    for o in objs:
+        me = o.data
+        while me.uv_layers:
+            me.uv_layers.remove(me.uv_layers[0])
+        me.uv_layers.new(name="AO")
 
     _deselect()
-    ob.select_set(True)
+    for o in objs:
+        o.select_set(True)
     bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.object.mode_set(mode="EDIT")  # multi-object edit: one packed atlas
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.01,
                              scale_to_bounds=True)
@@ -357,8 +510,13 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256):
     img = bpy.data.images.new(img_name, res, res, alpha=False)
     img.generated_color = (1, 1, 1, 1)
 
+    mats = []
+    for o in objs:
+        for m in o.data.materials:
+            if m not in mats:
+                mats.append(m)
     tex_nodes = []
-    for m in me.materials:
+    for m in mats:
         nt = m.node_tree
         for n in [n for n in nt.nodes if n.get("ao")]:
             nt.nodes.remove(n)
@@ -401,10 +559,11 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256):
     img.update()
     img.pack()
 
-    _screen_uvs(me)
+    for o in objs:
+        _screen_uvs(o.data)
 
     for m, t in tex_nodes:
-        if m.get("emissive"):
+        if m.get("emissive") or m.get("no_ao"):
             continue
         nt = m.node_tree
         b = principled(m)
@@ -420,31 +579,39 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256):
     return img
 
 
+UV_PLANAR = ("Screen", "Board")  # materials the game draws on: planar 0..1 front UVs
+
+
 def _screen_uvs(me):
-    """Faces using the `Screen` material get a planar 0..1 UV (front view, X→u, Z→v) so the
-    game can swap a canvas texture onto it. They are emissive, so they never sample the AO."""
-    idx = [i for i, m in enumerate(me.materials) if m.name.split("@")[0] == "Screen"]
-    if not idx:
-        return
-    polys = [p for p in me.polygons if p.material_index in idx]
-    xs = [me.vertices[v].co.x for p in polys for v in p.vertices]
-    zs = [me.vertices[v].co.z for p in polys for v in p.vertices]
-    x0, x1, z0, z1 = min(xs), max(xs), min(zs), max(zs)
-    uv = me.uv_layers["AO"].data
-    for p in polys:
-        for li in p.loop_indices:
-            co = me.vertices[me.loops[li].vertex_index].co
-            uv[li].uv = ((co.x - x0) / (x1 - x0), (co.z - z0) / (z1 - z0))
+    """Faces using a `Screen`/`Board` material get a planar 0..1 UV (front view, X→u, Z→v)
+    so the game can swap a canvas texture onto it. Mark those materials emissive or set
+    m["no_ao"] = True so they never sample the AO."""
+    for mname in UV_PLANAR:
+        idx = [i for i, m in enumerate(me.materials) if m.name.split("@")[0] == mname]
+        if not idx:
+            continue
+        polys = [p for p in me.polygons if p.material_index in idx]
+        xs = [me.vertices[v].co.x for p in polys for v in p.vertices]
+        zs = [me.vertices[v].co.z for p in polys for v in p.vertices]
+        x0, x1, z0, z1 = min(xs), max(xs), min(zs), max(zs)
+        uv = me.uv_layers["AO"].data
+        for p in polys:
+            for li in p.loop_indices:
+                co = me.vertices[me.loops[li].vertex_index].co
+                uv[li].uv = ((co.x - x0) / max(x1 - x0, 1e-6), (co.z - z0) / max(z1 - z0, 1e-6))
 
 
-def export_glb(ob, name):
+def export_glb(ob, name, image_format="WEBP", quality=85):
     os.makedirs(MODELS_DIR, exist_ok=True)
     path = os.path.join(MODELS_DIR, name + ".glb")
     _deselect()
-    ob.select_set(True)
+    for o in asset_objects(ob):
+        o.select_set(True)
     bpy.context.view_layer.objects.active = ob
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True,
-                              export_apply=True, export_yup=True, export_materials="EXPORT")
+                              export_apply=True, export_yup=True, export_materials="EXPORT",
+                              export_image_format=image_format,
+                              export_image_quality=quality)
     return path
 
 
@@ -479,8 +646,7 @@ def _light(c, name, kind, energy, loc, size, color="#FFFFFF"):
 def render_preview(ob, name, res=(1200, 1000)):
     scene = bpy.context.scene
     c = _studio()
-    lo = Vector([min((ob.matrix_world @ Vector(v))[i] for v in ob.bound_box) for i in range(3)])
-    hi = Vector([max((ob.matrix_world @ Vector(v))[i] for v in ob.bound_box) for i in range(3)])
+    lo, hi = _world_bounds(asset_objects(ob))
     centre = (lo + hi) / 2
     radius = (hi - lo).length / 2
     k = max(radius, 0.15)
@@ -543,16 +709,24 @@ def render_preview(ob, name, res=(1200, 1000)):
     return path
 
 
-def finalize(name, ao_res=512, ao_distance=0.35):
-    """Join → bake AO → export GLB → preview render. Returns a short report."""
+def finalize(name, ao_res=512, ao_distance=0.35, meta=None):
+    """Join → bake AO → export GLB (WebP AO) → preview render (→ sidecar if `meta`, a dict
+    of sidecar() kwargs). Returns a short report."""
     ob = join_asset(name)
     tris = tri_count(ob)
     bake_ao(ob, ao_res, ao_distance)
     glb = export_glb(ob, name)
     png = render_preview(ob, name)
-    # Namespace materials in the .blend so the next asset gets fresh ones.
-    for m in ob.data.materials:
-        if "@" not in m.name:
-            m.name = m.name + "@" + name
-    view([ob])
-    return {"object": ob.name, "tris": tris, "glb": glb, "png": png}
+    # Namespace materials and node objects in the .blend so the next asset gets fresh names.
+    for o in asset_objects(ob):
+        for m in o.data.materials:
+            if "@" not in m.name:
+                m.name = m.name + "@" + name
+        if o is not ob:
+            o.name = o.name + "@" + name
+    report = {"object": ob.name, "tris": tris, "glb": glb, "png": png,
+              "kb": os.path.getsize(glb) // 1024}
+    if meta:
+        report["sidecar"] = sidecar(name, **meta)
+    view(asset_objects(ob))
+    return report

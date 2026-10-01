@@ -7,6 +7,12 @@ import lib
 
 NAME = "office_chair"
 AO_RES = 512
+META = dict(
+    name="Office chair", category="furniture", priority="P0",
+    description="Wheeled swivel chair with puffy marshmallow cushions and fat casters",
+    tags=["seating", "desk"], tintable=["Seat"],
+    anchors_bl={"seat": (0, -0.02, 0.5)},
+)
 
 
 def materials():
@@ -88,3 +94,7 @@ def build():
     M = materials()
     for step in STEPS:
         step(M)
+
+
+def finalize(id):
+    return lib.finalize(id, AO_RES, meta=META)

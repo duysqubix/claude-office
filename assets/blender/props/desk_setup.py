@@ -9,7 +9,13 @@ import bmesh
 import lib
 
 NAME = "desk_setup"
-AO_RES = 1024
+AO_RES = 512
+META = dict(
+    name="Desk setup (showcase)", category="furniture", priority="P0",
+    description="Lookdev composite: desk, chunky monitor, keyboard, mouse and mug",
+    tags=["desk", "composite", "preview"], tintable=["Accent", "Screen"],
+    anchors_bl={"top": (0, 0, 0.75), "screen": (0, 0.064, 1.15), "seat": (0, -0.75, 0.5)},
+)
 TOP = 0.75
 
 
@@ -97,3 +103,7 @@ def build():
     M = materials()
     for step in STEPS:
         step(M)
+
+
+def finalize(id):
+    return lib.finalize(id, AO_RES, meta=META)

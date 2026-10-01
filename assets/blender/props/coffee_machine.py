@@ -8,6 +8,12 @@ import lib
 
 NAME = "coffee_machine"
 AO_RES = 512
+META = dict(
+    name="Coffee machine", category="appliance", priority="P0",
+    description="Plump retro espresso machine with a glowing light and an espresso cup",
+    tags=["kitchen", "break-room", "interactable"], tintable=[],
+    anchors_bl={"steam": (0, -0.17, 0.2), "cup": (0, -0.17, 0.11)},
+)
 
 
 def materials():
@@ -87,3 +93,7 @@ def build():
     M = materials()
     for step in STEPS:
         step(M)
+
+
+def finalize(id):
+    return lib.finalize(id, AO_RES, meta=META)

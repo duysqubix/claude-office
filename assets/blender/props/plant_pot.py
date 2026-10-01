@@ -8,6 +8,12 @@ import lib
 
 NAME = "plant_pot"
 AO_RES = 512
+META = dict(
+    name="Potted plant", category="plant", priority="P0",
+    description="Chunky terracotta pot with a bushy pilea of soft round leaves",
+    tags=["plant", "decor", "floor"], tintable=[],
+    anchors_bl={},
+)
 
 # (tilt from vertical in degrees, stem length, leaf scale), phyllotaxis by the golden angle.
 LEAVES = [
@@ -66,3 +72,7 @@ def build():
     M = materials()
     for step in STEPS:
         step(M)
+
+
+def finalize(id):
+    return lib.finalize(id, AO_RES, meta=META)

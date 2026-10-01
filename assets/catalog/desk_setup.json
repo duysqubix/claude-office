@@ -1,0 +1,35 @@
+{
+  "id": "desk_setup",
+  "name": "Desk setup (showcase)",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Lookdev composite: desk, chunky monitor, keyboard, mouse and mug",
+  "tags": [
+    "desk",
+    "composite",
+    "preview"
+  ],
+  "tintable": [
+    "Accent",
+    "Screen"
+  ],
+  "anchors": {
+    "top": [
+      0,
+      0.75,
+      0
+    ],
+    "screen": [
+      0,
+      1.15,
+      -0.064
+    ],
+    "seat": [
+      0,
+      0.5,
+      0.75
+    ]
+  }
+}

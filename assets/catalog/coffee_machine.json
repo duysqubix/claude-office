@@ -1,0 +1,27 @@
+{
+  "id": "coffee_machine",
+  "name": "Coffee machine",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Plump retro espresso machine with a glowing light and an espresso cup",
+  "tags": [
+    "kitchen",
+    "break-room",
+    "interactable"
+  ],
+  "tintable": [],
+  "anchors": {
+    "steam": [
+      0,
+      0.2,
+      0.17
+    ],
+    "cup": [
+      0,
+      0.11,
+      0.17
+    ]
+  }
+}

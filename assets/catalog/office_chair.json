@@ -1,0 +1,23 @@
+{
+  "id": "office_chair",
+  "name": "Office chair",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Wheeled swivel chair with puffy marshmallow cushions and fat casters",
+  "tags": [
+    "seating",
+    "desk"
+  ],
+  "tintable": [
+    "Seat"
+  ],
+  "anchors": {
+    "seat": [
+      0,
+      0.5,
+      0.02
+    ]
+  }
+}
