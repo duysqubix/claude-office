@@ -11,7 +11,19 @@ export interface HostedPane {
   panePid: number;
   dead: boolean;
   deadStatus?: number;
+  /** Epoch ms the tmux session was created. */
+  createdAt: number;
+  cwd: string;
 }
+
+/** What the office stamped on a tmux session when it hired someone (tmux session environment). */
+export interface OfficeMeta {
+  sessionId: string;
+  displayName?: string;
+  cwd?: string;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let tmuxBin = 'tmux';
 let claudeBin = 'claude';
@@ -36,15 +48,40 @@ export function isOfficeName(name: string): boolean {
 
 /** Every pane of every office-* tmux session (none if the tmux server isn't running). */
 export async function listHosted(): Promise<HostedPane[]> {
-  const r = await tmux(['list-panes', '-a', '-F', '#{session_name}\t#{pane_pid}\t#{pane_dead}\t#{pane_dead_status}']);
+  const r = await tmux([
+    'list-panes', '-a', '-F',
+    '#{session_name}\t#{pane_pid}\t#{pane_dead}\t#{pane_dead_status}\t#{session_created}\t#{pane_current_path}',
+  ]);
   if (r.code !== 0) return [];
   const out: HostedPane[] = [];
   for (const line of r.stdout.split('\n')) {
-    const [name, pid, dead, status] = line.split('\t');
+    const [name, pid, dead, status, created, cwd] = line.split('\t');
     if (!name || !isOfficeName(name)) continue;
-    out.push({ tmuxName: name, panePid: Number(pid), dead: dead === '1', deadStatus: status ? Number(status) : undefined });
+    out.push({
+      tmuxName: name,
+      panePid: Number(pid),
+      dead: dead === '1',
+      deadStatus: status ? Number(status) : undefined,
+      createdAt: Number(created) * 1000 || Date.now(),
+      cwd: cwd ?? '',
+    });
   }
   return out;
+}
+
+/** Read back the session id / name / folder the office stamped on a tmux session, if any. */
+export async function readOfficeMeta(tmuxName: string): Promise<OfficeMeta | null> {
+  if (!isOfficeName(tmuxName)) return null;
+  const r = await tmux(['show-environment', '-t', `=${tmuxName}:`]);
+  if (r.code !== 0) return null;
+  const env = new Map<string, string>();
+  for (const line of r.stdout.split('\n')) {
+    const eq = line.indexOf('=');
+    if (eq > 0) env.set(line.slice(0, eq), line.slice(eq + 1));
+  }
+  const sessionId = env.get('CLAUDE_OFFICE_SESSION');
+  if (!sessionId || !UUID.test(sessionId)) return null;
+  return { sessionId, displayName: env.get('CLAUDE_OFFICE_NAME') || undefined, cwd: env.get('CLAUDE_OFFICE_CWD') || undefined };
 }
 
 export async function assertDirectory(cwd: string): Promise<void> {
@@ -52,7 +89,7 @@ export async function assertDirectory(cwd: string): Promise<void> {
   if (!s?.isDirectory()) throw new Error(`Not a directory: ${cwd}`);
 }
 
-async function newSession(tmuxName: string, cwd: string, claudeArgs: string[]): Promise<void> {
+async function newSession(tmuxName: string, cwd: string, claudeArgs: string[], meta: OfficeMeta): Promise<void> {
   await assertDirectory(cwd);
   const env = cleanEnv();
   const r = await tmux([
@@ -62,6 +99,10 @@ async function newSession(tmuxName: string, cwd: string, claudeArgs: string[]): 
     '-c', cwd,
     '-e', `PATH=${env.PATH ?? ''}`,
     '-e', 'CLAUDE_OFFICE=1',
+    // Stamped so a restarted server can recognise hires that haven't registered with Claude yet.
+    '-e', `CLAUDE_OFFICE_SESSION=${meta.sessionId}`,
+    '-e', `CLAUDE_OFFICE_NAME=${meta.displayName ?? ''}`,
+    '-e', `CLAUDE_OFFICE_CWD=${cwd}`,
     // More than one word after `--`: tmux execs it directly, no shell, so nothing here is ever shell-parsed.
     '--', claudeBin, ...claudeArgs,
   ]);
@@ -81,17 +122,17 @@ export async function hire(opts: { sessionId: string; cwd: string; displayName: 
   const tmuxName = TMUX_PREFIX + opts.sessionId.slice(0, 8);
   const args = ['--session-id', opts.sessionId, '-n', opts.displayName];
   if (opts.prompt?.trim()) args.push('--', opts.prompt.trim());
-  await newSession(tmuxName, opts.cwd, args);
+  await newSession(tmuxName, opts.cwd, args, { sessionId: opts.sessionId, displayName: opts.displayName });
   return { tmuxName };
 }
 
 /** `claude --resume <id>` in `cwd`. */
-export async function rehire(opts: { sessionId: string; cwd: string }): Promise<{ tmuxName: string }> {
+export async function rehire(opts: { sessionId: string; cwd: string; displayName: string }): Promise<{ tmuxName: string }> {
   const tmuxName = TMUX_PREFIX + opts.sessionId.slice(0, 8);
   const existing = await listHosted();
   if (existing.some((p) => p.tmuxName === tmuxName && !p.dead)) throw new Error('Already in the office');
   if (existing.some((p) => p.tmuxName === tmuxName)) await kill(tmuxName);
-  await newSession(tmuxName, opts.cwd, ['--resume', opts.sessionId]);
+  await newSession(tmuxName, opts.cwd, ['--resume', opts.sessionId], { sessionId: opts.sessionId, displayName: opts.displayName });
   return { tmuxName };
 }
 

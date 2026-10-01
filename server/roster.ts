@@ -8,7 +8,7 @@ import { projectName } from './archive';
 import { activeInterns } from './interns';
 import { assignNames, pickName } from './names';
 import { readRegistry, type RegistryEntry } from './registry';
-import { capture, kill, listHosted, type HostedPane } from './tmux';
+import { capture, kill, listHosted, readOfficeMeta, type HostedPane, type OfficeMeta } from './tmux';
 import { TranscriptTail } from './transcript';
 
 /** A hire we started that Claude hasn't registered yet. */
@@ -21,7 +21,6 @@ interface PendingHire {
 }
 
 const TRUST_PROMPT = /trust (the files in )?this folder|Do you trust/i;
-const PENDING_HIRE_TIMEOUT_MS = 90_000;
 
 export class Roster extends EventEmitter {
   employees: Employee[] = [];
@@ -30,6 +29,8 @@ export class Roster extends EventEmitter {
   private interns = new Map<string, Intern[]>();
   private screens = new Map<string, string[]>();
   private pending = new Map<string, PendingHire>();
+  /** tmux name -> what the office stamped on it (null: not one of our hires). */
+  private officeMeta = new Map<string, OfficeMeta | null>();
   private hostedBySession = new Map<string, string>();
   private lastJson = '';
   private tickN = 0;
@@ -113,10 +114,28 @@ export class Roster extends EventEmitter {
     }
     for (const id of [...this.memo.keys()]) if (!liveIds.has(id) && !this.pending.has(id)) this.memo.delete(id);
 
-    // Pending hires: drop once registered, or once their tmux session is gone or stale.
+    // Pending hires: drop once Claude registers them or their tmux session is gone. No timeout:
+    // a hire can sit at the trust dialog for as long as the manager takes to get there.
     const livePaneNames = new Set(livePanes.map((p) => p.tmuxName));
     for (const [id, h] of this.pending) {
-      if (liveIds.has(id) || !livePaneNames.has(h.tmuxName) || now - h.startedAt > PENDING_HIRE_TIMEOUT_MS) this.pending.delete(id);
+      if (liveIds.has(id) || !livePaneNames.has(h.tmuxName)) this.pending.delete(id);
+    }
+    for (const name of [...this.officeMeta.keys()]) if (!livePaneNames.has(name)) this.officeMeta.delete(name);
+    // After a server restart, recover hires that are still starting up from their tmux stamps.
+    const registeredPids = new Set(reg.map((e) => e.pid));
+    const pendingPanes = new Set([...this.pending.values()].map((h) => h.tmuxName));
+    for (const p of livePanes) {
+      if (registeredPids.has(p.panePid) || pendingPanes.has(p.tmuxName)) continue;
+      if (!this.officeMeta.has(p.tmuxName)) this.officeMeta.set(p.tmuxName, await readOfficeMeta(p.tmuxName));
+      const meta = this.officeMeta.get(p.tmuxName);
+      if (!meta || liveIds.has(meta.sessionId)) continue;
+      this.pending.set(meta.sessionId, {
+        sessionId: meta.sessionId,
+        tmuxName: p.tmuxName,
+        cwd: meta.cwd ?? p.cwd,
+        displayName: meta.displayName ?? pickName(meta.sessionId, new Set()),
+        startedAt: p.createdAt,
+      });
     }
 
     this.hostedBySession = new Map();

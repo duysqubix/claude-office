@@ -124,8 +124,9 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       await assertDirectory(past.digest.cwd).catch(() => {
         throw new HttpError(410, `Their old desk is gone: ${past.digest.cwd}`);
       });
-      const { tmuxName } = await rehire({ sessionId, cwd: past.digest.cwd });
-      roster.addPendingHire({ sessionId, tmuxName, cwd: past.digest.cwd, displayName: roster.nameForNewHire(sessionId) });
+      const displayName = roster.nameForNewHire(sessionId);
+      const { tmuxName } = await rehire({ sessionId, cwd: past.digest.cwd, displayName });
+      roster.addPendingHire({ sessionId, tmuxName, cwd: past.digest.cwd, displayName });
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/fire': {
