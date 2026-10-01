@@ -21,6 +21,7 @@ const DIST = join(ROOT, 'dist', 'client');
 const ALLOWED_HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
 const ALLOWED_ORIGINS = new Set([...ALLOWED_HOSTS].map((h) => `http://${h}`));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NAME_OK = /^[\p{L}\p{N}][\p{L}\p{N} .'-]{0,31}$/u;
 const MAX_BODY = 64 * 1024;
 const MAX_TEXT = 8000;
 
@@ -106,8 +107,11 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
         throw new HttpError(400, e.message);
       });
       const prompt = typeof body.prompt === 'string' ? body.prompt.slice(0, MAX_TEXT) : undefined;
+      const requested = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+      if (requested && !NAME_OK.test(requested)) throw new HttpError(400, 'Names can use letters, numbers, spaces and . \' - (max 32)');
+      if (requested && roster.takenNames().has(requested)) throw new HttpError(409, `Someone called ${requested} already works here`);
       const sessionId = newSessionId();
-      const displayName = roster.nameForNewHire(sessionId);
+      const displayName = requested || roster.nameForNewHire(sessionId);
       const { tmuxName } = await hire({ sessionId, cwd, displayName, prompt });
       roster.addPendingHire({ sessionId, tmuxName, cwd, displayName });
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);

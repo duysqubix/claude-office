@@ -136,7 +136,8 @@ export interface ApiResult {
 //   GET  /api/projects             -> ProjectInfo[]
 //   GET  /api/archive              -> PastSession[]
 //   GET  /api/session/:id/chatter  -> ChatLine[]      (last ~12 human/assistant text lines)
-//   POST /api/hire   {cwd, prompt?} -> ApiResult      (new claude session in tmux, walks in the door)
+//   POST /api/hire   {cwd, prompt?, name?} -> ApiResult (new claude session in tmux, walks in the door;
+//                                                      name: optional, ≤ 32 chars, becomes `claude -n <name>`)
 //   POST /api/rehire {sessionId}    -> ApiResult      (claude --resume in tmux)
 //   POST /api/fire   {sessionId}    -> ApiResult      (hosted only: ends the tmux session)
 //   POST /api/say    {sessionId, text} -> ApiResult   (hosted only: types text + Enter into their terminal)
