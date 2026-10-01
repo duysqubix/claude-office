@@ -117,6 +117,8 @@ export interface PresenceMessage {
   visible: boolean;
   /** Epoch ms of the last keyboard/mouse input in the game. */
   lastInputAt: number;
+  /** This client can show and answer Asks. The server never holds a question for a client that can't. */
+  canAnswer?: boolean;
 }
 
 export type ClientMessage = PresenceMessage;

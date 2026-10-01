@@ -267,7 +267,7 @@ rosterSockets.on('connection', (ws) => {
     } catch {
       return;
     }
-    if (msg?.type === 'presence') asks.setPresence(ws, Boolean(msg.visible), Number(msg.lastInputAt));
+    if (msg?.type === 'presence') asks.setPresence(ws, Boolean(msg.visible), Number(msg.lastInputAt), msg.canAnswer === true);
   });
   ws.on('close', () => asks.dropClient(ws));
   send(ws, { type: 'hello', version: VERSION, home: HOME });

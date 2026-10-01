@@ -47,10 +47,10 @@ interface Pending {
 
 export class AskBroker extends EventEmitter {
   private pending = new Map<string, Pending>();
-  private presence = new Map<object, { visible: boolean; lastInputAt: number }>();
+  private presence = new Map<object, { visible: boolean; lastInputAt: number; canAnswer: boolean }>();
 
-  setPresence(client: object, visible: boolean, lastInputAt: number): void {
-    this.presence.set(client, { visible, lastInputAt: Math.min(Number(lastInputAt) || 0, Date.now()) });
+  setPresence(client: object, visible: boolean, lastInputAt: number, canAnswer = false): void {
+    this.presence.set(client, { visible, lastInputAt: Math.min(Number(lastInputAt) || 0, Date.now()), canAnswer });
     if (!this.managerPresent()) this.releaseAll();
   }
 
@@ -61,7 +61,7 @@ export class AskBroker extends EventEmitter {
 
   managerPresent(): boolean {
     const now = Date.now();
-    for (const p of this.presence.values()) if (p.visible && now - p.lastInputAt < PRESENCE_FRESH_MS) return true;
+    for (const p of this.presence.values()) if (p.canAnswer && p.visible && now - p.lastInputAt < PRESENCE_FRESH_MS) return true;
     return false;
   }
 
