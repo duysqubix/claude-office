@@ -138,11 +138,14 @@ export const TINTS: Record<string, readonly string[]> = {
   Screen: [PALETTE.screenGlow, PALETTE.stateWorking, PALETTE.stateNeedsYou, PALETTE.carpetAlt, PALETTE.stateSleeping],
 };
 
-/** Tintable materials: the sidecar's list, else any material named like one of the game's tints. */
+/**
+ * Materials the swatches can recolour: the sidecar's list, else any material named like one of
+ * the game's tints. Surfaces the game draws on (`Board`, `Label`) have no palette, so they're left out.
+ */
 export function tintNames(item: CatalogItem): string[] {
   const mats = item.materials ?? [];
-  const listed = item.tintable.length ? item.tintable : mats.filter((m) => m in TINTS);
-  return listed.filter((m) => !mats.length || mats.includes(m));
+  const listed = item.tintable.length ? item.tintable : mats;
+  return listed.filter((m) => m in TINTS && (!mats.length || mats.includes(m)));
 }
 
 /** Cache key for an item's files, so a re-export shows up without a hard reload. */

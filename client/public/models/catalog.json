@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-01T23:32:56.783Z",
+  "generated": "2026-10-01T23:33:57.330Z",
   "totals": {
     "all": 231,
     "done": 150,
@@ -1870,35 +1870,34 @@
       "file": "models/succulent.glb",
       "thumb": "models/thumbs/succulent.jpg",
       "dims": {
-        "w": 0.097,
-        "h": 0.104,
-        "d": 0.097
+        "w": 0.099,
+        "h": 0.106,
+        "d": 0.098
       },
       "bbox": {
         "min": [
           -0.048,
           0,
-          -0.048
+          -0.049
         ],
         "max": [
-          0.048,
-          0.104,
-          0.048
+          0.05,
+          0.106,
+          0.049
         ]
       },
-      "tris": 3004,
+      "tris": 2742,
       "materials": [
         "Accent",
         "Soil",
         "Leaf",
-        "LeafTip",
         "LeafYoung"
       ],
       "nodes": [
         "succulent"
       ],
       "textures": 1,
-      "bytes": 128324
+      "bytes": 116076
     },
     {
       "id": "tissue_box",

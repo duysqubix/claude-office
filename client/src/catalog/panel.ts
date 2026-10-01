@@ -182,7 +182,7 @@ export class DetailPanel {
   private tintRows(names: string[]): HTMLElement {
     const box = h('div', { class: 'tints' });
     for (const name of names) {
-      const colors = TINTS[name] ?? TINTS.Accent;
+      const colors = TINTS[name];
       const row = h('div', { class: 'swatches', role: 'group', 'aria-label': `${name} colour` });
       const pick = (color: string | null) => {
         if (color) this.tints.set(name, color);

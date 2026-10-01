@@ -4,7 +4,8 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { createReadStream, readFileSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { readdir, stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { ViteDevServer } from 'vite';
@@ -326,6 +327,38 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
   });
 });
 
+// ── Live model catalog (dev) ─────────────────────────────────────────────────
+// The Blender artists export GLBs, previews and sidecars; regenerate catalog.json whenever
+// any of them changes so the catalog page fills in live without anyone running a script.
+
+const CATALOG_INPUTS = [join(ROOT, 'client', 'public', 'models'), join(ROOT, 'assets', 'catalog'), join(ROOT, 'snaps', 'blender')];
+let catalogStamp = '';
+let catalogRunning = false;
+
+async function newestMtime(dir: string): Promise<number> {
+  let newest = 0;
+  for (const f of await readdir(dir).catch(() => [] as string[])) {
+    if (!/\.(glb|json|png)$/.test(f) || f === 'catalog.json' || f.startsWith('.')) continue;
+    const s = await stat(join(dir, f)).catch(() => null);
+    if (s && s.mtimeMs > newest) newest = s.mtimeMs;
+  }
+  return newest;
+}
+
+async function refreshCatalog(): Promise<void> {
+  if (catalogRunning) return;
+  const stamp = (await Promise.all([...CATALOG_INPUTS.map(newestMtime), stat(join(ROOT, 'docs', 'ASSETS.md')).then((s) => s.mtimeMs, () => 0)])).join(':');
+  if (stamp === catalogStamp) return;
+  catalogRunning = true;
+  const child = spawn(process.execPath, [join(ROOT, 'scripts', 'catalog.mjs')], { cwd: ROOT, stdio: 'ignore' });
+  child.on('exit', (code) => {
+    catalogRunning = false;
+    if (code === 0) catalogStamp = stamp;
+  });
+  child.on('error', () => (catalogRunning = false));
+}
+const catalogTimer = IS_PROD ? null : setInterval(() => void refreshCatalog().catch(() => {}), 15_000);
+
 // ── Start ────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -360,6 +393,7 @@ function shutdown(): void {
   roster.stop();
   clearInterval(heartbeat);
   clearInterval(statsTimer);
+  if (catalogTimer) clearInterval(catalogTimer);
   for (const ws of termSockets.clients) ws.close(1001, 'office closing');
   for (const ws of rosterSockets.clients) ws.close(1001, 'office closing');
   void vite?.close();
