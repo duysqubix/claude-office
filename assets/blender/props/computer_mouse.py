@@ -25,12 +25,9 @@ def parts(M, at=(0, 0, 0), pad=True):
     if pad:
         lib.rbox("Mouse_Pad", (0.22, 0.19, 0.008), (x, y, z + 0.004), M["pad"], r=0.004, seg=1)
         z += 0.008
-    lib.blob("Mouse", 0.03, (x, y, z + 0.018), M["shell"], scale=(0.95, 1.4, 0.65))
-    lib.rbox("Mouse_Seam", (0.003, 0.03, 0.006), (x, y - 0.02, z + 0.035), M["wheel"],
-             r=0.0012, seg=1)
-    lib.cyl("Mouse_Wheel", 0.009, 0.008, (x, y - 0.018, z + 0.036), M["wheel"], r=0.003,
+    lib.blob("Mouse", 0.04, (x, y, z + 0.024), M["shell"], scale=(0.95, 1.35, 0.62))
+    lib.cyl("Mouse_Wheel", 0.008, 0.008, (x, y - 0.026, z + 0.047), M["wheel"], r=0.003,
             seg=1, verts=12, rot=(0, 1.5708, 0))
-
 
 def build():
     lib.begin(NAME)

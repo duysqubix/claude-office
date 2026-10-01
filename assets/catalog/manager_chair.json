@@ -1,0 +1,23 @@
+{
+  "id": "manager_chair",
+  "name": "Manager chair",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Tall puffy executive chair with stacked pillow-roll back",
+  "tags": [
+    "seating",
+    "manager"
+  ],
+  "tintable": [
+    "Seat"
+  ],
+  "anchors": {
+    "seat": [
+      0,
+      0.54,
+      0.03
+    ]
+  }
+}

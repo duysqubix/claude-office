@@ -1,0 +1,15 @@
+{
+  "id": "microwave",
+  "name": "Microwave",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky cream microwave with dials and a glowing display",
+  "tags": [
+    "kitchen",
+    "break-room"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

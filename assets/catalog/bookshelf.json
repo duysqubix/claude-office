@@ -1,0 +1,16 @@
+{
+  "id": "bookshelf",
+  "name": "Bookshelf",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Wooden bookshelf packed with chunky colourful books and a trophy",
+  "tags": [
+    "storage",
+    "decor",
+    "manager"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

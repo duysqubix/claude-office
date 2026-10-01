@@ -1,0 +1,17 @@
+{
+  "id": "doormat",
+  "name": "WELCOME doormat",
+  "category": "building",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P0",
+  "description": "Chunky coir doormat with a dark inset border and raised cream WELCOME letters",
+  "tags": [
+    "entrance",
+    "mat",
+    "text"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "mount": "floor: lies outside the door; the text reads from +Z (outside) toward the door"
+}

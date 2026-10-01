@@ -1,0 +1,29 @@
+{
+  "id": "tv_stand",
+  "name": "TV stand",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Media console with a big TV whose screen the game can drive",
+  "tags": [
+    "lounge",
+    "meeting-room",
+    "screen"
+  ],
+  "tintable": [
+    "Screen",
+    "Accent"
+  ],
+  "anchors": {
+    "screenCenter": [
+      0,
+      0.96,
+      0.04
+    ]
+  },
+  "screen": {
+    "width": 1.18,
+    "height": 0.66
+  }
+}

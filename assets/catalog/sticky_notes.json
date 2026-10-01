@@ -1,0 +1,22 @@
+{
+  "id": "sticky_notes",
+  "name": "Sticky notes",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Yellow sticky-note pad with a curled \"TODO\" note and a loose pink note",
+  "tags": [
+    "desk",
+    "clutter",
+    "notes"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.0158,
+      0
+    ]
+  }
+}

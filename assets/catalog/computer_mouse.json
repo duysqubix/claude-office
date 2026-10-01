@@ -1,0 +1,23 @@
+{
+  "id": "computer_mouse",
+  "name": "Computer mouse",
+  "category": "desk-item",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Pebble mouse with a scroll wheel on a rounded mouse pad",
+  "tags": [
+    "desk",
+    "computer"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "hand": [
+      0,
+      0.045,
+      -0.0
+    ]
+  }
+}

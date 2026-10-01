@@ -1,0 +1,17 @@
+{
+  "id": "desk_divider",
+  "name": "Desk divider",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Pillowy fabric privacy panel between facing desks",
+  "tags": [
+    "desk",
+    "pod"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {}
+}

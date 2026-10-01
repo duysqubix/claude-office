@@ -1,0 +1,17 @@
+{
+  "id": "bush_round",
+  "name": "Round bush",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P0",
+  "status": "done",
+  "description": "Low flat-bottomed mound of lumpy puffs, darker underneath and lighter on top",
+  "tags": [
+    "bush",
+    "garden",
+    "hedge",
+    "foliage"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

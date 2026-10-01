@@ -1,0 +1,23 @@
+{
+  "id": "hair_bob",
+  "name": "Bob",
+  "category": "character-hair",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky jaw-length bob with a side-swept fringe",
+  "tags": [
+    "hair",
+    "bob"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.306,
+      0
+    ]
+  }
+}

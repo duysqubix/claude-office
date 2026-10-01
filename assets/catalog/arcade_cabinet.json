@@ -1,0 +1,34 @@
+{
+  "id": "arcade_cabinet",
+  "name": "Arcade cabinet",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P2",
+  "status": "done",
+  "description": "Upright arcade cabinet with glowing marquee and a game-driven screen",
+  "tags": [
+    "game-room",
+    "fun",
+    "screen"
+  ],
+  "tintable": [
+    "Screen",
+    "Accent"
+  ],
+  "anchors": {
+    "screenCenter": [
+      0.0,
+      1.3,
+      0.113
+    ],
+    "player": [
+      0,
+      0,
+      0.75
+    ]
+  },
+  "screen": {
+    "width": 0.46,
+    "height": 0.36
+  }
+}

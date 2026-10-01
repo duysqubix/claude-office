@@ -1,0 +1,29 @@
+{
+  "id": "mug",
+  "name": "Mug",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky two-tone desk mug with coffee and a latte-art heart",
+  "tags": [
+    "desk",
+    "coffee",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "coffee": [
+      0,
+      0.087,
+      0
+    ],
+    "handle": [
+      0.075,
+      0.056,
+      0
+    ]
+  }
+}

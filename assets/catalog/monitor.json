@@ -1,0 +1,28 @@
+{
+  "id": "monitor",
+  "name": "Monitor",
+  "category": "desk-item",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky toy monitor with a thick rounded bezel and a swappable glowing screen",
+  "tags": [
+    "desk",
+    "computer",
+    "screen"
+  ],
+  "tintable": [
+    "Screen"
+  ],
+  "anchors": {
+    "screenCenter": [
+      0,
+      0.4,
+      0.056
+    ]
+  },
+  "screen": {
+    "width": 0.53,
+    "height": 0.35
+  }
+}

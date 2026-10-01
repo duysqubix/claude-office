@@ -1,0 +1,28 @@
+{
+  "id": "foosball_table",
+  "name": "Foosball table",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P2",
+  "status": "done",
+  "description": "Chunky foosball table with red and blue players",
+  "tags": [
+    "game-room",
+    "fun"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "playerA": [
+      0,
+      0,
+      0.75
+    ],
+    "playerB": [
+      0,
+      0,
+      -0.75
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "floor_lamp",
+  "name": "Floor lamp",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Floor lamp with a warm glowing drum shade",
+  "tags": [
+    "lighting",
+    "lounge"
+  ],
+  "tintable": [],
+  "anchors": {
+    "light": [
+      0,
+      1.47,
+      0
+    ]
+  }
+}

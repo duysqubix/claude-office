@@ -1,0 +1,29 @@
+{
+  "id": "printer_copier",
+  "name": "Printer copier",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Big friendly copier with control panel, paper drawers and output tray",
+  "tags": [
+    "office",
+    "appliance",
+    "interactable"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "output": [
+      0.48,
+      0.72,
+      0
+    ],
+    "panel": [
+      0.18,
+      0.98,
+      0.32
+    ]
+  }
+}

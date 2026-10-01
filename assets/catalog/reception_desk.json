@@ -1,0 +1,38 @@
+{
+  "id": "reception_desk",
+  "name": "Reception desk",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Curved reception counter with a wrap-around stripe and a lower work surface",
+  "tags": [
+    "reception",
+    "interactable"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "counter": [
+      0,
+      1.07,
+      0.2
+    ],
+    "bell": [
+      0.3,
+      1.07,
+      0.12
+    ],
+    "receptionist": [
+      0,
+      0,
+      -0.55
+    ],
+    "visitor": [
+      0,
+      0,
+      0.75
+    ]
+  }
+}

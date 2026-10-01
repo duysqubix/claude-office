@@ -1,0 +1,39 @@
+{
+  "id": "sliding_door",
+  "name": "Sliding glass doors",
+  "category": "building",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P0",
+  "description": "Chunky slate door frame with a mint stripe and a glowing motion sensor; two glass panels slide apart",
+  "tags": [
+    "entrance",
+    "door",
+    "glass",
+    "animated"
+  ],
+  "tintable": [],
+  "anchors": {
+    "outside": [
+      0,
+      0,
+      0.8
+    ],
+    "inside": [
+      0,
+      0,
+      -0.8
+    ],
+    "sensor": [
+      0,
+      2.32,
+      0.27
+    ]
+  },
+  "nodes": {
+    "DoorL": "glass panel; pivot at its bottom centre, x = -0.765 when closed; open by moving -X by 1.47",
+    "DoorR": "glass panel; pivot at its bottom centre, x = +0.765 when closed; open by moving +X by 1.47"
+  },
+  "mount": "wall opening: origin at the floor centre of a 3.0 x 2.25 m opening, centred in the 0.3 m wall; +Z (front) faces outside. Panels slide into the wall.",
+  "notes": "Glass material is 'Glass' (alpha 0.3, shared by both panels); swap it for the game's glare glass by name. Per-node materials are suffixed .DoorL / .DoorR."
+}

@@ -1,0 +1,23 @@
+{
+  "id": "desk_lamp",
+  "name": "Desk lamp",
+  "category": "desk-item",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky coral anglepoise desk lamp with a glowing bulb",
+  "tags": [
+    "desk",
+    "lighting"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "light": [
+      0,
+      0.3,
+      0.2
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "keyboard",
+  "name": "Keyboard",
+  "category": "desk-item",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky keyboard with big rounded keycaps",
+  "tags": [
+    "desk",
+    "computer"
+  ],
+  "tintable": [],
+  "anchors": {
+    "hands": [
+      0,
+      0.05,
+      0.02
+    ]
+  }
+}

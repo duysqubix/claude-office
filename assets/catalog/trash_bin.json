@@ -1,0 +1,23 @@
+{
+  "id": "trash_bin",
+  "name": "Trash bin",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky office waste bin with a crumpled paper ball",
+  "tags": [
+    "office",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "mouth": [
+      0,
+      0.36,
+      0
+    ]
+  }
+}

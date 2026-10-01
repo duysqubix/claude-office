@@ -1,0 +1,24 @@
+{
+  "id": "beanbag",
+  "name": "Beanbag",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Squashy beanbag with a sitting dent",
+  "tags": [
+    "seating",
+    "lounge",
+    "break-room"
+  ],
+  "tintable": [
+    "Seat"
+  ],
+  "anchors": {
+    "seat": [
+      0,
+      0.32,
+      0.08
+    ]
+  }
+}

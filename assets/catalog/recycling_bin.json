@@ -1,0 +1,23 @@
+{
+  "id": "recycling_bin",
+  "name": "Recycling bin",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Green recycling bin with lid slot and chasing-arrow badge",
+  "tags": [
+    "office",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "slot": [
+      0,
+      0.62,
+      0.05
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "kitchen_counter",
+  "name": "Kitchen counter",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Cabinet run with worktop, sink and gooseneck faucet",
+  "tags": [
+    "kitchen",
+    "break-room"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "top": [
+      -0.35,
+      0.92,
+      0.05
+    ],
+    "sink": [
+      0.35,
+      0.92,
+      0.02
+    ]
+  }
+}

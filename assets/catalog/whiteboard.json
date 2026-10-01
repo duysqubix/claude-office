@@ -1,0 +1,29 @@
+{
+  "id": "whiteboard",
+  "name": "Whiteboard",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Wall whiteboard with chunky frame, marker tray, markers and eraser",
+  "tags": [
+    "wall",
+    "interactable",
+    "roster"
+  ],
+  "tintable": [
+    "Board"
+  ],
+  "anchors": {
+    "boardCenter": [
+      0,
+      0,
+      0.041
+    ]
+  },
+  "board": {
+    "width": 1.8,
+    "height": 1.0
+  },
+  "mount": "wall: origin is the back centre; board centre is at the origin height"
+}

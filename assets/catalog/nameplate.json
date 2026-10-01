@@ -1,0 +1,39 @@
+{
+  "id": "nameplate",
+  "name": "Nameplate",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky two-sided wedge nameplate; the game paints the name on its Label faces",
+  "tags": [
+    "desk",
+    "name",
+    "label"
+  ],
+  "tintable": [
+    "Accent",
+    "Label"
+  ],
+  "anchors": {
+    "labelFront": [
+      0,
+      0.0675,
+      0.0225
+    ],
+    "labelBack": [
+      0,
+      0.0675,
+      -0.0225
+    ]
+  },
+  "label": {
+    "width": 0.3,
+    "height": 0.1035,
+    "canvas": [
+      256,
+      88
+    ],
+    "sides": 2
+  }
+}

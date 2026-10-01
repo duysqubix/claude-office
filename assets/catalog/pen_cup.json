@@ -1,0 +1,18 @@
+{
+  "id": "pen_cup",
+  "name": "Pen cup",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Pen cup with a pencil, two pens and scissors",
+  "tags": [
+    "desk",
+    "stationery",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {}
+}

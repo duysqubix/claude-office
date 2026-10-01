@@ -1,0 +1,17 @@
+{
+  "id": "locker",
+  "name": "Locker",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Bank of three chunky lockers with vents and number plates",
+  "tags": [
+    "storage",
+    "break-room"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {}
+}

@@ -1,196 +1,810 @@
 {
-  "generated": "2026-10-01T18:13:15.187Z",
+  "generated": "2026-10-01T18:45:08.708Z",
   "totals": {
-    "all": 204,
-    "planned": 200,
-    "done": 4
+    "all": 228,
+    "done": 74,
+    "planned": 154
   },
   "byArtist": {
     "Claude Cézanne": 53,
-    "Claude Lorrain": 34,
+    "Claude Lorrain": 37,
     "Claude Monet": 44,
+    "Claude Monet (round 2)": 21,
     "Claude Rodin": 73
   },
   "items": [
     {
       "id": "cardboard_box",
       "name": "Cardboard box",
-      "category": null,
+      "category": "decor",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "packed box for people being let go (stapler + plant poking out)",
-      "tags": [],
+      "description": "Open moving box of desk stuff for someone being let go: droopy plant, red stapler, photo, poster roll and the duck",
+      "tags": [
+        "let-go",
+        "carry",
+        "funny"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "handL": [
+          -0.2,
+          0.21,
+          0
+        ],
+        "handR": [
+          0.2,
+          0.21,
+          0
+        ],
+        "top": [
+          0,
+          0.26,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/cardboard_box.glb",
+      "thumb": "models/thumbs/cardboard_box.jpg",
+      "dims": {
+        "w": 0.66,
+        "h": 0.368,
+        "d": 0.575
+      },
+      "bbox": {
+        "min": [
+          -0.327,
+          0,
+          -0.295
+        ],
+        "max": [
+          0.333,
+          0.368,
+          0.28
+        ]
+      },
+      "tris": 6439,
+      "materials": [
+        "Cardboard",
+        "Hole",
+        "Tape",
+        "CardboardInner",
+        "Marker",
+        "Pot",
+        "Soil",
+        "Stem",
+        "Leaf",
+        "LeafSad",
+        "StaplerBase",
+        "Chrome",
+        "StaplerRed",
+        "Frame",
+        "PhotoSky",
+        "PhotoHill",
+        "PhotoSun",
+        "PosterRoll",
+        "PosterInside",
+        "Duck",
+        "Bill",
+        "Eye",
+        "Shine",
+        "Cheek"
+      ],
+      "nodes": [
+        "cardboard_box"
+      ],
+      "textures": 1,
+      "bytes": 332752
     },
     {
       "id": "clipboard",
       "name": "Clipboard",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Clipboard with a chunky clip and a half-ticked checklist",
+      "tags": [
+        "desk",
+        "paperwork",
+        "checklist"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "page": [
+          0,
+          0.01,
+          0.015
+        ]
+      },
+      "status": "done",
+      "file": "models/clipboard.glb",
+      "thumb": "models/thumbs/clipboard.jpg",
+      "dims": {
+        "w": 0.23,
+        "h": 0.026,
+        "d": 0.323
+      },
+      "bbox": {
+        "min": [
+          -0.115,
+          0,
+          -0.163
+        ],
+        "max": [
+          0.115,
+          0.026,
+          0.16
+        ]
+      },
+      "tris": 2128,
+      "materials": [
+        "Accent",
+        "Paper",
+        "Ink",
+        "Box",
+        "PrintLine",
+        "Tick",
+        "PenInk",
+        "Chrome"
+      ],
+      "nodes": [
+        "clipboard"
+      ],
+      "textures": 1,
+      "bytes": 103604
     },
     {
       "id": "coffee_cup",
       "name": "Coffee cup",
-      "category": null,
+      "category": "food",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "paper cup with lid",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Takeaway paper cup with a domed lid and a kraft sleeve printed with a heart",
+      "tags": [
+        "desk",
+        "coffee",
+        "drink"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "lidTop": [
+          0,
+          0.118,
+          0
+        ],
+        "sip": [
+          0,
+          0.118,
+          0.0408
+        ]
+      },
+      "status": "done",
+      "file": "models/coffee_cup.glb",
+      "thumb": "models/thumbs/coffee_cup.jpg",
+      "dims": {
+        "w": 0.093,
+        "h": 0.118,
+        "d": 0.093
+      },
+      "bbox": {
+        "min": [
+          -0.047,
+          0,
+          -0.047
+        ],
+        "max": [
+          0.047,
+          0.118,
+          0.047
+        ]
+      },
+      "tris": 1624,
+      "materials": [
+        "Cup",
+        "Lid",
+        "Slot",
+        "Accent",
+        "Print"
+      ],
+      "nodes": [
+        "coffee_cup"
+      ],
+      "textures": 1,
+      "bytes": 72324
     },
     {
       "id": "laptop",
       "name": "Laptop",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "open, `Screen`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky open laptop with an emissive Screen, white keys and lid stickers",
+      "tags": [
+        "desk",
+        "computer",
+        "screen"
+      ],
+      "tintable": [
+        "Accent",
+        "Screen"
+      ],
+      "anchors": {
+        "screenCenter": [
+          0,
+          0.13,
+          -0.098
+        ],
+        "keyboard": [
+          0,
+          0.018,
+          -0.025
+        ]
+      },
+      "status": "done",
+      "file": "models/laptop.glb",
+      "thumb": "models/thumbs/laptop.jpg",
+      "dims": {
+        "w": 0.32,
+        "h": 0.223,
+        "d": 0.291
+      },
+      "bbox": {
+        "min": [
+          -0.16,
+          0,
+          -0.181
+        ],
+        "max": [
+          0.16,
+          0.223,
+          0.11
+        ]
+      },
+      "tris": 2340,
+      "materials": [
+        "Accent",
+        "Deck",
+        "Keys",
+        "Trackpad",
+        "Bezel",
+        "Screen",
+        "Webcam",
+        "StickerCoral",
+        "StickerCream",
+        "StickerMint",
+        "StickerYellow"
+      ],
+      "nodes": [
+        "laptop"
+      ],
+      "textures": 1,
+      "bytes": 148124
     },
     {
       "id": "mug",
       "name": "Mug",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "tint `Accent`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky two-tone desk mug with coffee and a latte-art heart",
+      "tags": [
+        "desk",
+        "coffee",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "coffee": [
+          0,
+          0.087,
+          0
+        ],
+        "handle": [
+          0.075,
+          0.056,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/mug.glb",
+      "thumb": "models/thumbs/mug.jpg",
+      "dims": {
+        "w": 0.132,
+        "h": 0.101,
+        "d": 0.092
+      },
+      "bbox": {
+        "min": [
+          -0.046,
+          0,
+          -0.046
+        ],
+        "max": [
+          0.086,
+          0.101,
+          0.046
+        ]
+      },
+      "tris": 1590,
+      "materials": [
+        "Accent",
+        "Glaze",
+        "Coffee",
+        "Foam"
+      ],
+      "nodes": [
+        "mug"
+      ],
+      "textures": 1,
+      "bytes": 61400
     },
     {
       "id": "mug_manager",
-      "name": "Mug manager",
-      "category": null,
+      "name": "Manager's mug",
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "\"WORLD'S OKAYEST MANAGER\"",
-      "tags": [],
+      "description": "The manager's \"WORLD'S OKAYEST MANAGER\" mug, cream with red print and a gold band",
+      "tags": [
+        "desk",
+        "coffee",
+        "manager"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "coffee": [
+          0,
+          0.0957,
+          0
+        ],
+        "handle": [
+          0.0825,
+          0.0616,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/mug_manager.glb",
+      "thumb": "models/thumbs/mug_manager.jpg",
+      "dims": {
+        "w": 0.145,
+        "h": 0.111,
+        "d": 0.101
+      },
+      "bbox": {
+        "min": [
+          -0.05,
+          0,
+          -0.05
+        ],
+        "max": [
+          0.095,
+          0.111,
+          0.051
+        ]
+      },
+      "tris": 2983,
+      "materials": [
+        "Glaze",
+        "GlazeInside",
+        "Coffee",
+        "Print",
+        "Gold"
+      ],
+      "nodes": [
+        "mug_manager"
+      ],
+      "textures": 1,
+      "bytes": 120872
     },
     {
       "id": "nameplate",
       "name": "Nameplate",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "desk nameplate, face material `Label` (game draws the name)",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky two-sided wedge nameplate; the game paints the name on its Label faces",
+      "tags": [
+        "desk",
+        "name",
+        "label"
+      ],
+      "tintable": [
+        "Accent",
+        "Label"
+      ],
+      "anchors": {
+        "labelFront": [
+          0,
+          0.0675,
+          0.0225
+        ],
+        "labelBack": [
+          0,
+          0.0675,
+          -0.0225
+        ]
+      },
+      "status": "done",
+      "file": "models/nameplate.glb",
+      "thumb": "models/thumbs/nameplate.jpg",
+      "dims": {
+        "w": 0.34,
+        "h": 0.122,
+        "d": 0.085
+      },
+      "bbox": {
+        "min": [
+          -0.17,
+          0,
+          -0.043
+        ],
+        "max": [
+          0.17,
+          0.122,
+          0.043
+        ]
+      },
+      "tris": 288,
+      "materials": [
+        "Accent",
+        "Label"
+      ],
+      "nodes": [
+        "nameplate"
+      ],
+      "textures": 1,
+      "bytes": 21512
     },
     {
       "id": "paper_stack",
       "name": "Paper stack",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "",
-      "tags": [],
+      "description": "Messy stack of A4 sheets with a printed top page and a binder clip",
+      "tags": [
+        "desk",
+        "paperwork",
+        "clutter"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "top": [
+          0,
+          0.0294,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/paper_stack.glb",
+      "thumb": "models/thumbs/paper_stack.jpg",
+      "dims": {
+        "w": 0.249,
+        "h": 0.038,
+        "d": 0.315
+      },
+      "bbox": {
+        "min": [
+          -0.126,
+          0,
+          -0.161
+        ],
+        "max": [
+          0.123,
+          0.038,
+          0.154
+        ]
+      },
+      "tris": 1754,
+      "materials": [
+        "PaperOld",
+        "Paper",
+        "PaperYellow",
+        "PaperBlue",
+        "PrintTitle",
+        "PrintLogo",
+        "PrintLine",
+        "PenInk",
+        "Clip",
+        "Wire"
+      ],
+      "nodes": [
+        "paper_stack"
+      ],
+      "textures": 1,
+      "bytes": 99464
     },
     {
       "id": "pen_cup",
       "name": "Pen cup",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "with pens",
-      "tags": [],
-      "tintable": [],
+      "description": "Pen cup with a pencil, two pens and scissors",
+      "tags": [
+        "desk",
+        "stationery",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/pen_cup.glb",
+      "thumb": "models/thumbs/pen_cup.jpg",
+      "dims": {
+        "w": 0.094,
+        "h": 0.178,
+        "d": 0.087
+      },
+      "bbox": {
+        "min": [
+          -0.047,
+          0,
+          -0.043
+        ],
+        "max": [
+          0.047,
+          0.178,
+          0.043
+        ]
+      },
+      "tris": 2616,
+      "materials": [
+        "Accent",
+        "Pencil",
+        "Ferrule",
+        "Eraser",
+        "PenBody",
+        "PenBlue",
+        "PenRed",
+        "Blade",
+        "Handles"
+      ],
+      "nodes": [
+        "pen_cup"
+      ],
+      "textures": 1,
+      "bytes": 126332
     },
     {
       "id": "rubber_duck",
       "name": "Rubber duck",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "",
-      "tags": [],
+      "description": "Glossy yellow rubber duck with a big head, pink cheeks and an upturned tail",
+      "tags": [
+        "desk",
+        "clutter",
+        "debugging"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "headTop": [
+          0,
+          0.0895,
+          0.017
+        ]
+      },
+      "status": "done",
+      "file": "models/rubber_duck.glb",
+      "thumb": "models/thumbs/rubber_duck.jpg",
+      "dims": {
+        "w": 0.076,
+        "h": 0.088,
+        "d": 0.114
+      },
+      "bbox": {
+        "min": [
+          -0.038,
+          0.002,
+          -0.061
+        ],
+        "max": [
+          0.038,
+          0.09,
+          0.053
+        ]
+      },
+      "tris": 3476,
+      "materials": [
+        "Duck",
+        "Bill",
+        "Eye",
+        "Shine",
+        "Cheek"
+      ],
+      "nodes": [
+        "rubber_duck"
+      ],
+      "textures": 1,
+      "bytes": 124952
     },
     {
       "id": "service_bell",
       "name": "Service bell",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "reception bell",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky gold reception bell on a red base (hops and dings when someone is hired)",
+      "tags": [
+        "reception",
+        "desk",
+        "sound"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "button": [
+          0,
+          0.075,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/service_bell.glb",
+      "thumb": "models/thumbs/service_bell.jpg",
+      "dims": {
+        "w": 0.116,
+        "h": 0.075,
+        "d": 0.116
+      },
+      "bbox": {
+        "min": [
+          -0.058,
+          0,
+          -0.058
+        ],
+        "max": [
+          0.058,
+          0.075,
+          0.058
+        ]
+      },
+      "tris": 1340,
+      "materials": [
+        "Accent",
+        "Gold",
+        "Chrome"
+      ],
+      "nodes": [
+        "service_bell"
+      ],
+      "textures": 1,
+      "bytes": 57328
     },
     {
       "id": "sticky_notes",
       "name": "Sticky notes",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "",
-      "tags": [],
+      "description": "Yellow sticky-note pad with a curled \"TODO\" note and a loose pink note",
+      "tags": [
+        "desk",
+        "clutter",
+        "notes"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "top": [
+          0,
+          0.0158,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/sticky_notes.glb",
+      "thumb": "models/thumbs/sticky_notes.jpg",
+      "dims": {
+        "w": 0.163,
+        "h": 0.032,
+        "d": 0.11
+      },
+      "bbox": {
+        "min": [
+          -0.038,
+          0,
+          -0.072
+        ],
+        "max": [
+          0.125,
+          0.032,
+          0.038
+        ]
+      },
+      "tris": 1457,
+      "materials": [
+        "Pad",
+        "PadEdge",
+        "Note",
+        "Ink",
+        "Tick",
+        "NotePink",
+        "Doodle"
+      ],
+      "nodes": [
+        "sticky_notes"
+      ],
+      "textures": 1,
+      "bytes": 74760
+    },
+    {
+      "id": "stapler",
+      "name": "Stapler",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky red stapler with a chrome magazine and anvil",
+      "tags": [
+        "desk",
+        "office",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "head": [
+          -0.07,
+          0.03,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/stapler.glb",
+      "thumb": "models/thumbs/stapler.jpg",
+      "dims": {
+        "w": 0.16,
+        "h": 0.051,
+        "d": 0.05
+      },
+      "bbox": {
+        "min": [
+          -0.08,
+          0,
+          -0.025
+        ],
+        "max": [
+          0.08,
+          0.051,
+          0.025
+        ]
+      },
+      "tris": 708,
+      "materials": [
+        "Base",
+        "Chrome",
+        "Accent"
+      ],
+      "nodes": [
+        "stapler"
+      ],
+      "textures": 1,
+      "bytes": 45992
     },
     {
       "id": "award_plaque",
@@ -613,21 +1227,6 @@
       "thumb": null
     },
     {
-      "id": "stapler",
-      "name": "Stapler",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "succulent",
       "name": "Succulent",
       "category": null,
@@ -809,63 +1408,298 @@
     },
     {
       "id": "bush_round",
-      "name": "Bush round",
-      "category": null,
+      "name": "Round bush",
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "",
-      "tags": [],
+      "description": "Low flat-bottomed mound of lumpy puffs, darker underneath and lighter on top",
+      "tags": [
+        "bush",
+        "garden",
+        "hedge",
+        "foliage"
+      ],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/bush_round.glb",
+      "thumb": "models/thumbs/bush_round.jpg",
+      "dims": {
+        "w": 1.526,
+        "h": 1.018,
+        "d": 1.314
+      },
+      "bbox": {
+        "min": [
+          -0.751,
+          -0.02,
+          -0.654
+        ],
+        "max": [
+          0.775,
+          0.998,
+          0.66
+        ]
+      },
+      "tris": 3822,
+      "materials": [
+        "Leaf",
+        "LeafDark",
+        "LeafLight"
+      ],
+      "nodes": [
+        "bush_round"
+      ],
+      "textures": 1,
+      "bytes": 147392
     },
     {
-      "id": "cloud",
-      "name": "Cloud",
-      "category": null,
+      "id": "cloud_a",
+      "name": "Cloud (long)",
+      "category": "outdoor",
       "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
+      "group": null,
       "priority": "P0",
-      "description": "3 variants: cloud_a / cloud_b / cloud_c",
-      "tags": [],
+      "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 5 m long",
+      "tags": [
+        "cloud",
+        "sky",
+        "decor"
+      ],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/cloud_a.glb",
+      "thumb": "models/thumbs/cloud_a.jpg",
+      "dims": {
+        "w": 4.656,
+        "h": 1.851,
+        "d": 1.96
+      },
+      "bbox": {
+        "min": [
+          -2.285,
+          -0.019,
+          -0.993
+        ],
+        "max": [
+          2.371,
+          1.832,
+          0.967
+        ]
+      },
+      "tris": 4550,
+      "materials": [
+        "Cloud"
+      ],
+      "nodes": [
+        "cloud_a"
+      ],
+      "textures": 1,
+      "bytes": 120372
+    },
+    {
+      "id": "cloud_b",
+      "name": "Cloud (tall)",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": null,
+      "priority": "P0",
+      "description": "Tall bumpy cumulus dome on a flat belly, about 3.8 m wide",
+      "tags": [
+        "cloud",
+        "sky",
+        "decor"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/cloud_b.glb",
+      "thumb": "models/thumbs/cloud_b.jpg",
+      "dims": {
+        "w": 3.056,
+        "h": 2.507,
+        "d": 2.203
+      },
+      "bbox": {
+        "min": [
+          -1.498,
+          -0.009,
+          -1.123
+        ],
+        "max": [
+          1.558,
+          2.499,
+          1.08
+        ]
+      },
+      "tris": 4196,
+      "materials": [
+        "Cloud"
+      ],
+      "nodes": [
+        "cloud_b"
+      ],
+      "textures": 1,
+      "bytes": 112180
+    },
+    {
+      "id": "cloud_c",
+      "name": "Cloud (small)",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": null,
+      "priority": "P0",
+      "description": "Small three-bump wisp, about 2.9 m long",
+      "tags": [
+        "cloud",
+        "sky",
+        "decor"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/cloud_c.glb",
+      "thumb": "models/thumbs/cloud_c.jpg",
+      "dims": {
+        "w": 2.286,
+        "h": 1.098,
+        "d": 0.881
+      },
+      "bbox": {
+        "min": [
+          -1.106,
+          -0.018,
+          -0.441
+        ],
+        "max": [
+          1.18,
+          1.08,
+          0.44
+        ]
+      },
+      "tris": 2712,
+      "materials": [
+        "Cloud"
+      ],
+      "nodes": [
+        "cloud_c"
+      ],
+      "textures": 1,
+      "bytes": 72112
     },
     {
       "id": "company_sign",
-      "name": "Company sign",
-      "category": null,
+      "name": "CLAUDE OFFICE sign",
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "lawn monument sign \"CLAUDE OFFICE\"",
-      "tags": [],
+      "description": "Lawn monument: Claude-orange panel with raised two-tone CLAUDE OFFICE letters and a sparkle, on a stone plinth behind a flowering hedge",
+      "tags": [
+        "sign",
+        "entrance",
+        "garden",
+        "text",
+        "landmark"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "face": [
+          0,
+          0.95,
+          0.1
+        ]
+      },
+      "status": "done",
+      "file": "models/company_sign.glb",
+      "thumb": "models/thumbs/company_sign.jpg",
+      "dims": {
+        "w": 3.12,
+        "h": 1.496,
+        "d": 1.295
+      },
+      "bbox": {
+        "min": [
+          -1.56,
+          -0.016,
+          -0.51
+        ],
+        "max": [
+          1.56,
+          1.48,
+          0.785
+        ]
+      },
+      "tris": 11108,
+      "materials": [
+        "Stone",
+        "StoneCap",
+        "Panel",
+        "Cream",
+        "Outline",
+        "LeafDark",
+        "Leaf",
+        "Petal0",
+        "FlowerCentre",
+        "Petal1",
+        "Petal2",
+        "Petal3",
+        "Petal4"
+      ],
+      "nodes": [
+        "company_sign"
+      ],
+      "textures": 1,
+      "bytes": 509400
     },
     {
       "id": "doormat",
-      "name": "Doormat",
-      "category": null,
+      "name": "WELCOME doormat",
+      "category": "building",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "\"WELCOME\"",
-      "tags": [],
+      "description": "Chunky coir doormat with a dark inset border and raised cream WELCOME letters",
+      "tags": [
+        "entrance",
+        "mat",
+        "text"
+      ],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/doormat.glb",
+      "thumb": "models/thumbs/doormat.jpg",
+      "dims": {
+        "w": 1.7,
+        "h": 0.047,
+        "d": 0.85
+      },
+      "bbox": {
+        "min": [
+          -0.85,
+          0,
+          -0.425
+        ],
+        "max": [
+          0.85,
+          0.047,
+          0.425
+        ]
+      },
+      "tris": 2588,
+      "materials": [
+        "Coir",
+        "Border",
+        "Letters"
+      ],
+      "nodes": [
+        "doormat"
+      ],
+      "textures": 1,
+      "bytes": 127408
     },
     {
       "id": "flower_bed",
@@ -878,24 +1712,100 @@
       "tags": [],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/flower_bed.glb",
+      "thumb": "models/thumbs/flower_bed.jpg",
+      "dims": {
+        "w": 1.7,
+        "h": 0.623,
+        "d": 0.9
+      },
+      "bbox": {
+        "min": [
+          -0.85,
+          0,
+          -0.45
+        ],
+        "max": [
+          0.85,
+          0.623,
+          0.45
+        ]
+      },
+      "tris": 7862,
+      "materials": [
+        "Wood",
+        "Soil",
+        "Stem",
+        "Leaf",
+        "Petal0",
+        "Petal2",
+        "Petal4",
+        "Petal1",
+        "Petal3",
+        "TuftDark",
+        "Tuft",
+        "TuftLight",
+        "FlowerCentre"
+      ],
+      "nodes": [
+        "flower_bed"
+      ],
+      "textures": 1,
+      "bytes": 357496
     },
     {
       "id": "office_window",
       "name": "Office window",
-      "category": null,
+      "category": "building",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "big rounded frame + glass",
-      "tags": [],
+      "description": "Big round-cornered white frame with a chunky cross mullion, deep sill ledge and one glass pane",
+      "tags": [
+        "window",
+        "wall",
+        "glass"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "glassCenter": [
+          0,
+          0.585,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/office_window.glb",
+      "thumb": "models/thumbs/office_window.jpg",
+      "dims": {
+        "w": 2.56,
+        "h": 1.39,
+        "d": 0.56
+      },
+      "bbox": {
+        "min": [
+          -1.28,
+          -0.11,
+          -0.28
+        ],
+        "max": [
+          1.28,
+          1.28,
+          0.28
+        ]
+      },
+      "tris": 1952,
+      "materials": [
+        "Trim",
+        "Sill",
+        "Glass"
+      ],
+      "nodes": [
+        "office_window"
+      ],
+      "textures": 1,
+      "bytes": 91632
     },
     {
       "id": "park_bench",
@@ -908,9 +1818,36 @@
       "tags": [],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/park_bench.glb",
+      "thumb": "models/thumbs/park_bench.jpg",
+      "dims": {
+        "w": 1.6,
+        "h": 1.001,
+        "d": 0.632
+      },
+      "bbox": {
+        "min": [
+          -0.8,
+          -0.008,
+          -0.37
+        ],
+        "max": [
+          0.8,
+          0.994,
+          0.262
+        ]
+      },
+      "tris": 3224,
+      "materials": [
+        "Wood",
+        "Iron"
+      ],
+      "nodes": [
+        "park_bench"
+      ],
+      "textures": 1,
+      "bytes": 157688
     },
     {
       "id": "plant_monstera",
@@ -923,24 +1860,116 @@
       "tags": [],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/plant_monstera.glb",
+      "thumb": "models/thumbs/plant_monstera.jpg",
+      "dims": {
+        "w": 1.539,
+        "h": 1.619,
+        "d": 1.546
+      },
+      "bbox": {
+        "min": [
+          -0.805,
+          0,
+          -0.747
+        ],
+        "max": [
+          0.734,
+          1.619,
+          0.799
+        ]
+      },
+      "tris": 8508,
+      "materials": [
+        "Accent",
+        "PotFoot",
+        "Soil",
+        "Stem",
+        "LeafLight",
+        "Leaf",
+        "LeafDark"
+      ],
+      "nodes": [
+        "plant_monstera"
+      ],
+      "textures": 1,
+      "bytes": 309832
     },
     {
       "id": "sliding_door",
-      "name": "Sliding door",
-      "category": null,
+      "name": "Sliding glass doors",
+      "category": "building",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "frame + glass panel nodes `DoorL`, `DoorR`",
-      "tags": [],
+      "description": "Chunky slate door frame with a mint stripe and a glowing motion sensor; two glass panels slide apart",
+      "tags": [
+        "entrance",
+        "door",
+        "glass",
+        "animated"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "outside": [
+          0,
+          0,
+          0.8
+        ],
+        "inside": [
+          0,
+          0,
+          -0.8
+        ],
+        "sensor": [
+          0,
+          2.32,
+          0.27
+        ]
+      },
+      "status": "done",
+      "file": "models/sliding_door.glb",
+      "thumb": "models/thumbs/sliding_door.jpg",
+      "dims": {
+        "w": 3.28,
+        "h": 2.49,
+        "d": 0.61
+      },
+      "bbox": {
+        "min": [
+          -1.64,
+          0,
+          -0.305
+        ],
+        "max": [
+          1.64,
+          2.49,
+          0.305
+        ]
+      },
+      "tris": 4688,
+      "materials": [
+        "Frame.DoorL",
+        "Glass",
+        "Decal.DoorL",
+        "Metal.DoorL",
+        "Frame.DoorR",
+        "Decal.DoorR",
+        "Metal.DoorR",
+        "Frame",
+        "Stripe",
+        "SensorBezel",
+        "Sensor",
+        "Threshold"
+      ],
+      "nodes": [
+        "sliding_door",
+        "DoorL",
+        "DoorR"
+      ],
+      "textures": 3,
+      "bytes": 238796
     },
     {
       "id": "street_lamp",
@@ -953,33 +1982,162 @@
       "tags": [],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/street_lamp.glb",
+      "thumb": "models/thumbs/street_lamp.jpg",
+      "dims": {
+        "w": 0.5,
+        "h": 3.37,
+        "d": 0.5
+      },
+      "bbox": {
+        "min": [
+          -0.25,
+          0,
+          -0.25
+        ],
+        "max": [
+          0.25,
+          3.37,
+          0.25
+        ]
+      },
+      "tris": 3260,
+      "materials": [
+        "Post",
+        "Ring",
+        "LampGlow"
+      ],
+      "nodes": [
+        "street_lamp"
+      ],
+      "textures": 1,
+      "bytes": 130608
     },
     {
       "id": "tree_pine",
-      "name": "Tree pine",
-      "category": null,
+      "name": "Pine tree",
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "stacked chunky cones",
-      "tags": [],
+      "description": "Four stacked soft cones with wavy scalloped hems on a stubby trunk",
+      "tags": [
+        "tree",
+        "pine",
+        "garden",
+        "lawn",
+        "foliage"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "top": [
+          0,
+          3.76,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/tree_pine.glb",
+      "thumb": "models/thumbs/tree_pine.jpg",
+      "dims": {
+        "w": 2.709,
+        "h": 3.76,
+        "d": 2.74
+      },
+      "bbox": {
+        "min": [
+          -1.318,
+          0,
+          -1.37
+        ],
+        "max": [
+          1.391,
+          3.76,
+          1.37
+        ]
+      },
+      "tris": 4600,
+      "materials": [
+        "Trunk",
+        "LeafDark",
+        "Leaf",
+        "LeafLight"
+      ],
+      "nodes": [
+        "tree_pine"
+      ],
+      "textures": 1,
+      "bytes": 152680
     },
     {
       "id": "tree_round",
-      "name": "Tree round",
+      "name": "Round tree",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P0",
+      "description": "Chunky leaning trunk with soft buttress roots under a wide puffy canopy, darker green below and lighter on top",
+      "tags": [
+        "tree",
+        "garden",
+        "lawn",
+        "foliage"
+      ],
+      "tintable": [],
+      "anchors": {
+        "canopy": [
+          0,
+          2.7,
+          0
+        ],
+        "trunkTop": [
+          0.1,
+          1.5,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/tree_round.glb",
+      "thumb": "models/thumbs/tree_round.jpg",
+      "dims": {
+        "w": 3.117,
+        "h": 4.035,
+        "d": 3.272
+      },
+      "bbox": {
+        "min": [
+          -1.525,
+          0,
+          -1.641
+        ],
+        "max": [
+          1.593,
+          4.035,
+          1.631
+        ]
+      },
+      "tris": 5480,
+      "materials": [
+        "Trunk",
+        "Leaf",
+        "LeafDark",
+        "LeafLight"
+      ],
+      "nodes": [
+        "tree_round"
+      ],
+      "textures": 1,
+      "bytes": 196008
+    },
+    {
+      "id": "cloud",
+      "name": "Cloud",
       "category": null,
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "puffy canopy",
+      "description": "3 variants: cloud_a / cloud_b / cloud_c",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -1378,7 +2536,251 @@
         "coffee_machine"
       ],
       "textures": 1,
-      "bytes": 232152
+      "bytes": 231484
+    },
+    {
+      "id": "computer_mouse",
+      "name": "Computer mouse",
+      "category": "desk-item",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Pebble mouse with a scroll wheel on a rounded mouse pad",
+      "tags": [
+        "desk",
+        "computer"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "hand": [
+          0,
+          0.045,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/computer_mouse.glb",
+      "thumb": "models/thumbs/computer_mouse.jpg",
+      "dims": {
+        "w": 0.22,
+        "h": 0.063,
+        "d": 0.19
+      },
+      "bbox": {
+        "min": [
+          -0.11,
+          0,
+          -0.095
+        ],
+        "max": [
+          0.11,
+          0.063,
+          0.095
+        ]
+      },
+      "tris": 328,
+      "materials": [
+        "Accent",
+        "MouseShell",
+        "MouseWheel"
+      ],
+      "nodes": [
+        "computer_mouse"
+      ],
+      "textures": 1,
+      "bytes": 19812
+    },
+    {
+      "id": "couch",
+      "name": "Couch",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Puffy three-seater couch with rolled arms and marshmallow cushions",
+      "tags": [
+        "seating",
+        "break-room",
+        "lounge"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat0": [
+          -0.6,
+          0.52,
+          0.05
+        ],
+        "seat1": [
+          0,
+          0.52,
+          0.05
+        ],
+        "seat2": [
+          0.6,
+          0.52,
+          0.05
+        ]
+      },
+      "status": "done",
+      "file": "models/couch.glb",
+      "thumb": "models/thumbs/couch.jpg",
+      "dims": {
+        "w": 2.124,
+        "h": 0.868,
+        "d": 0.845
+      },
+      "bbox": {
+        "min": [
+          -1.062,
+          0,
+          -0.423
+        ],
+        "max": [
+          1.062,
+          0.868,
+          0.422
+        ]
+      },
+      "tris": 2288,
+      "materials": [
+        "Seat",
+        "Wood"
+      ],
+      "nodes": [
+        "couch"
+      ],
+      "textures": 1,
+      "bytes": 149972
+    },
+    {
+      "id": "desk",
+      "name": "Desk",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Modular rounded white desk with a tintable accent panel and drawer pod",
+      "tags": [
+        "desk",
+        "workstation"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.75,
+          0
+        ],
+        "monitor": [
+          0,
+          0.75,
+          -0.12
+        ],
+        "keyboard": [
+          -0.06,
+          0.75,
+          0.19
+        ],
+        "mouse": [
+          0.3,
+          0.75,
+          0.17
+        ],
+        "mug": [
+          0.5,
+          0.75,
+          -0.06
+        ],
+        "chair": [
+          0,
+          0,
+          0.7
+        ]
+      },
+      "status": "done",
+      "file": "models/desk.glb",
+      "thumb": "models/thumbs/desk.jpg",
+      "dims": {
+        "w": 1.4,
+        "h": 0.75,
+        "d": 0.75
+      },
+      "bbox": {
+        "min": [
+          -0.7,
+          0,
+          -0.375
+        ],
+        "max": [
+          0.7,
+          0.75,
+          0.375
+        ]
+      },
+      "tris": 1976,
+      "materials": [
+        "DeskTop",
+        "Accent",
+        "Knob"
+      ],
+      "nodes": [
+        "desk"
+      ],
+      "textures": 1,
+      "bytes": 108500
+    },
+    {
+      "id": "desk_divider",
+      "name": "Desk divider",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Pillowy fabric privacy panel between facing desks",
+      "tags": [
+        "desk",
+        "pod"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {},
+      "status": "done",
+      "file": "models/desk_divider.glb",
+      "thumb": "models/thumbs/desk_divider.jpg",
+      "dims": {
+        "w": 1.4,
+        "h": 0.488,
+        "d": 0.22
+      },
+      "bbox": {
+        "min": [
+          -0.7,
+          0,
+          -0.11
+        ],
+        "max": [
+          0.7,
+          0.488,
+          0.11
+        ]
+      },
+      "tris": 1060,
+      "materials": [
+        "Accent",
+        "Frame"
+      ],
+      "nodes": [
+        "desk_divider"
+      ],
+      "textures": 1,
+      "bytes": 51488
     },
     {
       "id": "desk_setup",
@@ -1434,7 +2836,7 @@
           0.375
         ]
       },
-      "tris": 5386,
+      "tris": 5522,
       "materials": [
         "DeskTop",
         "Accent",
@@ -1443,6 +2845,9 @@
         "Screen",
         "Keyboard",
         "Keys",
+        "KeyAccent",
+        "MouseShell",
+        "MouseWheel",
         "Mug",
         "Coffee"
       ],
@@ -1450,7 +2855,467 @@
         "desk_setup"
       ],
       "textures": 1,
-      "bytes": 286184
+      "bytes": 303496
+    },
+    {
+      "id": "filing_cabinet",
+      "name": "Filing cabinet",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Personnel Files cabinet with three slide-out drawers",
+      "tags": [
+        "manager",
+        "interactable",
+        "archive"
+      ],
+      "tintable": [],
+      "anchors": {
+        "front": [
+          0,
+          0.9,
+          0.4
+        ]
+      },
+      "status": "done",
+      "file": "models/filing_cabinet.glb",
+      "thumb": "models/thumbs/filing_cabinet.jpg",
+      "dims": {
+        "w": 0.54,
+        "h": 1.105,
+        "d": 0.745
+      },
+      "bbox": {
+        "min": [
+          -0.27,
+          0,
+          -0.32
+        ],
+        "max": [
+          0.27,
+          1.105,
+          0.425
+        ]
+      },
+      "tris": 1953,
+      "materials": [
+        "DrawerFront",
+        "Body",
+        "Chrome",
+        "LabelCard",
+        "Ink",
+        "Base"
+      ],
+      "nodes": [
+        "filing_cabinet",
+        "Drawer1",
+        "Drawer2",
+        "Drawer3"
+      ],
+      "textures": 1,
+      "bytes": 141472
+    },
+    {
+      "id": "fridge",
+      "name": "Fridge",
+      "category": "appliance",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Rounded retro fridge with a swing-open door",
+      "tags": [
+        "kitchen",
+        "break-room"
+      ],
+      "tintable": [],
+      "anchors": {
+        "front": [
+          0,
+          0,
+          0.75
+        ]
+      },
+      "status": "done",
+      "file": "models/fridge.glb",
+      "thumb": "models/thumbs/fridge.jpg",
+      "dims": {
+        "w": 0.72,
+        "h": 1.72,
+        "d": 0.828
+      },
+      "bbox": {
+        "min": [
+          -0.36,
+          0,
+          -0.35
+        ],
+        "max": [
+          0.36,
+          1.72,
+          0.478
+        ]
+      },
+      "tris": 944,
+      "materials": [
+        "Body",
+        "Seam",
+        "Chrome",
+        "Base",
+        "Liner"
+      ],
+      "nodes": [
+        "fridge",
+        "Door"
+      ],
+      "textures": 1,
+      "bytes": 72184
+    },
+    {
+      "id": "keyboard",
+      "name": "Keyboard",
+      "category": "desk-item",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Chunky keyboard with big rounded keycaps",
+      "tags": [
+        "desk",
+        "computer"
+      ],
+      "tintable": [],
+      "anchors": {
+        "hands": [
+          0,
+          0.05,
+          0.02
+        ]
+      },
+      "status": "done",
+      "file": "models/keyboard.glb",
+      "thumb": "models/thumbs/keyboard.jpg",
+      "dims": {
+        "w": 0.44,
+        "h": 0.048,
+        "d": 0.164
+      },
+      "bbox": {
+        "min": [
+          -0.22,
+          0,
+          -0.08
+        ],
+        "max": [
+          0.22,
+          0.048,
+          0.084
+        ]
+      },
+      "tris": 1604,
+      "materials": [
+        "Keyboard",
+        "Keys",
+        "KeyAccent"
+      ],
+      "nodes": [
+        "keyboard"
+      ],
+      "textures": 1,
+      "bytes": 114220
+    },
+    {
+      "id": "kitchen_counter",
+      "name": "Kitchen counter",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Cabinet run with worktop, sink and gooseneck faucet",
+      "tags": [
+        "kitchen",
+        "break-room"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          -0.35,
+          0.92,
+          0.05
+        ],
+        "sink": [
+          0.35,
+          0.92,
+          0.02
+        ]
+      },
+      "status": "done",
+      "file": "models/kitchen_counter.glb",
+      "thumb": "models/thumbs/kitchen_counter.jpg",
+      "dims": {
+        "w": 1.66,
+        "h": 1.26,
+        "d": 0.68
+      },
+      "bbox": {
+        "min": [
+          -0.83,
+          0,
+          -0.33
+        ],
+        "max": [
+          0.83,
+          1.26,
+          0.35
+        ]
+      },
+      "tris": 2032,
+      "materials": [
+        "Cabinet",
+        "Base",
+        "Accent",
+        "Knob",
+        "Worktop",
+        "Chrome",
+        "Basin"
+      ],
+      "nodes": [
+        "kitchen_counter"
+      ],
+      "textures": 1,
+      "bytes": 124516
+    },
+    {
+      "id": "manager_chair",
+      "name": "Manager chair",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Tall puffy executive chair with stacked pillow-roll back",
+      "tags": [
+        "seating",
+        "manager"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.54,
+          0.03
+        ]
+      },
+      "status": "done",
+      "file": "models/manager_chair.glb",
+      "thumb": "models/thumbs/manager_chair.jpg",
+      "dims": {
+        "w": 0.824,
+        "h": 1.401,
+        "d": 0.845
+      },
+      "bbox": {
+        "min": [
+          -0.412,
+          0,
+          -0.53
+        ],
+        "max": [
+          0.412,
+          1.401,
+          0.314
+        ]
+      },
+      "tris": 5228,
+      "materials": [
+        "Chrome",
+        "Wheel",
+        "Frame",
+        "Seat"
+      ],
+      "nodes": [
+        "manager_chair"
+      ],
+      "textures": 1,
+      "bytes": 264504
+    },
+    {
+      "id": "manager_desk",
+      "name": "Manager desk",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Big wooden executive desk with brass nameplate and leather desk pad",
+      "tags": [
+        "desk",
+        "manager"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          0.78,
+          0
+        ],
+        "monitor": [
+          0,
+          0.78,
+          -0.15
+        ],
+        "keyboard": [
+          0,
+          0.78,
+          0.2
+        ],
+        "mug": [
+          0.6,
+          0.78,
+          0.1
+        ],
+        "chair": [
+          0,
+          0,
+          0.85
+        ]
+      },
+      "status": "done",
+      "file": "models/manager_desk.glb",
+      "thumb": "models/thumbs/manager_desk.jpg",
+      "dims": {
+        "w": 1.9,
+        "h": 0.84,
+        "d": 0.92
+      },
+      "bbox": {
+        "min": [
+          -0.95,
+          0,
+          -0.46
+        ],
+        "max": [
+          0.95,
+          0.84,
+          0.46
+        ]
+      },
+      "tris": 2752,
+      "materials": [
+        "Wood",
+        "WoodDark",
+        "Gold",
+        "Leather",
+        "Ink"
+      ],
+      "nodes": [
+        "manager_desk"
+      ],
+      "textures": 1,
+      "bytes": 150160
+    },
+    {
+      "id": "monitor",
+      "name": "Monitor",
+      "category": "desk-item",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Chunky toy monitor with a thick rounded bezel and a swappable glowing screen",
+      "tags": [
+        "desk",
+        "computer",
+        "screen"
+      ],
+      "tintable": [
+        "Screen"
+      ],
+      "anchors": {
+        "screenCenter": [
+          0,
+          0.4,
+          0.056
+        ]
+      },
+      "status": "done",
+      "file": "models/monitor.glb",
+      "thumb": "models/thumbs/monitor.jpg",
+      "dims": {
+        "w": 0.62,
+        "h": 0.62,
+        "d": 0.26
+      },
+      "bbox": {
+        "min": [
+          -0.31,
+          0,
+          -0.15
+        ],
+        "max": [
+          0.31,
+          0.62,
+          0.11
+        ]
+      },
+      "tris": 930,
+      "materials": [
+        "Bezel",
+        "Screen"
+      ],
+      "nodes": [
+        "monitor"
+      ],
+      "textures": 1,
+      "bytes": 45748
+    },
+    {
+      "id": "now_hiring_sign",
+      "name": "NOW HIRING! sign",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "A-frame sandwich board shouting NOW HIRING! on both sides",
+      "tags": [
+        "reception",
+        "sign",
+        "text"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/now_hiring_sign.glb",
+      "thumb": "models/thumbs/now_hiring_sign.jpg",
+      "dims": {
+        "w": 0.64,
+        "h": 0.932,
+        "d": 0.449
+      },
+      "bbox": {
+        "min": [
+          -0.32,
+          -0.001,
+          -0.224
+        ],
+        "max": [
+          0.32,
+          0.931,
+          0.224
+        ]
+      },
+      "tris": 4676,
+      "materials": [
+        "Wood",
+        "Panel",
+        "Lettering",
+        "Star"
+      ],
+      "nodes": [
+        "now_hiring_sign"
+      ],
+      "textures": 1,
+      "bytes": 241936
     },
     {
       "id": "office_chair",
@@ -1556,570 +3421,1779 @@
         "plant_pot"
       ],
       "textures": 1,
-      "bytes": 213636
-    },
-    {
-      "id": "computer_mouse",
-      "name": "Computer mouse",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "with pad",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "couch",
-      "name": "Couch",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "puffy 3-seater, tint `Seat`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "desk",
-      "name": "Desk",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "modular desk alone, tint `Accent` panel",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "desk_divider",
-      "name": "Desk divider",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "soft privacy panel between facing desks, tint `Accent`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "filing_cabinet",
-      "name": "Filing cabinet",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "\"PERSONNEL FILES\" label, drawers as nodes `Drawer1..3`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "fridge",
-      "name": "Fridge",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "rounded retro fridge, door node `Door`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "keyboard",
-      "name": "Keyboard",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "chunky keys",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "kitchen_counter",
-      "name": "Kitchen counter",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "cabinets + sink",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "manager_chair",
-      "name": "Manager chair",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "tall puffy executive chair",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "manager_desk",
-      "name": "Manager desk",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "big wooden desk for the manager's corner",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "monitor",
-      "name": "Monitor",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "chunky bezel, `Screen` material, separate from the desk",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "now_hiring_sign",
-      "name": "Now hiring sign",
-      "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "standing sandwich board, \"NOW HIRING!\"",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "bytes": 213748
     },
     {
       "id": "reception_desk",
       "name": "Reception desk",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P0",
-      "description": "curved counter",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Curved reception counter with a wrap-around stripe and a lower work surface",
+      "tags": [
+        "reception",
+        "interactable"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "counter": [
+          0,
+          1.07,
+          0.2
+        ],
+        "bell": [
+          0.3,
+          1.07,
+          0.12
+        ],
+        "receptionist": [
+          0,
+          0,
+          -0.55
+        ],
+        "visitor": [
+          0,
+          0,
+          0.75
+        ]
+      },
+      "status": "done",
+      "file": "models/reception_desk.glb",
+      "thumb": "models/thumbs/reception_desk.jpg",
+      "dims": {
+        "w": 2.354,
+        "h": 1.075,
+        "d": 1.08
+      },
+      "bbox": {
+        "min": [
+          -1.177,
+          0,
+          -0.77
+        ],
+        "max": [
+          1.177,
+          1.075,
+          0.31
+        ]
+      },
+      "tris": 4972,
+      "materials": [
+        "Kick",
+        "Accent",
+        "CounterTop"
+      ],
+      "nodes": [
+        "reception_desk"
+      ],
+      "textures": 1,
+      "bytes": 226276
     },
     {
       "id": "wall_clock",
       "name": "Wall clock",
-      "category": null,
+      "category": "decor",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P0",
-      "description": "nodes `HourHand`, `MinuteHand`",
-      "tags": [],
+      "description": "Chunky red wall clock with animatable hour and minute hands",
+      "tags": [
+        "wall",
+        "time"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.06
+        ]
+      },
+      "status": "done",
+      "file": "models/wall_clock.glb",
+      "thumb": "models/thumbs/wall_clock.jpg",
+      "dims": {
+        "w": 0.47,
+        "h": 0.47,
+        "d": 0.07
+      },
+      "bbox": {
+        "min": [
+          -0.235,
+          -0.235,
+          0
+        ],
+        "max": [
+          0.235,
+          0.235,
+          0.07
+        ]
+      },
+      "tris": 2444,
+      "materials": [
+        "Hand",
+        "Face",
+        "Rim",
+        "Tick",
+        "Pin"
+      ],
+      "nodes": [
+        "wall_clock",
+        "HourHand",
+        "MinuteHand"
+      ],
+      "textures": 1,
+      "bytes": 105796
     },
     {
       "id": "water_cooler",
       "name": "Water cooler",
-      "category": null,
+      "category": "appliance",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P0",
-      "description": "blue bottle, cups",
-      "tags": [],
+      "description": "Office water cooler with a big blue bottle and a cup dispenser",
+      "tags": [
+        "break-room",
+        "kitchen"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "tap": [
+          0,
+          0.72,
+          0.2
+        ],
+        "cup": [
+          0.22,
+          0.5,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/water_cooler.glb",
+      "thumb": "models/thumbs/water_cooler.jpg",
+      "dims": {
+        "w": 0.437,
+        "h": 1.41,
+        "d": 0.437
+      },
+      "bbox": {
+        "min": [
+          -0.18,
+          0,
+          -0.18
+        ],
+        "max": [
+          0.257,
+          1.41,
+          0.257
+        ]
+      },
+      "tris": 2460,
+      "materials": [
+        "Body",
+        "Nook",
+        "TapCold",
+        "TapHot",
+        "Bottle",
+        "Cup"
+      ],
+      "nodes": [
+        "water_cooler"
+      ],
+      "textures": 1,
+      "bytes": 112668
     },
     {
       "id": "whiteboard",
       "name": "Whiteboard",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P0",
-      "description": "frame + tray; board material `Board` (game draws on it)",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Wall whiteboard with chunky frame, marker tray, markers and eraser",
+      "tags": [
+        "wall",
+        "interactable",
+        "roster"
+      ],
+      "tintable": [
+        "Board"
+      ],
+      "anchors": {
+        "boardCenter": [
+          0,
+          0,
+          0.041
+        ]
+      },
+      "status": "done",
+      "file": "models/whiteboard.glb",
+      "thumb": "models/thumbs/whiteboard.jpg",
+      "dims": {
+        "w": 1.94,
+        "h": 1.16,
+        "d": 0.13
+      },
+      "bbox": {
+        "min": [
+          -0.97,
+          -0.59,
+          0
+        ],
+        "max": [
+          0.97,
+          0.57,
+          0.13
+        ]
+      },
+      "tris": 1654,
+      "materials": [
+        "Backing",
+        "Board",
+        "Frame",
+        "Tray",
+        "MarkerBody",
+        "MarkerRed",
+        "MarkerBlue",
+        "MarkerGreen",
+        "Felt"
+      ],
+      "nodes": [
+        "whiteboard"
+      ],
+      "textures": 1,
+      "bytes": 102992
     },
     {
       "id": "armchair",
       "name": "Armchair",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "matching couch",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Puffy armchair matching the couch",
+      "tags": [
+        "seating",
+        "lounge",
+        "break-room"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.52,
+          0.05
+        ]
+      },
+      "status": "done",
+      "file": "models/armchair.glb",
+      "thumb": "models/thumbs/armchair.jpg",
+      "dims": {
+        "w": 1.184,
+        "h": 0.888,
+        "d": 0.845
+      },
+      "bbox": {
+        "min": [
+          -0.592,
+          0,
+          -0.423
+        ],
+        "max": [
+          0.592,
+          0.888,
+          0.422
+        ]
+      },
+      "tris": 1520,
+      "materials": [
+        "Seat",
+        "Wood"
+      ],
+      "nodes": [
+        "armchair"
+      ],
+      "textures": 1,
+      "bytes": 109012
     },
     {
       "id": "beanbag",
       "name": "Beanbag",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "tint `Seat`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Squashy beanbag with a sitting dent",
+      "tags": [
+        "seating",
+        "lounge",
+        "break-room"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.32,
+          0.08
+        ]
+      },
+      "status": "done",
+      "file": "models/beanbag.glb",
+      "thumb": "models/thumbs/beanbag.jpg",
+      "dims": {
+        "w": 0.945,
+        "h": 0.627,
+        "d": 0.89
+      },
+      "bbox": {
+        "min": [
+          -0.473,
+          0,
+          -0.449
+        ],
+        "max": [
+          0.473,
+          0.627,
+          0.441
+        ]
+      },
+      "tris": 1564,
+      "materials": [
+        "Seat",
+        "Cap"
+      ],
+      "nodes": [
+        "beanbag"
+      ],
+      "textures": 1,
+      "bytes": 53500
     },
     {
       "id": "bookshelf",
       "name": "Bookshelf",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "with chunky books",
-      "tags": [],
+      "description": "Wooden bookshelf packed with chunky colourful books and a trophy",
+      "tags": [
+        "storage",
+        "decor",
+        "manager"
+      ],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/bookshelf.glb",
+      "thumb": "models/thumbs/bookshelf.jpg",
+      "dims": {
+        "w": 0.96,
+        "h": 1.63,
+        "d": 0.37
+      },
+      "bbox": {
+        "min": [
+          -0.48,
+          0,
+          -0.185
+        ],
+        "max": [
+          0.48,
+          1.63,
+          0.185
+        ]
+      },
+      "tris": 2832,
+      "materials": [
+        "WoodBack",
+        "Wood",
+        "Book1",
+        "Book6",
+        "Book2",
+        "Book5",
+        "Book4",
+        "Book7",
+        "Book3",
+        "Book0",
+        "Gold"
+      ],
+      "nodes": [
+        "bookshelf"
+      ],
+      "textures": 1,
+      "bytes": 216372
     },
     {
       "id": "coat_rack",
       "name": "Coat rack",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
+      "description": "Wooden coat rack with a puffy coat and scarf hanging on it",
+      "tags": [
+        "entrance",
+        "decor"
+      ],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/coat_rack.glb",
+      "thumb": "models/thumbs/coat_rack.jpg",
+      "dims": {
+        "w": 0.607,
+        "h": 1.815,
+        "d": 0.601
+      },
+      "bbox": {
+        "min": [
+          -0.303,
+          -0.005,
+          -0.345
+        ],
+        "max": [
+          0.303,
+          1.81,
+          0.256
+        ]
+      },
+      "tris": 1908,
+      "materials": [
+        "Wood",
+        "WoodLight",
+        "Coat",
+        "Scarf"
+      ],
+      "nodes": [
+        "coat_rack"
+      ],
+      "textures": 1,
+      "bytes": 89508
     },
     {
       "id": "coffee_table",
       "name": "Coffee table",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
+      "description": "Chunky low wooden coffee table with a lower shelf",
+      "tags": [
+        "lounge",
+        "break-room",
+        "table"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "top": [
+          0,
+          0.42,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/coffee_table.glb",
+      "thumb": "models/thumbs/coffee_table.jpg",
+      "dims": {
+        "w": 1,
+        "h": 0.42,
+        "d": 0.56
+      },
+      "bbox": {
+        "min": [
+          -0.5,
+          0,
+          -0.28
+        ],
+        "max": [
+          0.5,
+          0.42,
+          0.28
+        ]
+      },
+      "tris": 1048,
+      "materials": [
+        "Wood",
+        "WoodDark"
+      ],
+      "nodes": [
+        "coffee_table"
+      ],
+      "textures": 1,
+      "bytes": 55016
     },
     {
       "id": "desk_lamp",
       "name": "Desk lamp",
-      "category": null,
+      "category": "desk-item",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky coral anglepoise desk lamp with a glowing bulb",
+      "tags": [
+        "desk",
+        "lighting"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "light": [
+          0,
+          0.3,
+          0.2
+        ]
+      },
+      "status": "done",
+      "file": "models/desk_lamp.glb",
+      "thumb": "models/thumbs/desk_lamp.jpg",
+      "dims": {
+        "w": 0.18,
+        "h": 0.426,
+        "d": 0.34
+      },
+      "bbox": {
+        "min": [
+          -0.09,
+          0,
+          -0.13
+        ],
+        "max": [
+          0.09,
+          0.426,
+          0.21
+        ]
+      },
+      "tris": 1256,
+      "materials": [
+        "Accent",
+        "Joint",
+        "Bulb"
+      ],
+      "nodes": [
+        "desk_lamp"
+      ],
+      "textures": 1,
+      "bytes": 62460
     },
     {
       "id": "floor_lamp",
       "name": "Floor lamp",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "emissive shade",
-      "tags": [],
+      "description": "Floor lamp with a warm glowing drum shade",
+      "tags": [
+        "lighting",
+        "lounge"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "light": [
+          0,
+          1.47,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/floor_lamp.glb",
+      "thumb": "models/thumbs/floor_lamp.jpg",
+      "dims": {
+        "w": 0.47,
+        "h": 1.62,
+        "d": 0.47
+      },
+      "bbox": {
+        "min": [
+          -0.235,
+          0,
+          -0.235
+        ],
+        "max": [
+          0.235,
+          1.62,
+          0.235
+        ]
+      },
+      "tris": 848,
+      "materials": [
+        "Metal",
+        "Brass",
+        "Shade"
+      ],
+      "nodes": [
+        "floor_lamp"
+      ],
+      "textures": 1,
+      "bytes": 42468
     },
     {
       "id": "locker",
       "name": "Locker",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
+      "description": "Bank of three chunky lockers with vents and number plates",
+      "tags": [
+        "storage",
+        "break-room"
+      ],
+      "tintable": [
+        "Accent"
+      ],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/locker.glb",
+      "thumb": "models/thumbs/locker.jpg",
+      "dims": {
+        "w": 1,
+        "h": 1.8,
+        "d": 0.553
+      },
+      "bbox": {
+        "min": [
+          -0.5,
+          0,
+          -0.25
+        ],
+        "max": [
+          0.5,
+          1.8,
+          0.303
+        ]
+      },
+      "tris": 1314,
+      "materials": [
+        "Body",
+        "Vent",
+        "Accent",
+        "Chrome",
+        "Plate",
+        "Ink"
+      ],
+      "nodes": [
+        "locker"
+      ],
+      "textures": 1,
+      "bytes": 93360
     },
     {
       "id": "meeting_chair",
       "name": "Meeting chair",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky moulded shell chair on four splayed legs",
+      "tags": [
+        "seating",
+        "meeting-room"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.48,
+          0.02
+        ]
+      },
+      "status": "done",
+      "file": "models/meeting_chair.glb",
+      "thumb": "models/thumbs/meeting_chair.jpg",
+      "dims": {
+        "w": 0.474,
+        "h": 0.892,
+        "d": 0.516
+      },
+      "bbox": {
+        "min": [
+          -0.237,
+          -0.018,
+          -0.289
+        ],
+        "max": [
+          0.237,
+          0.874,
+          0.227
+        ]
+      },
+      "tris": 796,
+      "materials": [
+        "Seat",
+        "Chrome"
+      ],
+      "nodes": [
+        "meeting_chair"
+      ],
+      "textures": 1,
+      "bytes": 41868
     },
     {
       "id": "meeting_table",
       "name": "Meeting table",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Big rounded meeting table on two chunky pedestals",
+      "tags": [
+        "meeting-room",
+        "table"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.75,
+          0
+        ],
+        "seat0": [
+          -0.6,
+          0,
+          0.95
+        ],
+        "seat1": [
+          0,
+          0,
+          0.95
+        ],
+        "seat2": [
+          0.6,
+          0,
+          0.95
+        ],
+        "seat3": [
+          -0.6,
+          0,
+          -0.95
+        ],
+        "seat4": [
+          0,
+          0,
+          -0.95
+        ],
+        "seat5": [
+          0.6,
+          0,
+          -0.95
+        ],
+        "seat6": [
+          -1.5,
+          0,
+          0
+        ],
+        "seat7": [
+          1.5,
+          0,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/meeting_table.glb",
+      "thumb": "models/thumbs/meeting_table.jpg",
+      "dims": {
+        "w": 2.58,
+        "h": 0.75,
+        "d": 1.18
+      },
+      "bbox": {
+        "min": [
+          -1.29,
+          0,
+          -0.59
+        ],
+        "max": [
+          1.29,
+          0.75,
+          0.59
+        ]
+      },
+      "tris": 1712,
+      "materials": [
+        "Wood",
+        "Accent",
+        "Base"
+      ],
+      "nodes": [
+        "meeting_table"
+      ],
+      "textures": 1,
+      "bytes": 105200
     },
     {
       "id": "microwave",
       "name": "Microwave",
-      "category": null,
+      "category": "appliance",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
+      "description": "Chunky cream microwave with dials and a glowing display",
+      "tags": [
+        "kitchen",
+        "break-room"
+      ],
       "tintable": [],
       "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "status": "done",
+      "file": "models/microwave.glb",
+      "thumb": "models/thumbs/microwave.jpg",
+      "dims": {
+        "w": 0.52,
+        "h": 0.325,
+        "d": 0.42
+      },
+      "bbox": {
+        "min": [
+          -0.26,
+          0,
+          -0.19
+        ],
+        "max": [
+          0.26,
+          0.325,
+          0.23
+        ]
+      },
+      "tris": 1068,
+      "materials": [
+        "Body",
+        "Panel",
+        "Window",
+        "Glare",
+        "Display",
+        "Dial"
+      ],
+      "nodes": [
+        "microwave"
+      ],
+      "textures": 1,
+      "bytes": 64492
     },
     {
       "id": "printer_copier",
       "name": "Printer copier",
-      "category": null,
+      "category": "appliance",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "big friendly copier, paper tray",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Big friendly copier with control panel, paper drawers and output tray",
+      "tags": [
+        "office",
+        "appliance",
+        "interactable"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "output": [
+          0.48,
+          0.72,
+          0
+        ],
+        "panel": [
+          0.18,
+          0.98,
+          0.32
+        ]
+      },
+      "status": "done",
+      "file": "models/printer_copier.glb",
+      "thumb": "models/thumbs/printer_copier.jpg",
+      "dims": {
+        "w": 0.931,
+        "h": 0.98,
+        "d": 0.687
+      },
+      "bbox": {
+        "min": [
+          -0.362,
+          0,
+          -0.302
+        ],
+        "max": [
+          0.569,
+          0.98,
+          0.385
+        ]
+      },
+      "tris": 1484,
+      "materials": [
+        "Body",
+        "Dark",
+        "Accent",
+        "Display",
+        "ButtonGo",
+        "Paper"
+      ],
+      "nodes": [
+        "printer_copier"
+      ],
+      "textures": 1,
+      "bytes": 106840
     },
     {
       "id": "recycling_bin",
       "name": "Recycling bin",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Green recycling bin with lid slot and chasing-arrow badge",
+      "tags": [
+        "office",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "slot": [
+          0,
+          0.62,
+          0.05
+        ]
+      },
+      "status": "done",
+      "file": "models/recycling_bin.glb",
+      "thumb": "models/thumbs/recycling_bin.jpg",
+      "dims": {
+        "w": 0.39,
+        "h": 0.625,
+        "d": 0.39
+      },
+      "bbox": {
+        "min": [
+          -0.195,
+          0,
+          -0.195
+        ],
+        "max": [
+          0.195,
+          0.625,
+          0.195
+        ]
+      },
+      "tris": 660,
+      "materials": [
+        "Accent",
+        "Lid",
+        "Slot",
+        "Badge"
+      ],
+      "nodes": [
+        "recycling_bin"
+      ],
+      "textures": 1,
+      "bytes": 43212
     },
     {
       "id": "server_rack",
       "name": "Server rack",
-      "category": null,
+      "category": "appliance",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "blinking lights (`Accent` emissive)",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Server rack with blinking status lights",
+      "tags": [
+        "tech",
+        "server-room"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "front": [
+          0,
+          1,
+          0.5
+        ]
+      },
+      "status": "done",
+      "file": "models/server_rack.glb",
+      "thumb": "models/thumbs/server_rack.jpg",
+      "dims": {
+        "w": 0.64,
+        "h": 1.9,
+        "d": 0.844
+      },
+      "bbox": {
+        "min": [
+          -0.32,
+          0,
+          -0.4
+        ],
+        "max": [
+          0.32,
+          1.9,
+          0.444
+        ]
+      },
+      "tris": 3076,
+      "materials": [
+        "Cabinet",
+        "Vent",
+        "Unit",
+        "Accent",
+        "Power"
+      ],
+      "nodes": [
+        "server_rack"
+      ],
+      "textures": 1,
+      "bytes": 173532
     },
     {
       "id": "standing_desk",
       "name": "Standing desk",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Standing desk on chunky telescopic legs",
+      "tags": [
+        "desk",
+        "workstation"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          1.05,
+          0
+        ],
+        "monitor": [
+          0,
+          1.05,
+          -0.12
+        ],
+        "keyboard": [
+          0,
+          1.05,
+          0.18
+        ],
+        "stand": [
+          0,
+          0,
+          0.6
+        ]
+      },
+      "status": "done",
+      "file": "models/standing_desk.glb",
+      "thumb": "models/thumbs/standing_desk.jpg",
+      "dims": {
+        "w": 1.4,
+        "h": 1.045,
+        "d": 0.756
+      },
+      "bbox": {
+        "min": [
+          -0.7,
+          0.005,
+          -0.36
+        ],
+        "max": [
+          0.7,
+          1.05,
+          0.396
+        ]
+      },
+      "tris": 1108,
+      "materials": [
+        "DeskTop",
+        "Dark",
+        "Accent",
+        "Upper"
+      ],
+      "nodes": [
+        "standing_desk"
+      ],
+      "textures": 1,
+      "bytes": 75684
     },
     {
       "id": "stool",
       "name": "Stool",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Wooden stool with a plump round cushion and a foot ring",
+      "tags": [
+        "seating",
+        "kitchen",
+        "break-room"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.66,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/stool.glb",
+      "thumb": "models/thumbs/stool.jpg",
+      "dims": {
+        "w": 0.4,
+        "h": 0.68,
+        "d": 0.4
+      },
+      "bbox": {
+        "min": [
+          -0.2,
+          0,
+          -0.2
+        ],
+        "max": [
+          0.2,
+          0.68,
+          0.2
+        ]
+      },
+      "tris": 1428,
+      "materials": [
+        "Seat",
+        "Wood"
+      ],
+      "nodes": [
+        "stool"
+      ],
+      "textures": 1,
+      "bytes": 67316
     },
     {
       "id": "trash_bin",
       "name": "Trash bin",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky office waste bin with a crumpled paper ball",
+      "tags": [
+        "office",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "mouth": [
+          0,
+          0.36,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/trash_bin.glb",
+      "thumb": "models/thumbs/trash_bin.jpg",
+      "dims": {
+        "w": 0.34,
+        "h": 0.366,
+        "d": 0.34
+      },
+      "bbox": {
+        "min": [
+          -0.17,
+          0,
+          -0.17
+        ],
+        "max": [
+          0.17,
+          0.366,
+          0.17
+        ]
+      },
+      "tris": 1276,
+      "materials": [
+        "Accent",
+        "Inner",
+        "Paper"
+      ],
+      "nodes": [
+        "trash_bin"
+      ],
+      "textures": 1,
+      "bytes": 59816
     },
     {
       "id": "tv_stand",
-      "name": "Tv stand",
-      "category": null,
+      "name": "TV stand",
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "big screen (`Screen`) on a stand",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Media console with a big TV whose screen the game can drive",
+      "tags": [
+        "lounge",
+        "meeting-room",
+        "screen"
+      ],
+      "tintable": [
+        "Screen",
+        "Accent"
+      ],
+      "anchors": {
+        "screenCenter": [
+          0,
+          0.96,
+          0.04
+        ]
+      },
+      "status": "done",
+      "file": "models/tv_stand.glb",
+      "thumb": "models/thumbs/tv_stand.jpg",
+      "dims": {
+        "w": 1.4,
+        "h": 1.33,
+        "d": 0.479
+      },
+      "bbox": {
+        "min": [
+          -0.7,
+          0,
+          -0.22
+        ],
+        "max": [
+          0.7,
+          1.33,
+          0.259
+        ]
+      },
+      "tris": 1598,
+      "materials": [
+        "Wood",
+        "Accent",
+        "Knob",
+        "Console",
+        "Bezel",
+        "Screen"
+      ],
+      "nodes": [
+        "tv_stand"
+      ],
+      "textures": 1,
+      "bytes": 103136
     },
     {
       "id": "vending_machine",
       "name": "Vending machine",
-      "category": null,
+      "category": "appliance",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P1",
-      "description": "snacks behind glass",
-      "tags": [],
+      "description": "Red snack vending machine with colourful snacks behind glass",
+      "tags": [
+        "break-room",
+        "food",
+        "interactable"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "pickup": [
+          -0.1,
+          0.3,
+          0.45
+        ],
+        "keypad": [
+          0.33,
+          1.1,
+          0.42
+        ]
+      },
+      "status": "done",
+      "file": "models/vending_machine.glb",
+      "thumb": "models/thumbs/vending_machine.jpg",
+      "dims": {
+        "w": 0.92,
+        "h": 1.86,
+        "d": 0.818
+      },
+      "bbox": {
+        "min": [
+          -0.46,
+          0,
+          -0.39
+        ],
+        "max": [
+          0.46,
+          1.86,
+          0.428
+        ]
+      },
+      "tris": 4676,
+      "materials": [
+        "Body",
+        "Keypad",
+        "Trim",
+        "Inside",
+        "Glare",
+        "Shelf",
+        "Snack3",
+        "Snack2",
+        "Snack5",
+        "Snack7",
+        "Snack1",
+        "Snack0",
+        "Snack4",
+        "Snack6",
+        "Key"
+      ],
+      "nodes": [
+        "vending_machine"
+      ],
+      "textures": 1,
+      "bytes": 276120
     },
     {
       "id": "arcade_cabinet",
       "name": "Arcade cabinet",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P2",
-      "description": "`Screen`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Upright arcade cabinet with glowing marquee and a game-driven screen",
+      "tags": [
+        "game-room",
+        "fun",
+        "screen"
+      ],
+      "tintable": [
+        "Screen",
+        "Accent"
+      ],
+      "anchors": {
+        "screenCenter": [
+          0,
+          1.3,
+          0.113
+        ],
+        "player": [
+          0,
+          0,
+          0.75
+        ]
+      },
+      "status": "done",
+      "file": "models/arcade_cabinet.glb",
+      "thumb": "models/thumbs/arcade_cabinet.jpg",
+      "dims": {
+        "w": 0.66,
+        "h": 1.82,
+        "d": 0.781
+      },
+      "bbox": {
+        "min": [
+          -0.33,
+          0,
+          -0.36
+        ],
+        "max": [
+          0.33,
+          1.82,
+          0.421
+        ]
+      },
+      "tris": 2534,
+      "materials": [
+        "Accent",
+        "Body",
+        "Marquee",
+        "Letters",
+        "Screen",
+        "Chrome",
+        "Stick",
+        "Buttons",
+        "Buttons2",
+        "Coin"
+      ],
+      "nodes": [
+        "arcade_cabinet"
+      ],
+      "textures": 1,
+      "bytes": 164224
     },
     {
       "id": "foosball_table",
       "name": "Foosball table",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky foosball table with red and blue players",
+      "tags": [
+        "game-room",
+        "fun"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "playerA": [
+          0,
+          0,
+          0.75
+        ],
+        "playerB": [
+          0,
+          0,
+          -0.75
+        ]
+      },
+      "status": "done",
+      "file": "models/foosball_table.glb",
+      "thumb": "models/thumbs/foosball_table.jpg",
+      "dims": {
+        "w": 1.27,
+        "h": 0.907,
+        "d": 1.24
+      },
+      "bbox": {
+        "min": [
+          -0.635,
+          0,
+          -0.62
+        ],
+        "max": [
+          0.635,
+          0.907,
+          0.62
+        ]
+      },
+      "tris": 4244,
+      "materials": [
+        "Accent",
+        "Field",
+        "Lines",
+        "Goal",
+        "Rod",
+        "Grip",
+        "TeamRed",
+        "TeamBlue"
+      ],
+      "nodes": [
+        "foosball_table"
+      ],
+      "textures": 1,
+      "bytes": 257620
     },
     {
       "id": "massage_chair",
       "name": "Massage chair",
-      "category": null,
+      "category": "furniture",
       "artist": "Claude Monet",
       "group": "furniture & appliances",
       "priority": "P2",
+      "description": "Puffy reclining massage chair with arm pods and a glowing remote",
+      "tags": [
+        "lounge",
+        "fun",
+        "seating"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.55,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/massage_chair.glb",
+      "thumb": "models/thumbs/massage_chair.jpg",
+      "dims": {
+        "w": 0.967,
+        "h": 1.415,
+        "d": 1.337
+      },
+      "bbox": {
+        "min": [
+          -0.484,
+          0,
+          -0.761
+        ],
+        "max": [
+          0.484,
+          1.415,
+          0.575
+        ]
+      },
+      "tris": 1968,
+      "materials": [
+        "Shell",
+        "Base",
+        "Seat",
+        "Glow"
+      ],
+      "nodes": [
+        "massage_chair"
+      ],
+      "textures": 1,
+      "bytes": 124896
+    },
+    {
+      "id": "nap_pod",
+      "name": "Nap pod",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P2",
+      "description": "Futuristic nap pod with a padded bed and a privacy dome",
+      "tags": [
+        "lounge",
+        "sleep",
+        "fun"
+      ],
+      "tintable": [
+        "Seat"
+      ],
+      "anchors": {
+        "lie": [
+          -0.1,
+          0.7,
+          0
+        ],
+        "head": [
+          0.55,
+          0.78,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/nap_pod.glb",
+      "thumb": "models/thumbs/nap_pod.jpg",
+      "dims": {
+        "w": 1.995,
+        "h": 1.021,
+        "d": 0.986
+      },
+      "bbox": {
+        "min": [
+          -0.895,
+          -0.001,
+          -0.6
+        ],
+        "max": [
+          1.1,
+          1.02,
+          0.386
+        ]
+      },
+      "tris": 2044,
+      "materials": [
+        "Shell",
+        "Base",
+        "Seat",
+        "Glow"
+      ],
+      "nodes": [
+        "nap_pod"
+      ],
+      "textures": 1,
+      "bytes": 110316
+    },
+    {
+      "id": "ping_pong_table",
+      "name": "Ping pong table",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "furniture & appliances",
+      "priority": "P2",
+      "description": "Blue ping pong table with net, paddles and a ball",
+      "tags": [
+        "game-room",
+        "fun"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.76,
+          0
+        ],
+        "playerA": [
+          -1.5,
+          0,
+          0
+        ],
+        "playerB": [
+          1.5,
+          0,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/ping_pong_table.glb",
+      "thumb": "models/thumbs/ping_pong_table.jpg",
+      "dims": {
+        "w": 2.3,
+        "h": 0.914,
+        "d": 1.37
+      },
+      "bbox": {
+        "min": [
+          -1.15,
+          0.001,
+          -0.685
+        ],
+        "max": [
+          1.15,
+          0.915,
+          0.685
+        ]
+      },
+      "tris": 2272,
+      "materials": [
+        "Accent",
+        "Lines",
+        "Frame",
+        "Net",
+        "Rubber",
+        "Wood",
+        "Ball"
+      ],
+      "nodes": [
+        "ping_pong_table"
+      ],
+      "textures": 1,
+      "bytes": 139720
+    },
+    {
+      "id": "conference_chair",
+      "name": "Conference chair",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "puffy, tint `Seat`",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "conference_table",
+      "name": "Conference table",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "rounded table for 8",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "flipchart",
+      "name": "Flipchart",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "easel + paper pad `Board`",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "glass_partition",
+      "name": "Glass partition",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "frosted glass wall panel with chunky frame, 2 m module",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "sticky_wall",
+      "name": "Sticky wall",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "wall board covered in sticky notes",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "wall_screen",
+      "name": "Wall screen",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P0",
+      "description": "Team Room display ≈3.2 × 1.8 m, chunky bezel, `Screen` (planar UVs; the stats board draws on it)",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "aquarium",
+      "name": "Aquarium",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "fish nodes `Fish1..3`",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "basketball_hoop",
+      "name": "Basketball hoop",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
       "description": "",
       "tags": [],
       "tintable": [],
@@ -2129,13 +5203,13 @@
       "thumb": null
     },
     {
-      "id": "nap_pod",
-      "name": "Nap pod",
+      "id": "coffee_bar",
+      "name": "Coffee bar",
       "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P2",
-      "description": "for sleeping employees",
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "espresso bar counter",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -2144,13 +5218,13 @@
       "thumb": null
     },
     {
-      "id": "ping_pong_table",
-      "name": "Ping pong table",
+      "id": "dartboard",
+      "name": "Dartboard",
       "category": null,
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P2",
-      "description": "game room",
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -2159,12 +5233,162 @@
       "thumb": null
     },
     {
-      "id": "char_brow",
-      "name": "Char brow",
+      "id": "dj_booth",
+      "name": "Dj booth",
       "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "two turntables (nodes `PlatterL`, `PlatterR` spin) + mixer, glowing front",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "employee_of_month",
+      "name": "Employee of month",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "wall frame, portrait area `Label`",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "focus_pod",
+      "name": "Focus pod",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "phone booth with door node `Door`",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "jukebox",
+      "name": "Jukebox",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "glowing, emissive `Accent`",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "plant_wall",
+      "name": "Plant wall",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "living green wall panel",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "trophy_bronze",
+      "name": "Trophy bronze",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "achievement trophies (shop / rewards)",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "trophy_gold",
+      "name": "Trophy gold",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "achievement trophies (shop / rewards)",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "trophy_silver",
+      "name": "Trophy silver",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "achievement trophies (shop / rewards)",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "christmas_tree",
+      "name": "Christmas tree",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P2",
+      "description": "seasonal",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "popcorn_machine",
+      "name": "Popcorn machine",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P2",
+      "description": "movie nights",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "stationary_bike",
+      "name": "Stationary bike",
+      "category": null,
+      "artist": "Claude Monet (round 2)",
+      "group": "Team Room, shop items, game room",
+      "priority": "P2",
       "description": "",
       "tags": [],
       "tintable": [],
@@ -2175,12 +5399,191 @@
     },
     {
       "id": "char_eye",
-      "name": "Char eye",
+      "name": "Eyes",
+      "category": "character-face",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Big glossy eyes with catchlights; nodes EyeL/EyeR pivot at each eye (blink = scale.y); root at the head centre",
+      "tags": [
+        "face",
+        "eyes"
+      ],
+      "tintable": [],
+      "anchors": {
+        "eyeL": [
+          0.0844,
+          -0.0048,
+          0.2448
+        ],
+        "eyeR": [
+          -0.0844,
+          -0.0048,
+          0.2448
+        ]
+      },
+      "status": "done",
+      "file": "models/char_eye.glb",
+      "thumb": "models/thumbs/char_eye.jpg",
+      "dims": {
+        "w": 0.241,
+        "h": 0.111,
+        "d": 0.043
+      },
+      "bbox": {
+        "min": [
+          -0.12,
+          -0.06,
+          0.226
+        ],
+        "max": [
+          0.12,
+          0.051,
+          0.27
+        ]
+      },
+      "tris": 1680,
+      "materials": [
+        "Eye",
+        "EyeShine"
+      ],
+      "nodes": [
+        "char_eye",
+        "EyeL",
+        "EyeR"
+      ],
+      "textures": 0,
+      "bytes": 34320
+    },
+    {
+      "id": "char_head",
+      "name": "Head",
+      "category": "character-body",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Big round soft-egg head with blush cheeks; pivot at the head centre",
+      "tags": [
+        "body",
+        "head",
+        "face"
+      ],
+      "tintable": [
+        "Skin"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.27,
+          0
+        ],
+        "eyes": [
+          0,
+          -0.005,
+          0.27
+        ],
+        "hatBand": [
+          0,
+          0.1485,
+          0
+        ],
+        "neck": [
+          0,
+          -0.21,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/char_head.glb",
+      "thumb": "models/thumbs/char_head.jpg",
+      "dims": {
+        "w": 0.54,
+        "h": 0.539,
+        "d": 0.54
+      },
+      "bbox": {
+        "min": [
+          -0.27,
+          -0.269,
+          -0.27
+        ],
+        "max": [
+          0.27,
+          0.27,
+          0.27
+        ]
+      },
+      "tris": 2304,
+      "materials": [
+        "Skin",
+        "Cheek"
+      ],
+      "nodes": [
+        "char_head"
+      ],
+      "textures": 1,
+      "bytes": 67184
+    },
+    {
+      "id": "hair_bob",
+      "name": "Bob",
+      "category": "character-hair",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Chunky jaw-length bob with a side-swept fringe",
+      "tags": [
+        "hair",
+        "bob"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.306,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_bob.glb",
+      "thumb": "models/thumbs/hair_bob.jpg",
+      "dims": {
+        "w": 0.627,
+        "h": 0.483,
+        "d": 0.587
+      },
+      "bbox": {
+        "min": [
+          -0.313,
+          -0.165,
+          -0.316
+        ],
+        "max": [
+          0.313,
+          0.318,
+          0.271
+        ]
+      },
+      "tris": 1900,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_bob"
+      ],
+      "textures": 1,
+      "bytes": 64072
+    },
+    {
+      "id": "char_brow",
+      "name": "Char brow",
       "category": null,
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "glossy ellipsoid + catchlight",
+      "description": "",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -2211,21 +5614,6 @@
       "group": "characters",
       "priority": "P0",
       "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_head",
-      "name": "Char head",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "soft slightly-egg sphere, `Skin`",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -2431,21 +5819,6 @@
     {
       "id": "hair_afro",
       "name": "Hair afro",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Hair`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_bob",
-      "name": "Hair bob",
       "category": null,
       "artist": "Claude Rodin",
       "group": "characters",

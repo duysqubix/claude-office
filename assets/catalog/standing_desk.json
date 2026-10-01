@@ -1,0 +1,38 @@
+{
+  "id": "standing_desk",
+  "name": "Standing desk",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Standing desk on chunky telescopic legs",
+  "tags": [
+    "desk",
+    "workstation"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "top": [
+      0,
+      1.05,
+      0
+    ],
+    "monitor": [
+      0,
+      1.05,
+      -0.12
+    ],
+    "keyboard": [
+      0,
+      1.05,
+      0.18
+    ],
+    "stand": [
+      0,
+      0,
+      0.6
+    ]
+  }
+}

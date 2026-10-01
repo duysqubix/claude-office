@@ -1,0 +1,16 @@
+{
+  "id": "cloud_a",
+  "name": "Cloud (long)",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P0",
+  "status": "done",
+  "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 5 m long",
+  "tags": [
+    "cloud",
+    "sky",
+    "decor"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

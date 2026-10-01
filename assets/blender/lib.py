@@ -258,18 +258,68 @@ def arc(name, r_in, r_out, a0, a1, z0, z1, loc=(0, 0, 0), material=None, segs=24
     return ob
 
 
-def lathe(name, profile, loc=(0, 0, 0), material=None, verts=32, rot=(0, 0, 0)):
-    """Spin a (radius, z) profile around Z. Points with radius 0 close the shape."""
+def slab(name, outline, z0, z1, loc=(0, 0, 0), material=None, r=0.03, seg=3, rot=(0, 0, 0)):
+    """Prism from a convex 2D outline [(x, y), ...] (counter-clockwise), extruded z0..z1,
+    edges rounded by r (angle-limited so the outline's own facets stay smooth)."""
+    bm = bmesh.new()
+    bot = [bm.verts.new((x, y, z0)) for x, y in outline]
+    top = [bm.verts.new((x, y, z1)) for x, y in outline]
+    n = len(outline)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((bot[i], bot[j], top[j], top[i]))
+    bm.faces.new(list(reversed(bot)))
+    bm.faces.new(top)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    ob = _link(name, bm, material, loc, rot)
+    if r > 0:
+        bevel(ob, r, seg, angle=35)
+    return ob
+
+
+def stadium(length, radius, segs=16):
+    """Outline of a stadium (rectangle with semicircular ends) along X, centred."""
+    pts = []
+    for s, a0 in ((1, -math.pi / 2), (-1, math.pi / 2)):
+        for i in range(segs + 1):
+            a = a0 + math.pi * i / segs
+            pts.append((s * length / 2 + radius * math.cos(a), radius * math.sin(a)))
+    return pts
+
+
+def rounded_rect(w, d, radius, segs=6):
+    """Outline of a w x d rectangle with rounded corners, centred."""
+    pts = []
+    for cx, cy, a0 in ((w / 2 - radius, -d / 2 + radius, -math.pi / 2),
+                       (w / 2 - radius, d / 2 - radius, 0),
+                       (-w / 2 + radius, d / 2 - radius, math.pi / 2),
+                       (-w / 2 + radius, -d / 2 + radius, math.pi)):
+        for i in range(segs + 1):
+            a = a0 + (math.pi / 2) * i / segs
+            pts.append((cx + radius * math.cos(a), cy + radius * math.sin(a)))
+    return pts
+
+
+def lathe(name, profile, loc=(0, 0, 0), material=None, verts=32, rot=(0, 0, 0), sweep=None,
+          start=0.0):
+    """Spin a (radius, z) profile around Z. Points with radius 0 close the shape.
+    `sweep` (radians) spins only part way from angle `start` (0 = +X, CCW); a closed profile
+    (first point == last) then gets flat caps at both ends (hoods, half shells)."""
     bm = bmesh.new()
     rings = []
-    for i in range(verts):
-        a = 2 * math.pi * i / verts
+    partial = sweep is not None
+    n = verts + 1 if partial else verts
+    for i in range(n):
+        a = start + (sweep if partial else 2 * math.pi) * i / verts
         ca, sa = math.cos(a), math.sin(a)
         rings.append([bm.verts.new((r * ca, r * sa, z)) for r, z in profile])
     for i in range(verts):
-        a, b = rings[i], rings[(i + 1) % verts]
+        a, b = rings[i], rings[(i + 1) % n]
         for k in range(len(profile) - 1):
             bm.faces.new((a[k], b[k], b[k + 1], a[k + 1]))
+    if partial and tuple(profile[0]) == tuple(profile[-1]):
+        bm.faces.new(rings[0][:-1])
+        bm.faces.new(list(reversed(rings[-1][:-1])))
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
     # Faces that collapsed to triangles at the poles are fine; drop degenerate ones.
     bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-6)
@@ -337,15 +387,16 @@ def node(ob, name, pivot=None):
 
 
 def text(name, body, size, loc=(0, 0, 0), material=None, rot=(math.pi / 2, 0, 0),
-         extrude=0.006, bevel=0.002, font=FONT_ROUNDED, align="CENTER"):
-    """Extruded text. Default rotation stands it up facing -Y (the front)."""
+         extrude=0.006, bevel=0.002, font=FONT_ROUNDED, align="CENTER", res=2):
+    """Extruded text. Default rotation stands it up facing -Y (the front). Text is
+    triangle-hungry: use res=1 and bevel=0 (or extrude=0 for a flat decal) on small labels."""
     cu = bpy.data.curves.new(name, "FONT")
     cu.body = body
     cu.size = size
     cu.extrude = extrude
     cu.bevel_depth = bevel
     cu.bevel_resolution = 1
-    cu.resolution_u = 3
+    cu.resolution_u = res
     cu.align_x = align
     cu.align_y = "CENTER"
     if font and os.path.exists(font):
@@ -483,7 +534,7 @@ def _set_engine(scene, *names):
     raise RuntimeError("no render engine from %s" % (names,))
 
 
-def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256):
+def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256, ground="floor"):
     """Bake AO on a dedicated UV map 'AO' (shared atlas across the root and its node
     children) and multiply it into every non-emissive base colour."""
     scene = bpy.context.scene
@@ -527,9 +578,11 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256):
         nt.nodes.active = t
         tex_nodes.append((m, t))
 
-    # A floor so legs and bases get contact shadow.
+    # A floor (or, for wall-mounted items, a wall at y=0) for contact shadow.
     bm = bmesh.new()
-    bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=5)
+    bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=5,
+                          matrix=Matrix.Rotation(math.radians(90), 4, "X")
+                          if ground == "wall" else Matrix())
     floor_me = bpy.data.meshes.new("_ao_floor")
     bm.to_mesh(floor_me)
     bm.free()
@@ -579,7 +632,7 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256):
     return img
 
 
-UV_PLANAR = ("Screen", "Board")  # materials the game draws on: planar 0..1 front UVs
+UV_PLANAR = ("Screen", "Board", "Label")  # materials the game draws on: planar 0..1 front UVs
 
 
 def _screen_uvs(me):
@@ -659,6 +712,7 @@ def render_preview(ob, name, res=(1200, 1000)):
     bm.free()
     floor = bpy.data.objects.new("_floor", fme)
     fme.materials.append(mat("_studio_floor", P["skyHorizon"], rough=0.95))
+    floor.location.z = min(0.0, lo.z - 0.15)  # wall items hang above a lowered floor
     c.objects.link(floor)
 
     world = scene.world or bpy.data.worlds.new("World")
@@ -669,11 +723,11 @@ def render_preview(ob, name, res=(1200, 1000)):
     bg.inputs["Strength"].default_value = 0.55
 
     # Warm "sun" key with a fairly tight soft shadow, cool fill, white rim.
-    _light(c, "_key", "AREA", 260 * k * k + 30, centre + Vector((-1.6, -1.8, 3.4)) * k * 1.5,
+    _light(c, "_key", "AREA", 300 * k * k, centre + Vector((-1.6, -1.8, 3.4)) * k * 1.5,
            0.8 * k + 0.2, "#FFF1D6")
-    _light(c, "_fill", "AREA", 60 * k * k + 8, centre + Vector((2.8, -1.5, 1.6)) * k * 1.4,
+    _light(c, "_fill", "AREA", 70 * k * k, centre + Vector((2.8, -1.5, 1.6)) * k * 1.4,
            3.0 * k + 1, "#DDEEFF")
-    _light(c, "_rim", "AREA", 120 * k * k + 15, centre + Vector((0.5, 3.0, 2.6)) * k * 1.4,
+    _light(c, "_rim", "AREA", 140 * k * k, centre + Vector((0.5, 3.0, 2.6)) * k * 1.4,
            2.0 * k + 1)
 
     cam_data = bpy.data.cameras.new("_cam")
@@ -714,7 +768,8 @@ def finalize(name, ao_res=512, ao_distance=0.35, meta=None):
     of sidecar() kwargs). Returns a short report."""
     ob = join_asset(name)
     tris = tri_count(ob)
-    bake_ao(ob, ao_res, ao_distance)
+    wall = str((meta or {}).get("mount", "")).startswith("wall")
+    bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
     glb = export_glb(ob, name)
     png = render_preview(ob, name)
     # Namespace materials and node objects in the .blend so the next asset gets fresh names.

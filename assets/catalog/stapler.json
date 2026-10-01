@@ -1,0 +1,25 @@
+{
+  "id": "stapler",
+  "name": "Stapler",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky red stapler with a chrome magazine and anvil",
+  "tags": [
+    "desk",
+    "office",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "head": [
+      -0.07,
+      0.03,
+      0
+    ]
+  },
+  "orientation": "long axis along X (three.js X), stapling head at -X"
+}

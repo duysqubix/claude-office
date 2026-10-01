@@ -1,0 +1,16 @@
+{
+  "id": "cloud_c",
+  "name": "Cloud (small)",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P0",
+  "status": "done",
+  "description": "Small three-bump wisp, about 2.9 m long",
+  "tags": [
+    "cloud",
+    "sky",
+    "decor"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

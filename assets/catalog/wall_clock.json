@@ -1,0 +1,26 @@
+{
+  "id": "wall_clock",
+  "name": "Wall clock",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky red wall clock with animatable hour and minute hands",
+  "tags": [
+    "wall",
+    "time"
+  ],
+  "tintable": [],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.06
+    ]
+  },
+  "nodes": {
+    "HourHand": "rest = 12 o'clock; rotate about -Z (three) for clockwise",
+    "MinuteHand": "rest = 12 o'clock; rotate about -Z (three) for clockwise"
+  },
+  "mount": "wall: origin is the back centre"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "tree_pine",
+  "name": "Pine tree",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P0",
+  "status": "done",
+  "description": "Four stacked soft cones with wavy scalloped hems on a stubby trunk",
+  "tags": [
+    "tree",
+    "pine",
+    "garden",
+    "lawn",
+    "foliage"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      3.76,
+      0
+    ]
+  }
+}

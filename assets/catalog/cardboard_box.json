@@ -1,0 +1,32 @@
+{
+  "id": "cardboard_box",
+  "name": "Cardboard box",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Open moving box of desk stuff for someone being let go: wilting plant, red stapler, photo, poster roll and the duck peeking out",
+  "tags": [
+    "let-go",
+    "carry",
+    "funny"
+  ],
+  "tintable": [],
+  "anchors": {
+    "handL": [
+      -0.2,
+      0.21,
+      0
+    ],
+    "handR": [
+      0.2,
+      0.21,
+      0
+    ],
+    "top": [
+      0,
+      0.26,
+      0
+    ]
+  }
+}

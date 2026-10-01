@@ -1,0 +1,41 @@
+{
+  "id": "manager_desk",
+  "name": "Manager desk",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Big wooden executive desk with brass nameplate and leather desk pad",
+  "tags": [
+    "desk",
+    "manager"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.78,
+      0
+    ],
+    "monitor": [
+      0,
+      0.78,
+      -0.15
+    ],
+    "keyboard": [
+      0,
+      0.78,
+      0.2
+    ],
+    "mug": [
+      0.6,
+      0.78,
+      0.1
+    ],
+    "chair": [
+      0,
+      0,
+      0.85
+    ]
+  }
+}

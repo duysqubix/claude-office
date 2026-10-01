@@ -1,0 +1,23 @@
+{
+  "id": "server_rack",
+  "name": "Server rack",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Server rack with blinking status lights",
+  "tags": [
+    "tech",
+    "server-room"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "front": [
+      0,
+      1.0,
+      0.5
+    ]
+  }
+}

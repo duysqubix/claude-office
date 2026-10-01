@@ -1,0 +1,39 @@
+{
+  "id": "char_head",
+  "name": "Head",
+  "category": "character-body",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Big round soft-egg head with blush cheeks; pivot at the head centre",
+  "tags": [
+    "body",
+    "head",
+    "face"
+  ],
+  "tintable": [
+    "Skin"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.27,
+      0
+    ],
+    "eyes": [
+      0,
+      -0.005,
+      0.27
+    ],
+    "hatBand": [
+      0,
+      0.1485,
+      0
+    ],
+    "neck": [
+      0,
+      -0.21,
+      0
+    ]
+  }
+}

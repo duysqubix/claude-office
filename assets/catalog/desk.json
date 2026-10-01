@@ -1,0 +1,48 @@
+{
+  "id": "desk",
+  "name": "Desk",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Modular rounded white desk with a tintable accent panel and drawer pod",
+  "tags": [
+    "desk",
+    "workstation"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "top": [
+      0,
+      0.75,
+      0
+    ],
+    "monitor": [
+      0,
+      0.75,
+      -0.12
+    ],
+    "keyboard": [
+      -0.06,
+      0.75,
+      0.19
+    ],
+    "mouse": [
+      0.3,
+      0.75,
+      0.17
+    ],
+    "mug": [
+      0.5,
+      0.75,
+      -0.06
+    ],
+    "chair": [
+      0,
+      0,
+      0.7
+    ]
+  }
+}

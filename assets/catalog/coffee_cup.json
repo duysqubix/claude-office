@@ -1,0 +1,29 @@
+{
+  "id": "coffee_cup",
+  "name": "Coffee cup",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Takeaway paper cup with a domed lid and a kraft sleeve printed with a heart",
+  "tags": [
+    "desk",
+    "coffee",
+    "drink"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "lidTop": [
+      0,
+      0.118,
+      0
+    ],
+    "sip": [
+      0,
+      0.118,
+      0.0408
+    ]
+  }
+}

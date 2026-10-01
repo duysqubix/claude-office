@@ -1,0 +1,30 @@
+{
+  "id": "char_eye",
+  "name": "Eyes",
+  "category": "character-face",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Big glossy eyes with catchlights; nodes EyeL/EyeR pivot at each eye (blink = scale.y); root at the head centre",
+  "tags": [
+    "face",
+    "eyes"
+  ],
+  "tintable": [],
+  "anchors": {
+    "eyeL": [
+      0.0844,
+      -0.0048,
+      0.2448
+    ],
+    "eyeR": [
+      -0.0844,
+      -0.0048,
+      0.2448
+    ]
+  },
+  "nodes": {
+    "EyeL": "blink: scale.y",
+    "EyeR": "blink: scale.y"
+  }
+}

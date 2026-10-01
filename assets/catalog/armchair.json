@@ -1,0 +1,24 @@
+{
+  "id": "armchair",
+  "name": "Armchair",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Puffy armchair matching the couch",
+  "tags": [
+    "seating",
+    "lounge",
+    "break-room"
+  ],
+  "tintable": [
+    "Seat"
+  ],
+  "anchors": {
+    "seat": [
+      0,
+      0.52,
+      0.05
+    ]
+  }
+}

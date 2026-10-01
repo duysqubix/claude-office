@@ -1,0 +1,22 @@
+{
+  "id": "paper_stack",
+  "name": "Paper stack",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Messy stack of A4 sheets with a printed top page and a binder clip",
+  "tags": [
+    "desk",
+    "paperwork",
+    "clutter"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.0294,
+      0
+    ]
+  }
+}

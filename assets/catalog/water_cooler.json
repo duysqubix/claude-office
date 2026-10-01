@@ -1,0 +1,26 @@
+{
+  "id": "water_cooler",
+  "name": "Water cooler",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Office water cooler with a big blue bottle and a cup dispenser",
+  "tags": [
+    "break-room",
+    "kitchen"
+  ],
+  "tintable": [],
+  "anchors": {
+    "tap": [
+      0,
+      0.72,
+      0.2
+    ],
+    "cup": [
+      0.22,
+      0.5,
+      0
+    ]
+  }
+}

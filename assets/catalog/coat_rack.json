@@ -1,0 +1,15 @@
+{
+  "id": "coat_rack",
+  "name": "Coat rack",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Wooden coat rack with a puffy coat and scarf hanging on it",
+  "tags": [
+    "entrance",
+    "decor"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

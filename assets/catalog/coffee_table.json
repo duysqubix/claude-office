@@ -1,0 +1,22 @@
+{
+  "id": "coffee_table",
+  "name": "Coffee table",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky low wooden coffee table with a lower shelf",
+  "tags": [
+    "lounge",
+    "break-room",
+    "table"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.42,
+      0
+    ]
+  }
+}

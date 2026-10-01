@@ -1,0 +1,27 @@
+{
+  "id": "vending_machine",
+  "name": "Vending machine",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Red snack vending machine with colourful snacks behind glass",
+  "tags": [
+    "break-room",
+    "food",
+    "interactable"
+  ],
+  "tintable": [],
+  "anchors": {
+    "pickup": [
+      -0.1,
+      0.3,
+      0.45
+    ],
+    "keypad": [
+      0.33,
+      1.1,
+      0.42
+    ]
+  }
+}

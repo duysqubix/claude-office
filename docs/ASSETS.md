@@ -99,6 +99,30 @@ Categories: `furniture`, `appliance`, `decor`, `desk-item`, `food`, `building`, 
 | nap_pod | P2 | for sleeping employees |
 | massage_chair | P2 | |
 
+## Claude Monet (round 2): Team Room, shop items, game room · `assets/blender/props/`
+
+| id | P | notes |
+| --- | --- | --- |
+| wall_screen | P0 | Team Room display ≈3.2 × 1.8 m, chunky bezel, `Screen` (planar UVs; the stats board draws on it) |
+| conference_table | P0 | rounded table for 8 |
+| conference_chair | P0 | puffy, tint `Seat` |
+| flipchart | P0 | easel + paper pad `Board` |
+| glass_partition | P0 | frosted glass wall panel with chunky frame, 2 m module |
+| sticky_wall | P0 | wall board covered in sticky notes |
+| focus_pod | P1 | phone booth with door node `Door` |
+| trophy_bronze / trophy_silver / trophy_gold | P1 | achievement trophies (shop / rewards) |
+| employee_of_month | P1 | wall frame, portrait area `Label` |
+| aquarium | P1 | fish nodes `Fish1..3` |
+| basketball_hoop | P1 | |
+| dartboard | P1 | |
+| jukebox | P1 | glowing, emissive `Accent` |
+| dj_booth | P1 | two turntables (nodes `PlatterL`, `PlatterR` spin) + mixer, glowing front |
+| coffee_bar | P1 | espresso bar counter |
+| plant_wall | P1 | living green wall panel |
+| stationary_bike | P2 | |
+| popcorn_machine | P2 | movie nights |
+| christmas_tree | P2 | seasonal |
+
 ## Claude Cézanne: desk items, small props, food, decor (headless) · `assets/blender/decor/`
 
 | id | P | notes |

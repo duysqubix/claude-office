@@ -12,7 +12,7 @@ META = dict(
     name="Monitor", category="desk-item", priority="P0",
     description="Chunky toy monitor with a thick rounded bezel and a swappable glowing screen",
     tags=["desk", "computer", "screen"], tintable=["Screen"],
-    anchors_bl={"screenCenter": (0, -0.176, SCREEN_Z)},
+    anchors_bl={"screenCenter": (0, -0.056, SCREEN_Z)},
     screen=dict(width=SCREEN_W, height=SCREEN_H),
 )
 

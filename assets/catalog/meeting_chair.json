@@ -1,0 +1,23 @@
+{
+  "id": "meeting_chair",
+  "name": "Meeting chair",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky moulded shell chair on four splayed legs",
+  "tags": [
+    "seating",
+    "meeting-room"
+  ],
+  "tintable": [
+    "Seat"
+  ],
+  "anchors": {
+    "seat": [
+      0,
+      0.48,
+      0.02
+    ]
+  }
+}

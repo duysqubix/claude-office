@@ -1,0 +1,22 @@
+{
+  "id": "rubber_duck",
+  "name": "Rubber duck",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P0",
+  "status": "done",
+  "description": "Glossy yellow rubber duck with a big head, pink cheeks and an upturned tail",
+  "tags": [
+    "desk",
+    "clutter",
+    "debugging"
+  ],
+  "tintable": [],
+  "anchors": {
+    "headTop": [
+      0,
+      0.0895,
+      0.017
+    ]
+  }
+}

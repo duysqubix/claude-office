@@ -1,0 +1,27 @@
+{
+  "id": "filing_cabinet",
+  "name": "Filing cabinet",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Personnel Files cabinet with three slide-out drawers",
+  "tags": [
+    "manager",
+    "interactable",
+    "archive"
+  ],
+  "tintable": [],
+  "anchors": {
+    "front": [
+      0,
+      0.9,
+      0.4
+    ]
+  },
+  "nodes": {
+    "Drawer1": "top drawer, slides along +Z (three)",
+    "Drawer2": "middle",
+    "Drawer3": "bottom"
+  }
+}
