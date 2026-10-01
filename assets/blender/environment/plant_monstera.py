@@ -74,5 +74,18 @@ def build():
     leaves(M)
 
 
+META = dict(
+    name="Monstera",
+    category="plant",
+    priority="P0",
+    description=("Big indoor monstera: nine split leaves on arching stems in a chunky rolled-rim "
+                 "ceramic pot"),
+    tags=["plant", "indoor", "decor", "pot"],
+    tintable=["Accent"],
+    anchors={},
+    notes="Pot material is 'Accent' (default mustard #FFC94A); tint from PALETTE.deskAccents.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

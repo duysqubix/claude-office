@@ -1,0 +1,23 @@
+{
+  "id": "popcorn_machine",
+  "name": "Popcorn machine",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P2",
+  "status": "done",
+  "description": "Red popcorn cart with a glass cabinet full of popcorn",
+  "tags": [
+    "lounge",
+    "movie-night",
+    "food",
+    "fun"
+  ],
+  "tintable": [],
+  "anchors": {
+    "front": [
+      0,
+      0,
+      0.55
+    ]
+  }
+}

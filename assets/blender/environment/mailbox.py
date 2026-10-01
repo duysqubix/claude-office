@@ -14,7 +14,6 @@ BOX_Z = 1.0      # underside of the box
 BOX_W = 0.26
 BOX_L = 0.5
 HINGE = (BOX_W / 2 + 0.03, 0.08, BOX_Z + 0.1)
-NODES = {"Flag": HINGE}
 
 
 def materials():
@@ -66,6 +65,9 @@ def flag(M):
              seg=2)
     lib.rbox("Flag_Plate", (0.016, 0.09, 0.08), (hx + 0.006, hy - 0.2, hz + 0.045), M["flag"],
              r=0.012, seg=2)
+    for o in lib.coll().objects:
+        if o.name.startswith("Flag_"):
+            lib.node(o, "Flag", pivot=HINGE)
 
 
 def build():
@@ -76,5 +78,21 @@ def build():
     flag(M)
 
 
+META = dict(
+    name="Mailbox",
+    category="outdoor",
+    priority="P1",
+    description="Chunky round-topped mailbox on a wooden post, cream door, little red flag",
+    tags=["mail", "garden", "street", "animated"],
+    tintable=["Accent"],
+    anchors={"door": [0, 1.13, 0.22]},
+    nodes={
+        "Flag": ("red flag; pivot on its hinge (x 0.16, y 1.1, z -0.08); modelled down (pointing "
+                 "+Z); rotate about X by -90 deg (three.js) to raise it"),
+    },
+    notes="Box is 'Accent' (default blue #3D7CFF). Raise the flag when a session has news?",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, nodes=NODES, node_res=128)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

@@ -46,11 +46,11 @@ def greens(M):
     puffs = []
     for i in range(5):
         x = -0.44 + i * 0.22
-        puffs.append((x, 0.02 * (i % 2), H + 0.06 + 0.03 * (i % 2), 0.2, (0, 2, 0, 2, 0)[i], 5))
+        puffs.append((x, 0.02 * (i % 2), H + 0.06 + 0.03 * (i % 2), 0.2, (0, 2, 0, 2, 0)[i]))
     for i in range(4):
         x = -0.33 + i * 0.22
-        puffs.append((x, -0.12 + 0.24 * (i % 2), H + 0.0, 0.16, 1, 5))
-    _env.puff_cluster("Puff", puffs, M["leaves"], seed=100, ground=H - 0.12, faceted=True)
+        puffs.append((x, -0.12 + 0.24 * (i % 2), H + 0.0, 0.16, 1))
+    _env.puff_cluster("Puff", puffs, M["leaves"], seed=100, ground=H - 0.12)
     rnd = _env.rng(4)
     for i in range(7):
         x = -0.48 + i * 0.16 + rnd.uniform(-0.03, 0.03)
@@ -67,5 +67,17 @@ def build():
     greens(M)
 
 
+META = dict(
+    name="Planter box",
+    category="outdoor",
+    priority="P1",
+    description=("Long wooden plank trough with corner posts, overflowing with faceted greenery "
+                 "and flowers"),
+    tags=["planter", "garden", "flowers", "patio"],
+    tintable=[],
+    anchors={},
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

@@ -61,9 +61,9 @@ def clumps(M, rnd):
     for j in range(4):
         x = -0.54 + j * 0.36
         y = -0.12 + 0.03 * (j % 2)
-        _env.puff_cluster(f"Clump{j}_", [(x - 0.07, y, SOIL_Z + 0.05, 0.12, 1, 3),
-                                         (x + 0.07, y + 0.02, SOIL_Z + 0.06, 0.12, 0, 3),
-                                         (x, y + 0.08, SOIL_Z + 0.08, 0.1, 2, 3)],
+        _env.puff_cluster(f"Clump{j}_", [(x - 0.07, y, SOIL_Z + 0.05, 0.12, 1),
+                                         (x + 0.07, y + 0.02, SOIL_Z + 0.06, 0.12, 0),
+                                         (x, y + 0.08, SOIL_Z + 0.08, 0.1, 2)],
                           M["leaves"], seed=70 + j * 3, ground=SOIL_Z)
         for k in range(3):
             a = k * 2.1 + j
@@ -83,5 +83,17 @@ def build():
     clumps(M, rnd)
 
 
+META = dict(
+    name="Flower bed",
+    category="outdoor",
+    priority="P0",
+    description=("Chunky wooden raised bed: fat tulips on leafy stems at the back, leafy mounds "
+                 "crowned with daisies in front"),
+    tags=["garden", "flowers", "planter"],
+    tintable=[],
+    anchors={},
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

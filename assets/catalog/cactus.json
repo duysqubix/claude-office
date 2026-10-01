@@ -5,7 +5,7 @@
   "artist": "Claude C\u00e9zanne",
   "priority": "P1",
   "status": "done",
-  "description": "Chunky ribbed cactus with stubby arms and a pink flower, in a little pot",
+  "description": "Chunky ribbed cactus with stubby arms and a pink flower, in a pot",
   "tags": [
     "desk",
     "plant",
@@ -17,7 +17,7 @@
   "anchors": {
     "top": [
       0,
-      0.168,
+      0.18,
       0
     ]
   }

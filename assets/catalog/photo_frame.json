@@ -5,20 +5,14 @@
   "artist": "Claude C\u00e9zanne",
   "priority": "P1",
   "status": "done",
-  "description": "Chunky desk photo frame on an easel stand; a sunny photo of two little people",
+  "description": "Desk photo frame with a cute photo of two people under a sun",
   "tags": [
     "desk",
-    "clutter",
-    "personal"
+    "personal",
+    "clutter"
   ],
   "tintable": [
     "Accent"
   ],
-  "anchors": {
-    "photoCenter": [
-      0,
-      0.082,
-      0.012
-    ]
-  }
+  "anchors": {}
 }

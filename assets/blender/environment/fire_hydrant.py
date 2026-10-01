@@ -55,5 +55,17 @@ def build():
     nozzles(M)
 
 
+META = dict(
+    name="Fire hydrant",
+    category="outdoor",
+    priority="P1",
+    description=("Chunky red hydrant with a sunny-yellow domed bonnet, capped nozzles and a bolted "
+                 "flange"),
+    tags=["street", "garden"],
+    tintable=[],
+    anchors={},
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

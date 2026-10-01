@@ -90,7 +90,7 @@ def pouch(M):
 def conform(ob, lift):
     """Lay a front-facing decal onto the bag's bulging front."""
     D.bake_xform(ob)
-    F.fine(ob, 0.004)
+    F.fine(ob, 0.009)
     for v in ob.data.vertices:
         v.co.y = front_y(v.co.x, v.co.z) - lift
     ob.data.update()

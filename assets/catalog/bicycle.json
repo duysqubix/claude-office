@@ -3,8 +3,8 @@
   "name": "Bicycle",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "status": "done",
   "priority": "P1",
+  "status": "done",
   "description": "Chunky step-through city bike with mudguards, fat tyres, a cushy saddle and a wicker basket",
   "tags": [
     "bike",

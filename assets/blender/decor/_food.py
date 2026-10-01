@@ -199,7 +199,7 @@ def basil(name, M, x, y, z, yaw):
 def cookie(prefix, M, r=0.03, chips=5, seed=0):
     """A chunky chocolate-chip cookie lying at the origin (pair with D.place)."""
     rnd = random.Random(seed)
-    D.prism(f"{prefix}_Cookie", D.circle_pts(r, 16), 0.009, M["cookie"], r=0.0032, seg=2)
+    D.prism(f"{prefix}_Cookie", D.circle_pts(r, 16), 0.009, M["cookie"], r=0.0032, seg=1)
     for i in range(chips):
         a = rnd.uniform(0, 2 * math.pi)
         d = rnd.uniform(0.15, 0.72) * r

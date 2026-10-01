@@ -3,8 +3,8 @@
   "name": "Street lamp",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "status": "done",
   "priority": "P0",
+  "status": "done",
   "description": "Slate post with sunny collar rings and a big glowing globe under a domed cap",
   "tags": [
     "lamp",

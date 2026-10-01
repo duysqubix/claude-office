@@ -1,0 +1,23 @@
+{
+  "id": "char_mouth_flat",
+  "name": "Mouth: flat",
+  "category": "character-face",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Short flat line (neutral / focused / meh)",
+  "tags": [
+    "face",
+    "mouth",
+    "expression",
+    "neutral"
+  ],
+  "tintable": [],
+  "anchors": {
+    "mouth": [
+      0.0,
+      -0.094,
+      0.2531
+    ]
+  }
+}

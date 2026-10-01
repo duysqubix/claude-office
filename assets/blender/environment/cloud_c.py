@@ -23,6 +23,18 @@ def build():
                        resolution=0.08, threshold=0.75, flat=0.0)
 
 
+META = dict(
+    name="Cloud (small)",
+    category="outdoor",
+    priority="P0",
+    description="Small three-bump wisp, about 2.9 m long; faintly blue white (#E6F4FC) like WL's",
+    tags=["cloud", "sky", "decor"],
+    tintable=[],
+    anchors={},
+    notes="Origin at the centre of the flat belly. Scale freely; drift slowly.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, strength=0.45, bake_lift=50,
-                         preview_lift=0.6)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META,
+                         strength=0.45, ground=None, preview_lift=0.6)

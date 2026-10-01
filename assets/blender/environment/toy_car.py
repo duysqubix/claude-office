@@ -90,5 +90,19 @@ def build():
     wheels(M)
 
 
+META = dict(
+    name="Toy car",
+    category="outdoor",
+    priority="P1",
+    description=("Cute rounded bubble car with a smiley grille, big headlights, fat tyres and a "
+                 "domed roof; no brand"),
+    tags=["car", "vehicle", "street", "parking"],
+    tintable=["Accent"],
+    anchors={},
+    notes=("Body is 'Accent' (default coral #FF5A5F); tint from PALETTE.chairs or shirts. Faces "
+           "+Z. Headlight/Taillight are mildly emissive."),
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

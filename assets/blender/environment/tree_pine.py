@@ -7,7 +7,6 @@ from environment import _env
 NAME = "tree_pine"
 AO_RES = 512
 AO_DISTANCE = 0.45
-FACETED = True  # ART-REFERENCE: WL nature is flat-shaded low-poly; False = smooth tiers
 
 # Tiers bottom → top: (radius, height, base z, material, scallops, phase).
 TIERS = [
@@ -37,13 +36,9 @@ def trunk(M):
 def tiers(M):
     for i, (r, h, z0, k, n, ph) in enumerate(TIERS):
         top = i == len(TIERS) - 1
-        if FACETED:
-            # Low-poly: one vertex per scallop crest and trough, flat shaded.
-            _env.skirt(f"Tier{i}", r, h, z0, M["leaves"][k], verts=2 * n, scallops=n,
-                       amp=0.09, droop=0.08, phase=ph, tip=0.3 if top else 0.22, smooth=False)
-        else:
-            _env.skirt(f"Tier{i}", r, h, z0, M["leaves"][k], verts=4 * n * 2, scallops=n,
-                       amp=0.07, droop=0.06, phase=ph, tip=0.3 if top else 0.22)
+        # Low-poly: one vertex per scallop crest and trough.
+        _env.skirt(f"Tier{i}", r, h, z0, M["leaves"][k], verts=2 * n, scallops=n, amp=0.09,
+                   droop=0.08, phase=ph, tip=0.3 if top else 0.22)
 
 
 STEPS = [trunk, tiers]
@@ -56,5 +51,17 @@ def build():
         step(M)
 
 
+META = dict(
+    name="Pine tree",
+    category="outdoor",
+    priority="P0",
+    description="Four stacked faceted cones with zig-zag scalloped hems on a stubby trunk",
+    tags=["tree", "pine", "garden", "lawn", "foliage", "faceted"],
+    tintable=[],
+    anchors={"top": [0, 3.76, 0]},
+    notes="About 1.2k tris.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, strength=0.85)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META, strength=0.85)

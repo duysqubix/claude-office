@@ -48,5 +48,18 @@ def build():
     head(M)
 
 
+META = dict(
+    name="Street lamp",
+    category="outdoor",
+    priority="P0",
+    description="Slate post with sunny collar rings and a big glowing globe under a domed cap",
+    tags=["lamp", "light", "garden", "path"],
+    tintable=[],
+    anchors={"light": [0, 2.92, 0]},
+    notes=("Globe material 'LampGlow' is emissive (strength 2, for bloom); add a warm PointLight "
+           "at 'light' for night."),
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

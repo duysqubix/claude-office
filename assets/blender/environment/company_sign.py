@@ -80,7 +80,7 @@ def garden(M):
     for i in range(10):
         x = -1.35 + i * 0.3
         r = 0.2 + 0.04 * ((i * 7) % 3) / 2
-        puffs.append((x, -0.55 + 0.05 * (i % 2), 0.13 + 0.03 * (i % 3), r, (1, 0, 1)[i % 3], 3))
+        puffs.append((x, -0.55 + 0.05 * (i % 2), 0.13 + 0.03 * (i % 3), r, (1, 0, 1)[i % 3]))
     _env.puff_cluster("Bush", puffs, M["leaves"], seed=60)
     for i in range(11):
         x = -1.38 + i * 0.275 + rnd.uniform(-0.04, 0.04)
@@ -101,5 +101,18 @@ def build():
     garden(M)
 
 
+META = dict(
+    name="CLAUDE OFFICE sign",
+    category="outdoor",
+    priority="P0",
+    description=("Lawn monument: Claude-orange panel with raised two-tone CLAUDE OFFICE letters "
+                 "and a sparkle, on a stone plinth behind a flowering hedge"),
+    tags=["sign", "entrance", "garden", "text", "landmark"],
+    tintable=[],
+    anchors={"face": [0, 0.95, 0.1]},
+    notes="Hero landmark: 11k tris / ~500 KB (text geometry). Reads from +Z.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

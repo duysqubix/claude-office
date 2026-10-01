@@ -7,7 +7,7 @@ import random
 import lib
 
 NAME = "plant_wall"
-AO_RES = 512
+AO_RES = 256
 PW, PH = 1.9, 1.3
 GREENS = ["#4CC46A", "#5CCB5F", "#46B35A", "#7BD66B", "#2E9E5B"]
 META = dict(

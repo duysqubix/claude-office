@@ -411,6 +411,23 @@ def slab(name, outline, depth, material, loc=(0, 0, 0), rot=(0, 0, 0), r=0.004, 
     return ob
 
 
+# ---------------------------------------------------------------- plant pots
+
+def pot(name, r_bot, r_top, h, material, soil, rim=0.007, soil_drop=0.008, loc=(0, 0, 0),
+        verts=28):
+    """Chunky flower pot: tapered wall, rolled rim, soil disc (crease kept sharp). Returns the
+    soil height (pot space)."""
+    lip = r_top + rim * 0.55
+    zs = h - soil_drop
+    prof = [(0.0, 0.0), (r_bot - 0.004, 0.0), (r_bot, 0.004), (r_top - 0.001, h - rim * 1.6),
+            (lip, h - rim * 1.35), (lip + rim * 0.12, h - rim * 0.6), (lip - rim * 0.1, h),
+            (r_top - rim * 0.45, h - rim * 0.05), (r_top - rim * 0.75, h - rim * 0.5),
+            (r_top - rim * 0.8, zs), (0.0, zs)]
+    ob = lathe(name, prof, material, loc=loc, verts=verts, sharp=55)
+    paint(ob, soil, lambda c, n: abs(c.z - zs) < 1e-4 and n.z > 0.9)
+    return zs
+
+
 # ---------------------------------------------------------------- sweeps
 
 def catmull(pts, steps):

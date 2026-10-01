@@ -3,8 +3,8 @@
   "name": "Toy car",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "status": "done",
   "priority": "P1",
+  "status": "done",
   "description": "Cute rounded bubble car with a smiley grille, big headlights, fat tyres and a domed roof; no brand",
   "tags": [
     "car",

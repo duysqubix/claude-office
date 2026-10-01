@@ -28,4 +28,5 @@ def build():
 
 
 def finalize(name):
-    return kit.finalize(name, META, mount="head", face=("brows", "mouth", "cheeks"), ao=False)
+    return kit.finalize(name, META, mount="head", face=("brows", "mouth", "cheeks"), ao=False,
+                        frame=kit.FACE_FRAME)

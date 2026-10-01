@@ -62,5 +62,17 @@ def build():
     canes_and_fronds(M)
 
 
+META = dict(
+    name="Indoor palm",
+    category="plant",
+    priority="P1",
+    description=("Three slim canes in a ribbed woven basket, crowned by arching fronds of slender "
+                 "leaflets"),
+    tags=["plant", "indoor", "decor", "pot", "palm"],
+    tintable=[],
+    anchors={},
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

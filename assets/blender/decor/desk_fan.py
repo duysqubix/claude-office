@@ -42,7 +42,7 @@ def base(M):
                 r=0.003, seg=1, verts=14, rot=(math.radians(-35), 0, 0))
     lib.cyl("Neck", 0.015, 0.15, (0, 0.022, 0.1), M["body"], r=0.004, seg=1, verts=16)
     lib.rbox("Yoke", (0.034, 0.03, 0.032), (0, 0.024, 0.175), M["body"], r=0.011, seg=2)
-    lib.sphere("Motor", 0.05, (0, 0.03, HUB[2]), M["body"], scale=(1.0, 1.1, 0.98), u=20, v=10)
+    lib.sphere("Motor", 0.05, (0, 0.03, HUB[2]), M["body"], scale=(1.0, 1.1, 0.98), u=18, v=9)
     lib.cyl("Collar", 0.028, 0.02, (0, -0.016, HUB[2]), M["body"], r=0.006, seg=2, verts=20,
             rot=(math.pi / 2, 0, 0))
 
@@ -50,10 +50,10 @@ def base(M):
 def cage(M):
     face_on = (math.pi / 2, 0, 0)
     hx, hy, hz = HUB
-    lib.torus("Cage_Rim", R_RIM, 0.0055, (hx, hy, hz), M["chrome"], seg=28, ring=5, rot=face_on)
+    lib.torus("Cage_Rim", R_RIM, 0.0055, (hx, hy, hz), M["chrome"], seg=24, ring=5, rot=face_on)
     for r, y in ((0.07, hy - 0.022), (0.042, hy - 0.03)):
-        lib.torus(f"Cage_Ring{r}", r, 0.0022, (hx, y, hz), M["chrome"], seg=20, ring=4, rot=face_on)
-    lib.torus("Cage_Back", 0.07, 0.0022, (hx, hy + 0.02, hz), M["chrome"], seg=20, ring=4,
+        lib.torus(f"Cage_Ring{r}", r, 0.0022, (hx, y, hz), M["chrome"], seg=16, ring=4, rot=face_on)
+    lib.torus("Cage_Back", 0.07, 0.0022, (hx, hy + 0.02, hz), M["chrome"], seg=16, ring=4,
               rot=face_on)
     for k in range(8):
         a = 2 * math.pi * (k + 0.5) / 8
@@ -103,10 +103,10 @@ def blades(M):
         D.place(objs, rot=(0, math.radians(45 + 90 * k), 0))
         D.place(objs, loc=HUB)
         parts += objs
-    parts.append(lib.cyl("Hub", 0.019, 0.016, HUB, M["body"], r=0.006, seg=2, verts=20,
+    parts.append(lib.cyl("Hub", 0.019, 0.016, HUB, M["body"], r=0.006, seg=1, verts=16,
                          rot=(math.pi / 2, 0, 0)))
     parts.append(lib.sphere("Hub_Cap", 0.0125, (HUB[0], HUB[1] - 0.008, HUB[2]), M["cream"],
-                            scale=(1, 0.6, 1), u=14, v=7))
+                            scale=(1, 0.6, 1), u=12, v=6))
     for p in parts:
         lib.node(p, "Blades", pivot=HUB)
 

@@ -1,0 +1,32 @@
+{
+  "id": "char_brow",
+  "name": "Brows",
+  "category": "character-face",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky arched brows; nodes BrowL/BrowR pivot at each brow's middle",
+  "tags": [
+    "face",
+    "brows"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "browL": [
+      0.092,
+      0.102,
+      0.2324
+    ],
+    "browR": [
+      -0.092,
+      0.102,
+      0.2324
+    ]
+  },
+  "nodes": {
+    "BrowL": "raise / worry",
+    "BrowR": "raise / worry"
+  }
+}

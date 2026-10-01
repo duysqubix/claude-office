@@ -34,5 +34,17 @@ def build():
     blades(materials())
 
 
+META = dict(
+    name="Grass tuft",
+    category="outdoor",
+    priority="P1",
+    description="Clump of chunky faceted grass blades fanning out, about 0.35 m tall",
+    tags=["grass", "lawn", "scatter", "faceted"],
+    tintable=[],
+    anchors={},
+    notes="About 400 tris: scatter along paths, walls and fence lines (ART-REFERENCE §3.4).",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, strength=0.7)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META, strength=0.7)

@@ -5,7 +5,7 @@
   "artist": "Claude C\u00e9zanne",
   "priority": "P1",
   "status": "done",
-  "description": "Tiny echeveria rosette of plump leaves in a chunky glazed pot",
+  "description": "Tiny echeveria rosette with blushing leaf tips in a chunky pot",
   "tags": [
     "desk",
     "plant",
@@ -17,7 +17,7 @@
   "anchors": {
     "top": [
       0,
-      0.108,
+      0.125,
       0
     ]
   }

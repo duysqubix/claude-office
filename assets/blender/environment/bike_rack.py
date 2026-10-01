@@ -43,5 +43,17 @@ def build():
                  r=0.015, seg=2)
 
 
+META = dict(
+    name="Bike rack",
+    category="outdoor",
+    priority="P1",
+    description="Three chunky sunny-yellow hoops bolted to two slate floor rails",
+    tags=["bike", "street", "garden"],
+    tintable=[],
+    anchors={"slot0": [-0.75, 0, 0], "slot1": [0, 0, 0], "slot2": [0.75, 0, 0]},
+    notes="Bikes park alongside each hoop (hoops stand across Z).",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

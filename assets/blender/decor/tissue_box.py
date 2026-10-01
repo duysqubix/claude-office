@@ -18,7 +18,9 @@ META = dict(
     tags=["desk", "clutter"], tintable=["Accent"],
     anchors_bl={"tissueTop": (0, 0, 0.205)},
 )
-DOTS = [(-0.03, 0.035), (0.03, 0.035), (0.0, 0.068), (-0.03, 0.101), (0.03, 0.101)]
+# A staggered polka grid (five dots in a quincunx read as a die).
+DOTS = [(-0.036, 0.03), (0.0, 0.03), (0.036, 0.03), (-0.018, 0.065), (0.018, 0.065),
+        (-0.036, 0.1), (0.0, 0.1), (0.036, 0.1)]
 
 
 def materials():
@@ -39,7 +41,7 @@ def box(M):
     for k, ((nx, ny), rot) in enumerate(sides):
         for i, (u, z) in enumerate(DOTS):
             loc = (nx * out, u, z) if nx else (u, ny * out, z)
-            D.face(f"Dot{k}_{i}", D.circle_pts(0.0105, 14), M["dot"], loc=loc, rot=rot)
+            D.face(f"Dot{k}_{i}", D.circle_pts(0.0072, 12), M["dot"], loc=loc, rot=rot)
 
 
 def sheet(name, M, yaw, lean, scale=1.0):

@@ -3,8 +3,8 @@
   "name": "Fire hydrant",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "status": "done",
   "priority": "P1",
+  "status": "done",
   "description": "Chunky red hydrant with a sunny-yellow domed bonnet, capped nozzles and a bolted flange",
   "tags": [
     "street",

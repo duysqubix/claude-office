@@ -1,10 +1,12 @@
 """Claude Lorrain's helpers for the building, outdoor and plant models, on top of lib.py.
 
-- finalize(): lib's join → AO bake → export → preview, but the AO ships as WebP (the
-  ASSETS.md rule; lib.export_glb writes PNG) and animated parts can stay separate child
-  nodes (sliding_door's DoorL / DoorR, mailbox and flag_pole's Flag).
-- Foliage: quad-sphere puffs with a little lumpy noise, tapered trunks, tubes for limbs.
-- Text: Arial Rounded Bold as a mesh with soft bevelled letters.
+- finalize(): lib's join (lib.node tags) → AO bake → WebP export → preview → sidecar, plus
+  the knobs lib.finalize lacks: AO strength, baking with no ground plane (sky things, wall
+  openings) and lifting sky things off the preview floor.
+- Faceted nature (ART-REFERENCE: smooth people against faceted nature): low-poly icosphere
+  puffs, pine tiers, clipped blocks, mottled facets. Man-made things stay bevelled and soft.
+- Plants: trunks, tubes, leaf blades, monstera/pothos fan leaves, pinnate fronds, flowers.
+- Text: Arial Rounded Bold as a mesh, with an outline offset for two-tone sign letters.
 
 Conventions are lib's: metres, Z-up, front faces -Y, origin at the floor-contact point.
 """
@@ -28,21 +30,19 @@ P = dict(
     path="#F2E3C6",
     treeTrunk="#9C6B43",
     cloud="#E6F4FC",  # WL clouds are faintly blue (ART-REFERENCE §3.1)
-    wall="#FFF3DE",
     wallAccent="#8FE0C8",
-    wallTrim="#F6B76E",
     glass="#BFE9FF",
     doorFrame="#3F4A5C",
-    floorWood="#E8BE84",
-    trim="#FFFDF8",
     stone="#D9D2C5",
-    stoneDark="#B9B0A2",
     soil="#7A5236",
     water="#6FD3F7",
     # Flower heads, matching the procedural garden in client/src/world/outdoor.ts.
     flowers=["#FF7EB6", "#FFD93D", "#FFF8F0", "#FF6B6B", "#B983FF"],
-    blossom=["#FFB7D5", "#FF9DCB", "#FFCFE3"],
+    # Warm, saturated pinks: paler ones turn lilac under the blue sky light.
+    blossom=["#FFA3CD", "#FF86BF", "#FFBAD9"],
 )
+
+ARTIST = "Claude Lorrain"
 
 
 def rng(seed):
@@ -51,17 +51,6 @@ def rng(seed):
 
 # ---------------------------------------------------------------- materials
 
-def glass(name="Glass", hex_str=None, alpha=0.3):
-    """See-through pane (ART-REFERENCE §3.3: opacity 0.25–0.35, roughness 0.05). The exporter
-    writes alphaMode BLEND from the Alpha input; the game may swap in its own glare glass by
-    material name."""
-    m = lib.mat(name, hex_str or P["glass"], rough=0.05)
-    lib.principled(m).inputs["Alpha"].default_value = alpha
-    m.surface_render_method = "BLENDED"
-    m["emissive"] = True  # lib.bake_ao skips these: no AO smudges on the glass
-    return m
-
-
 def glow(name, hex_str, strength=2.0):
     """Lamp glass / indicator: emissive in its own colour."""
     return lib.mat(name, hex_str, rough=0.4, emit=hex_str, strength=strength)
@@ -69,35 +58,11 @@ def glow(name, hex_str, strength=2.0):
 
 # ---------------------------------------------------------------- shapes
 
-def qsphere(name, r, loc=(0, 0, 0), material=None, scale=(1, 1, 1), cuts=5, rot=(0, 0, 0),
-            lump=0.0, seed=0, flat=None):
-    """Quad sphere (a subdivided cube pushed onto a sphere): even quads, no poles. `lump`
-    adds low-frequency noise for organic puffs; `flat` squashes everything below that
-    local z (fraction of r) so a puff can sit on the ground or a cloud gets a flat belly."""
-    bm = bmesh.new()
-    bmesh.ops.create_cube(bm, size=2.0)
-    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=cuts, use_grid_fill=True)
-    off = Vector((seed * 7.31, seed * 3.17, seed * 5.53))
-    for v in bm.verts:
-        d = v.co.normalized()
-        k = 1.0
-        if lump:
-            k += lump * noise.noise(d * 1.6 + off)
-        p = d * r * k
-        if flat is not None and p.z < flat * r:
-            p.z = flat * r + (p.z - flat * r) * 0.25
-        v.co = p
-    ob = lib._link(name, bm, material, loc, rot)
-    ob.scale = scale
-    # Radius of the sphere safely inside this puff, for cull_hidden().
-    ob["r_in"] = r * (1 - lump) * (1.0 if flat is None else min(1.0, abs(flat) + 0.1))
-    return ob
-
-
 def icoblob(name, r, loc=(0, 0, 0), material=None, scale=(1, 1, 1), subdiv=2, rot=(0, 0, 0),
-            lump=0.0, seed=0, flat=None, smooth=False):
+            lump=0.0, seed=0, flat=None):
     """Faceted low-poly puff (Wobbly Life nature): an icosphere with lumpy noise, flat shaded.
-    Same `flat` / cull_hidden() conventions as qsphere()."""
+    `flat` squashes everything below that local z (fraction of r) so a puff can sit on the
+    ground. Records the radius safely inside it for cull_hidden()."""
     bm = bmesh.new()
     bmesh.ops.create_icosphere(bm, subdivisions=subdiv, radius=1.0)
     off = Vector((seed * 7.31, seed * 3.17, seed * 5.53))
@@ -108,29 +73,22 @@ def icoblob(name, r, loc=(0, 0, 0), material=None, scale=(1, 1, 1), subdiv=2, ro
         if flat is not None and p.z < flat * r:
             p.z = flat * r + (p.z - flat * r) * 0.25
         v.co = p
-    ob = lib._link(name, bm, material, loc, rot, smooth=smooth)
+    ob = lib._link(name, bm, material, loc, rot, smooth=False)
     ob.scale = scale
     ob["r_in"] = r * (1 - lump) * 0.92 * (1.0 if flat is None else min(1.0, abs(flat) + 0.1))
     return ob
 
 
-def puff_cluster(prefix, puffs, mats, lump=0.06, seed=0, ground=0.0, scale=(1, 1, 1),
-                 faceted=False):
-    """Lumpy puffs [(x, y, z, radius, material index, cuts)]; any that dip below `ground`
-    get a flat bottom there. Faces buried inside neighbours are culled. `faceted` swaps the
-    smooth quad spheres for flat-shaded low-poly icospheres (ART-REFERENCE: WL nature is
-    faceted); `cuts` then only matters for the smooth look."""
+def puff_cluster(prefix, puffs, mats, lump=0.1, seed=0, ground=0.0, scale=(1, 1, 1)):
+    """Faceted foliage: puffs [(x, y, z, radius, material index)] as lumpy low-poly
+    icospheres (big ones a level finer); any that dip below `ground` get a flat bottom there.
+    Faces buried inside neighbours are culled."""
     obs = []
-    for i, (x, y, z, r, k, cuts) in enumerate(puffs):
+    for i, (x, y, z, r, k) in enumerate(puffs):
         low = z - r * scale[2]
         flat = (ground - z) / (r * scale[2]) + 0.02 if low < ground else None
-        if faceted:
-            obs.append(icoblob(f"{prefix}{i}", r * 1.03, (x, y, z), mats[k], scale=scale,
-                               subdiv=3 if r > 1.0 else 2, lump=lump * 1.6,
-                               seed=seed + i + 1, flat=flat))
-        else:
-            obs.append(qsphere(f"{prefix}{i}", r, (x, y, z), mats[k], scale=scale, cuts=cuts,
-                               lump=lump, seed=seed + i + 1, flat=flat))
+        obs.append(icoblob(f"{prefix}{i}", r * 1.03, (x, y, z), mats[k], scale=scale,
+                           subdiv=3 if r > 1.0 else 2, lump=lump, seed=seed + i + 1, flat=flat))
     cull_hidden(obs)
     return obs
 
@@ -229,17 +187,17 @@ def trunk(name, profile, material, verts=14, bend=(0.0, 0.0), seed=0, wobble=0.0
 
 
 def skirt(name, radius, height, z0, material, verts=40, scallops=0, amp=0.0, droop=0.0,
-          tip=0.22, phase=0.0, smooth=True):
-    """Pine tier: a soft cone with a rounded, slightly tucked-under hem. `scallops` waves
-    the hem in and out (amp, fraction of radius) and dips it (droop, metres) at each lobe."""
+          tip=0.22, phase=0.0):
+    """Pine tier: a faceted cone with a slightly tucked-under hem. `scallops` waves the hem in
+    and out (amp, fraction of radius) and dips it (droop, metres) at each lobe; with two
+    vertices per scallop the hem zig-zags like a low-poly fir."""
     R, h = radius, height
     prof = [(0.0, z0 + 0.12 * h), (R * 0.55, z0 + 0.03 * h), (R * 0.88, z0 - 0.005),
             (R * 0.98, z0 + 0.03 * h), (R, z0 + 0.09 * h), (R * 0.93, z0 + 0.2 * h),
             (R * 0.62, z0 + 0.5 * h), (R * tip * 1.35, z0 + 0.86 * h), (R * tip, z0 + 0.95 * h),
             (R * tip * 0.55, z0 + 0.995 * h), (0.0, z0 + h)]
     ob = lib.lathe(name, prof, material=material, verts=verts)
-    if not smooth:
-        ob.data.shade_flat()
+    ob.data.shade_flat()
     if scallops:
         for v in ob.data.vertices:
             rr = math.hypot(v.co.x, v.co.y)
@@ -543,15 +501,6 @@ def mottle(ob, materials, weights=None, seed=0, where=None):
     return ob
 
 
-def facet(ob):
-    """Flat-shade a part (faceted nature), dropping bevel normal hardening."""
-    ob.data.shade_flat()
-    for m in ob.modifiers:
-        if m.type == "BEVEL":
-            m.harden_normals = False
-    return ob
-
-
 def rr_points(w, h, r, seg=6):
     """Rounded-rectangle outline, centred, counter-clockwise: 4 · (seg + 1) points."""
     r = max(1e-4, min(r, w / 2 - 1e-4, h / 2 - 1e-4))
@@ -609,16 +558,6 @@ def rr_ring(name, outer, inner, depth, loc=(0, 0, 0), material=None, seg=6, beve
     return ob
 
 
-def bend_mesh(ob, axis_len, amount, along="Y", up="Z"):
-    """Curve a flat part: up += amount · (along / axis_len)²."""
-    a = "XYZ".index(along)
-    u = "XYZ".index(up)
-    for v in ob.data.vertices:
-        t = v.co[a] / axis_len
-        v.co[u] += amount * t * t
-    return ob
-
-
 def text_mesh(name, body, size, depth, loc=(0, 0, 0), rot=(0, 0, 0), material=None,
               bevel=0.0, bevel_res=2, res_u=4, spacing=1.0, align="CENTER", offset=0.0,
               back=False):
@@ -662,176 +601,36 @@ def text_mesh(name, body, size, depth, loc=(0, 0, 0), rot=(0, 0, 0), material=No
 
 # ---------------------------------------------------------------- finalize
 
-def _join_parts(name, parts):
-    """lib.join_asset for a subset of the current asset's parts."""
-    main = lib.coll()
-    tmp = bpy.data.collections.new("_join_" + name)
-    bpy.context.scene.collection.children.link(tmp)
-    for ob in parts:
-        main.objects.unlink(ob)
-        tmp.objects.link(ob)
-    lib._active["coll"] = tmp
-    try:
-        ob = lib.join_asset(name)
-    finally:
-        lib._active["coll"] = main
-    tmp.objects.unlink(ob)
-    main.objects.link(ob)
-    bpy.data.collections.remove(tmp)
-    return ob
 
+# ---------------------------------------------------------------- finalize
 
-def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=256, angle=66,
-            island_margin=0.03, margin=16):
-    """lib.bake_ao with an unwrap that suits organic shapes: bigger islands with wider gaps, a
-    16 px adjacent-faces margin and a white background, so mip-mapped AO doesn't bleed dark
-    scratches along UV seams. Same material wiring as lib (AO × base colour, emissive and
-    glass materials skipped, Screen faces get planar UVs)."""
-    scene = bpy.context.scene
-    me = ob.data
-    while me.uv_layers:
-        me.uv_layers.remove(me.uv_layers[0])
-    me.uv_layers.new(name="AO")
-
-    lib._deselect()
-    ob.select_set(True)
-    bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=island_margin,
-                             scale_to_bounds=True)
-    bpy.ops.object.mode_set(mode="OBJECT")
-
-    img_name = ob.name + "_AO"
-    if img_name in bpy.data.images:
-        bpy.data.images.remove(bpy.data.images[img_name])
-    img = bpy.data.images.new(img_name, res, res, alpha=False)
-    img.generated_color = (1, 1, 1, 1)
-
-    tex_nodes = []
-    for m in me.materials:
-        nt = m.node_tree
-        for n in [n for n in nt.nodes if n.get("ao")]:
-            nt.nodes.remove(n)
-        t = nt.nodes.new("ShaderNodeTexImage")
-        t.image = img
-        t["ao"] = True
-        t.location = (-700, 300)
-        nt.nodes.active = t
-        tex_nodes.append((m, t))
-
-    bm = bmesh.new()
-    bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=5)
-    floor_me = bpy.data.meshes.new("_ao_floor")
-    bm.to_mesh(floor_me)
-    bm.free()
-    floor = bpy.data.objects.new("_ao_floor", floor_me)
-    lib.coll().objects.link(floor)
-
-    prev_engine = scene.render.engine
-    lib._set_engine(scene, "CYCLES")
-    scene.cycles.samples = samples
-    scene.cycles.device = "CPU"
-    if scene.world is None:
-        scene.world = bpy.data.worlds.new("World")
-    scene.world.light_settings.distance = distance
-    scene.render.bake.margin = margin
-    scene.render.bake.margin_type = "ADJACENT_FACES"
-    bpy.ops.object.bake(type="AO", use_clear=False)
-    bpy.data.objects.remove(floor, do_unlink=True)
-    bpy.data.meshes.remove(floor_me)
-    lib._set_engine(scene, prev_engine)
-
-    import numpy as np
-    px = np.empty(res * res * 4, dtype=np.float32)
-    img.pixels.foreach_get(px)
-    px = px.reshape(-1, 4)
-    px[:, :3] = 1.0 - strength * (1.0 - px[:, :3])
-    img.pixels.foreach_set(px.ravel())
-    img.update()
-    img.pack()
-
-    lib._screen_uvs(me)
-
-    for m, t in tex_nodes:
-        if m.get("emissive"):
-            continue
-        nt = m.node_tree
-        b = lib.principled(m)
-        mix = nt.nodes.new("ShaderNodeMix")
-        mix["ao"] = True
-        mix.data_type = "RGBA"
-        mix.blend_type = "MULTIPLY"
-        mix.location = (-350, 300)
-        mix.inputs[0].default_value = 1.0
-        mix.inputs[6].default_value = b.inputs["Base Color"].default_value
-        nt.links.new(t.outputs["Color"], mix.inputs[7])
-        nt.links.new(mix.outputs[2], b.inputs["Base Color"])
-    return img
-
-
-def export_glb(objs, name, quality=85):
-    os.makedirs(lib.MODELS_DIR, exist_ok=True)
-    path = os.path.join(lib.MODELS_DIR, name + ".glb")
-    lib._deselect()
-    for ob in objs:
-        ob.select_set(True)
-    bpy.context.view_layer.objects.active = objs[0]
-    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True,
-                              export_apply=True, export_yup=True, export_materials="EXPORT",
-                              export_image_format="WEBP", export_image_quality=quality)
-    return path
-
-
-def finalize(name, ao_res=512, ao_distance=0.35, nodes=None, node_res=256, strength=1.0,
-             bake_lift=0.0, preview_lift=0.0):
-    """Join → bake AO → export GLB (WebP AO) → preview render.
-
-    `nodes` maps a child-node name to its pivot (Blender coords). Parts whose object name
-    starts with "<node>_" are joined into that node, parented to the main mesh with its
-    origin at the pivot, and baked on their own so their AO doesn't depend on where the
-    game moves them. `bake_lift` raises the model away from lib's AO floor while baking (sky
-    things have no ground); `preview_lift` floats it above the preview floor."""
-    nodes = nodes or {}
-    c = lib.coll()
-    meshes = [o for o in c.objects if o.type == "MESH"]
-    groups = {n: [o for o in meshes if o.name.startswith(n + "_")] for n in nodes}
-    owned = {o.name for parts in groups.values() for o in parts}
-    root = _join_parts(name, [o for o in meshes if o.name not in owned])
-    tris = lib.tri_count(root)
-    kids = []
-    for n, pivot in nodes.items():
-        kid = _join_parts(n, groups[n])
-        tris += lib.tri_count(kid)  # count before parenting: a parent's count includes its kids
-        p = Vector(pivot)
-        kid.data.transform(Matrix.Translation(-p))
-        kid.location = p
-        kid.parent = root
-        # A glTF material carries one AO texture, so each node needs its own copies of the
-        # materials it bakes into ("Frame.DoorL"); glass and emissive ones stay shared.
-        for i, m in enumerate(kid.data.materials):
-            if not m.get("emissive"):
-                mc = m.copy()
-                mc.name = m.name + "." + n
-                kid.data.materials[i] = mc
-        kids.append(kid)
-    everything = [root] + kids
-    root.location.z += bake_lift
-    for ob in everything:
-        for o in everything:
-            o.hide_render = o is not ob
-        bake_ao(ob, ao_res if ob is root else node_res, ao_distance, strength)
-    for o in everything:
-        o.hide_render = False
-    root.location.z -= bake_lift
-    glb = export_glb(everything, name)
-    root.location.z += preview_lift
+def finalize(name, ao_res=512, ao_distance=0.35, meta=None, strength=1.0, ground="floor",
+             preview_lift=0.0):
+    """lib.finalize with three more knobs: AO `strength`; the AO contact `ground` ("floor",
+    "wall", or None for things that touch nothing: sky decor, wall openings, baked 50 m up
+    clear of lib's AO plane); and `preview_lift` to float sky things over the preview floor.
+    Animated parts are lib.node() tags; `meta` (sidecar() kwargs) writes the sidecar."""
+    ob = lib.join_asset(name)
+    tris = lib.tri_count(ob)
+    lift = 0.0 if ground else 50.0
+    ob.location.z += lift
+    lib.bake_ao(ob, ao_res, ao_distance, strength=strength, ground=ground or "floor")
+    ob.location.z -= lift
+    glb = lib.export_glb(ob, name)
+    ob.location.z += preview_lift
     bpy.context.view_layer.update()
-    png = lib.render_preview(root, name)
-    root.location.z -= preview_lift
-    for ob in everything:
-        for m in ob.data.materials:
+    png = lib.render_preview(ob, name)
+    ob.location.z -= preview_lift
+    nodes = [o.name for o in lib.asset_objects(ob) if o is not ob]
+    # Namespace materials and node objects in the .blend so the next asset gets fresh names.
+    for o in lib.asset_objects(ob):
+        for m in o.data.materials:
             if "@" not in m.name:
                 m.name = m.name + "@" + name
-    return {"object": root.name, "nodes": [k.name for k in kids], "tris": tris, "glb": glb,
-            "png": png, "kb": round(os.path.getsize(glb) / 1024)}
+        if o is not ob:
+            o.name = o.name + "@" + name
+    report = {"object": ob.name, "nodes": nodes, "tris": tris, "glb": glb, "png": png,
+              "kb": os.path.getsize(glb) // 1024}
+    if meta:
+        report["sidecar"] = lib.sidecar(name, artist=ARTIST, **meta)
+    return report

@@ -46,5 +46,19 @@ def build():
     post(M)
 
 
+META = dict(
+    name="Picket fence",
+    category="outdoor",
+    priority="P1",
+    description=("2 m section of chunky cream pickets with pointed tops on two rails, with a "
+                 "ball-capped post at the left end"),
+    tags=["fence", "garden", "boundary"],
+    tintable=[],
+    anchors={},
+    notes=("The post is at x = -1. Sections tile along X at 2.0 m; close a run with one more post, "
+           "a hedge or a gate."),
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

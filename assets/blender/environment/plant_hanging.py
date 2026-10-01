@@ -108,5 +108,21 @@ def build():
     foliage(M)
 
 
+META = dict(
+    name="Hanging pothos",
+    category="plant",
+    priority="P1",
+    description=("Curly iron wall bracket holding a round ceramic bowl on jute ropes, heart-leaf "
+                 "vines tumbling over the rim"),
+    tags=["plant", "indoor", "decor", "wall", "hanging"],
+    tintable=["Accent"],
+    anchors={"bowl": [0, -0.62, 0.38]},
+    mount=("wall: origin at the wall-contact centre of the bracket plate; the plant hangs out "
+           "along +Z and down to y -1.15. Mount about 2 m up."),
+    notes="The bowl is 'Accent' (default sky blue #5CC8FF).",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, bake_lift=50, preview_lift=1.25)
+    # Contact shadow from the wall behind the bracket, none from a floor.
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META, ground="wall")

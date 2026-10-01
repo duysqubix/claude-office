@@ -69,5 +69,17 @@ def build():
     frame(M)
 
 
+META = dict(
+    name="Park bench",
+    category="outdoor",
+    priority="P0",
+    description="Honey-wood slats on rounded deep-green iron frames with armrests",
+    tags=["seating", "garden", "bench"],
+    tintable=[],
+    anchors={"seatL": [-0.45, 0.45, 0.02], "seatC": [0, 0.45, 0.02], "seatR": [0.45, 0.45, 0.02]},
+    notes="Sitters face +Z; seat top at 0.455 m.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

@@ -9,28 +9,26 @@ from environment import _env
 NAME = "tree_blossom"
 AO_RES = 512
 AO_DISTANCE = 0.5
-FACETED = True
 
-# (x, y, z, radius, material, cuts). Materials: 0 Blossom, 1 BlossomDeep, 2 BlossomLight.
+# (x, y, z, radius, material). Materials: 0 Blossom, 1 BlossomDeep, 2 BlossomLight.
 # A wide umbrella: a ring of low puffs, a flatter crown, a few small puffs on top.
-PUFFS = [(0.0, 0.0, 2.6, 1.05, 0, 7)]
+PUFFS = [(0.0, 0.0, 2.6, 1.05, 0)]
 for _i in range(8):
     _a = math.radians(10 + _i * 45)
     PUFFS.append((1.15 * math.cos(_a), 1.1 * math.sin(_a), 2.3 + 0.1 * (_i % 3), 0.66,
-                  1 if _i % 2 else 0, 7))
+                  1 if _i % 2 else 0))
 for _i in range(4):
     _a = math.radians(-60 + _i * 90)
-    PUFFS.append((0.6 * math.cos(_a), 0.6 * math.sin(_a), 3.0 + 0.06 * (_i % 2), 0.55, 2, 6))
-PUFFS.append((0.05, 0.0, 3.35, 0.45, 2, 6))
+    PUFFS.append((0.6 * math.cos(_a), 0.6 * math.sin(_a), 3.0 + 0.06 * (_i % 2), 0.55, 2))
+PUFFS.append((0.05, 0.0, 3.35, 0.45, 2))
 
 
 def materials():
     return dict(
         trunk=lib.mat("Trunk", "#8A5A3C", rough=0.85),
-        # Warm, saturated pinks: paler ones turn lilac under the blue sky light.
-        blossom=[lib.mat("Blossom", "#FFA3CD", rough=0.8),
-                 lib.mat("BlossomDeep", "#FF86BF", rough=0.8),
-                 lib.mat("BlossomLight", "#FFBAD9", rough=0.8)],
+        blossom=[lib.mat("Blossom", _env.P["blossom"][0], rough=0.8),
+                 lib.mat("BlossomDeep", _env.P["blossom"][1], rough=0.8),
+                 lib.mat("BlossomLight", _env.P["blossom"][2], rough=0.8)],
     )
 
 
@@ -48,8 +46,7 @@ def trunk(M):
 
 
 def canopy(M):
-    _env.puff_cluster("Puff", PUFFS, M["blossom"], seed=80, ground=-10, scale=(1, 1, 0.88),
-                      faceted=FACETED)
+    _env.puff_cluster("Puff", PUFFS, M["blossom"], seed=80, ground=-10, scale=(1, 1, 0.88))
 
 
 def petals(M):
@@ -70,5 +67,17 @@ def build():
     petals(M)
 
 
+META = dict(
+    name="Blossom tree",
+    category="outdoor",
+    priority="P1",
+    description=("Cherry tree in full pink bloom: a stout forked trunk, a wide umbrella of faceted "
+                 "pink puffs and fallen petals on the grass"),
+    tags=["tree", "garden", "lawn", "foliage", "faceted", "pink"],
+    tintable=[],
+    anchors={"canopy": [0, 2.6, 0]},
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, strength=0.8)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META, strength=0.8)

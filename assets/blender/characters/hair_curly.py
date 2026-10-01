@@ -1,6 +1,6 @@
 """Curly: a mop of fat round curls, clustered lumps like a toy's sculpted hair, over the
 top and sides down past the ears, with a few curls tumbling onto the forehead. `Hair`.
-SDF-sculpted (see _kit): a soft cap under ~70 smooth-unioned curl balls. Pivot at the head
+SDF-sculpted (see _kit): a soft cap under ~45 smooth-unioned curl balls. Pivot at the head
 centre."""
 import numpy as np
 
@@ -27,15 +27,15 @@ def edge(phi):
 
 def curls():
     rnd = np.random.default_rng(7)
-    dirs = kit.fib_dirs(150, seed=3)
+    dirs = kit.fib_dirs(100, seed=3)
     theta = np.degrees(np.arccos(dirs[:, 2]))
     phi = np.degrees(np.arctan2(dirs[:, 0], -dirs[:, 1]))
     keep = theta < edge(phi) - 4.0
     dirs = dirs[keep]
     centres, radii = [], []
     for d in dirs:
-        r = rnd.uniform(0.04, 0.054)
-        centres.append(tuple(kit.head_point(d, out=0.03 + rnd.uniform(-0.006, 0.008))))
+        r = rnd.uniform(0.05, 0.064)
+        centres.append(tuple(kit.head_point(d, out=0.034 + rnd.uniform(-0.006, 0.008))))
         radii.append(r)
     return centres, radii
 
@@ -47,7 +47,7 @@ def sdf(P):
     S = kit
     cap = S.sd_ellipsoid(P, (0, 0.01, 0.01), (kit.HX + 0.03, kit.HY + 0.032, kit.HZ + 0.035))
     cap = S.smax(cap, S.sd_hairline(P, edge), 0.02)
-    balls = S.sd_spheres(P, CURLS[0], CURLS[1], 0.012)
+    balls = S.sd_spheres(P, CURLS[0], CURLS[1], 0.014)
     return S.smin(cap, balls, 0.01)
 
 

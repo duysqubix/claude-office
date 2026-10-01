@@ -56,5 +56,18 @@ def build():
     lid(M)
 
 
+META = dict(
+    name="Outdoor bin",
+    category="outdoor",
+    priority="P1",
+    description=("Ribbed deep-green park litter bin with a cream band and a domed rain lid over "
+                 "the opening"),
+    tags=["bin", "street", "garden"],
+    tintable=[],
+    anchors={"opening": [0, 0.84, 0]},
+    notes="Matches park_bench's iron colour.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

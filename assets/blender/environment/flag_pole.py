@@ -18,7 +18,6 @@ POLE_TOP = 5.0
 FLAG_W, FLAG_H = 1.4, 0.9
 FLAG_TOP = 4.85
 HOIST = (0.0, 0.0, FLAG_TOP - FLAG_H / 2)
-NODES = {"Flag": HOIST}
 
 
 def materials():
@@ -91,6 +90,9 @@ def cloth(M):
                 q = (strip[2 * s], strip[2 * s + 1], strip[2 * s + 3], strip[2 * s + 2])
                 bm.faces.new(q if side < 0 else q[::-1])
         lib._link(f"Flag_Mark{side}", bm, M["mark"])
+    for o in lib.coll().objects:
+        if o.name.startswith("Flag_"):
+            lib.node(o, "Flag", pivot=HOIST)
 
 
 def build():
@@ -100,5 +102,22 @@ def build():
     cloth(M)
 
 
+META = dict(
+    name="Flag pole",
+    category="outdoor",
+    priority="P1",
+    description=("5 m cream flag pole on a stone plinth flying a waving Claude-orange flag with a "
+                 "cream sparkle"),
+    tags=["flag", "garden", "landmark", "animated"],
+    tintable=[],
+    anchors={"top": [0, 5.07, 0]},
+    nodes={
+        "Flag": ("waving cloth; pivot on the pole axis at y 4.4; flutter by rotating about Y "
+                 "(three.js) a few degrees, or scale X slightly"),
+    },
+    notes="Flag materials are double-sided.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, nodes=NODES, node_res=256)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

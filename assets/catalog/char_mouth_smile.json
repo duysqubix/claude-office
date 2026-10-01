@@ -1,0 +1,23 @@
+{
+  "id": "char_mouth_smile",
+  "name": "Mouth: smile",
+  "category": "character-face",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Small closed smile (default expression)",
+  "tags": [
+    "face",
+    "mouth",
+    "expression",
+    "happy"
+  ],
+  "tintable": [],
+  "anchors": {
+    "mouth": [
+      0.0,
+      -0.088,
+      0.2553
+    ]
+  }
+}

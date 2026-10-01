@@ -3,8 +3,8 @@
   "name": "Pine tree",
   "category": "outdoor",
   "artist": "Claude Lorrain",
-  "status": "done",
   "priority": "P0",
+  "status": "done",
   "description": "Four stacked faceted cones with zig-zag scalloped hems on a stubby trunk",
   "tags": [
     "tree",
@@ -22,5 +22,5 @@
       0
     ]
   },
-  "notes": "About 1.2k tris. FACETED=False in the script gives smooth scalloped tiers."
+  "notes": "About 1.2k tris."
 }

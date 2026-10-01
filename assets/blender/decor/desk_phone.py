@@ -78,7 +78,7 @@ def cord(M):
     pts = [start, (-0.062, -0.108, 0.034), (-0.082, -0.126, 0.013), (-0.113, -0.104, 0.011),
            (-0.121, -0.06, 0.012), (-0.098, -0.032, 0.022)]
     G.coil("Cord", [Vector(p) for p in pts], coil_r=0.0072, wire_r=0.0024, pitch=0.0105,
-           material=M["body"], samples=6, verts=5)
+           material=M["body"], samples=4, verts=5)
 
 
 def build():

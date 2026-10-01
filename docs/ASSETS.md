@@ -199,7 +199,7 @@ Categories: `furniture`, `appliance`, `decor`, `desk-item`, `food`, `building`, 
 | flower_bed | P0 | |
 | park_bench | P0 | |
 | street_lamp | P0 | emissive head |
-| cloud | P0 | 3 variants: cloud_a / cloud_b / cloud_c |
+| cloud_a / cloud_b / cloud_c | P0 | soft puffy clouds, faintly blue |
 | plant_monstera | P0 | big indoor plant |
 | plant_snake | P1 | |
 | plant_fern | P1 | |

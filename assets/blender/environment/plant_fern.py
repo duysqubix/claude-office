@@ -54,5 +54,17 @@ def build():
     fronds(M)
 
 
+META = dict(
+    name="Boston fern",
+    category="plant",
+    priority="P1",
+    description=("A fountain of arching fronds of little leaflets spilling over a chunky "
+                 "terracotta pot"),
+    tags=["plant", "indoor", "decor", "pot"],
+    tintable=[],
+    anchors={},
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

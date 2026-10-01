@@ -47,21 +47,21 @@ def materials():
 
 
 def jar(M):
-    D.lathe("Jar", JAR, M["jar"], verts=36, sharp=60)
+    D.lathe("Jar", JAR, M["jar"], verts=28, sharp=60)
     # Label: a cream patch with brown lettering, following the belly's curve.
     z = 0.064
     r = lambda zz: belly_r(zz) + 0.0005  # noqa: E731
     lab = D.face("Label", D.rrect_pts(0.088, 0.036, 0.009, steps=3), M["cream"],
                  loc=(0, -r(z), z), rot=D.FRONT)
-    F.wrap_decal(lab, r, z, max_edge=0.006)
+    F.wrap_decal(lab, r, z, max_edge=0.012)
     r2 = lambda zz: belly_r(zz) + 0.001  # noqa: E731
     t = D.text("Label_Text", "COOKIES", 0.0145, M["ink"], loc=(0, -r2(z), z), depth=0, res=2)
-    F.wrap_decal(t, r2, z, max_edge=0.003)
+    F.wrap_decal(t, r2, z, max_edge=0.008)
 
 
 def inside(M):
     # Cookies piled inside, one standing up where the lid gapes.
-    for i, (x, y, z, rx, ry) in enumerate(((0.0, 0.0, 0.118, 0.1, 0.0), (0.012, 0.01, 0.127, -0.2, 0.15),
+    for i, (x, y, z, rx, ry) in enumerate(((0.008, 0.008, 0.124, -0.2, 0.15),
                                           (-0.004, -0.012, 0.135, 0.5, -0.2))):
         before = D.snapshot()
         F.cookie(f"In{i}", M, r=0.027, chips=4, seed=i)
@@ -73,8 +73,8 @@ def inside(M):
 
 def lid(M):
     before = D.snapshot()
-    D.lathe("Lid", [(r, z + LID_Z) for r, z in LID], M["jar"], verts=36, sharp=60)
-    lib.sphere("Lid_Knob", 0.0175, (0, 0, LID_Z + 0.041), M["cream"], scale=(1, 1, 0.85), u=18, v=9)
+    D.lathe("Lid", [(r, z + LID_Z) for r, z in LID], M["jar"], verts=28, sharp=60)
+    lib.sphere("Lid_Knob", 0.0175, (0, 0, LID_Z + 0.041), M["cream"], scale=(1, 1, 0.85), u=14, v=7)
     lib.cyl("Lid_Neck", 0.008, 0.012, (0, 0, LID_Z + 0.03), M["cream"], r=0.002, seg=1, verts=14)
     # Knocked ajar: tipped up at the front, resting on the back of the rim.
     D.turn(D.since(before), (0, 0.056, LID_Z), (math.radians(-17), 0, math.radians(4)))

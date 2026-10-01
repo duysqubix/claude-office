@@ -1,0 +1,23 @@
+{
+  "id": "char_mouth_o",
+  "name": "Mouth: O",
+  "category": "character-face",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Round open mouth with a little tongue (surprise / alert)",
+  "tags": [
+    "face",
+    "mouth",
+    "expression",
+    "surprised"
+  ],
+  "tintable": [],
+  "anchors": {
+    "mouth": [
+      0.0,
+      -0.096,
+      0.2524
+    ]
+  }
+}

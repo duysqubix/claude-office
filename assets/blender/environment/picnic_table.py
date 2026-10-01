@@ -63,5 +63,23 @@ def build():
     frame(M)
 
 
+META = dict(
+    name="Picnic table",
+    category="outdoor",
+    priority="P1",
+    description="Classic A-frame picnic table with two attached benches in chunky honey planks",
+    tags=["seating", "table", "garden", "lunch"],
+    tintable=[],
+    anchors={
+        "seatN0": [-0.45, 0.45, -0.62],
+        "seatN1": [0.45, 0.45, -0.62],
+        "seatS0": [-0.45, 0.45, 0.62],
+        "seatS1": [0.45, 0.45, 0.62],
+        "tableTop": [0, 0.76, 0],
+    },
+    notes="Benches run along X at z = +-0.62; seat top 0.45, table top 0.76.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

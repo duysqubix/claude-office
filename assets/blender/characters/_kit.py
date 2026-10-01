@@ -320,6 +320,40 @@ def tube(name, pts, radius, material, ring=12, caps=True, cap_rings=4):
     return lib._link(name, bm, material)
 
 
+def ring_tube(name, pts, radius, material, ring=10):
+    """A closed tube through the loop `pts` (glasses rims, bands)."""
+    pts = [Vector(p) for p in pts]
+    n = len(pts)
+    centre = sum(pts, Vector((0, 0, 0))) / n
+    bm = bmesh.new()
+    rows = []
+    for i in range(n):
+        t = (pts[(i + 1) % n] - pts[i - 1]).normalized()
+        out = (pts[i] - centre)
+        out = (out - t * out.dot(t)).normalized()
+        b = t.cross(out)
+        rows.append([bm.verts.new(pts[i] + (out * math.cos(2 * math.pi * j / ring) +
+                                            b * math.sin(2 * math.pi * j / ring)) * radius)
+                     for j in range(ring)])
+    for i in range(n):
+        r0, r1 = rows[i], rows[(i + 1) % n]
+        for j in range(ring):
+            bm.faces.new((r0[j], r0[(j + 1) % ring], r1[(j + 1) % ring], r1[j]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return lib._link(name, bm, material)
+
+
+def rrect_loop(hw, hh, r, n=6):
+    """Rounded-rectangle loop (x, z) centred on 0, corner radius r, n points per corner."""
+    out = []
+    for cx, cz, a0 in ((hw - r, hh - r, 0), (-hw + r, hh - r, 90), (-hw + r, -hh + r, 180),
+                       (hw - r, -hh + r, 270)):
+        for i in range(n + 1):
+            a = math.radians(a0 + 90 * i / n)
+            out.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    return out
+
+
 def mesh_from(name, verts, faces, material, smooth=True):
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(v) for v in verts], [], [tuple(f) for f in faces])
@@ -895,6 +929,46 @@ def smile(prefix, material, at=Vector((0, 0, 0)), width=0.042, depth=0.026, fy=-
     return tube(f"{prefix}Smile", [at + p for p in pts], rad, material, ring=10, cap_rings=3)
 
 
+def face_patch(name, outline, material, lift=lambda t: 0.002, rings=5, centre=None,
+               at=Vector((0, 0, 0))):
+    """A decal-like patch hugging the face: `outline` is a closed loop of face coords
+    (fx, fy) around `centre`; rings shrink it to the centre and every vertex is laid on the
+    head surface, `lift(t)` metres off it (t = 1 at the rim, 0 at the centre) so it can
+    dome a little."""
+    pts = [Vector((x, y)) for x, y in outline]
+    c = Vector(centre) if centre is not None else sum(pts, Vector((0, 0))) / len(pts)
+    bm = bmesh.new()
+    rows = []
+    for k in range(rings, 0, -1):
+        t = k / rings
+        rows.append([bm.verts.new(at + face_point(*(c + (p - c) * t), lift(t))) for p in pts])
+    tip = bm.verts.new(at + face_point(c.x, c.y, lift(0.0)))
+    n = len(pts)
+    for r0, r1 in zip(rows, rows[1:]):
+        for j in range(n):
+            bm.faces.new((r0[j], r0[(j + 1) % n], r1[(j + 1) % n], r1[j]))
+    for j in range(n):
+        bm.faces.new((rows[-1][j], rows[-1][(j + 1) % n], tip))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.normal_update()
+    # Face it outward (toward -Y, the front).
+    if sum(f.normal.y for f in bm.faces) > 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    return lib._link(name, bm, material)
+
+
+def ellipse_pts(cx, cy, rx, ry, n=28, squash=None):
+    """Closed loop of face coords; squash(theta) can flatten part of it (e.g. a D shape)."""
+    out = []
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        x, y = math.cos(a), math.sin(a)
+        if squash:
+            x, y = squash(x, y)
+        out.append((cx + rx * x, cy + ry * y))
+    return out
+
+
 def torso_profile(girth=1.0, samples=48):
     pts = catmull([(r * girth, y, 0) for r, y in TORSO_CTRL], samples)
     prof = [(max(0.0, p.x), p.y) for p in pts]
@@ -923,6 +997,7 @@ def torso_front(y, x=0.0, girth=1.0):
 MANNEQUIN = "_Mannequin"
 PEDESTAL_H = 0.05
 PELVIS_Z = PEDESTAL_H - 0.02 + 0.155  # bean bottom sunk a little into the pedestal
+FACE_FRAME = ((-0.2, -0.33, -0.17), (0.2, -0.08, 0.15))  # preview framing for face parts
 MOUNTS = {
     "head": Vector((0, 0, PELVIS_Z + HEAD_Y)),
     "torso": Vector((0, 0, PELVIS_Z)),

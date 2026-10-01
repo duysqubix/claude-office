@@ -41,5 +41,17 @@ def build():
     letters(M)
 
 
+META = dict(
+    name="WELCOME doormat",
+    category="building",
+    priority="P0",
+    description="Chunky coir doormat with a dark inset border and raised cream WELCOME letters",
+    tags=["entrance", "mat", "text"],
+    tintable=[],
+    anchors={},
+    mount="floor: lies outside the door; the text reads from +Z (outside) toward the door",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

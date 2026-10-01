@@ -43,5 +43,16 @@ def build():
     rocks(materials())
 
 
+META = dict(
+    name="Rock cluster",
+    category="outdoor",
+    priority="P1",
+    description="Faceted warm-grey boulders half-sunk in the lawn, moss on their sky-facing facets",
+    tags=["rock", "garden", "lawn", "faceted"],
+    tintable=[],
+    anchors={},
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

@@ -1,15 +1,14 @@
 {
-  "generated": "2026-10-01T23:27:26.348Z",
+  "generated": "2026-10-01T23:32:56.783Z",
   "totals": {
-    "all": 232,
-    "done": 142,
-    "planned": 90
+    "all": 231,
+    "done": 150,
+    "planned": 81
   },
   "byArtist": {
     "Claude Cézanne": 53,
-    "Claude Lorrain": 37,
-    "Claude Monet": 66,
-    "Claude Monet (round 2)": 3,
+    "Claude Lorrain": 36,
+    "Claude Monet": 69,
     "Claude Rodin": 73
   },
   "items": [
@@ -769,7 +768,7 @@
       "thumb": "models/thumbs/binder.jpg",
       "dims": {
         "w": 0.075,
-        "h": 0.31,
+        "h": 0.321,
         "d": 0.291
       },
       "bbox": {
@@ -780,14 +779,17 @@
         ],
         "max": [
           0.038,
-          0.31,
+          0.321,
           0.146
         ]
       },
-      "tris": 863,
+      "tris": 995,
       "materials": [
         "Accent",
         "Pages",
+        "TabYellow",
+        "TabPink",
+        "TabMint",
         "SpineLabel",
         "Ink",
         "Chrome"
@@ -796,7 +798,7 @@
         "binder"
       ],
       "textures": 1,
-      "bytes": 53556
+      "bytes": 63816
     },
     {
       "id": "books_stack",
@@ -864,7 +866,7 @@
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P1",
-      "description": "Chunky ribbed cactus with stubby arms and a pink flower, in a little pot",
+      "description": "Chunky ribbed cactus with stubby arms and a pink flower, in a pot",
       "tags": [
         "desk",
         "plant",
@@ -876,7 +878,7 @@
       "anchors": {
         "top": [
           0,
-          0.168,
+          0.18,
           0
         ]
       },
@@ -884,29 +886,27 @@
       "file": "models/cactus.glb",
       "thumb": "models/thumbs/cactus.jpg",
       "dims": {
-        "w": 0.13,
-        "h": 0.161,
-        "d": 0.094
+        "w": 0.157,
+        "h": 0.181,
+        "d": 0.108
       },
       "bbox": {
         "min": [
-          -0.063,
+          -0.075,
           0,
-          -0.047
+          -0.054
         ],
         "max": [
-          0.067,
-          0.161,
-          0.047
+          0.083,
+          0.181,
+          0.054
         ]
       },
-      "tris": 2912,
+      "tris": 2300,
       "materials": [
         "Accent",
         "Soil",
-        "Pebble",
         "Cactus",
-        "Spine",
         "Petal",
         "FlowerCentre"
       ],
@@ -914,7 +914,7 @@
         "cactus"
       ],
       "textures": 1,
-      "bytes": 127640
+      "bytes": 92428
     },
     {
       "id": "calculator",
@@ -1006,7 +1006,7 @@
       "thumb": "models/thumbs/cookie_jar.jpg",
       "dims": {
         "w": 0.184,
-        "h": 0.217,
+        "h": 0.216,
         "d": 0.187
       },
       "bbox": {
@@ -1021,7 +1021,7 @@
           0.108
         ]
       },
-      "tris": 5112,
+      "tris": 3523,
       "materials": [
         "Accent",
         "Cream",
@@ -1033,7 +1033,7 @@
         "cookie_jar"
       ],
       "textures": 1,
-      "bytes": 200748
+      "bytes": 152348
     },
     {
       "id": "desk_fan",
@@ -1064,13 +1064,13 @@
       "dims": {
         "w": 0.203,
         "h": 0.313,
-        "d": 0.165
+        "d": 0.164
       },
       "bbox": {
         "min": [
           -0.101,
           0,
-          -0.085
+          -0.084
         ],
         "max": [
           0.101,
@@ -1078,7 +1078,7 @@
           0.08
         ]
       },
-      "tris": 4128,
+      "tris": 3760,
       "materials": [
         "Blade",
         "Accent",
@@ -1091,7 +1091,7 @@
         "Blades"
       ],
       "textures": 1,
-      "bytes": 192020
+      "bytes": 179904
     },
     {
       "id": "desk_phone",
@@ -1121,23 +1121,23 @@
       "file": "models/desk_phone.glb",
       "thumb": "models/thumbs/desk_phone.jpg",
       "dims": {
-        "w": 0.231,
+        "w": 0.229,
         "h": 0.112,
-        "d": 0.225
+        "d": 0.223
       },
       "bbox": {
         "min": [
-          -0.131,
+          -0.129,
           0,
           -0.09
         ],
         "max": [
           0.1,
           0.112,
-          0.135
+          0.133
         ]
       },
-      "tris": 4061,
+      "tris": 3291,
       "materials": [
         "Accent",
         "Key",
@@ -1150,7 +1150,7 @@
         "desk_phone"
       ],
       "textures": 1,
-      "bytes": 195500
+      "bytes": 174064
     },
     {
       "id": "donut_box",
@@ -1384,7 +1384,7 @@
         "fruit_bowl"
       ],
       "textures": 1,
-      "bytes": 178156
+      "bytes": 168424
     },
     {
       "id": "globe",
@@ -1441,7 +1441,7 @@
         "Globe"
       ],
       "textures": 1,
-      "bytes": 111580
+      "bytes": 111860
     },
     {
       "id": "headphones_stand",
@@ -1563,59 +1563,54 @@
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P1",
-      "description": "Chunky desk photo frame on an easel stand; a sunny photo of two little people",
+      "description": "Desk photo frame with a cute photo of two people under a sun",
       "tags": [
         "desk",
-        "clutter",
-        "personal"
+        "personal",
+        "clutter"
       ],
       "tintable": [
         "Accent"
       ],
-      "anchors": {
-        "photoCenter": [
-          0,
-          0.082,
-          0.012
-        ]
-      },
+      "anchors": {},
       "status": "done",
       "file": "models/photo_frame.glb",
       "thumb": "models/thumbs/photo_frame.jpg",
       "dims": {
         "w": 0.13,
-        "h": 0.163,
-        "d": 0.116
+        "h": 0.168,
+        "d": 0.08
       },
       "bbox": {
         "min": [
           -0.065,
-          -0.003,
-          -0.108
+          -0.005,
+          -0.072
         ],
         "max": [
           0.065,
-          0.161,
+          0.163,
           0.008
         ]
       },
-      "tris": 699,
+      "tris": 448,
       "materials": [
         "Accent",
-        "Backing",
+        "PhotoMat",
         "PhotoSky",
-        "PhotoSun",
         "PhotoHill",
+        "PhotoSun",
         "PhotoShirtA",
         "PhotoSkin",
         "PhotoInk",
-        "PhotoShirtB"
+        "PhotoShirtB",
+        "PhotoHeart"
       ],
       "nodes": [
         "photo_frame"
       ],
       "textures": 1,
-      "bytes": 46560
+      "bytes": 35696
     },
     {
       "id": "pizza_box",
@@ -1780,7 +1775,7 @@
           0.036
         ]
       },
-      "tris": 4825,
+      "tris": 2667,
       "materials": [
         "Accent",
         "PrintWhite",
@@ -1791,7 +1786,7 @@
         "snack_bag"
       ],
       "textures": 1,
-      "bytes": 150616
+      "bytes": 101136
     },
     {
       "id": "stapler",
@@ -1855,7 +1850,7 @@
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P1",
-      "description": "Tiny echeveria rosette of plump leaves in a chunky glazed pot",
+      "description": "Tiny echeveria rosette with blushing leaf tips in a chunky pot",
       "tags": [
         "desk",
         "plant",
@@ -1867,7 +1862,7 @@
       "anchors": {
         "top": [
           0,
-          0.108,
+          0.125,
           0
         ]
       },
@@ -1875,34 +1870,35 @@
       "file": "models/succulent.glb",
       "thumb": "models/thumbs/succulent.jpg",
       "dims": {
-        "w": 0.1,
-        "h": 0.095,
-        "d": 0.102
+        "w": 0.097,
+        "h": 0.104,
+        "d": 0.097
       },
       "bbox": {
         "min": [
           -0.048,
           0,
-          -0.051
+          -0.048
         ],
         "max": [
-          0.052,
-          0.095,
-          0.051
+          0.048,
+          0.104,
+          0.048
         ]
       },
-      "tris": 2976,
+      "tris": 3004,
       "materials": [
         "Accent",
         "Soil",
         "Leaf",
-        "LeafLight"
+        "LeafTip",
+        "LeafYoung"
       ],
       "nodes": [
         "succulent"
       ],
       "textures": 1,
-      "bytes": 121740
+      "bytes": 128324
     },
     {
       "id": "tissue_box",
@@ -1946,7 +1942,7 @@
           0.06
         ]
       },
-      "tris": 1482,
+      "tris": 1562,
       "materials": [
         "Accent",
         "Slot",
@@ -1957,7 +1953,7 @@
         "tissue_box"
       ],
       "textures": 1,
-      "bytes": 64284
+      "bytes": 67472
     },
     {
       "id": "trophy",
@@ -2370,7 +2366,7 @@
       },
       "bbox": {
         "min": [
-          -0.756,
+          -0.757,
           -0.031,
           -0.672
         ],
@@ -2380,7 +2376,7 @@
           0.675
         ]
       },
-      "tris": 598,
+      "tris": 599,
       "materials": [
         "Leaf",
         "LeafDark",
@@ -2390,14 +2386,14 @@
         "bush_round"
       ],
       "textures": 1,
-      "bytes": 94620
+      "bytes": 100328
     },
     {
       "id": "cloud_a",
       "name": "Cloud (long)",
       "category": "outdoor",
       "artist": "Claude Lorrain",
-      "group": null,
+      "group": "building, outdoors, plants",
       "priority": "P0",
       "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 5 m long; faintly blue white (#E6F4FC) like WL's",
       "tags": [
@@ -2435,14 +2431,14 @@
         "cloud_a"
       ],
       "textures": 1,
-      "bytes": 120448
+      "bytes": 130632
     },
     {
       "id": "cloud_b",
       "name": "Cloud (tall)",
       "category": "outdoor",
       "artist": "Claude Lorrain",
-      "group": null,
+      "group": "building, outdoors, plants",
       "priority": "P0",
       "description": "Tall bumpy cumulus dome on a flat belly, about 3.8 m wide; faintly blue white (#E6F4FC) like WL's",
       "tags": [
@@ -2480,14 +2476,14 @@
         "cloud_b"
       ],
       "textures": 1,
-      "bytes": 112260
+      "bytes": 119292
     },
     {
       "id": "cloud_c",
       "name": "Cloud (small)",
       "category": "outdoor",
       "artist": "Claude Lorrain",
-      "group": null,
+      "group": "building, outdoors, plants",
       "priority": "P0",
       "description": "Small three-bump wisp, about 2.9 m long; faintly blue white (#E6F4FC) like WL's",
       "tags": [
@@ -2525,7 +2521,7 @@
         "cloud_c"
       ],
       "textures": 1,
-      "bytes": 72192
+      "bytes": 78188
     },
     {
       "id": "company_sign",
@@ -2555,22 +2551,22 @@
       "thumb": "models/thumbs/company_sign.jpg",
       "dims": {
         "w": 3.12,
-        "h": 1.496,
-        "d": 1.295
+        "h": 1.501,
+        "d": 1.299
       },
       "bbox": {
         "min": [
           -1.56,
-          -0.016,
+          -0.021,
           -0.51
         ],
         "max": [
           1.56,
           1.48,
-          0.785
+          0.789
         ]
       },
-      "tris": 11108,
+      "tris": 10025,
       "materials": [
         "Stone",
         "StoneCap",
@@ -2590,7 +2586,7 @@
         "company_sign"
       ],
       "textures": 1,
-      "bytes": 509400
+      "bytes": 545604
     },
     {
       "id": "doormat",
@@ -2637,7 +2633,7 @@
         "doormat"
       ],
       "textures": 1,
-      "bytes": 127408
+      "bytes": 126728
     },
     {
       "id": "flower_bed",
@@ -2674,7 +2670,7 @@
           0.45
         ]
       },
-      "tris": 7862,
+      "tris": 6651,
       "materials": [
         "Wood",
         "Soil",
@@ -2694,7 +2690,7 @@
         "flower_bed"
       ],
       "textures": 1,
-      "bytes": 357496
+      "bytes": 391680
     },
     {
       "id": "office_window",
@@ -2747,7 +2743,7 @@
         "office_window"
       ],
       "textures": 1,
-      "bytes": 91632
+      "bytes": 91500
     },
     {
       "id": "park_bench",
@@ -2809,7 +2805,7 @@
         "park_bench"
       ],
       "textures": 1,
-      "bytes": 157688
+      "bytes": 147860
     },
     {
       "id": "plant_monstera",
@@ -2863,7 +2859,7 @@
         "plant_monstera"
       ],
       "textures": 1,
-      "bytes": 309832
+      "bytes": 323424
     },
     {
       "id": "sliding_door",
@@ -2919,14 +2915,10 @@
       },
       "tris": 4688,
       "materials": [
-        "Frame.DoorL",
-        "Glass",
-        "Decal.DoorL",
-        "Metal.DoorL",
-        "Frame.DoorR",
-        "Decal.DoorR",
-        "Metal.DoorR",
         "Frame",
+        "Glass",
+        "Decal",
+        "Metal",
         "Stripe",
         "SensorBezel",
         "Sensor",
@@ -2937,8 +2929,8 @@
         "DoorL",
         "DoorR"
       ],
-      "textures": 3,
-      "bytes": 238796
+      "textures": 1,
+      "bytes": 237676
     },
     {
       "id": "street_lamp",
@@ -2992,7 +2984,7 @@
         "street_lamp"
       ],
       "textures": 1,
-      "bytes": 130608
+      "bytes": 130416
     },
     {
       "id": "tree_pine",
@@ -3049,7 +3041,7 @@
         "tree_pine"
       ],
       "textures": 1,
-      "bytes": 106648
+      "bytes": 118212
     },
     {
       "id": "tree_round",
@@ -3078,23 +3070,23 @@
       "file": "models/tree_round.glb",
       "thumb": "models/thumbs/tree_round.jpg",
       "dims": {
-        "w": 3.086,
+        "w": 3.087,
         "h": 4.049,
-        "d": 3.315
+        "d": 3.316
       },
       "bbox": {
         "min": [
           -1.517,
           0,
-          -1.658
+          -1.657
         ],
         "max": [
-          1.57,
+          1.569,
           4.049,
           1.658
         ]
       },
-      "tris": 1234,
+      "tris": 1236,
       "materials": [
         "Trunk",
         "Leaf",
@@ -3105,7 +3097,7 @@
         "tree_round"
       ],
       "textures": 1,
-      "bytes": 135304
+      "bytes": 145328
     },
     {
       "id": "bicycle",
@@ -3168,7 +3160,7 @@
         "bicycle"
       ],
       "textures": 1,
-      "bytes": 266024
+      "bytes": 257728
     },
     {
       "id": "bike_rack",
@@ -3230,7 +3222,7 @@
         "bike_rack"
       ],
       "textures": 1,
-      "bytes": 102480
+      "bytes": 102076
     },
     {
       "id": "fence_picket",
@@ -3276,7 +3268,7 @@
         "fence_picket"
       ],
       "textures": 1,
-      "bytes": 101644
+      "bytes": 97200
     },
     {
       "id": "fire_hydrant",
@@ -3322,7 +3314,7 @@
         "fire_hydrant"
       ],
       "textures": 1,
-      "bytes": 103888
+      "bytes": 101808
     },
     {
       "id": "flag_pole",
@@ -3368,8 +3360,8 @@
       },
       "tris": 1682,
       "materials": [
-        "FlagCloth.Flag",
-        "FlagMark.Flag",
+        "FlagCloth",
+        "FlagMark",
         "Stone",
         "Pole",
         "Gold",
@@ -3379,8 +3371,8 @@
         "flag_pole",
         "Flag"
       ],
-      "textures": 2,
-      "bytes": 83332
+      "textures": 1,
+      "bytes": 78604
     },
     {
       "id": "grass_tuft",
@@ -3428,7 +3420,7 @@
         "grass_tuft"
       ],
       "textures": 1,
-      "bytes": 37720
+      "bytes": 39132
     },
     {
       "id": "hedge",
@@ -3476,7 +3468,7 @@
         "hedge"
       ],
       "textures": 1,
-      "bytes": 97696
+      "bytes": 100656
     },
     {
       "id": "mailbox",
@@ -3524,19 +3516,18 @@
       },
       "tris": 1192,
       "materials": [
-        "Hardware.Flag",
-        "FlagRed.Flag",
+        "Hardware",
+        "FlagRed",
         "Accent",
         "Trim",
-        "Hardware",
         "Post"
       ],
       "nodes": [
         "mailbox",
         "Flag"
       ],
-      "textures": 2,
-      "bytes": 75876
+      "textures": 1,
+      "bytes": 75548
     },
     {
       "id": "outdoor_bin",
@@ -3589,7 +3580,7 @@
         "outdoor_bin"
       ],
       "textures": 1,
-      "bytes": 109520
+      "bytes": 110300
     },
     {
       "id": "palm_indoor",
@@ -3643,7 +3634,7 @@
         "palm_indoor"
       ],
       "textures": 1,
-      "bytes": 295460
+      "bytes": 327276
     },
     {
       "id": "picnic_table",
@@ -3716,7 +3707,7 @@
         "picnic_table"
       ],
       "textures": 1,
-      "bytes": 132756
+      "bytes": 128988
     },
     {
       "id": "plant_fern",
@@ -3768,7 +3759,7 @@
         "plant_fern"
       ],
       "textures": 1,
-      "bytes": 333304
+      "bytes": 367568
     },
     {
       "id": "plant_hanging",
@@ -3830,7 +3821,7 @@
         "plant_hanging"
       ],
       "textures": 1,
-      "bytes": 212536
+      "bytes": 219180
     },
     {
       "id": "plant_snake",
@@ -3883,7 +3874,7 @@
         "plant_snake"
       ],
       "textures": 1,
-      "bytes": 104692
+      "bytes": 103020
     },
     {
       "id": "planter_box",
@@ -3913,7 +3904,7 @@
         "min": [
           -0.644,
           0,
-          -0.279
+          -0.278
         ],
         "max": [
           0.63,
@@ -3921,7 +3912,7 @@
           0.286
         ]
       },
-      "tris": 3918,
+      "tris": 3924,
       "materials": [
         "Wood",
         "WoodDark",
@@ -3939,7 +3930,7 @@
         "planter_box"
       ],
       "textures": 1,
-      "bytes": 258308
+      "bytes": 271084
     },
     {
       "id": "rock_cluster",
@@ -3988,7 +3979,7 @@
         "rock_cluster"
       ],
       "textures": 1,
-      "bytes": 53504
+      "bytes": 62776
     },
     {
       "id": "toy_car",
@@ -4042,7 +4033,7 @@
         "toy_car"
       ],
       "textures": 1,
-      "bytes": 315632
+      "bytes": 312256
     },
     {
       "id": "tree_blossom",
@@ -4072,23 +4063,23 @@
       "file": "models/tree_blossom.glb",
       "thumb": "models/thumbs/tree_blossom.jpg",
       "dims": {
-        "w": 3.577,
-        "h": 3.785,
-        "d": 3.503
+        "w": 3.578,
+        "h": 3.786,
+        "d": 3.502
       },
       "bbox": {
         "min": [
-          -1.805,
+          -1.807,
           -0.005,
           -1.761
         ],
         "max": [
           1.771,
-          3.78,
-          1.742
+          3.781,
+          1.741
         ]
       },
-      "tris": 1642,
+      "tris": 1650,
       "materials": [
         "Trunk",
         "Blossom",
@@ -4099,22 +4090,7 @@
         "tree_blossom"
       ],
       "textures": 1,
-      "bytes": 180220
-    },
-    {
-      "id": "cloud",
-      "name": "Cloud",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P0",
-      "description": "3 variants: cloud_a / cloud_b / cloud_c",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "bytes": 200728
     },
     {
       "id": "birdbath",
@@ -4586,7 +4562,7 @@
         "desk"
       ],
       "textures": 1,
-      "bytes": 106176
+      "bytes": 106180
     },
     {
       "id": "desk_divider",
@@ -5131,7 +5107,7 @@
         "intern_station"
       ],
       "textures": 1,
-      "bytes": 85044
+      "bytes": 85444
     },
     {
       "id": "intern_stool",
@@ -5300,7 +5276,7 @@
         "kitchen_counter"
       ],
       "textures": 1,
-      "bytes": 120744
+      "bytes": 120912
     },
     {
       "id": "manager_chair",
@@ -5429,7 +5405,7 @@
         "manager_desk"
       ],
       "textures": 1,
-      "bytes": 147304
+      "bytes": 147240
     },
     {
       "id": "monitor",
@@ -5531,7 +5507,7 @@
         "now_hiring_sign"
       ],
       "textures": 1,
-      "bytes": 240232
+      "bytes": 240424
     },
     {
       "id": "office_chair",
@@ -5637,7 +5613,7 @@
         "plant_pot"
       ],
       "textures": 1,
-      "bytes": 203820
+      "bytes": 203880
     },
     {
       "id": "reception_desk",
@@ -5822,7 +5798,7 @@
         "MinuteHand"
       ],
       "textures": 1,
-      "bytes": 104492
+      "bytes": 104268
     },
     {
       "id": "wall_screen",
@@ -5880,7 +5856,7 @@
         "wall_screen"
       ],
       "textures": 1,
-      "bytes": 59624
+      "bytes": 62828
     },
     {
       "id": "water_cooler",
@@ -5940,7 +5916,7 @@
         "water_cooler"
       ],
       "textures": 1,
-      "bytes": 110836
+      "bytes": 110852
     },
     {
       "id": "whiteboard",
@@ -6068,7 +6044,7 @@
         "Fish3"
       ],
       "textures": 1,
-      "bytes": 147940
+      "bytes": 148276
     },
     {
       "id": "armchair",
@@ -6179,7 +6155,7 @@
         "basketball_hoop"
       ],
       "textures": 1,
-      "bytes": 95748
+      "bytes": 95380
     },
     {
       "id": "beanbag",
@@ -6288,7 +6264,7 @@
         "bookshelf"
       ],
       "textures": 1,
-      "bytes": 210436
+      "bytes": 210476
     },
     {
       "id": "coat_rack",
@@ -6521,7 +6497,7 @@
         "dartboard"
       ],
       "textures": 1,
-      "bytes": 174932
+      "bytes": 174892
     },
     {
       "id": "desk_lamp",
@@ -6575,7 +6551,7 @@
         "desk_lamp"
       ],
       "textures": 1,
-      "bytes": 61484
+      "bytes": 61720
     },
     {
       "id": "dj_booth",
@@ -6679,7 +6655,7 @@
         "PlatterR"
       ],
       "textures": 1,
-      "bytes": 392764
+      "bytes": 392880
     },
     {
       "id": "employee_of_month",
@@ -6737,7 +6713,7 @@
         "employee_of_month"
       ],
       "textures": 1,
-      "bytes": 73308
+      "bytes": 72448
     },
     {
       "id": "floor_lamp",
@@ -6855,7 +6831,7 @@
         "Door"
       ],
       "textures": 1,
-      "bytes": 105608
+      "bytes": 107032
     },
     {
       "id": "jukebox",
@@ -6927,7 +6903,7 @@
         "jukebox"
       ],
       "textures": 1,
-      "bytes": 155924
+      "bytes": 156040
     },
     {
       "id": "locker",
@@ -7234,7 +7210,7 @@
         "plant_wall"
       ],
       "textures": 1,
-      "bytes": 321132
+      "bytes": 261544
     },
     {
       "id": "printer_copier",
@@ -7408,7 +7384,7 @@
         "server_rack"
       ],
       "textures": 1,
-      "bytes": 172712
+      "bytes": 172748
     },
     {
       "id": "standing_desk",
@@ -7945,7 +7921,71 @@
         "arcade_cabinet"
       ],
       "textures": 1,
-      "bytes": 160452
+      "bytes": 160448
+    },
+    {
+      "id": "christmas_tree",
+      "name": "Christmas tree",
+      "category": "plant",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P2",
+      "description": "Chunky festive tree with star, baubles and presents",
+      "tags": [
+        "seasonal",
+        "decor",
+        "holiday"
+      ],
+      "tintable": [],
+      "anchors": {
+        "star": [
+          0,
+          1.78,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/christmas_tree.glb",
+      "thumb": "models/thumbs/christmas_tree.jpg",
+      "dims": {
+        "w": 1.198,
+        "h": 1.872,
+        "d": 1.198
+      },
+      "bbox": {
+        "min": [
+          -0.599,
+          -0.003,
+          -0.599
+        ],
+        "max": [
+          0.599,
+          1.869,
+          0.599
+        ]
+      },
+      "tris": 8376,
+      "materials": [
+        "Pot",
+        "Trunk",
+        "Needles",
+        "NeedlesLight",
+        "Bauble0",
+        "Bauble1",
+        "Bauble2",
+        "Bauble3",
+        "Bauble4",
+        "Garland",
+        "Star",
+        "GiftA",
+        "Ribbon",
+        "GiftB"
+      ],
+      "nodes": [
+        "christmas_tree"
+      ],
+      "textures": 1,
+      "bytes": 362912
     },
     {
       "id": "foosball_table",
@@ -8009,7 +8049,7 @@
         "foosball_table"
       ],
       "textures": 1,
-      "bytes": 254512
+      "bytes": 250232
     },
     {
       "id": "massage_chair",
@@ -8197,49 +8237,190 @@
       "bytes": 136956
     },
     {
-      "id": "christmas_tree",
-      "name": "Christmas tree",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P2",
-      "description": "seasonal",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "popcorn_machine",
       "name": "Popcorn machine",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
+      "category": "appliance",
+      "artist": "Claude Monet",
       "group": "Team Room, shop items, game room",
       "priority": "P2",
-      "description": "movie nights",
-      "tags": [],
+      "description": "Red popcorn cart with a glass cabinet full of popcorn",
+      "tags": [
+        "lounge",
+        "movie-night",
+        "food",
+        "fun"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "front": [
+          0,
+          0,
+          0.55
+        ]
+      },
+      "status": "done",
+      "file": "models/popcorn_machine.glb",
+      "thumb": "models/thumbs/popcorn_machine.jpg",
+      "dims": {
+        "w": 0.76,
+        "h": 1.57,
+        "d": 0.57
+      },
+      "bbox": {
+        "min": [
+          -0.38,
+          0,
+          -0.285
+        ],
+        "max": [
+          0.38,
+          1.57,
+          0.285
+        ]
+      },
+      "tris": 4436,
+      "materials": [
+        "Red",
+        "Yellow",
+        "Dark",
+        "Chrome",
+        "Glass",
+        "Popcorn",
+        "Lamp"
+      ],
+      "nodes": [
+        "popcorn_machine"
+      ],
+      "textures": 1,
+      "bytes": 244420
     },
     {
       "id": "stationary_bike",
       "name": "Stationary bike",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
+      "category": "furniture",
+      "artist": "Claude Monet",
       "group": "Team Room, shop items, game room",
       "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky exercise bike with flywheel and glowing display",
+      "tags": [
+        "gym",
+        "fun",
+        "wellness"
+      ],
+      "tintable": [
+        "Accent",
+        "Seat"
+      ],
+      "anchors": {
+        "seat": [
+          0,
+          0.82,
+          -0.28
+        ],
+        "handles": [
+          0,
+          1,
+          0.36
+        ],
+        "pedals": [
+          0,
+          0.3,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/stationary_bike.glb",
+      "thumb": "models/thumbs/stationary_bike.jpg",
+      "dims": {
+        "w": 0.5,
+        "h": 1.044,
+        "d": 0.958
+      },
+      "bbox": {
+        "min": [
+          -0.25,
+          0,
+          -0.46
+        ],
+        "max": [
+          0.25,
+          1.044,
+          0.498
+        ]
+      },
+      "tris": 2152,
+      "materials": [
+        "Dark",
+        "Accent",
+        "Chrome",
+        "Seat",
+        "Display",
+        "Grip"
+      ],
+      "nodes": [
+        "stationary_bike"
+      ],
+      "textures": 1,
+      "bytes": 114956
+    },
+    {
+      "id": "char_brow",
+      "name": "Brows",
+      "category": "character-face",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Chunky arched brows; nodes BrowL/BrowR pivot at each brow's middle",
+      "tags": [
+        "face",
+        "brows"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "browL": [
+          0.092,
+          0.102,
+          0.2324
+        ],
+        "browR": [
+          -0.092,
+          0.102,
+          0.2324
+        ]
+      },
+      "status": "done",
+      "file": "models/char_brow.glb",
+      "thumb": "models/thumbs/char_brow.jpg",
+      "dims": {
+        "w": 0.271,
+        "h": 0.03,
+        "d": 0.046
+      },
+      "bbox": {
+        "min": [
+          -0.136,
+          0.087,
+          0.214
+        ],
+        "max": [
+          0.136,
+          0.117,
+          0.26
+        ]
+      },
+      "tris": 520,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "char_brow",
+        "BrowL",
+        "BrowR"
+      ],
+      "textures": 0,
+      "bytes": 9692
     },
     {
       "id": "char_eye",
@@ -8367,6 +8548,217 @@
       ],
       "textures": 1,
       "bytes": 68544
+    },
+    {
+      "id": "char_mouth_flat",
+      "name": "Mouth: flat",
+      "category": "character-face",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Short flat line (neutral / focused / meh)",
+      "tags": [
+        "face",
+        "mouth",
+        "expression",
+        "neutral"
+      ],
+      "tintable": [],
+      "anchors": {
+        "mouth": [
+          0,
+          -0.094,
+          0.2531
+        ]
+      },
+      "status": "done",
+      "file": "models/char_mouth_flat.glb",
+      "thumb": "models/thumbs/char_mouth_flat.jpg",
+      "dims": {
+        "w": 0.073,
+        "h": 0.017,
+        "d": 0.015
+      },
+      "bbox": {
+        "min": [
+          -0.036,
+          -0.103,
+          0.247
+        ],
+        "max": [
+          0.036,
+          -0.086,
+          0.262
+        ]
+      },
+      "tris": 460,
+      "materials": [
+        "Mouth"
+      ],
+      "nodes": [
+        "char_mouth_flat"
+      ],
+      "textures": 0,
+      "bytes": 9428
+    },
+    {
+      "id": "char_mouth_grin",
+      "name": "Mouth: grin",
+      "category": "character-face",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Big open D-shaped grin with teeth and tongue (delighted)",
+      "tags": [
+        "face",
+        "mouth",
+        "expression",
+        "happy"
+      ],
+      "tintable": [],
+      "anchors": {
+        "mouth": [
+          0,
+          -0.092,
+          0.2538
+        ]
+      },
+      "status": "done",
+      "file": "models/char_mouth_grin.glb",
+      "thumb": "models/thumbs/char_mouth_grin.jpg",
+      "dims": {
+        "w": 0.101,
+        "h": 0.042,
+        "d": 0.018
+      },
+      "bbox": {
+        "min": [
+          -0.05,
+          -0.117,
+          0.245
+        ],
+        "max": [
+          0.05,
+          -0.074,
+          0.263
+        ]
+      },
+      "tris": 656,
+      "materials": [
+        "Mouth",
+        "Teeth",
+        "Tongue"
+      ],
+      "nodes": [
+        "char_mouth_grin"
+      ],
+      "textures": 0,
+      "bytes": 15520
+    },
+    {
+      "id": "char_mouth_o",
+      "name": "Mouth: O",
+      "category": "character-face",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Round open mouth with a little tongue (surprise / alert)",
+      "tags": [
+        "face",
+        "mouth",
+        "expression",
+        "surprised"
+      ],
+      "tintable": [],
+      "anchors": {
+        "mouth": [
+          0,
+          -0.096,
+          0.2524
+        ]
+      },
+      "status": "done",
+      "file": "models/char_mouth_o.glb",
+      "thumb": "models/thumbs/char_mouth_o.jpg",
+      "dims": {
+        "w": 0.048,
+        "h": 0.062,
+        "d": 0.024
+      },
+      "bbox": {
+        "min": [
+          -0.024,
+          -0.128,
+          0.24
+        ],
+        "max": [
+          0.024,
+          -0.065,
+          0.264
+        ]
+      },
+      "tris": 352,
+      "materials": [
+        "Mouth",
+        "Tongue"
+      ],
+      "nodes": [
+        "char_mouth_o"
+      ],
+      "textures": 0,
+      "bytes": 8788
+    },
+    {
+      "id": "char_mouth_smile",
+      "name": "Mouth: smile",
+      "category": "character-face",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Small closed smile (default expression)",
+      "tags": [
+        "face",
+        "mouth",
+        "expression",
+        "happy"
+      ],
+      "tintable": [],
+      "anchors": {
+        "mouth": [
+          0,
+          -0.088,
+          0.2553
+        ]
+      },
+      "status": "done",
+      "file": "models/char_mouth_smile.glb",
+      "thumb": "models/thumbs/char_mouth_smile.jpg",
+      "dims": {
+        "w": 0.101,
+        "h": 0.041,
+        "d": 0.019
+      },
+      "bbox": {
+        "min": [
+          -0.05,
+          -0.109,
+          0.244
+        ],
+        "max": [
+          0.05,
+          -0.068,
+          0.264
+        ]
+      },
+      "tris": 460,
+      "materials": [
+        "Mouth"
+      ],
+      "nodes": [
+        "char_mouth_smile"
+      ],
+      "textures": 0,
+      "bytes": 9428
     },
     {
       "id": "hair_bob",
@@ -8815,21 +9207,6 @@
       "bytes": 60908
     },
     {
-      "id": "char_brow",
-      "name": "Char brow",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "char_forearm",
       "name": "Char forearm",
       "category": null,
@@ -8852,66 +9229,6 @@
       "group": "characters",
       "priority": "P0",
       "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_mouth_flat",
-      "name": "Char mouth flat",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "expression set",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_mouth_grin",
-      "name": "Char mouth grin",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "expression set",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_mouth_o",
-      "name": "Char mouth o",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "expression set",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_mouth_smile",
-      "name": "Char mouth smile",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "expression set",
       "tags": [],
       "tintable": [],
       "anchors": {},

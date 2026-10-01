@@ -9,15 +9,15 @@ from characters import _kit as kit
 import lib
 
 NAME = "hair_afro"
-CENTRE = (0.0, 0.035, 0.085)
-RADII = (0.37, 0.36, 0.335)
+CENTRE = (0.0, 0.07, 0.09)
+RADII = (0.37, 0.35, 0.33)
 META = dict(
     name="Afro", category="character-hair", priority="P0",
     description="Big round puffy afro, lumpy with curl clusters",
     tags=["hair", "afro", "volume"], tintable=["Hair"],
     anchors_bl={"headTop": (0, 0, CENTRE[2] + RADII[2] + 0.02)},
 )
-COLOR = "#2B1B10"
+COLOR = "#5A3825"
 
 
 def edge(phi):
@@ -29,11 +29,11 @@ def edge(phi):
 
 def lumps():
     rnd = np.random.default_rng(11)
-    dirs = kit.fib_dirs(90, seed=5)
+    dirs = kit.fib_dirs(56, seed=5)
     c = np.array(CENTRE)
     r = np.array(RADII)
-    centres = [tuple(c + d * r * rnd.uniform(0.86, 0.92)) for d in dirs]
-    radii = [rnd.uniform(0.075, 0.095) for _ in dirs]
+    centres = [tuple(c + d * r * rnd.uniform(0.8, 0.86)) for d in dirs]
+    radii = [rnd.uniform(0.095, 0.118) for _ in dirs]
     return centres, radii
 
 

@@ -20,7 +20,6 @@ PANEL_W = OPEN_W / 2 + 0.03
 PANEL_H = OPEN_H - 0.02
 OPEN_TRAVEL = PANEL_W - 0.06
 RAIL = 0.07
-NODES = {"DoorL": (-PANEL_W / 2, 0.0, 0.0), "DoorR": (PANEL_W / 2, 0.0, 0.0)}
 
 
 def materials():
@@ -28,7 +27,7 @@ def materials():
         frame=lib.mat("Frame", _env.P["doorFrame"], rough=0.5),
         sill=lib.mat("Threshold", "#566275", rough=0.6),
         metal=lib.mat("Metal", _env.P["metal"], rough=0.4, metal=0.4),
-        glass=_env.glass(),
+        glass=lib.mat("Glass", _env.P["glass"], rough=0.05, alpha=0.35),
         dots=lib.mat("Decal", "#EAF4FA", rough=0.6),
         stripe=lib.mat("Stripe", _env.P["wallAccent"], rough=0.6),
         bezel=lib.mat("SensorBezel", "#2B3442", rough=0.45),
@@ -90,6 +89,10 @@ def panel(M, node, sx):
         for z in (0.8, 1.3):
             lib.cyl(f"{node}_Standoff{'ab'[s > 0]}{z}", 0.015, 0.05, (hx, s * 0.045, z), M["metal"],
                     r=0, verts=8, rot=(1.5708, 0, 0))
+    # The whole panel becomes one child node, pivoting at its bottom centre.
+    for o in lib.coll().objects:
+        if o.name.startswith(node + "_"):
+            lib.node(o, node, pivot=(cx, 0.0, 0.0))
 
 
 def build():
@@ -100,5 +103,27 @@ def build():
     panel(M, "DoorR", 1)
 
 
+META = dict(
+    name="Sliding glass doors",
+    category="building",
+    priority="P0",
+    description=("Chunky slate door frame with a mint stripe and a glowing motion sensor; two "
+                 "glass panels slide apart"),
+    tags=["entrance", "door", "glass", "animated"],
+    tintable=[],
+    anchors={"outside": [0, 0, 0.8], "inside": [0, 0, -0.8], "sensor": [0, 2.32, 0.27]},
+    nodes={
+        "DoorL": ("glass panel; pivot at its bottom centre, x = -0.765 when closed; open by moving "
+                  "-X by 1.47"),
+        "DoorR": ("glass panel; pivot at its bottom centre, x = +0.765 when closed; open by moving "
+                  "+X by 1.47"),
+    },
+    mount=("wall opening: origin at the floor centre of a 3.0 x 2.25 m opening, centred in the 0.3 "
+           "m wall; +Z (front) faces outside. Panels slide into the wall."),
+    notes=("Glass material is 'Glass' (alpha 0.35, shared by both panels); swap it for the game's "
+           "glare glass by name."),
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE, nodes=NODES, node_res=256)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

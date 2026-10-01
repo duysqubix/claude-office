@@ -56,5 +56,18 @@ def build():
     leaves(M)
 
 
+META = dict(
+    name="Snake plant",
+    category="plant",
+    priority="P1",
+    description=("Thick upright sword leaves in three greens in a tall cream ceramic pot with a "
+                 "chunky coloured band"),
+    tags=["plant", "indoor", "decor", "pot"],
+    tintable=["Accent"],
+    anchors={},
+    notes="The pot band is 'Accent' (default coral #FF7A6B).",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

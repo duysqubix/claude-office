@@ -116,5 +116,18 @@ def build():
     basket(M)
 
 
+META = dict(
+    name="Bicycle",
+    category="outdoor",
+    priority="P1",
+    description=("Chunky step-through city bike with mudguards, fat tyres, a cushy saddle and a "
+                 "wicker basket"),
+    tags=["bike", "vehicle", "street"],
+    tintable=["Accent"],
+    anchors={"saddle": [0, 0.9, -0.2], "basket": [0, 0.9, 0.66]},
+    notes="Frame is 'Accent' (default teal #2EC4B6). Rides toward +Z; stands on its kickstand.",
+)
+
+
 def finalize(name):
-    return _env.finalize(name, AO_RES, AO_DISTANCE)
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META)

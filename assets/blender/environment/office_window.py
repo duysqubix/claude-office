@@ -22,7 +22,7 @@ def materials():
     return dict(
         trim=lib.mat("Trim", "#F8F3EA", rough=0.55),
         sill=lib.mat("Sill", "#F1E9DC", rough=0.6),
-        glass=_env.glass(),
+        glass=lib.mat("Glass", _env.P["glass"], rough=0.05, alpha=0.35),
     )
 
 
@@ -52,6 +52,22 @@ def build():
     pane(M)
 
 
+META = dict(
+    name="Office window",
+    category="building",
+    priority="P0",
+    description=("Big round-cornered white frame with a chunky cross mullion, deep sill ledge and "
+                 "one glass pane"),
+    tags=["window", "wall", "glass"],
+    tintable=[],
+    anchors={"glassCenter": [0, 0.585, 0]},
+    mount=("wall opening: origin at the bottom centre of a 2.2 x 1.17 m opening (the 0.95 m sill "
+           "line), centred in the 0.3 m wall. Place at wallPoint(side, mid, 0.95); scale X for "
+           "other widths."),
+    notes="Glass material is 'Glass' (alpha 0.35); swap it for the game's glare glass by name.",
+)
+
+
 def finalize(name):
-    # In the game it hangs at sill height: no ground contact to bake, lift it for the preview.
-    return _env.finalize(name, AO_RES, AO_DISTANCE, bake_lift=50, preview_lift=0.25)
+    # It sits in a wall opening: nothing to bake contact shadow against.
+    return _env.finalize(name, AO_RES, AO_DISTANCE, meta=META, ground=None)

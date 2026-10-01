@@ -1,0 +1,23 @@
+{
+  "id": "char_mouth_grin",
+  "name": "Mouth: grin",
+  "category": "character-face",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Big open D-shaped grin with teeth and tongue (delighted)",
+  "tags": [
+    "face",
+    "mouth",
+    "expression",
+    "happy"
+  ],
+  "tintable": [],
+  "anchors": {
+    "mouth": [
+      0.0,
+      -0.092,
+      0.2538
+    ]
+  }
+}

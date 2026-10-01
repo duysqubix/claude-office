@@ -24,7 +24,7 @@ def keypad(M, rows, x0, y0, pitch, size, height=0.006, r=0.003, label=0.0105, si
                      r=r, seg=1)
             if text:
                 D.text(f"KeyLabel_{j}_{col}", text, label, M[tm],
-                       loc=(x, y, height - sink + 0.0002), rot=(0, 0, 0), depth=0, res=2)
+                       loc=(x, y, height - sink + 0.0002), rot=(0, 0, 0), depth=0, res=1)
             col += span
 
 
