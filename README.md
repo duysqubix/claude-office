@@ -31,11 +31,33 @@ stubby limbs, springy physics-y movement, bright colours, soft shadows.
 ## Quickstart
 
 ```bash
+git clone https://github.com/duysqubix/claude-office && cd claude-office
 npm install
-npm run dev        # http://127.0.0.1:4777
+npm start          # builds, serves http://127.0.0.1:4777 and opens your browser
 ```
 
-Requirements: macOS or Linux, Node 20+, `tmux`, and Claude Code (`claude`) on your PATH.
+That's it: every Claude Code session already running on your machine walks into the office.
+It only **reads** Claude Code's own files; nothing in your Claude setup changes.
+
+Requirements: macOS or Linux, Node 20+, Claude Code (`claude`) on your PATH, and `tmux` if
+you want to hire, resume or let go of sessions from inside the game.
+
+### Optional extras
+
+| Want | Do | Undo |
+| --- | --- | --- |
+| Answer permission prompts, questions and plan approvals **in the game** (Allow / Deny / pick an option) | `npm run hooks:install` | `npm run hooks:uninstall` |
+| Develop the client with hot reload | `npm run dev` | |
+
+With the hooks installed, the office only steps in while you're actually looking at it
+(visible tab, recent input) and gives the question back to the normal terminal prompt
+after 90 s or when the office is closed. Each change to `~/.claude/settings.json` is backed up.
+
+### What you don't need
+
+The 3D models ship as `.glb` files in `client/public/models`. Blender and the AI "artists"
+(Claude Monet & co.) were only used to *make* them; see [docs/ASSETS.md](docs/ASSETS.md) if
+you want to remake or add models.
 
 ## Controls
 
@@ -74,7 +96,7 @@ Requirements: macOS or Linux, Node 20+, `tmux`, and Claude Code (`claude`) on yo
   you can see what they're doing and what they said, but you talk to them in
   their own terminal.
 
-Nothing is installed into your Claude Code config. No hooks, no settings changes.
+Nothing is installed into your Claude Code config unless you opt into the in-game answering hooks above.
 
 ## Safety
 
