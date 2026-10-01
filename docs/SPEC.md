@@ -159,8 +159,10 @@ Everything should look like it's made of soft plastic or jelly. Use `PALETTE`.
 ### 6.2 The office (≈ 28 × 20 m, entrance on the south wall, +Z)
 
 - Floor: honey wood (`floorWood`), carpet zones (`carpet`) under desk pods.
-- Walls: 2.6 m, `wall` colour, `wallAccent` band, rounded top cap. Big windows on east
-  and west walls showing the lawn. No ceiling (camera looks down into the room).
+- **Enclosed building** (user request): loft-style interior ≈ 4.2–4.8 m high with a ceiling
+  (soft panels or rounded beams, pendant lamps, skylight strips) and a real roof outside.
+  Walls in `wall` colour with a `wallAccent` band; big windows on east and west walls
+  showing the lawn. Roof and ceiling don't cast shadows, so sunlight still comes in.
 - **Entrance** (south wall centre): wide glass sliding doors that animate open. Outside:
   path, doormat, lawn, a couple of round trees, a bench. New hires spawn ~4 m outside.
 - **Reception** just inside the door (right side): curved desk, a bell, a bright
@@ -255,8 +257,12 @@ State machine per employee: `entering → sitting-down → seated → standing-u
 
 - WASD/arrows relative to camera yaw, Shift run (≈ 2.2 → 4.5 m/s), Space jump.
 - Circle-vs-AABB collision against `world.colliders`.
-- Camera: smooth follow, orbit with mouse drag (yaw free, pitch 20°–70°), wheel zoom
-  4–18 m, default pitch ≈ 45°, distance ≈ 10. `world.updateOcclusion` every frame.
+- Camera, **third person**: smooth follow, orbit with mouse drag, wheel zoom. It never
+  leaves the manager's side of a wall: raycast against `world.cameraBlockers`, pull in
+  on hits, stay under `world.interior.ceilingY` indoors. `world.updateOcclusion` fades only
+  tall interior props and partitions.
+- Camera, **first person** (`V`, or scroll all the way in): eye height ≈ 1.2 m, pointer-lock
+  mouse-look, manager's body hidden with the coffee mug in view, crosshair targeting.
 - Door: keep open while anyone is within 2.5 m.
 
 ### 6.8 UI (HTML overlay, Wobbly Life energy)

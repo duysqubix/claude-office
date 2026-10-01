@@ -85,6 +85,15 @@ export interface World {
   interactables: Interactable[];
   /** Static colliders (walls, furniture). The door opening is not blocked. */
   colliders: AABB[];
+  /**
+   * The building is enclosed (walls + ceiling + roof). Meshes the camera must never pass
+   * through: exterior and interior walls, ceiling, roof. The camera raycasts against these.
+   */
+  cameraBlockers: THREE.Object3D[];
+  /** Interior volume of the building (floor at y = 0). */
+  interior: { minX: number; maxX: number; minZ: number; maxZ: number; ceilingY: number };
+  /** True if a point is inside the building (used to keep the camera on the manager's side of the walls). */
+  isInside(p: THREE.Vector3): boolean;
   /** A* over the walkable floor. Returns smoothed floor points (y = 0) from `from` to `to`, or null if unreachable. */
   findPath(from: THREE.Vector3, to: THREE.Vector3): THREE.Vector3[] | null;
   /** Per-frame animation (door, screens, clock, plants swaying…). */

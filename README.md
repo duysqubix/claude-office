@@ -44,6 +44,7 @@ Requirements: macOS or Linux, Node 20+, `tmux`, and Claude Code (`claude`) on yo
 | `WASD` / arrows | Walk (relative to the camera) |
 | `Shift` | Run |
 | `Space` | Jump |
+| `V` | First / third person |
 | Mouse drag / wheel | Orbit / zoom the camera |
 | `E` | Interact (employee, reception, filing cabinet, whiteboard, coffee) |
 | `Tab` | Roster |
