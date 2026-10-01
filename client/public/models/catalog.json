@@ -1,13 +1,13 @@
 {
-  "generated": "2026-10-01T23:41:57.352Z",
+  "generated": "2026-10-01T23:42:42.477Z",
   "totals": {
-    "all": 231,
-    "done": 175,
+    "all": 232,
+    "done": 176,
     "planned": 56
   },
   "byArtist": {
     "Claude Cézanne": 53,
-    "Claude Lorrain": 36,
+    "Claude Lorrain": 37,
     "Claude Monet": 85,
     "Claude Rodin": 57
   },
@@ -2523,6 +2523,60 @@
       "bytes": 78652
     },
     {
+      "id": "clerestory_window",
+      "name": "Clerestory window",
+      "category": "building",
+      "artist": "Claude Lorrain",
+      "group": null,
+      "priority": "P0",
+      "description": "High strip window: the office window's soft round-cornered frame with a single chunky mullion, sill ledge and one glass pane",
+      "tags": [
+        "window",
+        "wall",
+        "glass",
+        "clerestory"
+      ],
+      "tintable": [],
+      "anchors": {
+        "glassCenter": [
+          0,
+          0.35,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/clerestory_window.glb",
+      "thumb": "models/thumbs/clerestory_window.jpg",
+      "dims": {
+        "w": 2.56,
+        "h": 0.92,
+        "d": 0.56
+      },
+      "bbox": {
+        "min": [
+          -1.28,
+          -0.11,
+          -0.28
+        ],
+        "max": [
+          1.28,
+          0.81,
+          0.28
+        ]
+      },
+      "tris": 1684,
+      "materials": [
+        "Trim",
+        "Sill",
+        "Glass"
+      ],
+      "nodes": [
+        "clerestory_window"
+      ],
+      "textures": 1,
+      "bytes": 79596
+    },
+    {
       "id": "cloud_a",
       "name": "Cloud (long)",
       "category": "outdoor",
@@ -2843,7 +2897,7 @@
       "anchors": {
         "glassCenter": [
           0,
-          0.585,
+          0.75,
           0
         ]
       },
@@ -2852,7 +2906,7 @@
       "thumb": "models/thumbs/office_window.jpg",
       "dims": {
         "w": 2.56,
-        "h": 1.39,
+        "h": 1.72,
         "d": 0.56
       },
       "bbox": {
@@ -2863,7 +2917,7 @@
         ],
         "max": [
           1.28,
-          1.28,
+          1.61,
           0.28
         ]
       },
@@ -2877,7 +2931,7 @@
         "office_window"
       ],
       "textures": 1,
-      "bytes": 87132
+      "bytes": 84752
     },
     {
       "id": "park_bench",

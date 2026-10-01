@@ -70,18 +70,30 @@ def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True):
     chest = [lathe_part("ShirtUp", up, M["shirt"])]
     if emblem and "accent" in M:
         # A little round print on the left chest, like Wobbly Life's tops.
-        y = 0.2
-        x = 0.085 * girth
-        r = kit.torso_radius_at(y, girth)
-        zf = -Z * math.sqrt(max(0.0, r * r - x * x))
-        n = Vector((x / (r * r), -zf / (Z * Z * r * r) * -1, 0)).normalized()
-        e = lib.cyl("Emblem", 0.026, 0.006, (x, zf - 0.001, y), M["accent"], r=0.002, seg=1,
-                    verts=18, rot=(math.pi / 2, 0, math.atan2(x, -zf) * -0.9))
-        chest.append(e)
+        p, n = torso_surface(0.085 * girth, 0.2, girth)
+        chest.append(lib.cyl("Emblem", 0.026, 0.006, tuple(p + n * 0.001), M["accent"],
+                             r=0.002, seg=1, verts=18, rot=align_z(n)))
     if chest_node:
         for ob in chest:
             lib.node(ob, "Chest", pivot=(0, 0, CHEST_Y))
     return lower, chest
+
+
+def torso_surface(x, y, girth=1.0, back=False):
+    """(point, outward normal) on the shirt bean at offset x, height y (pelvis space),
+    on the front (or the back)."""
+    r = kit.torso_radius_at(y, girth)
+    e = 0.004
+    dr = (kit.torso_radius_at(y + e, girth) - kit.torso_radius_at(y - e, girth)) / (2 * e)
+    yy = Z * math.sqrt(max(0.0, r * r - x * x)) * (1 if back else -1)
+    p = Vector((x, yy, y))
+    n = Vector((x / max(r, 1e-6), yy / (Z * Z * max(r, 1e-6)), -dr)).normalized()
+    return p, n
+
+
+def align_z(n):
+    """Euler turning local +Z onto n (discs, cylinders standing on a surface)."""
+    return Vector((0, 0, 1)).rotation_difference(Vector(n)).to_euler()
 
 
 def neck_ring(girth=1.0, n=28, out=0.004):
@@ -127,9 +139,9 @@ def upper_arm(M, sleeve=0.62):
     cut = ln * sleeve
     parts = [kit.tube("Sleeve", [Vector((0, 0, 0)), Vector((0, 0, -cut))], [r + 0.006, r + 0.008],
                       M["shirt"], ring=16, cap_rings=5)]
-    parts.append(kit.ring_tube("Hem", [Vector((r + 0.006) * math.cos(a), (r + 0.006) * math.sin(a),
-                                              -cut) for a in np.linspace(0, 2 * math.pi, 16,
-                                                                        endpoint=False)],
+    parts.append(kit.ring_tube("Hem", [Vector(((r + 0.006) * math.cos(a),
+                                               (r + 0.006) * math.sin(a), -cut))
+                                       for a in np.linspace(0, 2 * math.pi, 16, endpoint=False)],
                                0.0065, M["shirt"], ring=8))
     parts.append(capsule("Arm", ln, r, M["skin"], verts=16))
     return parts

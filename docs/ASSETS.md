@@ -191,6 +191,7 @@ Categories: `furniture`, `appliance`, `decor`, `desk-item`, `food`, `building`, 
 | --- | --- | --- |
 | sliding_door | P0 | frame + glass panel nodes `DoorL`, `DoorR` |
 | office_window | P0 | big rounded frame + glass |
+| clerestory_window | P0 | high strip window for the loft walls, single mullion (sizes from dimensions.json) |
 | doormat | P0 | "WELCOME" |
 | company_sign | P0 | lawn monument sign "CLAUDE OFFICE" |
 | tree_round | P0 | puffy canopy |

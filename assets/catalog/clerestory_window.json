@@ -1,0 +1,25 @@
+{
+  "id": "clerestory_window",
+  "name": "Clerestory window",
+  "category": "building",
+  "artist": "Claude Lorrain",
+  "priority": "P0",
+  "status": "done",
+  "description": "High strip window: the office window's soft round-cornered frame with a single chunky mullion, sill ledge and one glass pane",
+  "tags": [
+    "window",
+    "wall",
+    "glass",
+    "clerestory"
+  ],
+  "tintable": [],
+  "anchors": {
+    "glassCenter": [
+      0,
+      0.35,
+      0
+    ]
+  },
+  "mount": "wall opening: origin at the bottom centre of the 2.2 x 0.7 m clerestory opening (sill 3.15, head 3.85), centred in the 0.3 m wall. Place at wallPoint(side, mid, 3.15); scale X for other widths (north bays are about 2.9-3.0 m).",
+  "notes": "Glass material is 'Glass' (alpha 0.35); swap it for the game's glare glass by name."
+}
