@@ -44,6 +44,8 @@ export interface DeskSlot {
   internSpots: THREE.Vector3[];
   /** The chair group. Gameplay slides it along its local +Z (away from the desk) by up to 0.45 m when someone sits or stands. */
   chair: THREE.Object3D;
+  /** The monitor's screen mesh (UI grows the terminal bezel out of it; camera frames it for the sit-down). */
+  screen: THREE.Object3D;
   /** Monitor content. `lines` = real terminal text (hosted sessions) to draw small on the screen. */
   setScreen(state: ScreenState, lines?: string[]): void;
   /** Desk nameplate. Pass '' to show the desk as vacant. */
