@@ -89,7 +89,14 @@ export interface HelloMessage {
   home: string;
 }
 
-export type ServerMessage = RosterMessage | HelloMessage;
+/** Something worth a toast that the roster alone doesn't show (e.g. a new hire that crashed on startup). */
+export interface NoticeMessage {
+  type: 'notice';
+  level: 'info' | 'warn';
+  text: string;
+}
+
+export type ServerMessage = RosterMessage | HelloMessage | NoticeMessage;
 
 /** A directory Claude Code has been used in (from ~/.claude/projects). */
 export interface ProjectInfo {
