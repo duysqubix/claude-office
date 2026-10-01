@@ -1,6 +1,7 @@
-// Fades walls and tall props that stand between the camera and the manager, so you can always
-// see yourself. Only the visible material fades: the object keeps casting its shadow, which
-// stops shadows popping in and out as the camera swings around.
+// Fades tall props (plants, shelves, lamps, partitions, trees) that stand between the camera
+// and the manager, so you can always see yourself. The camera never leaves the manager's side
+// of a wall, so walls don't fade. Only the visible material fades: the object keeps casting
+// its shadow, which stops shadows popping in and out as the camera swings around.
 import * as THREE from 'three';
 
 interface FadeMat {
@@ -41,7 +42,13 @@ export class Fader {
     return item;
   }
 
-  /** Add more objects (e.g. a poster hung on a wall bay) to an existing fade item. */
+  /** Stop fading an item (e.g. its procedural objects were replaced by a model). */
+  remove(item: FadeItem): void {
+    const i = this.items.indexOf(item);
+    if (i >= 0) this.items.splice(i, 1);
+  }
+
+  /** Add more objects to an existing fade item (their materials are cloned too). */
   attach(item: FadeItem, objects: THREE.Object3D[]): void {
     for (const obj of objects) {
       obj.updateWorldMatrix(true, true);

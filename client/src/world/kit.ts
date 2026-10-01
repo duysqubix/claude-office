@@ -7,15 +7,19 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 
 export type Vec3 = [number, number, number];
 
-/** Surface finish of merged parts (per-vertex roughness). All are metalness 0. */
-export type Finish = 'matte' | 'soft' | 'gloss';
+/**
+ * Surface finish of merged parts, as per-vertex roughness (metalness is always 0):
+ * paint/carpet 0.92, cloth 0.87, soft 0.75, wood 0.6, plastic 0.45, gloss 0.35.
+ */
+export type Finish = 'matte' | 'cloth' | 'soft' | 'wood' | 'plastic' | 'gloss';
 
-const ROUGHNESS: Record<Finish, number> = { matte: 0.9, soft: 0.75, gloss: 0.6 };
+const ROUGHNESS: Record<Finish, number> = { matte: 0.92, cloth: 0.87, soft: 0.75, wood: 0.6, plastic: 0.45, gloss: 0.35 };
 
 /**
- * Vertex-coloured soft plastic. Roughness comes from a per-vertex `rough` attribute, so one
- * material (and one draw call per merged batch) covers every finish. A subclass rather than an
- * onBeforeCompile property so that clone() — used when an object fades on its own — keeps it.
+ * Vertex-coloured soft plastic for every merged prop. Per vertex: `rough` (roughness) and
+ * `glow` (emissive multiple of the colour, > 1 blooms). On top, vertical surfaces darken a
+ * little toward the floor (6–7 % over the bottom 0.8 m), which grounds walls and furniture.
+ * A subclass rather than an onBeforeCompile property so clone() (used for fading) keeps it.
  */
 export class PlasticMaterial extends THREE.MeshStandardMaterial {
   constructor() {
@@ -25,15 +29,26 @@ export class PlasticMaterial extends THREE.MeshStandardMaterial {
 
   override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms): void {
     shader.vertexShader =
-      'attribute float rough;\nvarying float vRough;\n' +
-      shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvRough = rough;');
+      'attribute float rough;\nattribute float glow;\nvarying float vRough;\nvarying float vGlow;\nvarying float vGround;\n' +
+      shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+	vRough = rough;
+	vGlow = glow;
+	vec4 groundWp = modelMatrix * vec4(transformed, 1.0);
+	float groundUp = abs(normalize(mat3(modelMatrix) * objectNormal).y);
+	vGround = 1.0 - (1.0 - smoothstep(0.35, 0.75, groundUp)) * 0.07 * (1.0 - smoothstep(0.0, 0.8, groundWp.y));`,
+      );
     shader.fragmentShader =
-      'varying float vRough;\n' +
-      shader.fragmentShader.replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor *= vRough;');
+      'varying float vRough;\nvarying float vGlow;\nvarying float vGround;\n' +
+      shader.fragmentShader
+        .replace('#include <color_fragment>', '#include <color_fragment>\n\tdiffuseColor.rgb *= vGround;')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor *= vRough;')
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * vGlow;');
   }
 
   override customProgramCacheKey(): string {
-    return 'office-plastic';
+    return 'office-plastic-2';
   }
 }
 
@@ -54,6 +69,10 @@ export interface PartOpts {
   cast?: boolean;
   /** Extra transform applied after at/rot/scale (build parts in a local frame). */
   parent?: THREE.Matrix4;
+  /** Emissive strength as a multiple of the colour (lamp bulbs ≈ 2–3, so they bloom). */
+  glow?: number;
+  /** Flat-shaded facets (nature: trees, bushes, rocks). */
+  flat?: boolean;
 }
 
 const _m = new THREE.Matrix4();
@@ -159,21 +178,26 @@ export const G = {
 
 const KEEP = new Set(['position', 'normal', 'uv']);
 
-function prepare(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color: THREE.Color, rough: number): THREE.BufferGeometry {
-  const g = new THREE.BufferGeometry();
+function prepare(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color: THREE.Color, rough: number, glow: number, flat: boolean): THREE.BufferGeometry {
+  let g = new THREE.BufferGeometry();
   for (const name of KEEP) {
     const a = src.getAttribute(name);
     if (a) g.setAttribute(name, (a as THREE.BufferAttribute).clone());
   }
+  if (src.index) g.setIndex(src.index.clone());
+  if (flat) {
+    // Facets: split every triangle so each gets its own (face) normal.
+    g = g.index ? g.toNonIndexed() : g;
+    g.deleteAttribute('normal');
+  }
   const n = g.getAttribute('position').count;
   if (!g.getAttribute('uv')) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
-  if (!g.getAttribute('normal')) g.computeVertexNormals();
-  if (src.index) g.setIndex(src.index.clone());
-  else {
+  if (!g.index) {
     const idx = new Uint32Array(n);
     for (let i = 0; i < n; i++) idx[i] = i;
     g.setIndex(new THREE.BufferAttribute(idx, 1));
   }
+  if (!g.getAttribute('normal')) g.computeVertexNormals();
   g.applyMatrix4(matrix);
   // A mirroring transform turns triangles inside out: restore the winding.
   if (matrix.determinant() < 0) {
@@ -192,6 +216,7 @@ function prepare(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color: THREE.
   }
   g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
   g.setAttribute('rough', new THREE.BufferAttribute(new Float32Array(n).fill(rough), 1));
+  g.setAttribute('glow', new THREE.BufferAttribute(new Float32Array(n).fill(glow), 1));
   return g;
 }
 
@@ -203,11 +228,31 @@ const _c = new THREE.Color();
  */
 export class Batch {
   private buckets = new Map<boolean, THREE.BufferGeometry[]>();
+  private frames: THREE.Matrix4[] = [];
+
+  /**
+   * Build a prop in its own local frame (pivot at the floor-contact point, front facing +Z)
+   * and place it at (x, y, z) turned by `yaw`. Frames nest.
+   */
+  place(x: number, y: number, z: number, yaw: number, build: () => void): this {
+    const m = new THREE.Matrix4().makeRotationY(yaw).setPosition(x, y, z);
+    const outer = this.frames[this.frames.length - 1];
+    if (outer) m.premultiply(outer);
+    this.frames.push(m);
+    try {
+      build();
+    } finally {
+      this.frames.pop();
+    }
+    return this;
+  }
 
   add(geo: THREE.BufferGeometry, color: THREE.ColorRepresentation, o: PartOpts = {}): this {
     const m = partMatrix(o, _m);
     if (o.parent) m.premultiply(o.parent);
-    const g = prepare(geo, m, _c.set(color), ROUGHNESS[o.finish ?? 'soft']);
+    const frame = this.frames[this.frames.length - 1];
+    if (frame) m.premultiply(frame);
+    const g = prepare(geo, m, _c.set(color), ROUGHNESS[o.finish ?? 'soft'], o.glow ?? 0, o.flat ?? false);
     const cast = o.cast !== false;
     let list = this.buckets.get(cast);
     if (!list) this.buckets.set(cast, (list = []));
@@ -285,8 +330,8 @@ export function font(weight: number, px: number, family = FONT_FAMILY): string {
   return `${weight} ${px}px ${family}`;
 }
 
-// Every text canvas repaints whenever a web font finishes loading, so nothing stays stuck in
-// the fallback font if Fredoka arrives late.
+// Every text canvas repaints when Fredoka finishes loading, so nothing stays stuck in the
+// fallback font if it arrives late. Other fonts (the terminal's) don't trigger a repaint.
 const textCanvases = new Set<CanvasTex>();
 function repaintText(): void {
   for (const t of textCanvases) t.redraw();
@@ -295,7 +340,9 @@ if (typeof document !== 'undefined' && document.fonts) {
   Promise.all([500, 600, 700].map((w) => document.fonts.load(font(w, 32), 'Aa')))
     .catch(() => undefined)
     .then(repaintText);
-  document.fonts.addEventListener('loadingdone', repaintText);
+  document.fonts.addEventListener('loadingdone', (e) => {
+    if ((e as FontFaceSetLoadEvent).fontfaces.some((f) => f.family.replace(/["']/g, '') === 'Fredoka')) repaintText();
+  });
 }
 
 export type Draw2D = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
@@ -321,6 +368,11 @@ export class CanvasTex {
     this.tex.anisotropy = anisotropy;
     this.redraw();
     textCanvases.add(this);
+  }
+
+  dispose(): void {
+    textCanvases.delete(this);
+    this.tex.dispose();
   }
 
   redraw(draw?: Draw2D): void {

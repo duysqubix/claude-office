@@ -154,6 +154,37 @@ export function findMaterial(root: THREE.Object3D, name: string): THREE.MeshStan
   return found;
 }
 
+/**
+ * Put a texture (usually a live CanvasTexture) on a model's swappable surface: every mesh
+ * using the material named `materialName` ('Screen', 'Board', 'Label') gets `material`.
+ * Blender/glTF UVs run top-to-bottom (V = 0 at the top), so the texture must not be
+ * flipped like a texture on three's own geometry would be; this sets flipY = false.
+ * A small polygon offset keeps the painted surface from z-fighting with its frame.
+ * Returns how many meshes were painted.
+ */
+export function paint(root: THREE.Object3D, materialName: string, material: THREE.MeshStandardMaterial): number {
+  if (material.map) {
+    material.map.flipY = false;
+    material.map.needsUpdate = true;
+  }
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = -1;
+  material.polygonOffsetUnits = -1;
+  let painted = 0;
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (Array.isArray(mesh.material)) {
+      if (!mesh.material.some((m) => m.name === materialName)) return;
+      mesh.material = mesh.material.map((m) => (m.name === materialName ? material : m));
+    } else if (mesh.material.name === materialName) {
+      mesh.material = material;
+    } else return;
+    painted++;
+  });
+  return painted;
+}
+
 /** Named animated node from the GLB (e.g. 'DoorL', 'HourHand', 'Drawer1'). */
 export function findNode(root: THREE.Object3D, name: string): THREE.Object3D | null {
   return root.getObjectByName(name) ?? null;

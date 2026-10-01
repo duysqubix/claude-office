@@ -1,0 +1,263 @@
+{
+  "_doc": "Key sizes in metres, shared by the procedural world builders (client/src/world) and the Blender pipeline (assets/blender). Every prop is built with its pivot at the floor-contact point, centred, front facing three.js +Z (Blender -Y). Heights are above the floor unless noted.",
+  "building": {
+    "halfW": 14,
+    "halfD": 10,
+    "wallH": 4.4,
+    "wallT": 0.3,
+    "roofT": 0.38,
+    "parapetH": 0.34,
+    "parapetT": 0.42,
+    "beamW": 0.3,
+    "beamDrop": 0.32,
+    "beamSpacing": 4,
+    "skirtingH": 0.12,
+    "bandY0": 0.92,
+    "bandY1": 1.06,
+    "cameraCeilingY": 4.0
+  },
+  "door": {
+    "w": 3.0,
+    "h": 2.25,
+    "frameW": 0.16,
+    "panelT": 0.07,
+    "travel": 1.47
+  },
+  "window": {
+    "w": 2.2,
+    "sill": 0.95,
+    "head": 2.45
+  },
+  "clerestory": {
+    "sill": 3.15,
+    "head": 3.85
+  },
+  "skylight": {
+    "w": 2.4,
+    "d": 7.0
+  },
+  "pendantLamp": {
+    "bottomY": 3.05,
+    "shadeR": 0.3,
+    "shadeH": 0.2
+  },
+  "floorLamp": {
+    "h": 1.62,
+    "shadeR": 0.24
+  },
+  "desk": {
+    "w": 1.44,
+    "d": 0.7,
+    "h": 0.7,
+    "topT": 0.08,
+    "pitch": 1.5,
+    "legT": 0.07
+  },
+  "divider": {
+    "h": 0.36,
+    "t": 0.06
+  },
+  "pod": {
+    "carpetW": 4.2,
+    "carpetD": 4.8
+  },
+  "chair": {
+    "seatH": 0.45,
+    "seatW": 0.54,
+    "seatD": 0.52,
+    "seatT": 0.11,
+    "backW": 0.5,
+    "backH": 0.46,
+    "backY": 0.83,
+    "baseR": 0.3,
+    "deskGap": 0.48,
+    "slide": 0.45
+  },
+  "monitor": {
+    "w": 0.7,
+    "h": 0.48,
+    "d": 0.08,
+    "screenW": 0.6,
+    "screenH": 0.38,
+    "centerY": 1.0,
+    "setBack": 0.13,
+    "standH": 0.2
+  },
+  "keyboard": {
+    "w": 0.42,
+    "d": 0.14,
+    "h": 0.024
+  },
+  "mouse": {
+    "w": 0.068,
+    "d": 0.1,
+    "h": 0.044
+  },
+  "mug": {
+    "r": 0.042,
+    "h": 0.1
+  },
+  "nameplate": {
+    "w": 0.41,
+    "h": 0.155
+  },
+  "reception": {
+    "innerR": 1.0,
+    "outerR": 1.5,
+    "h": 1.0,
+    "arcFromDeg": 165,
+    "arcToDeg": 285
+  },
+  "hiringSign": {
+    "w": 1.62,
+    "h": 0.87,
+    "centerY": 1.85
+  },
+  "managerDesk": {
+    "w": 2.2,
+    "d": 1.0,
+    "h": 0.74
+  },
+  "bossChair": {
+    "seatH": 0.53,
+    "backH": 0.85
+  },
+  "fileCabinet": {
+    "w": 0.78,
+    "h": 1.32,
+    "d": 0.62,
+    "drawers": 4
+  },
+  "bookshelf": {
+    "w": 2.2,
+    "h": 1.9,
+    "d": 0.4,
+    "shelves": 4
+  },
+  "kitchen": {
+    "w": 3.2,
+    "d": 0.62,
+    "h": 0.92
+  },
+  "coffeeMachine": {
+    "w": 0.44,
+    "h": 0.7,
+    "d": 0.4
+  },
+  "fridge": {
+    "w": 0.74,
+    "h": 1.86,
+    "d": 0.7
+  },
+  "waterCooler": {
+    "w": 0.4,
+    "h": 1.6,
+    "d": 0.4
+  },
+  "couch": {
+    "w": 2.3,
+    "d": 0.9,
+    "seatH": 0.53,
+    "backH": 0.9
+  },
+  "coffeeTable": {
+    "r": 0.5,
+    "h": 0.43
+  },
+  "vending": {
+    "w": 0.95,
+    "h": 1.9,
+    "d": 0.8
+  },
+  "whiteboard": {
+    "w": 3.3,
+    "h": 1.5,
+    "centerY": 1.58
+  },
+  "poster": {
+    "w": 0.86,
+    "h": 1.505,
+    "centerY": 1.75
+  },
+  "clock": {
+    "r": 0.34,
+    "centerY": 3.4
+  },
+  "wallScreen": {
+    "w": 3.2,
+    "h": 1.8,
+    "bezelW": 3.38,
+    "bezelH": 2.12,
+    "d": 0.151,
+    "centerY": 1.8
+  },
+  "conferenceTable": {
+    "w": 3.02,
+    "d": 1.32,
+    "h": 0.775
+  },
+  "conferenceChair": {
+    "w": 0.7,
+    "d": 0.68,
+    "h": 0.86,
+    "seatH": 0.52
+  },
+  "flipchart": {
+    "w": 0.78,
+    "h": 1.77,
+    "d": 0.71
+  },
+  "glassPartition": {
+    "w": 2.0,
+    "h": 2.3,
+    "t": 0.09
+  },
+  "stickyWall": {
+    "w": 1.92,
+    "h": 1.22,
+    "d": 0.066,
+    "centerY": 1.6
+  },
+  "internBench": {
+    "moduleW": 1.6,
+    "d": 0.671,
+    "h": 0.56,
+    "stationX": 0.4,
+    "stationZ": -0.02,
+    "stoolZ": 0.5
+  },
+  "internStation": {
+    "w": 0.344,
+    "h": 0.335,
+    "d": 0.48,
+    "screenW": 0.3,
+    "screenH": 0.19,
+    "screenY": 0.2,
+    "screenZ": 0.012
+  },
+  "internStool": {
+    "seatH": 0.41,
+    "r": 0.17
+  },
+  "internSign": {
+    "h": 1.43
+  },
+  "plantPot": {
+    "h": 0.45,
+    "r": 0.29
+  },
+  "tree": {
+    "trunkH": 1.75,
+    "canopyR": 1.2
+  },
+  "bench": {
+    "w": 1.7,
+    "seatH": 0.455
+  },
+  "canopy": {
+    "w": 4.4,
+    "depth": 1.5,
+    "y": 2.72,
+    "t": 0.18
+  }
+}

@@ -1,15 +1,30 @@
-// Desk monitor contents (SPEC §6.3), painted into a small canvas. Repaints only when the state
-// changes or an animated state's frame is due, staggered per screen.
+// Monitor contents (SPEC §6.3), painted into a small canvas. Repaints only when the state
+// changes or an animated state's frame is due (staggered per screen), and only while the
+// screen is near the camera, in view and facing it.
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
 import type { ScreenState } from './types';
 import { FONT_FAMILY, MONO_FAMILY, rng } from './kit';
 
+/** Design space: every screen paints in 256 × 160 units, scaled to its canvas. */
 const W = 256;
 const H = 160;
 const CODE_COLORS = ['#7FD8FF', '#FF9DCB', '#FFD166', '#8BE9A8', '#C3A6FF', '#FF9F7A', '#DDE6F3'];
 /** Seconds between repaints per animated state. */
-const FRAME: Record<ScreenState, number> = { off: Infinity, idle: 0.1, working: 0.22, alert: 0.12, sleeping: 0.25 };
+const FRAME: Record<ScreenState, number> = { off: Infinity, idle: 0.25, working: 0.22, alert: 0.12, sleeping: 0.3 };
+/** Screens farther than this from the camera don't repaint. */
+const PAINT_DISTANCE = 16;
+
+/** Camera information for the per-frame visibility test (built once per frame by the world). */
+export interface ScreenView {
+  camera: THREE.Vector3;
+  frustum: THREE.Frustum;
+}
+
+const _p = new THREE.Vector3();
+const _n = new THREE.Vector3();
+const _toCam = new THREE.Vector3();
+const _sphere = new THREE.Sphere();
 
 interface CodeLine {
   indent: number;
@@ -29,23 +44,47 @@ export class Screen {
   private typed = 0;
   private timer = 0;
   private dirty = true;
+  private mesh: THREE.Mesh | null = null;
+  /** Brightness multiplier: above 1 the screen glows into the bloom pass. */
+  private readonly hdr: number;
 
   constructor(
     seed: number,
     private readonly accent: string,
+    px: { w: number; h: number } = { w: W, h: H },
+    hdr = 1.35,
   ) {
     this.canvas = document.createElement('canvas');
-    this.canvas.width = W;
-    this.canvas.height = H;
+    this.canvas.width = px.w;
+    this.canvas.height = px.h;
     this.ctx = this.canvas.getContext('2d')!;
     this.tex = new THREE.CanvasTexture(this.canvas);
     this.tex.colorSpace = THREE.SRGBColorSpace;
     this.tex.anisotropy = 4;
-    this.material = new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false });
+    this.hdr = hdr;
+    this.material = new THREE.MeshBasicMaterial({ map: this.tex, color: new THREE.Color(hdr, hdr, hdr) });
     this.rand = rng(seed * 31 + 7);
     this.phase = this.rand() * 100;
     for (let i = 0; i < 9; i++) this.code.push(this.randomLine());
     this.paint(0);
+  }
+
+  /** The mesh showing this screen, for the visibility test. */
+  attach(mesh: THREE.Mesh): void {
+    this.mesh = mesh;
+    mesh.geometry.computeBoundingSphere();
+  }
+
+  private seen(view: ScreenView): boolean {
+    const mesh = this.mesh;
+    if (!mesh) return true;
+    mesh.getWorldPosition(_p);
+    if (_p.distanceToSquared(view.camera) > PAINT_DISTANCE * PAINT_DISTANCE) return false;
+    // Plane geometry faces its local +Z.
+    _n.set(0, 0, 1).transformDirection(mesh.matrixWorld);
+    if (_n.dot(_toCam.subVectors(view.camera, _p)) <= 0) return false;
+    _sphere.copy(mesh.geometry.boundingSphere!).applyMatrix4(mesh.matrixWorld);
+    return view.frustum.intersectsSphere(_sphere);
   }
 
   set(state: ScreenState, lines?: string[]): void {
@@ -56,16 +95,16 @@ export class Screen {
     this.dirty = true;
   }
 
-  update(dt: number, elapsed: number): void {
+  update(dt: number, elapsed: number, view?: ScreenView): void {
     if (this.state === 'alert') {
-      const p = 0.84 + 0.16 * Math.sin(elapsed * 7);
+      const p = this.hdr * (0.84 + 0.16 * Math.sin(elapsed * 7));
       this.material.color.setRGB(p, p, p);
-    } else if (this.material.color.r !== 1) {
-      this.material.color.setRGB(1, 1, 1);
+    } else if (this.material.color.r !== this.hdr) {
+      this.material.color.setRGB(this.hdr, this.hdr, this.hdr);
     }
     this.timer += dt;
     const frame = this.lines && this.state === 'working' ? 0.5 : FRAME[this.state];
-    if (this.dirty || this.timer >= frame) {
+    if ((this.dirty || this.timer >= frame) && (!view || this.seen(view))) {
       this.timer = this.dirty ? this.rand() * Math.min(frame, 0.3) : 0;
       this.dirty = false;
       this.paint(elapsed);
@@ -74,6 +113,7 @@ export class Screen {
 
   private paint(t: number): void {
     const ctx = this.ctx;
+    ctx.setTransform(this.canvas.width / W, 0, 0, this.canvas.height / H, 0, 0);
     ctx.save();
     switch (this.state) {
       case 'off':

@@ -1,21 +1,23 @@
 // Where everything goes. 1 unit = 1 m, +Y up, +Z = south (the entrance), +X = east.
+// Sizes come from dimensions.json (shared with the Blender pipeline); positions live here.
 //
 //   z=-10 ┌──────────────────────────────────────────────────────┐
-//         │ break area (NW)        whiteboard        manager (NE) │
+//         │ break area (NW)  whiteboard [TEAM ROOM]   manager (NE) │
 //         │   pod   pod     ── central boulevard ──    pod   pod   │
 //         │   pod   pod                                pod   pod   │
-//         │   lounge (SW)          [door]       reception (SE)    │
+//         │   intern bench (SW)    [door]  reception + waiting (SE)│
 //   z=+10 └───────────────────[ glass doors ]────────────────────┘
 //        x=-14                     x=0                          x=14
+import D from './dimensions.json';
 
 export const OFFICE = {
-  halfW: 14,
-  halfD: 10,
-  wallH: 2.6,
-  wallT: 0.3,
+  halfW: D.building.halfW,
+  halfD: D.building.halfD,
+  wallH: D.building.wallH,
+  wallT: D.building.wallT,
   /** Half-width of the entrance opening in the south wall. */
-  doorHalf: 1.5,
-  doorH: 2.25,
+  doorHalf: D.door.w / 2,
+  doorH: D.door.h,
 } as const;
 
 /** The walkable world (office + garden), bounded by a hedge. */
@@ -25,15 +27,15 @@ export const AGENT_RADIUS = 0.3;
 
 export const DESK = {
   /** Desk spacing along a pod row, and the desk-top width (a small gap between neighbours). */
-  pitch: 1.5,
-  width: 1.44,
-  depth: 0.7,
+  pitch: D.desk.pitch,
+  width: D.desk.w,
+  depth: D.desk.d,
   /** Height of the desk-top surface. */
-  top: 0.7,
+  top: D.desk.h,
   /** Height of the chair seat cushion = seated pelvis height. */
-  seatH: 0.45,
+  seatH: D.chair.seatH,
   /** Distance from the desk's front edge to the seated pelvis. */
-  seatGap: 0.48,
+  seatGap: D.chair.deskGap,
 } as const;
 
 export interface PodSlot {
@@ -72,6 +74,27 @@ export const POD_SLOTS: readonly PodSlot[] = [
   { x: -19.6, z: -5, outdoor: true },
   { x: 19.6, z: -5, outdoor: true },
 ];
+
+export interface BenchSlot {
+  /** West end of the bench; it grows toward +X one module pair at a time. */
+  x0: number;
+  /** Centre line between the two rows of stations. */
+  z: number;
+  /** Module pairs (2 stations a side each) this spot has room for. */
+  maxPairs: number;
+  outdoor?: boolean;
+}
+
+/** Intern benches in fill order: the indoor one starts with 3 module pairs (12 stations). */
+export const INTERN_BENCHES: readonly BenchSlot[] = [
+  { x0: -11.2, z: 7.6, maxPairs: 5 },
+  { x0: -22.2, z: 8.3, maxPairs: 3, outdoor: true },
+  { x0: 17.4, z: 8.3, maxPairs: 3, outdoor: true },
+];
+export const INITIAL_BENCH_PAIRS = 3;
+
+/** Team Room: wall screen centred on the north wall, meeting table in front of it. */
+export const TEAM_ROOM = { x: 0, tableZ: -6.9, partitionX: 2.35, partitionZ1: -6.0 } as const;
 
 export const ENTRANCE = {
   outside: { x: 0, z: 14.4 },

@@ -6,7 +6,7 @@ import type { DeskSlot, ScreenState } from './types';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Batch, CanvasTex, ellipsize, fitText, font, partMatrix, pickR, rng, shade } from './kit';
 import { DESK, type PodSlot } from './layout';
-import { Screen } from './screens';
+import { Screen, type ScreenView } from './screens';
 import { aabb, type WorldCtx } from './ctx';
 import type { Decor } from './decor';
 
@@ -82,8 +82,8 @@ export class DeskSystem {
     ctx.blobs.add(px, pz, 3.6, 2.0);
   }
 
-  update(dt: number, elapsed: number): void {
-    for (const d of this.runtimes) d.screen.update(dt, elapsed);
+  update(dt: number, elapsed: number, view?: ScreenView): void {
+    for (const d of this.runtimes) d.screen.update(dt, elapsed, view);
   }
 
   private addDesk(b: Batch, px: number, pz: number, k: number, outdoor: boolean): void {
@@ -124,6 +124,7 @@ export class DeskSystem {
     screenMesh.position.set(X, 1.0, Zm + front * 0.0415);
     screenMesh.rotation.y = front > 0 ? 0 : Math.PI;
     this.ctx.root.add(screenMesh);
+    screen.attach(screenMesh);
 
     // Keyboard and mouse.
     const Zkb = Zfront - front * 0.2;
@@ -186,6 +187,7 @@ export class DeskSystem {
       approach,
       internSpots,
       chair,
+      screen: screenMesh,
       accent,
       setScreen(state: ScreenState, lines?: string[]) {
         screen.set(state, lines);

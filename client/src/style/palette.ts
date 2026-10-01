@@ -11,6 +11,10 @@ export const PALETTE = {
   treeLeaf: ['#5CCB5F', '#46B35A', '#7BD66B'],
   treeTrunk: '#9C6B43',
   cloud: '#FFFFFF',
+  // Day sky from the art brief (docs/ART-REFERENCE.md §3.5): almost flat, saturated azure.
+  skyDayTop: '#2AABFF',
+  skyDayHorizon: '#6CC8FF',
+  cloudTint: '#E6F4FC',
 
   // Building
   wall: '#FFF3DE',

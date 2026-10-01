@@ -7,9 +7,12 @@ import { Batch, CanvasTex, fitText, font, G, rng, shade } from './kit';
 import { aabb, footprint, type WallSide, type WorldCtx } from './ctx';
 import { wallFacingYaw } from './building';
 import { OFFICE } from './layout';
+import D from './dimensions.json';
 import { sparkle } from './screens';
 
 const WALL_FACE = OFFICE.halfD; // |z| or |x| of the inside face of the walls
+/** The whiteboard hangs left of the Team Room. */
+const BOARD_X = -5.6;
 
 export interface Props {
   setStats(stats: OfficeStats): void;
@@ -54,8 +57,6 @@ function wallPlane(ctx: WorldCtx, side: WallSide, u: number, y: number, w: numbe
   placeOnWall(mesh, side, u, y, depth);
   mesh.receiveShadow = true;
   ctx.root.add(mesh);
-  const bay = ctx.bayAt(side, u);
-  if (bay) ctx.fader.attach(bay, [mesh]);
   return mesh;
 }
 
@@ -207,8 +208,10 @@ function buildManagerCorner(ctx: WorldCtx): void {
   b.box(1.1, 0.5, 0.04, shade(PALETTE.wood, -0.1), { at: [dx, 0.42, dz - 0.38], r: 0.02 });
   // Laptop, lamp, "WORLD'S OKAYEST MANAGER" mug, a little gold trophy.
   b.box(0.42, 0.02, 0.3, '#C8D0DC', { at: [dx - 0.1, top + 0.01, dz - 0.05], r: 0.01, finish: 'gloss' });
-  b.box(0.42, 0.28, 0.02, '#C8D0DC', { at: [dx - 0.1, top + 0.15, dz - 0.21], rot: [-0.25, 0, 0], r: 0.01, finish: 'gloss' });
-  b.box(0.38, 0.24, 0.005, '#7FD8FF', { at: [dx - 0.1, top + 0.15, dz - 0.198], rot: [-0.25, 0, 0], r: 0.002, cast: false });
+  // The manager sits on the −Z side (chair at dz − 0.95), so the lid hinges at the +Z edge,
+  // leans away from them, and the screen faces them.
+  b.box(0.42, 0.28, 0.02, '#C8D0DC', { at: [dx - 0.1, top + 0.15, dz + 0.11], rot: [0.25, 0, 0], r: 0.01, finish: 'gloss' });
+  b.box(0.38, 0.24, 0.005, '#7FD8FF', { at: [dx - 0.1, top + 0.15, dz + 0.098], rot: [0.25, 0, 0], r: 0.002, cast: false });
   b.puck(0.09, 0.03, '#3B4252', { at: [dx + 0.8, top + 0.015, dz - 0.25] });
   b.cyl(0.012, 0.012, 0.36, '#3B4252', { at: [dx + 0.8, top + 0.2, dz - 0.25], seg: 8 });
   b.cyl(0.05, 0.11, 0.12, '#FFC94A', { at: [dx + 0.72, top + 0.38, dz - 0.18], rot: [0.5, 0, 0.4] });
@@ -367,7 +370,6 @@ function buildBreakArea(ctx: WorldCtx): void {
   ctx.blobs.add((x0 + x1) / 2, cz + 0.05, x1 - x0 + 0.4, depth + 0.4);
 
   // Upper cupboards on the wall.
-  const bay = ctx.bayAt('north', -11.5);
   const upper = new Batch();
   for (let i = 0; i < 3; i++) {
     const x = x0 + 0.55 + i * 1.05;
@@ -376,7 +378,6 @@ function buildBreakArea(ctx: WorldCtx): void {
   }
   const upperGroup = upper.build({ name: 'cupboards' });
   ctx.root.add(upperGroup);
-  if (bay) ctx.fader.attach(bay, [upperGroup]);
 
   // Coffee machine (interactable) with a mug and steam.
   const mx = -11.6;
@@ -478,35 +479,17 @@ function buildBreakArea(ctx: WorldCtx): void {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Lounge (south-west): ping-pong table, bean bags, vending machine
+// Lounge corner (south-west, beside the intern bench): bean bags by the break rug, vending machine
 
 function buildLounge(ctx: WorldCtx): void {
   const b = ctx.statics;
-  const px = -7.6;
-  const pz = 7.3;
-  const top = 0.72;
-  b.box(2.5, 0.06, 1.4, '#2E9BD6', { at: [px, top - 0.03, pz], r: 0.03 });
-  b.box(2.5, 0.004, 0.03, '#FFFFFF', { at: [px, top + 0.001, pz], r: 0.001, cast: false });
-  b.box(0.03, 0.004, 1.4, '#FFFFFF', { at: [px, top + 0.001, pz], r: 0.001, cast: false });
-  b.box(0.03, 0.16, 1.5, '#FFFDF7', { at: [px, top + 0.08, pz], r: 0.012 });
-  for (const s of [-1, 1]) for (const t of [-1, 1]) b.box(0.07, top - 0.06, 0.07, '#3B4252', { at: [px + s * 1.05, (top - 0.06) / 2, pz + t * 0.55], r: 0.02 });
-  b.ball(0.02, '#FFFFFF', { at: [px + 0.6, top + 0.15, pz - 0.2] });
-  for (const s of [-1, 1]) {
-    b.puck(0.08, 0.015, '#FF5A5F', { at: [px + s * 0.95, top + 0.008, pz + s * 0.3], rot: [0, 0, 0] });
-    b.capsule(0.014, 0.06, PALETTE.wood, { at: [px + s * 1.07, top + 0.015, pz + s * 0.3], rot: [0, 0, Math.PI / 2] });
-  }
-  ctx.colliders.push(footprint(px, pz, 2.5, 1.4));
-  ctx.blobs.add(px, pz, 2.9, 1.8);
-
-  // Bean bags.
   const bags: [number, number, string][] = [
-    [-11.3, 8.4, '#B48CFF'],
-    [-11.8, 6.7, '#FFC94A'],
-    [-4.4, 8.6, '#6EDC9A'],
+    [-10.55, -5.95, '#B48CFF'],
+    [-10.75, -7.45, '#FFC94A'],
   ];
   for (const [x, z, c] of bags) {
-    b.ball([0.42, 0.3, 0.42], c, { at: [x, 0.26, z] });
-    b.ball([0.3, 0.2, 0.3], shade(c, 0.06), { at: [x + 0.05, 0.46, z + 0.05] });
+    b.ball([0.42, 0.3, 0.42], c, { at: [x, 0.26, z], finish: 'cloth' });
+    b.ball([0.3, 0.2, 0.3], shade(c, 0.06), { at: [x + 0.05, 0.46, z + 0.05], finish: 'cloth' });
     ctx.colliders.push(footprint(x, z, 0.8, 0.8));
     ctx.blobs.add(x, z, 1.1, 1.1, { shape: 'round' });
   }
@@ -552,26 +535,21 @@ function buildWhiteboard(ctx: WorldCtx): { setStats(s: OfficeStats): void } {
   const y = 1.58;
   const tex = new CanvasTex(1024, 466, (c, w, h) => drawBoard(c, w, h, stats));
   const face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.1, Hh - 0.1), new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.35 }));
-  placeOnWall(face, 'north', 0, y, 0.085);
+  placeOnWall(face, 'north', BOARD_X, y, 0.085);
   face.receiveShadow = true;
   ctx.root.add(face);
   const frame = new Batch();
-  frame.box(W, Hh, 0.06, '#C8D0DC', { at: [0, y, -WALL_FACE + 0.05], r: 0.04, finish: 'gloss' });
-  frame.box(W - 0.6, 0.05, 0.12, '#C8D0DC', { at: [0, y - Hh / 2 - 0.01, -WALL_FACE + 0.1], r: 0.02, finish: 'gloss' });
-  ['#3D7CFF', '#E63946', '#2EC4B6'].forEach((c, i) => frame.capsule(0.014, 0.1, c, { at: [-0.4 + i * 0.16, y - Hh / 2 + 0.03, -WALL_FACE + 0.12], rot: [0, 0, Math.PI / 2], cast: false }));
+  frame.box(W, Hh, 0.06, '#C8D0DC', { at: [BOARD_X, y, -WALL_FACE + 0.05], r: 0.04, finish: 'plastic' });
+  frame.box(W - 0.6, 0.05, 0.12, '#C8D0DC', { at: [BOARD_X, y - Hh / 2 - 0.01, -WALL_FACE + 0.1], r: 0.02, finish: 'plastic' });
+  ['#3D7CFF', '#E63946', '#2EC4B6'].forEach((c, i) => frame.capsule(0.014, 0.1, c, { at: [BOARD_X - 0.4 + i * 0.16, y - Hh / 2 + 0.03, -WALL_FACE + 0.12], rot: [0, 0, Math.PI / 2], cast: false }));
   const frameGroup = frame.build({ name: 'whiteboard-frame' });
   ctx.root.add(frameGroup);
-  const bay = ctx.bayAt('north', 0);
-  if (bay) ctx.fader.attach(bay, [face, frameGroup]);
 
-  // Standup corner in front of the board: a big round rug.
-  ctx.statics.puck(2.0, 0.03, '#BDE8D6', { at: [0, 0.015, -7.3], cast: false, finish: 'matte', seg: 56 });
-  ctx.statics.puck(1.75, 0.034, '#D7F3E6', { at: [0, 0.017, -7.3], cast: false, finish: 'matte', seg: 56 });
 
   ctx.interactables.push({
     id: 'whiteboard',
     kind: 'whiteboard',
-    position: new THREE.Vector3(0, 1.6, -WALL_FACE + 1.1),
+    position: new THREE.Vector3(BOARD_X, 1.6, -WALL_FACE + 1.1),
     radius: 2.2,
     label: 'Check the roster',
   });
@@ -622,7 +600,7 @@ function drawBoard(c: CanvasRenderingContext2D, w: number, h: number, s: BoardSt
     ['Staff', s.staff, '#2B2D42'],
     ['Working', s.working, '#22A855'],
     ['Needs you', s.needsYou, '#E8890C'],
-    ['Idle', s.idle, '#3B82F6'],
+    ['Free', s.idle, '#3B82F6'],
     ['Interns', s.interns, '#8B5CF6'],
   ];
   rows.forEach(([label, n, color], i) => {
@@ -703,7 +681,7 @@ function drawBoard(c: CanvasRenderingContext2D, w: number, h: number, s: BoardSt
 function buildPosters(ctx: WorldCtx): void {
   const posters: { u: number; side: WallSide; y: number; draw: (c: CanvasRenderingContext2D, w: number, h: number) => void }[] = [
     {
-      u: -4.2,
+      u: 4.4,
       side: 'north',
       y: 1.65,
       draw: (c, w, h) => {
@@ -746,7 +724,7 @@ function buildPosters(ctx: WorldCtx): void {
       },
     },
     {
-      u: 4.2,
+      u: 5.75,
       side: 'north',
       y: 1.65,
       draw: (c, w, h) => {
@@ -776,7 +754,7 @@ function buildPosters(ctx: WorldCtx): void {
       },
     },
     {
-      u: 7.4,
+      u: 7.1,
       side: 'north',
       y: 1.65,
       draw: (c, w, h) => {
@@ -849,13 +827,12 @@ export function hangPicture(ctx: WorldCtx, p: PictureSpec): void {
   const fg = frame.build({ name: 'picture-frame' });
   ctx.root.add(fg);
   wallPlane(ctx, p.side, p.u, p.y, p.w, p.h, tex.tex, 0.065);
-  const bay = ctx.bayAt(p.side, p.u);
-  if (bay) ctx.fader.attach(bay, [fg]);
 }
 
 function buildClock(ctx: WorldCtx): void {
-  const u = -7.4;
-  const y = 1.75;
+  // High above the whiteboard, where the Team Room lamps don't hang in front of it.
+  const u = BOARD_X;
+  const y = D.clock.centerY;
   const R = 0.34;
   const faceTex = new CanvasTex(256, 256, (c, w, h) => {
     c.fillStyle = '#FFFDF7';
@@ -901,8 +878,6 @@ function buildClock(ctx: WorldCtx): void {
   cap.position.z = 0.08;
   group.add(cap);
   ctx.root.add(group);
-  const bay = ctx.bayAt('north', u);
-  if (bay) ctx.fader.attach(bay, [group]);
   ctx.tickers.push(() => {
     const now = new Date();
     const s = now.getSeconds() + now.getMilliseconds() / 1000;
@@ -920,15 +895,15 @@ function buildClock(ctx: WorldCtx): void {
 
 function buildPlants(ctx: WorldCtx): void {
   const spots: [number, number, number][] = [
-    [-2.25, -WALL_FACE + 0.45, 1.25],
-    [2.25, -WALL_FACE + 0.45, 1.1],
+    [-3.05, -WALL_FACE + 0.45, 1.25],
+    [3.05, -WALL_FACE + 0.45, 1.1],
     [-2.35, WALL_FACE - 0.45, 1.0],
     [2.35, WALL_FACE - 0.45, 1.0],
     [-OFFICE.halfW + 0.5, WALL_FACE - 0.5, 1.3],
     [OFFICE.halfW - 0.5, WALL_FACE - 0.5, 1.25],
     [-OFFICE.halfW + 0.5, -4.4, 1.15],
     [OFFICE.halfW - 0.5, -4.4, 1.2],
-    [8.2, -WALL_FACE + 0.45, 1.1],
+    [8.0, -WALL_FACE + 0.45, 1.0],
   ];
   spots.forEach(([x, z, s], i) => {
     const r = rng(300 + i);

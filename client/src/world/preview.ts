@@ -1,9 +1,11 @@
 // Dev-only world preview: /world-preview.html
-//   ?view=overview|follow|entrance|desk|break|manager|reception|whiteboard|outside|low|top|south|waiting|reserved|screens|lines|cat|garden
+//   ?view=overview|follow|entrance|desk|break|manager|reception|whiteboard|outside|low|top|south|waiting|reserved|screens|lines|cat|garden|inside|outside-roof|teamroom|teamroom-top|interns|interns-top
+//   ?cutaway=0|1      hide the roof, ceiling and lamps (on by default for top-down layout views)
 //   ?ao=0|1            ambient occlusion (persists)       ?door=open
 //   ?target=x,z        stand-in manager position (occlusion test)
 //   ?nav=1             show blocked nav cells             ?path=1   draw sample paths
-//   ?desks=N           ensureDesks(N)                     ?hud=0    hide the overlay
+//   ?desks=N           ensureDesks(N)                     ?interns=N  ensureInternSlots(N)
+//   ?hud=0             hide the overlay
 // Keys: O toggles AO, D toggles the door, N toggles the nav overlay, H toggles the HUD.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -19,8 +21,13 @@ if (params.get('hud') === '0') hud.classList.add('hidden');
 const engine = createEngine(canvas);
 const world = createWorld(engine);
 const debug = worldDebug(world)!;
+// For headless probes: window.__world.findPath(...)
+(window as unknown as { __world: typeof world; THREE: typeof THREE }).__world = world;
+(window as unknown as { THREE: typeof THREE }).THREE = THREE;
 const desksWanted = Number(params.get('desks') ?? 0);
 if (desksWanted > 0) world.ensureDesks(desksWanted);
+const internsWanted = Number(params.get('interns') ?? 0);
+if (internsWanted > 0) world.ensureInternSlots(internsWanted);
 
 // ---- Stand-in manager (for occlusion) ---------------------------------------------------------
 const targetParam = params.get('target')?.split(',').map(Number);
@@ -40,9 +47,14 @@ engine.scene.add(dummy);
 
 // ---- Camera ------------------------------------------------------------------------------------
 type View = { pos: [number, number, number]; look: [number, number, number] };
+// Layout views look in from above with the roof and ceiling cut away (?cutaway=0|1 overrides).
+const CUTAWAY_VIEWS = new Set(['overview', 'top', 'desk', 'break', 'manager', 'reception', 'reserved', 'waiting', 'teamroom-top', 'interns-top']);
 const views: Record<string, View> = {
   overview: { pos: [0, 25, 23], look: [0, 0, 0.5] },
-  follow: { pos: [target.x, 1 + 7.07, target.z + 7.07], look: [target.x, 1, target.z] },
+  // Roughly what the gameplay camera does indoors: behind the manager, under the ceiling.
+  follow: { pos: [target.x, 3.7, target.z + 5.8], look: [target.x, 1.0, target.z - 0.6] },
+  inside: { pos: [0, 3.8, 9.2], look: [0, 1.2, -2] },
+  'outside-roof': { pos: [13, 13, 27], look: [0, 3, 3] },
   entrance: { pos: [0, 6.5, 19.5], look: [0, 1, 8.5] },
   desk: { pos: [-1.9, 4.3, 7.6], look: [-4.6, 0.7, 2.6] },
   break: { pos: [-7.6, 6.2, -1.2], look: [-11.6, 0.6, -7.6] },
@@ -56,11 +68,20 @@ const views: Record<string, View> = {
   waiting: { pos: [8.4, 5.2, 2.2], look: [12.4, 0.6, 7.4] },
   reserved: { pos: [-6.6, 5.6, 4.4], look: [-9.6, 0.4, -1.6] },
   screens: { pos: [-4.6, 1.75, 0.6], look: [-4.6, 0.95, -2.3] },
+  teamroom: { pos: [0, 3.3, -1.2], look: [0, 1.6, -9.6] },
+  'teamroom-top': { pos: [5.5, 9.5, -1.5], look: [0, 0.5, -7.6] },
+  interns: { pos: [-5.6, 3.5, 2.6], look: [-8.6, 0.6, 7.8] },
+  'interns-top': { pos: [-3.2, 8.5, 2.0], look: [-8.4, 0.4, 7.6] },
   lines: { pos: [5.35, 1.55, -5.4], look: [5.35, 1.0, -2.9] },
   cat: { pos: [-11.6, 1.6, -5.2], look: [-13.4, 0.55, -6.1] },
   garden: { pos: [-2, 3.2, 17.5], look: [-8, 0.9, 11.8] },
 };
-const view = views[params.get('view') ?? 'follow'] ?? views.follow;
+const viewName = params.get('view') ?? 'follow';
+const view = views[viewName] ?? views.follow;
+const cutaway = params.has('cutaway') ? params.get('cutaway') === '1' : CUTAWAY_VIEWS.has(viewName);
+if (cutaway) world.root.traverse((o) => {
+  if (o.userData.overhead) o.visible = false;
+});
 engine.camera.position.set(...view.pos);
 const controls = new OrbitControls(engine.camera, canvas);
 controls.target.set(...view.look);
@@ -85,6 +106,30 @@ world.desks.forEach((d, i) => {
   }
 });
 world.setStats({ staff: 9, working: 5, needsYou: 2, idle: 1, interns: 3 });
+const now = Date.now();
+world.setTeamBoard({
+  plan: {
+    limits: [
+      { id: 'five_hour', label: '5-hour', usedPct: 42, resetsAt: now + 112 * 60000 },
+      { id: 'seven_day', label: 'Weekly', usedPct: 71, resetsAt: now + 3 * 86400000 + 4 * 3600000 },
+      { id: 'opus', label: 'Opus weekly', usedPct: 91, resetsAt: now + 2 * 86400000 },
+    ],
+    updatedAt: now - 23000,
+  },
+  team: { staff: 9, working: 5, needsYou: 2, idle: 1, interns: 3, costUSD: 18.42, linesAdded: 4210, linesRemoved: 1388, commitsToday: 14, sessionsToday: 11 },
+  context: names.slice(0, 10).map((n, i) => ({ sessionId: String(i), displayName: n, tokens: 0, windowSize: 200000, pct: [88, 71, 64, 52, 47, 33, 21, 12, 9, 4][i] })),
+});
+const internTypes = ['Explore', 'executor', 'code-reviewer', 'Plan', 'verifier', 'designer'];
+const internStates: ScreenState[] = ['working', 'working', 'idle', 'working', 'alert', 'working', 'sleeping'];
+world.internSlots.forEach((s, i) => {
+  if (i < 7) {
+    s.setLabel(internTypes[i % internTypes.length], `for ${names[i % names.length]}`);
+    s.setScreen(internStates[i]);
+  } else {
+    s.setLabel('');
+    s.setScreen('off');
+  }
+});
 world.setDoorOpen(params.get('door') === 'open');
 
 // ---- Nav self-check ------------------------------------------------------------------------------
@@ -102,10 +147,8 @@ function selfCheck(): CheckResult {
     ['entrance.inside', world.entrance.inside],
     ['entrance.outside', world.entrance.outside],
   ];
-  for (const d of world.desks) {
-    pts.push([`desk${d.index}.approach`, d.approach]);
-    d.internSpots.forEach((p, k) => pts.push([`desk${d.index}.intern${k}`, p]));
-  }
+  for (const d of world.desks) pts.push([`desk${d.index}.approach`, d.approach]);
+  for (const s of world.internSlots) pts.push([`intern${s.index}.approach`, s.approach]);
   const bad: string[] = [];
   for (const [name, p] of pts) {
     if (!nav.isWalkable(p.x, p.z)) bad.push(`${name} (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) is not on a walkable cell`);
@@ -133,6 +176,16 @@ function selfCheck(): CheckResult {
   // Seats: the pelvis point must sit on the chair cushion, and yaw must face the monitor.
   world.root.updateMatrixWorld(true);
   const ray = new THREE.Raycaster();
+  for (const s of world.internSlots) {
+    ray.set(new THREE.Vector3(s.seat.x, 1.5, s.seat.z), new THREE.Vector3(0, -1, 0));
+    const hit = ray.intersectObject(world.root, true).find((h) => h.object.visible && h.object.name !== 'camera-blocker');
+    if (!hit || Math.abs(hit.point.y - s.seat.y) > 0.015) bad.push(`intern${s.index}: seat.y ${s.seat.y} vs stool ${hit?.point.y.toFixed(3) ?? 'none'} (${hit?.object.name})`);
+    const screen = world.root.getObjectByName(`intern-screen-${s.index}`);
+    if (screen) {
+      const to = screen.getWorldPosition(new THREE.Vector3()).sub(s.seat).setY(0).normalize();
+      if (to.x * Math.sin(s.yaw) + to.z * Math.cos(s.yaw) < 0.95) bad.push(`intern${s.index}: yaw does not face the screen`);
+    }
+  }
   for (const d of world.desks) {
     ray.set(new THREE.Vector3(d.seat.x, 2, d.seat.z), new THREE.Vector3(0, -1, 0));
     const hit = ray.intersectObject(d.chair, true)[0];
@@ -266,7 +319,7 @@ function frame(): void {
     const info = engine.renderer.info;
     hud.textContent = [
       `fps ${fps.toFixed(0)}  cpu ${cpuMs.toFixed(1)} ms  gpu ${gpuMs < 0 ? 'n/a' : gpuMs.toFixed(1) + ' ms'}  calls ${info.render.calls}  tris ${(info.render.triangles / 1000).toFixed(0)}k`,
-      `AO ${engine.aoEnabled ? 'on' : 'off'} [o]  door ${doorOpen ? 'open' : 'closed'} [d]  nav [n]  desks ${world.desks.length}/${debug.maxDesks}`,
+      `AO ${engine.aoEnabled ? 'on' : 'off'} [o]  door ${doorOpen ? 'open' : 'closed'} [d]  nav [n]  desks ${world.desks.length}/${debug.maxDesks}  interns ${world.internSlots.length}/${debug.maxInterns}`,
       check.ok ? `nav self-check OK (${check.ms.toFixed(0)} ms)` : `nav self-check FAILED: ${check.lines.length}\n` + check.lines.slice(0, 6).join('\n'),
     ].join('\n');
   }

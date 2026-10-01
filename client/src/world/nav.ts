@@ -106,7 +106,11 @@ export class NavGrid {
     return this.raw.some((b) => x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ);
   }
 
-  /** Nearest walkable cell to (x, z) within `maxDist` metres, or -1. */
+  /**
+   * Nearest walkable cell to (x, z) within `maxDist` metres that can be reached in a straight
+   * line without crossing a wall or piece of furniture (so a point on the far side of a thin
+   * gap never snaps through it), or -1.
+   */
   nearestFree(x: number, z: number, maxDist = 3): number {
     const c = this.cellAt(x, z);
     if (c >= 0 && this.blocked[c] === 0) return c;
@@ -115,7 +119,6 @@ export class NavGrid {
     const maxRing = Math.ceil(maxDist / this.cell);
     let best = -1;
     let bestD = Infinity;
-    let foundRing = -1;
     for (let ring = 1; ring <= maxRing; ring++) {
       for (let dj = -ring; dj <= ring; dj++) {
         for (let di = -ring; di <= ring; di++) {
@@ -127,19 +130,25 @@ export class NavGrid {
           if (this.blocked[k]) continue;
           const p = this.centerOf(k);
           const d = (p.x - x) ** 2 + (p.z - z) ** 2;
-          if (d < bestD) {
+          if (d < bestD && this.rawClear(x, z, p.x, p.z)) {
             bestD = d;
             best = k;
           }
         }
       }
-      // A closer cell can still hide one ring further out (diagonal vs straight), then stop.
-      if (best >= 0) {
-        if (foundRing < 0) foundRing = ring;
-        else break;
-      }
+      // Every cell in the next ring is at least (ring + 0.5) cells away: nothing closer remains.
+      if (best >= 0 && (ring + 0.5) * this.cell >= Math.sqrt(bestD)) break;
     }
     return best;
+  }
+
+  /** The straight segment crosses no actual collider (ignoring any the start point is inside). */
+  private rawClear(ax: number, az: number, bx: number, bz: number): boolean {
+    for (const b of this.raw) {
+      if (ax > b.minX && ax < b.maxX && az > b.minZ && az < b.maxZ) continue;
+      if (segmentHitsBox(ax, az, bx, bz, b.minX, b.maxX, b.minZ, b.maxZ)) return false;
+    }
+    return true;
   }
 
   /** Straight walk from a to b keeps at least the agent radius from every collider. */
@@ -182,7 +191,8 @@ export class NavGrid {
       if (Math.abs(last.x - p.x) > 1e-4 || Math.abs(last.z - p.z) > 1e-4) out.push(new THREE.Vector3(p.x, 0, p.z));
     };
     for (const p of pts) push(p);
-    // A goal tucked against furniture is fine to finish on; one inside furniture is not.
+    // A goal tucked against furniture is fine to finish on; one inside furniture is not, and
+    // then the path ends short, at the nearest floor point.
     if (!toFree && !this.insideCollider(to.x, to.z)) push({ x: to.x, z: to.z });
     if (out.length === 1) out.push(new THREE.Vector3(to.x, 0, to.z));
     return out;

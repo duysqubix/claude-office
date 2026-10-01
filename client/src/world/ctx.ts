@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import type { AABB, Interactable } from './types';
-import type { Fader, FadeItem } from './fader';
+import type { Fader } from './fader';
 import type { Blobs } from './blobs';
 import type { Batch } from './kit';
 
@@ -17,8 +17,8 @@ export interface WorldCtx {
   statics: Batch;
   /** Per-frame animation hooks. */
   tickers: ((dt: number, elapsed: number) => void)[];
-  /** Fade group of the wall bay covering `u` (x on north/south walls, z on east/west walls). */
-  bayAt(side: WallSide, u: number): FadeItem | undefined;
+  /** Invisible proxies the camera must not pass through (walls, partitions, ceiling, roof). */
+  cameraBlockers: THREE.Object3D[];
 }
 
 export function aabb(minX: number, maxX: number, minZ: number, maxZ: number): AABB {
