@@ -1,0 +1,25 @@
+{
+  "id": "char_shoe_sneaker",
+  "name": "Sneaker",
+  "category": "character-body",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky toy sneaker with a white sole, laces and a side stripe; pivot at the ankle",
+  "tags": [
+    "body",
+    "shoe",
+    "sneaker"
+  ],
+  "tintable": [
+    "Shoes",
+    "Accent"
+  ],
+  "anchors": {
+    "sole": [
+      0,
+      -0.1,
+      0.052
+    ]
+  }
+}

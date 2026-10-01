@@ -1,0 +1,23 @@
+{
+  "id": "char_forearm",
+  "name": "Forearm",
+  "category": "character-body",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Elbow-to-wrist capsule; pivot at the elbow",
+  "tags": [
+    "body",
+    "arm"
+  ],
+  "tintable": [
+    "Skin"
+  ],
+  "anchors": {
+    "wrist": [
+      0,
+      -0.13,
+      0
+    ]
+  }
+}

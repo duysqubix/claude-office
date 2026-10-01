@@ -1,0 +1,29 @@
+{
+  "id": "char_hand_mitten",
+  "name": "Mitten hand",
+  "category": "character-body",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Chunky mitten hand with a forward thumb; pivot at the wrist",
+  "tags": [
+    "body",
+    "hand",
+    "mitten"
+  ],
+  "tintable": [
+    "Skin"
+  ],
+  "anchors": {
+    "handCentre": [
+      0,
+      -0.045,
+      0
+    ],
+    "handGrip": [
+      0.0,
+      -0.075,
+      0.06
+    ]
+  }
+}

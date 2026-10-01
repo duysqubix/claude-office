@@ -1,0 +1,25 @@
+{
+  "id": "char_upper_arm",
+  "name": "Upper arm",
+  "category": "character-body",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Shoulder-to-elbow capsule with a short sleeve; pivot at the shoulder",
+  "tags": [
+    "body",
+    "arm",
+    "sleeve"
+  ],
+  "tintable": [
+    "Shirt",
+    "Skin"
+  ],
+  "anchors": {
+    "elbow": [
+      0,
+      -0.15,
+      0
+    ]
+  }
+}
