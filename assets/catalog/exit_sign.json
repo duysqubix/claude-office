@@ -1,0 +1,24 @@
+{
+  "id": "exit_sign",
+  "name": "Exit sign",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Glowing green EXIT sign with a running figure and an arrow",
+  "tags": [
+    "wall",
+    "sign",
+    "glow",
+    "door"
+  ],
+  "tintable": [],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.06
+    ]
+  },
+  "mount": "wall: origin is the back centre; hang above doors"
+}

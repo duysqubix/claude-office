@@ -1,14 +1,14 @@
 {
-  "generated": "2026-10-01T23:42:42.477Z",
+  "generated": "2026-10-01T23:45:27.473Z",
   "totals": {
     "all": 232,
-    "done": 176,
-    "planned": 56
+    "done": 191,
+    "planned": 41
   },
   "byArtist": {
-    "Claude Cézanne": 53,
+    "Claude Cézanne": 47,
     "Claude Lorrain": 37,
-    "Claude Monet": 85,
+    "Claude Monet": 91,
     "Claude Rodin": 57
   },
   "items": [
@@ -741,6 +741,61 @@
       "bytes": 74760
     },
     {
+      "id": "award_plaque",
+      "name": "Award plaque",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Employee of the Month shield plaque; the game paints the winner on its Label",
+      "tags": [
+        "wall",
+        "award",
+        "label"
+      ],
+      "tintable": [
+        "Label"
+      ],
+      "anchors": {
+        "label": [
+          0,
+          -0.045,
+          0.038
+        ]
+      },
+      "status": "done",
+      "file": "models/award_plaque.glb",
+      "thumb": "models/thumbs/award_plaque.jpg",
+      "dims": {
+        "w": 0.3,
+        "h": 0.38,
+        "d": 0.036
+      },
+      "bbox": {
+        "min": [
+          -0.15,
+          -0.19,
+          0
+        ],
+        "max": [
+          0.15,
+          0.19,
+          0.036
+        ]
+      },
+      "tris": 3789,
+      "materials": [
+        "Wood",
+        "Gold",
+        "Label"
+      ],
+      "nodes": [
+        "award_plaque"
+      ],
+      "textures": 1,
+      "bytes": 174724
+    },
+    {
       "id": "binder",
       "name": "Binder",
       "category": "desk-item",
@@ -978,6 +1033,67 @@
       "bytes": 130844
     },
     {
+      "id": "calendar_wall",
+      "name": "Wall calendar",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Wire-bound wall calendar with a pumpkin picture and an OCTOBER page",
+      "tags": [
+        "wall",
+        "time",
+        "paper"
+      ],
+      "tintable": [],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.01
+        ]
+      },
+      "status": "done",
+      "file": "models/calendar_wall.glb",
+      "thumb": "models/thumbs/calendar_wall.jpg",
+      "dims": {
+        "w": 0.34,
+        "h": 0.576,
+        "d": 0.019
+      },
+      "bbox": {
+        "min": [
+          -0.17,
+          -0.25,
+          0
+        ],
+        "max": [
+          0.17,
+          0.326,
+          0.019
+        ]
+      },
+      "tris": 3105,
+      "materials": [
+        "Paper",
+        "PicSky",
+        "PicHill",
+        "Pumpkin",
+        "Stem",
+        "Red",
+        "Cell",
+        "DotBlue",
+        "DotMint",
+        "Ink",
+        "Wire"
+      ],
+      "nodes": [
+        "calendar_wall"
+      ],
+      "textures": 1,
+      "bytes": 181908
+    },
+    {
       "id": "cookie_jar",
       "name": "Cookie jar",
       "category": "food",
@@ -1034,6 +1150,74 @@
       ],
       "textures": 1,
       "bytes": 152348
+    },
+    {
+      "id": "cork_board",
+      "name": "Cork board",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Cork pinboard with notes, a polaroid and an index card on coloured push pins",
+      "tags": [
+        "wall",
+        "notes",
+        "office"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.03
+        ]
+      },
+      "status": "done",
+      "file": "models/cork_board.glb",
+      "thumb": "models/thumbs/cork_board.jpg",
+      "dims": {
+        "w": 0.922,
+        "h": 0.642,
+        "d": 0.047
+      },
+      "bbox": {
+        "min": [
+          -0.461,
+          -0.321,
+          0
+        ],
+        "max": [
+          0.461,
+          0.321,
+          0.047
+        ]
+      },
+      "tris": 2377,
+      "materials": [
+        "Cork",
+        "Accent",
+        "NoteYellow",
+        "Ink",
+        "PinRed",
+        "NotePink",
+        "Red",
+        "PinBlue",
+        "Paper",
+        "PhotoSky",
+        "PhotoHill",
+        "PhotoSun",
+        "PinYellow",
+        "Line",
+        "PinGreen",
+        "NoteBlue"
+      ],
+      "nodes": [
+        "cork_board"
+      ],
+      "textures": 1,
+      "bytes": 140688
     },
     {
       "id": "desk_fan",
@@ -1275,6 +1459,117 @@
       ],
       "textures": 1,
       "bytes": 82872
+    },
+    {
+      "id": "exit_sign",
+      "name": "Exit sign",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Glowing green EXIT sign with a running figure and an arrow",
+      "tags": [
+        "wall",
+        "sign",
+        "glow",
+        "door"
+      ],
+      "tintable": [],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.06
+        ]
+      },
+      "status": "done",
+      "file": "models/exit_sign.glb",
+      "thumb": "models/thumbs/exit_sign.jpg",
+      "dims": {
+        "w": 0.38,
+        "h": 0.16,
+        "d": 0.068
+      },
+      "bbox": {
+        "min": [
+          -0.19,
+          -0.08,
+          0
+        ],
+        "max": [
+          0.19,
+          0.08,
+          0.068
+        ]
+      },
+      "tris": 1300,
+      "materials": [
+        "Housing",
+        "Glow",
+        "GlowWhite"
+      ],
+      "nodes": [
+        "exit_sign"
+      ],
+      "textures": 1,
+      "bytes": 65552
+    },
+    {
+      "id": "fire_extinguisher",
+      "name": "Fire extinguisher",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky red fire extinguisher with hose, gauge and a FIRE label",
+      "tags": [
+        "safety",
+        "floor",
+        "office"
+      ],
+      "tintable": [],
+      "anchors": {
+        "handle": [
+          0,
+          0.5,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/fire_extinguisher.glb",
+      "thumb": "models/thumbs/fire_extinguisher.jpg",
+      "dims": {
+        "w": 0.179,
+        "h": 0.52,
+        "d": 0.179
+      },
+      "bbox": {
+        "min": [
+          -0.076,
+          0,
+          -0.076
+        ],
+        "max": [
+          0.103,
+          0.52,
+          0.103
+        ]
+      },
+      "tris": 2876,
+      "materials": [
+        "Red",
+        "Chrome",
+        "Black",
+        "GaugeFace",
+        "GaugeGreen",
+        "Pin",
+        "Sticker"
+      ],
+      "nodes": [
+        "fire_extinguisher"
+      ],
+      "textures": 1,
+      "bytes": 114760
     },
     {
       "id": "folder",
@@ -1854,6 +2149,120 @@
       "bytes": 260952
     },
     {
+      "id": "rug_rect",
+      "name": "Rectangular rug",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Soft rectangular rug with a border, big diamonds and tassels",
+      "tags": [
+        "floor",
+        "rug",
+        "lounge"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "center": [
+          0,
+          0.012,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/rug_rect.glb",
+      "thumb": "models/thumbs/rug_rect.jpg",
+      "dims": {
+        "w": 2.129,
+        "h": 0.021,
+        "d": 1.3
+      },
+      "bbox": {
+        "min": [
+          -1.064,
+          -0.005,
+          -0.65
+        ],
+        "max": [
+          1.064,
+          0.015,
+          0.65
+        ]
+      },
+      "tris": 3264,
+      "materials": [
+        "Accent",
+        "RugCream",
+        "RugYellow",
+        "RugCoral",
+        "Tassel"
+      ],
+      "nodes": [
+        "rug_rect"
+      ],
+      "textures": 1,
+      "bytes": 135136
+    },
+    {
+      "id": "rug_round",
+      "name": "Round rug",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Soft round rug with candy-coloured rings and a rolled edge",
+      "tags": [
+        "floor",
+        "rug",
+        "lounge"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "center": [
+          0,
+          0.014,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/rug_round.glb",
+      "thumb": "models/thumbs/rug_round.jpg",
+      "dims": {
+        "w": 1.6,
+        "h": 0.015,
+        "d": 1.6
+      },
+      "bbox": {
+        "min": [
+          -0.8,
+          0,
+          -0.8
+        ],
+        "max": [
+          0.8,
+          0.015,
+          0.8
+        ]
+      },
+      "tris": 1204,
+      "materials": [
+        "Accent",
+        "RugSun",
+        "RugPink",
+        "RugCream",
+        "RugDot"
+      ],
+      "nodes": [
+        "rug_round"
+      ],
+      "textures": 1,
+      "bytes": 84380
+    },
+    {
       "id": "smartphone",
       "name": "Smartphone",
       "category": "desk-item",
@@ -2189,6 +2598,70 @@
       "bytes": 105500
     },
     {
+      "id": "wall_shelf",
+      "name": "Wall shelf",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Floating wooden wall shelf with books, a little plant and a tiny photo",
+      "tags": [
+        "wall",
+        "shelf",
+        "storage"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "shelfTop": [
+          0.05,
+          0.0175,
+          0.1
+        ]
+      },
+      "status": "done",
+      "file": "models/wall_shelf.glb",
+      "thumb": "models/thumbs/wall_shelf.jpg",
+      "dims": {
+        "w": 0.62,
+        "h": 0.342,
+        "d": 0.2
+      },
+      "bbox": {
+        "min": [
+          -0.31,
+          -0.125,
+          0
+        ],
+        "max": [
+          0.31,
+          0.218,
+          0.2
+        ]
+      },
+      "tris": 2033,
+      "materials": [
+        "Accent",
+        "Bracket",
+        "BookRed",
+        "Pages",
+        "BookBlue",
+        "BookYellow",
+        "Pot",
+        "Soil",
+        "Leaf",
+        "Frame",
+        "Pic",
+        "PicHill"
+      ],
+      "nodes": [
+        "wall_shelf"
+      ],
+      "textures": 1,
+      "bytes": 135872
+    },
+    {
       "id": "water_bottle",
       "name": "Water bottle",
       "category": "food",
@@ -2250,229 +2723,60 @@
       "bytes": 106688
     },
     {
-      "id": "award_plaque",
-      "name": "Award plaque",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "calendar_wall",
-      "name": "Calendar wall",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "cork_board",
-      "name": "Cork board",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "with pinned notes",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "exit_sign",
-      "name": "Exit sign",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "emissive",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "fire_extinguisher",
-      "name": "Fire extinguisher",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "rug_rect",
-      "name": "Rug rect",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "rug_round",
-      "name": "Rug round",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "wall_shelf",
-      "name": "Wall shelf",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "wet_floor_sign",
       "name": "Wet floor sign",
-      "category": null,
+      "category": "decor",
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "balloon_cluster",
-      "name": "Balloon cluster",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "birthday_cake",
-      "name": "Birthday cake",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "gift_box",
-      "name": "Gift box",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "paper_plane",
-      "name": "Paper plane",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "party_banner",
-      "name": "Party banner",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "pizza_slice",
-      "name": "Pizza slice",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Yellow A-frame CAUTION / WET FLOOR sign with a slipping figure",
+      "tags": [
+        "safety",
+        "floor",
+        "funny"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "handle": [
+          0,
+          0.6,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/wet_floor_sign.glb",
+      "thumb": "models/thumbs/wet_floor_sign.jpg",
+      "dims": {
+        "w": 0.315,
+        "h": 0.632,
+        "d": 0.328
+      },
+      "bbox": {
+        "min": [
+          -0.157,
+          0.111,
+          -0.164
+        ],
+        "max": [
+          0.157,
+          0.743,
+          0.164
+        ]
+      },
+      "tris": 3332,
+      "materials": [
+        "Accent",
+        "Ink",
+        "Drop",
+        "Feet"
+      ],
+      "nodes": [
+        "wet_floor_sign"
+      ],
+      "textures": 1,
+      "bytes": 166364
     },
     {
       "id": "bush_round",
@@ -2527,7 +2831,7 @@
       "name": "Clerestory window",
       "category": "building",
       "artist": "Claude Lorrain",
-      "group": null,
+      "group": "building, outdoors, plants",
       "priority": "P0",
       "description": "High strip window: the office window's soft round-cornered frame with a single chunky mullion, sill ledge and one glass pane",
       "tags": [
@@ -9070,6 +9374,128 @@
       "bytes": 160448
     },
     {
+      "id": "balloon_cluster",
+      "name": "Balloon cluster",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Bunch of party balloons tied to a little weight",
+      "tags": [
+        "party",
+        "event",
+        "celebration"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          1.76,
+          -0.1
+        ]
+      },
+      "status": "done",
+      "file": "models/balloon_cluster.glb",
+      "thumb": "models/thumbs/balloon_cluster.jpg",
+      "dims": {
+        "w": 0.7,
+        "h": 1.776,
+        "d": 0.59
+      },
+      "bbox": {
+        "min": [
+          -0.35,
+          0,
+          -0.27
+        ],
+        "max": [
+          0.35,
+          1.776,
+          0.32
+        ]
+      },
+      "tris": 3672,
+      "materials": [
+        "Weight",
+        "Accent",
+        "Shine",
+        "String",
+        "BalloonYellow",
+        "BalloonTeal",
+        "BalloonPurple"
+      ],
+      "nodes": [
+        "balloon_cluster"
+      ],
+      "textures": 1,
+      "bytes": 158316
+    },
+    {
+      "id": "birthday_cake",
+      "name": "Birthday cake",
+      "category": "food",
+      "artist": "Claude Monet",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Two-tier birthday cake with drippy frosting and lit candles",
+      "tags": [
+        "party",
+        "event",
+        "food",
+        "celebration"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "flames": [
+          0,
+          0.38,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/birthday_cake.glb",
+      "thumb": "models/thumbs/birthday_cake.jpg",
+      "dims": {
+        "w": 0.38,
+        "h": 0.389,
+        "d": 0.38
+      },
+      "bbox": {
+        "min": [
+          -0.19,
+          0,
+          -0.19
+        ],
+        "max": [
+          0.19,
+          0.389,
+          0.19
+        ]
+      },
+      "tris": 5252,
+      "materials": [
+        "Stand",
+        "Sponge",
+        "Accent",
+        "Cream",
+        "Sprinkle0",
+        "Sprinkle1",
+        "Sprinkle2",
+        "Sprinkle3",
+        "Candle",
+        "Flame"
+      ],
+      "nodes": [
+        "birthday_cake"
+      ],
+      "textures": 1,
+      "bytes": 225820
+    },
+    {
       "id": "christmas_tree",
       "name": "Christmas tree",
       "category": "plant",
@@ -9196,6 +9622,62 @@
       ],
       "textures": 1,
       "bytes": 250232
+    },
+    {
+      "id": "gift_box",
+      "name": "Gift box",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Wrapped present with a big bow and a pop-off lid (node Lid)",
+      "tags": [
+        "party",
+        "event",
+        "reward",
+        "shop"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "lidTop": [
+          0,
+          0.34,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/gift_box.glb",
+      "thumb": "models/thumbs/gift_box.jpg",
+      "dims": {
+        "w": 0.326,
+        "h": 0.37,
+        "d": 0.326
+      },
+      "bbox": {
+        "min": [
+          -0.163,
+          0,
+          -0.163
+        ],
+        "max": [
+          0.163,
+          0.37,
+          0.163
+        ]
+      },
+      "tris": 1112,
+      "materials": [
+        "Accent",
+        "Ribbon"
+      ],
+      "nodes": [
+        "gift_box",
+        "Lid"
+      ],
+      "textures": 1,
+      "bytes": 59248
     },
     {
       "id": "hat_santa",
@@ -9431,6 +9913,127 @@
       "bytes": 108548
     },
     {
+      "id": "paper_plane",
+      "name": "Paper plane",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Chunky folded paper plane",
+      "tags": [
+        "party",
+        "fun",
+        "throwable"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "nose": [
+          0,
+          0.06,
+          0.16
+        ]
+      },
+      "status": "done",
+      "file": "models/paper_plane.glb",
+      "thumb": "models/thumbs/paper_plane.jpg",
+      "dims": {
+        "w": 0.221,
+        "h": 0.092,
+        "d": 0.32
+      },
+      "bbox": {
+        "min": [
+          -0.111,
+          0,
+          -0.16
+        ],
+        "max": [
+          0.111,
+          0.092,
+          0.16
+        ]
+      },
+      "tris": 48,
+      "materials": [
+        "Paper",
+        "Accent"
+      ],
+      "nodes": [
+        "paper_plane"
+      ],
+      "textures": 1,
+      "bytes": 15068
+    },
+    {
+      "id": "party_banner",
+      "name": "Party banner",
+      "category": "decor",
+      "artist": "Claude Monet",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Rainbow bunting banner spelling PARTY!",
+      "tags": [
+        "party",
+        "event",
+        "wall",
+        "text"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "left": [
+          -1,
+          0,
+          0.02
+        ],
+        "right": [
+          1,
+          0,
+          0.02
+        ]
+      },
+      "status": "done",
+      "file": "models/party_banner.glb",
+      "thumb": "models/thumbs/party_banner.jpg",
+      "dims": {
+        "w": 2.036,
+        "h": 0.537,
+        "d": 0.038
+      },
+      "bbox": {
+        "min": [
+          -1.018,
+          -0.517,
+          0.001
+        ],
+        "max": [
+          1.018,
+          0.02,
+          0.039
+        ]
+      },
+      "tris": 1096,
+      "materials": [
+        "String",
+        "Pin",
+        "Accent",
+        "Letters",
+        "FlagYellow",
+        "FlagGreen",
+        "FlagBlue",
+        "FlagPurple",
+        "FlagOrange"
+      ],
+      "nodes": [
+        "party_banner"
+      ],
+      "textures": 1,
+      "bytes": 78196
+    },
+    {
       "id": "ping_pong_table",
       "name": "Ping pong table",
       "category": "furniture",
@@ -9497,6 +10100,62 @@
       ],
       "textures": 1,
       "bytes": 136956
+    },
+    {
+      "id": "pizza_slice",
+      "name": "Pizza slice",
+      "category": "food",
+      "artist": "Claude Monet",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Chunky pepperoni pizza slice",
+      "tags": [
+        "party",
+        "event",
+        "food",
+        "snack"
+      ],
+      "tintable": [],
+      "anchors": {
+        "grip": [
+          0,
+          0.03,
+          -0.1
+        ]
+      },
+      "status": "done",
+      "file": "models/pizza_slice.glb",
+      "thumb": "models/thumbs/pizza_slice.jpg",
+      "dims": {
+        "w": 0.22,
+        "h": 0.053,
+        "d": 0.262
+      },
+      "bbox": {
+        "min": [
+          -0.11,
+          -0.007,
+          -0.134
+        ],
+        "max": [
+          0.11,
+          0.046,
+          0.128
+        ]
+      },
+      "tris": 992,
+      "materials": [
+        "Base",
+        "Sauce",
+        "Cheese",
+        "Crust",
+        "Pepperoni"
+      ],
+      "nodes": [
+        "pizza_slice"
+      ],
+      "textures": 1,
+      "bytes": 56208
     },
     {
       "id": "popcorn_machine",

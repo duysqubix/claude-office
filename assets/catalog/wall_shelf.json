@@ -1,0 +1,25 @@
+{
+  "id": "wall_shelf",
+  "name": "Wall shelf",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Floating wooden wall shelf with books, a little plant and a tiny photo",
+  "tags": [
+    "wall",
+    "shelf",
+    "storage"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "shelfTop": [
+      0.05,
+      0.0175,
+      0.1
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

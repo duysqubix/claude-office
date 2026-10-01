@@ -1209,7 +1209,7 @@ def flip_screen_u(ob):
 
 def finalize(name, meta, mount=None, face=("eyes", "brows", "mouth", "cheeks"), ao=True,
              ao_res=256, ao_distance=0.12, lift=None, frame_with_head=True, pad=0.0,
-             frame=None, mq_head=True, preview_yaw=0.0, screen_back=False):
+             frame=None, mq_head=True, preview_yaw=0.0, screen_back=False, mq_torso=True):
     """Join → (mannequin) → AO bake → export GLB at the pivot → preview → sidecar.
 
     mount: "head" / "torso" shows the item on the neutral mannequin bust (and bakes AO
@@ -1223,7 +1223,7 @@ def finalize(name, meta, mount=None, face=("eyes", "brows", "mouth", "cheeks"), 
     ao = ao and ob.type == "MESH"
     head = None
     if mount:
-        head = mannequin(head_mesh_on=mq_head)
+        head = mannequin(head_mesh_on=mq_head, torso=mq_torso)
         at = MOUNTS[mount]
         bake_at = at
     else:

@@ -20,4 +20,4 @@ def build():
 
 
 def finalize(name):
-    return kit.finalize(name, META, ao_distance=0.05)
+    return kit.finalize(name, META, ao=False)

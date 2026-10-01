@@ -28,4 +28,4 @@ def build():
 
 
 def finalize(name):
-    return kit.finalize(name, META, ao_distance=0.1)
+    return kit.finalize(name, META, mount="torso", mq_torso=False, ao=False)

@@ -1,0 +1,31 @@
+{
+  "id": "party_banner",
+  "name": "Party banner",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P2",
+  "status": "done",
+  "description": "Rainbow bunting banner spelling PARTY!",
+  "tags": [
+    "party",
+    "event",
+    "wall",
+    "text"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "left": [
+      -1.0,
+      0,
+      0.02
+    ],
+    "right": [
+      1.0,
+      0,
+      0.02
+    ]
+  },
+  "mount": "wall: origin is midway between the two fixing points"
+}

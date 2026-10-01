@@ -68,7 +68,6 @@ def side(M, sy):
     lib.rbox("Foot", (BOT - 0.04, 0.03, 0.014), (0, -T / 2, 0.007), M["foot"], r=0.006, seg=1)
     objs = D.since(before)
     # Lean the panel out from the hinge line at the top.
-    D.place(objs, loc=(0, -0.0, 0))
     D.turn(objs, (0, 0, H), (-SPLAY, 0, 0))
     if sy > 0:
         D.place(objs, rot=(0, 0, math.pi))
@@ -81,6 +80,10 @@ def build():
     side(M, 1)
     lib.cyl("Hinge", 0.012, TOPW - 0.03, (0, 0, H - 0.004), M["panel"], r=0.004, seg=1, verts=14,
             rot=(0, math.pi / 2, 0))
+    # Splaying lifted the feet; set the whole sign back down on the floor.
+    objs = list(lib.coll().objects)
+    lo, _ = lib._world_bounds(objs)
+    D.place(objs, loc=(0, 0, -lo.z))
 
 
 def finalize(id):

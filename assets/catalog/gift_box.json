@@ -1,0 +1,28 @@
+{
+  "id": "gift_box",
+  "name": "Gift box",
+  "category": "decor",
+  "artist": "Claude Monet",
+  "priority": "P2",
+  "status": "done",
+  "description": "Wrapped present with a big bow and a pop-off lid (node Lid)",
+  "tags": [
+    "party",
+    "event",
+    "reward",
+    "shop"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "lidTop": [
+      0,
+      0.34,
+      0
+    ]
+  },
+  "nodes": {
+    "Lid": "pivot at the lid centre; lift / tumble it to open"
+  }
+}

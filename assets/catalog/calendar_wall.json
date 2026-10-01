@@ -1,0 +1,23 @@
+{
+  "id": "calendar_wall",
+  "name": "Wall calendar",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Wire-bound wall calendar with a pumpkin picture and an OCTOBER page",
+  "tags": [
+    "wall",
+    "time",
+    "paper"
+  ],
+  "tintable": [],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.01
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

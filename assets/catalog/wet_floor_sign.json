@@ -1,0 +1,24 @@
+{
+  "id": "wet_floor_sign",
+  "name": "Wet floor sign",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Yellow A-frame CAUTION / WET FLOOR sign with a slipping figure",
+  "tags": [
+    "safety",
+    "floor",
+    "funny"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "handle": [
+      0,
+      0.6,
+      0
+    ]
+  }
+}

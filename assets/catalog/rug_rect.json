@@ -1,0 +1,24 @@
+{
+  "id": "rug_rect",
+  "name": "Rectangular rug",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Soft rectangular rug with a border, big diamonds and tassels",
+  "tags": [
+    "floor",
+    "rug",
+    "lounge"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "center": [
+      0,
+      0.012,
+      0
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "cork_board",
+  "name": "Cork board",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Cork pinboard with notes, a polaroid and an index card on coloured push pins",
+  "tags": [
+    "wall",
+    "notes",
+    "office"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.03
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

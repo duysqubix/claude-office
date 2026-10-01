@@ -26,7 +26,7 @@ def materials():
         red=D.mat("Red", "red", rough=0.3),
         black=D.mat("Black", "rubber", rough=0.55),
         chrome=D.mat("Chrome", "chrome", rough=0.25, metal=0.4),
-        cream=D.mat("Label", "paper", rough=0.6),
+        cream=D.mat("Sticker", "paper", rough=0.6),
         gauge=D.mat("GaugeFace", "paper", rough=0.4),
         green=D.mat("GaugeGreen", "#2FAF6A", rough=0.5),
         yellow=D.mat("Pin", "yellow", rough=0.45),
@@ -75,15 +75,19 @@ def label(M):
 
     lab = D.face("Label", D.rrect_pts(0.1, 0.12, 0.012, steps=3), M["cream"],
                  loc=(0, -(R + 0.0004), 0.21), rot=D.FRONT)
+    D.bake_xform(lab)
     _fine(lab, 0.012)
     D.wrap_cylinder(lab, r_at, base=R + 0.0004)
     t = D.text("Label_Fire", "FIRE", 0.034, M["red"], loc=(0, -(R + 0.0008), 0.235), depth=0,
                res=2)
+    _fine(t, 0.01)
     D.wrap_cylinder(t, R + 0.0008)
     flame = [(0.0, 0.025), (0.016, 0.0), (0.012, -0.016), (0.0, -0.022), (-0.012, -0.016),
              (-0.016, 0.0)]
     fl = D.face("Label_Flame", D.rounded_pts(flame, 0.006, steps=3), M["red"],
                 loc=(0, -(R + 0.0008), 0.18), rot=D.FRONT)
+    D.bake_xform(fl)
+    _fine(fl, 0.01)
     D.wrap_cylinder(fl, R + 0.0008)
 
 

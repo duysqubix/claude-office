@@ -4,6 +4,8 @@ sleeved upper arm, forearm, mitten, thigh, shin and sneaker. All in their joint'
 (Blender: Z up, front -Y, character-left +X); `at` / `rot` place them for the presets."""
 import math
 
+import bmesh
+import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 
@@ -40,10 +42,54 @@ def _slice(prof, y0, y1):
     return out
 
 
-def lathe_part(name, prof, material, verts=24, at=Vector((0, 0, 0)), grow=0.0):
-    pts = [(max(0.0, r + (grow if r > 0 else 0.0)), y) for r, y in prof]
-    ob = lib.lathe(name, pts, loc=tuple(at), material=material, verts=verts)
-    ob.scale = (1, Z, 1)
+def _deriv(prof, y, eps=0.003):
+    def at(v):
+        for (r0, a), (r1, b) in zip(prof, prof[1:]):
+            if (a - v) * (b - v) <= 0 and a != b:
+                return r0 + (r1 - r0) * (v - a) / (b - a)
+        return prof[0][0] if v < prof[0][1] else prof[-1][0]
+    return (at(y + eps) - at(y - eps)) / (2 * eps)
+
+
+def lathe_part(name, prof, material, verts=32, at=Vector((0, 0, 0)), normals_from=None):
+    """Lathe a (radius, height) profile, squashed front-to-back by TORSO_Z, with the true
+    surface normals of `normals_from` (a full profile) as custom normals: two parts cut
+    from one surface then shade as one, with no crease at the cut."""
+    ref = normals_from or prof
+    bm = bmesh.new()
+    rings = []
+    for i in range(verts):
+        a = 2 * math.pi * i / verts
+        ring = []
+        for r, y in prof:
+            ring.append(bm.verts.new((r * math.cos(a), Z * r * math.sin(a), y)))
+        rings.append(ring)
+    for i in range(verts):
+        ra, rb = rings[i], rings[(i + 1) % verts]
+        for k in range(len(prof) - 1):
+            bm.faces.new((ra[k], rb[k], rb[k + 1], ra[k + 1]))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-6)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    nrm = []
+    for v in me.vertices:
+        x, yy, h = v.co
+        r = math.hypot(x, yy / Z)
+        if r < 1e-5:
+            nrm.append((0.0, 0.0, 1.0 if h > 0 else -1.0))
+            continue
+        c, s_ = x / r, (yy / Z) / r
+        n = Vector((Z * c, s_, -Z * _deriv(ref, h))).normalized()
+        nrm.append(tuple(n))
+    me.shade_smooth()
+    me.normals_split_custom_set_from_vertices(nrm)
+    if material:
+        me.materials.append(material)
+    ob = bpy.data.objects.new(name, me)
+    ob.location = tuple(at)
+    lib.coll().objects.link(ob)
     return ob
 
 
@@ -54,11 +100,12 @@ def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True):
     prof = _profile(girth)
     lower = []
     # Lower shirt: belt to the chest line, capped with a dome hidden inside the chest.
-    low = _slice(prof, BELT_Y - 0.03, CHEST_Y)
+    low = _slice(prof, BELT_Y - 0.035, CHEST_Y)
     r_top = low[-1][0]
     cap = [(r_top * math.cos(a), CHEST_Y + 0.05 * math.sin(a))
-           for a in np.linspace(0.25, math.pi / 2, 5)]
-    lower.append(lathe_part("ShirtLow", low + cap, M["shirt"]))
+           for a in np.linspace(0.3, math.pi / 2, 4)]
+    lower.append(lathe_part("ShirtLow", low, M["shirt"], normals_from=prof))
+    lower.append(lathe_part("ShirtCap", [low[-1]] + cap, M["shirt"]))
     # Pants: the bottom of the bean, proud of the shirt, with a soft waistband lip.
     pants = _slice(prof, prof[0][1], BELT_Y)
     rb = pants[-1][0] + PANTS_OFF
@@ -67,7 +114,7 @@ def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True):
               (rb - 0.012, BELT_Y + 0.014)]
     lower.append(lathe_part("Pants", pants, M["pants"]))
     up = _slice(prof, CHEST_Y, prof[-1][1])
-    chest = [lathe_part("ShirtUp", up, M["shirt"])]
+    chest = [lathe_part("ShirtUp", up, M["shirt"], normals_from=prof)]
     if emblem and "accent" in M:
         # A little round print on the left chest, like Wobbly Life's tops.
         p, n = torso_surface(0.085 * girth, 0.2, girth)

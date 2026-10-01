@@ -1,0 +1,25 @@
+{
+  "id": "birthday_cake",
+  "name": "Birthday cake",
+  "category": "food",
+  "artist": "Claude Monet",
+  "priority": "P2",
+  "status": "done",
+  "description": "Two-tier birthday cake with drippy frosting and lit candles",
+  "tags": [
+    "party",
+    "event",
+    "food",
+    "celebration"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "flames": [
+      0,
+      0.38,
+      0
+    ]
+  }
+}

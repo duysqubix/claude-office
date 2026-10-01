@@ -111,8 +111,14 @@ def begin(name):
         if c.name in (name, STUDIO):
             continue
         c.hide_viewport = True
-        # Helper collections ("_Mannequin", ...) stay renderable: previews need them.
-        c.hide_render = not c.name.startswith("_")
+        if c.name.startswith("_"):
+            # Helper collections ("_Mannequin", ...): empty them (their owner rebuilds them
+            # when an asset needs them) but keep them renderable for that asset's preview.
+            for ob in list(c.objects):
+                bpy.data.objects.remove(ob, do_unlink=True)
+            c.hide_render = False
+        else:
+            c.hide_render = True
     coll = bpy.data.collections.get(name)
     if coll:
         for ob in list(coll.objects):

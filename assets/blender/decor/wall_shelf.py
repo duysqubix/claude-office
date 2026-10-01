@@ -48,9 +48,9 @@ def shelf(M):
 
 
 def books(M):
-    x = -0.24
+    edge = -0.26  # running left edge along the shelf
     for k, (w, h, d, key, lean) in enumerate(((0.035, 0.2, 0.15, "b1", 0), (0.03, 0.18, 0.14, "b2", 0),
-                                              (0.032, 0.17, 0.14, "b3", -14))):
+                                              (0.032, 0.17, 0.14, "b3", 14))):
         before = D.snapshot()
         lib.rbox(f"Book{k}", (w, d, h), (0, 0, h / 2), M[key], r=0.004, seg=1)
         lib.rbox(f"Book{k}_Pages", (w - 0.008, d - 0.006, h - 0.012), (0, 0.005, h / 2),
@@ -60,9 +60,11 @@ def books(M):
                    M["pages"], loc=(0, -d / 2 - 0.0004, z), rot=D.FRONT)
         objs = D.since(before)
         if lean:
-            D.turn(objs, (w / 2, 0, 0), (0, math.radians(lean), 0))
-        D.place(objs, loc=(x, -SD / 2 - 0.005, TOP))
-        x += w + (0.034 if lean else 0.002)
+            # Tips left on its bottom-left edge until its top rests on the neighbour.
+            edge += h * math.sin(math.radians(lean)) + 0.002
+            D.turn(objs, (-w / 2, 0, 0), (0, -math.radians(lean), 0))
+        D.place(objs, loc=(edge + w / 2, -SD / 2 - 0.005, TOP))
+        edge += w + 0.002
 
 
 def plant(M):

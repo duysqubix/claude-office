@@ -26,4 +26,4 @@ def build():
 def finalize(name):
     # Shown on the bust with a face so the catalog card reads as a head, not a ball.
     return kit.finalize(name, META, mount="head", face=("eyes", "brows", "mouth"), mq_head=False,
-                        ao_distance=0.1)
+                        ao=False)

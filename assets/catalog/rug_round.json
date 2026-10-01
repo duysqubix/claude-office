@@ -1,0 +1,24 @@
+{
+  "id": "rug_round",
+  "name": "Round rug",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Soft round rug with candy-coloured rings and a rolled edge",
+  "tags": [
+    "floor",
+    "rug",
+    "lounge"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "center": [
+      0,
+      0.014,
+      0
+    ]
+  }
+}

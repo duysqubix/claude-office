@@ -1,0 +1,22 @@
+{
+  "id": "fire_extinguisher",
+  "name": "Fire extinguisher",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky red fire extinguisher with hose, gauge and a FIRE label",
+  "tags": [
+    "safety",
+    "floor",
+    "office"
+  ],
+  "tintable": [],
+  "anchors": {
+    "handle": [
+      0,
+      0.5,
+      -0.0
+    ]
+  }
+}
