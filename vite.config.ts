@@ -12,6 +12,9 @@ export default defineConfig({
     outDir: here('./dist/client'),
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      input: [here('./client/index.html'), here('./client/catalog.html')],
+    },
   },
   server: {
     fs: { allow: [here('.')] },

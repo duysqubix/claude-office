@@ -1,0 +1,465 @@
+// `?demo=1`: a pretend office with no server. Exercises every state and activity, walks
+// people in and out, churns interns, and fakes every REST call plus a toy terminal.
+// `&quiet=1` freezes the cast (no arrivals, departures or state changes) for screenshots.
+import type { ActivityKind, ApiResult, ChatLine, Employee, EmployeeState, Intern, PastSession, ProjectInfo, TeamStats } from '../../shared/protocol';
+import type { Backend, TermLink } from './net';
+
+const HOME = '/Users/you';
+const NAMES = ['Claudette', 'Claudius', 'Clyde', 'Claudia', 'Klaus', 'Claudine', 'Clod', 'Claudio', 'Clawdia', 'Claudson', 'Clancy', 'Claudel', 'Clover', 'Clementine', 'Claude Jr.', 'Clint'];
+const PROJECTS = ['blendscope', 'claude-office', 'crateswipe', 'homebase', 'smaugfuss', 'dotfiles', 'rubc-prod', 'naudio', 'pancake-api', 'garden-bot'];
+
+const ACTIVITIES: Record<ActivityKind, [tool: string | undefined, label: string][]> = {
+  typing: [
+    ['Edit', 'Editing spectrum.ts'],
+    ['Write', 'Writing README.md'],
+    ['Edit', 'Editing roster.ts'],
+    ['MultiEdit', 'Editing camera.ts'],
+  ],
+  reading: [
+    ['Read', 'Reading server/index.ts'],
+    ['Grep', 'Searching "findPath"'],
+    ['Glob', 'Listing src/**/*.ts'],
+  ],
+  running: [
+    ['Bash', '$ npm test'],
+    ['Bash', '$ npx tsc --noEmit'],
+    ['Bash', '$ git log --oneline -5'],
+  ],
+  browsing: [
+    ['WebFetch', 'Reading threejs.org/docs'],
+    ['WebSearch', 'Searching "xterm fit addon"'],
+  ],
+  thinking: [[undefined, 'Thinking…']],
+  delegating: [['Agent', 'Briefing the interns']],
+  planning: [['TodoWrite', 'Updating the plan']],
+  asking: [['AskUserQuestion', 'Has a question for you']],
+  other: [['mcp__fff__grep', 'Using fff grep']],
+};
+const WORK_KINDS: ActivityKind[] = ['typing', 'reading', 'running', 'browsing', 'thinking', 'planning', 'typing', 'reading'];
+const WAITING = ['permission', 'input needed', 'dialog open'];
+const LAST_TEXT = [
+  'All done! The tests pass and I tidied up the imports while I was there.',
+  'I found the bug: the spring was integrating with the wrong timestep. Fixed and verified.',
+  "Here's the plan: refactor the roster diffing first, then the desk assignment.",
+  'Shipped. Want me to write the changelog entry too?',
+  'The build is green. I left two TODOs for you to decide on.',
+];
+const PROMPTS = [
+  'make the employees wobble more',
+  'why is the door not opening?',
+  'add a coffee machine that actually works',
+  'fix the flaky test in roster.spec.ts',
+  'can you tidy up the README',
+];
+const TITLES = ['Wobble tuning', 'Door sensor bug', 'Coffee machine API', 'Flaky roster test', 'README polish', 'Desk monitor redesign'];
+const INTERN_TYPES: [string, string][] = [
+  ['Explore', 'Find every caller of findPath'],
+  ['oh-my-claudecode:executor', 'Implement the hire panel'],
+  ['general-purpose', 'Research xterm.js resize'],
+  ['code-reviewer', 'Review the spring helper'],
+  ['Explore', 'Map the server modules'],
+  ['test-engineer', 'Write tests for the director'],
+];
+
+const hashish = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+/** Small deterministic PRNG so demo runs (and screenshots) repeat. */
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+interface Seed {
+  state: EmployeeState;
+  kind?: ActivityKind;
+  project: string;
+  hosted?: boolean;
+  interns?: number;
+  waitingFor?: string;
+}
+
+const CAST: Seed[] = [
+  { state: 'working', kind: 'typing', project: 'blendscope', hosted: true },
+  { state: 'needs-you', project: 'homebase', waitingFor: 'permission' },
+  { state: 'working', kind: 'delegating', project: 'claude-office', interns: 3 },
+  { state: 'sleeping', project: 'smaugfuss' },
+  { state: 'working', kind: 'reading', project: 'crateswipe' },
+  { state: 'idle', project: 'dotfiles', hosted: true },
+  { state: 'working', kind: 'thinking', project: 'rubc-prod' },
+  { state: 'working', kind: 'running', project: 'naudio' },
+  { state: 'working', kind: 'planning', project: 'pancake-api' },
+];
+
+export function createDemoBackend(params: URLSearchParams): Backend {
+  const rand = mulberry32(42);
+  const pickR = <T>(list: readonly T[]): T => list[Math.floor(rand() * list.length)];
+  const quiet = params.has('quiet');
+  const start = Date.now();
+  let serial = 0;
+  let nameIdx = 0;
+  let internSerial = 0;
+  const employees: Employee[] = [];
+  const chatter = new Map<string, ChatLine[]>();
+  const archive: PastSession[] = [];
+
+  const newId = () => {
+    serial++;
+    const hex = (n: number, w: number) => n.toString(16).padStart(w, '0');
+    return `de${hex(serial * 2654435761 % 0xffffff, 6)}-${hex(serial * 97, 4)}-4${hex(serial * 31, 3)}-a${hex(serial * 7, 3)}-${hex(serial * 1103515245 % 0xffffffffffff, 12)}`;
+  };
+  const nextName = () => NAMES[nameIdx++ % NAMES.length] + (nameIdx > NAMES.length ? ` ${Math.ceil(nameIdx / NAMES.length)}` : '');
+  const activity = (kind: ActivityKind) => {
+    const [tool, label] = pickR(ACTIVITIES[kind]);
+    return { tool, kind, label };
+  };
+  const makeIntern = (): Intern => {
+    const [type, description] = INTERN_TYPES[internSerial++ % INTERN_TYPES.length];
+    return { id: `a${(internSerial * 7919).toString(16)}`, type, description, active: true };
+  };
+  const screenFor = (e: Employee): string[] | undefined => {
+    if (!e.hosted) return undefined;
+    const a = e.activity?.label ?? 'Thinking…';
+    const lines = [
+      `╭${'─'.repeat(46)}╮`,
+      `│ ✻ Welcome to Claude Code!${' '.repeat(20)}│`,
+      `│   cwd: ~/${e.project}${' '.repeat(Math.max(0, 36 - e.project.length))}│`,
+      `╰${'─'.repeat(46)}╯`,
+      '',
+      `> ${e.lastPrompt ?? 'hello!'}`,
+      '',
+    ];
+    if (e.state === 'working') {
+      lines.push(`● ${e.activity?.tool ?? 'Thinking'}(${a.replace(/^\$ /, '')})`, '  ⎿  Running…', '', `✻ ${pickR(['Wobbling', 'Hustling', 'Pondering', 'Noodling'])}… (esc to interrupt)`);
+    } else if (e.state === 'needs-you') {
+      lines.push('╭─ Permission ─────────────────────────────╮', '│ Allow Bash(rm -rf node_modules)?        │', '│ ❯ 1. Yes   2. No, tell Claude otherwise │', '╰──────────────────────────────────────────╯');
+    } else {
+      lines.push(`● ${e.lastText ?? 'Done.'}`.slice(0, 78), '', '> ');
+    }
+    return lines;
+  };
+
+  function make(seed: Seed, at: number, sessionId = newId()): Employee {
+    const project = seed.project;
+    const e: Employee = {
+      sessionId,
+      pid: 41000 + serial * 37,
+      name: `${project}-${sessionId.slice(2, 4)}`,
+      displayName: nextName(),
+      cwd: project === '~' ? HOME : `${HOME}/${project}`,
+      project,
+      title: pickR(TITLES),
+      branch: pickR(['main', 'wobble-tuning', 'fix/door', 'feat/hire-panel']),
+      model: pickR(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-fable-5-1']),
+      kind: 'interactive',
+      entrypoint: 'cli',
+      hosted: seed.hosted ?? false,
+      state: seed.state,
+      stateSince: seed.state === 'needs-you' ? at : at - Math.floor(rand() * 600_000),
+      waitingFor: seed.waitingFor,
+      activity: seed.state === 'working' && seed.kind ? activity(seed.kind) : undefined,
+      lastText: pickR(LAST_TEXT),
+      lastPrompt: pickR(PROMPTS),
+      interns: Array.from({ length: seed.interns ?? 0 }, makeIntern),
+      costUSD: Math.round(rand() * 900) / 100,
+      startedAt: at - Math.floor(rand() * 5_400_000),
+    };
+    if (seed.state === 'needs-you' && !seed.waitingFor) e.waitingFor = pickR(WAITING);
+    e.screen = screenFor(e);
+    chatter.set(e.sessionId, [
+      { role: 'user', text: e.lastPrompt ?? 'hello' },
+      { role: 'assistant', text: "On it. I'll start by reading the relevant files." },
+      { role: 'assistant', text: e.lastText ?? 'Done.' },
+    ]);
+    return e;
+  }
+
+  for (const seed of CAST) employees.push(make(seed, start));
+  for (let i = 0; i < 14; i++) {
+    const project = PROJECTS[i % PROJECTS.length];
+    archive.push({
+      sessionId: newId(),
+      cwd: `${HOME}/${project}`,
+      project,
+      title: TITLES[i % TITLES.length],
+      lastPrompt: PROMPTS[i % PROMPTS.length],
+      lastActive: start - (i + 1) * 3_700_000 * (1 + (i % 3)),
+      costUSD: Math.round(rand() * 1200) / 100,
+      live: false,
+    });
+  }
+  archive.unshift({ ...archive[0], sessionId: employees[0].sessionId, title: employees[0].title, lastActive: start, live: true });
+
+  const backend: Backend = {
+    demo: true,
+    onRoster: null,
+    onHello: null,
+    onNotice: null,
+    onStats: null,
+    onStatus: null,
+    start() {
+      backend.onStatus?.(true, 0);
+      backend.onHello?.(HOME, 'demo');
+      emit();
+      backend.onStats?.(stats());
+      if (!quiet) {
+        window.setInterval(tick, 1000);
+        window.setInterval(() => backend.onStats?.(stats()), 15_000);
+      }
+    },
+    roster: async () => clone(),
+    projects: async (): Promise<ProjectInfo[]> =>
+      PROJECTS.map((name, i) => ({ cwd: `${HOME}/${name}`, name, lastActive: start - i * 5_000_000, sessionCount: 3 + ((i * 7) % 20) })),
+    archive: async () => archive.map((a) => ({ ...a, live: employees.some((e) => e.sessionId === a.sessionId) })),
+    chatter: async (id) => [...(chatter.get(id) ?? [])].slice(-12),
+    async hire(cwd, prompt, name): Promise<ApiResult> {
+      if (!cwd.trim()) return { ok: false, error: 'Pick a project first.' };
+      const project = cwd.replace(/\/+$/, '').split('/').pop() || '~';
+      const id = newId();
+      window.setTimeout(() => {
+        const e = make({ state: 'starting', project, hosted: true }, Date.now(), id);
+        e.cwd = cwd;
+        e.lastPrompt = prompt || undefined;
+        if (name) e.name = name;
+        employees.push(e);
+        emit();
+        window.setTimeout(() => {
+          setState(e, prompt ? 'working' : 'idle', prompt ? 'thinking' : undefined);
+          emit();
+        }, 5000);
+      }, 2200);
+      return { ok: true, sessionId: id };
+    },
+    async rehire(sessionId): Promise<ApiResult> {
+      const past = archive.find((a) => a.sessionId === sessionId);
+      if (!past) return { ok: false, error: 'No such session.' };
+      if (employees.some((e) => e.sessionId === sessionId)) return { ok: false, error: 'Already in the office.' };
+      window.setTimeout(() => {
+        const e = make({ state: 'idle', project: past.project, hosted: true }, Date.now(), sessionId);
+        e.title = past.title;
+        employees.push(e);
+        emit();
+      }, 1800);
+      return { ok: true, sessionId };
+    },
+    async fire(sessionId): Promise<ApiResult> {
+      const e = employees.find((x) => x.sessionId === sessionId);
+      if (!e) return { ok: false, error: 'Not here.' };
+      if (!e.hosted) return { ok: false, error: 'Only people hired in the office can be let go.' };
+      window.setTimeout(() => remove(e), 700);
+      return { ok: true };
+    },
+    async say(sessionId, text): Promise<ApiResult> {
+      const e = employees.find((x) => x.sessionId === sessionId);
+      if (!e) return { ok: false, error: 'Not here.' };
+      if (!e.hosted) return { ok: false, error: 'Talk to them in their own terminal.' };
+      e.lastPrompt = text.slice(0, 200);
+      chatter.get(sessionId)?.push({ role: 'user', text });
+      setState(e, 'working', 'thinking');
+      emit();
+      window.setTimeout(() => {
+        chatter.get(sessionId)?.push({ role: 'assistant', text: 'Sure thing, boss! Done.' });
+        e.lastText = 'Sure thing, boss! Done.';
+        setState(e, 'idle');
+        emit();
+      }, 6000);
+      return { ok: true };
+    },
+    terminal: (sessionId) => fakeTerminal(employees.find((e) => e.sessionId === sessionId)),
+  };
+
+  function clone(): Employee[] {
+    return employees.map((e) => ({ ...e, interns: e.interns.map((i) => ({ ...i })), screen: e.screen ? [...e.screen] : undefined }));
+  }
+
+  function emit(): void {
+    backend.onRoster?.(clone(), Date.now());
+  }
+
+  /** Plausible Team Room numbers that drift a little each push. */
+  function stats(): TeamStats {
+    const now = Date.now();
+    const mins = (now - start) / 60_000;
+    const count = (st: EmployeeState) => employees.filter((e) => e.state === st).length;
+    return {
+      plan: {
+        limits: [
+          { id: 'five_hour', label: '5-hour', usedPct: Math.min(99, 38 + mins * 1.5), resetsAt: start + 2 * 3600_000 + 13 * 60_000 },
+          { id: 'seven_day', label: 'Weekly', usedPct: Math.min(99, 61 + mins * 0.2), resetsAt: start + 3 * 86400_000 + 5 * 3600_000 },
+        ],
+        updatedAt: now - 40_000,
+      },
+      team: {
+        staff: employees.length,
+        working: count('working'),
+        needsYou: count('needs-you'),
+        idle: count('idle') + count('sleeping') + count('starting'),
+        interns: employees.reduce((n, e) => n + e.interns.filter((i) => i.active).length, 0),
+        costUSD: employees.reduce((n, e) => n + (e.costUSD ?? 0), 0),
+        linesAdded: 1834 + Math.round(mins * 40),
+        linesRemoved: 612 + Math.round(mins * 12),
+        commitsToday: 7 + Math.floor(mins / 3),
+        sessionsToday: 14 + Math.floor(mins / 2),
+      },
+      context: employees.map((e, i) => {
+        const pct = ((hashish(e.sessionId) + i * 17) % 90) + 5;
+        return { sessionId: e.sessionId, displayName: e.displayName, tokens: Math.round(2000 * pct), windowSize: 200_000, pct };
+      }),
+    };
+  }
+
+  function setState(e: Employee, state: EmployeeState, kind?: ActivityKind): void {
+    if (e.state !== state) e.stateSince = Date.now();
+    e.state = state;
+    e.activity = state === 'working' ? activity(kind ?? pickR(WORK_KINDS)) : undefined;
+    e.waitingFor = state === 'needs-you' ? pickR(WAITING) : undefined;
+    if (state === 'working' && e.activity?.kind !== 'delegating') e.interns = e.interns.slice(0, 1);
+    if (state !== 'working') e.interns = [];
+    e.screen = screenFor(e);
+  }
+
+  function remove(e: Employee): void {
+    const i = employees.indexOf(e);
+    if (i < 0) return;
+    employees.splice(i, 1);
+    archive.unshift({ sessionId: e.sessionId, cwd: e.cwd, project: e.project, title: e.title, lastPrompt: e.lastPrompt, lastActive: Date.now(), costUSD: e.costUSD, live: false });
+    emit();
+  }
+
+  let ticks = 0;
+  function tick(): void {
+    ticks++;
+    const t = ticks;
+    let changed = false;
+    // Someone new walks in every ~25 s (first one soon, so there's always action).
+    if ((t === 9 || (t > 9 && t % 25 === 9)) && employees.length < 13) {
+      const e = make({ state: 'starting', project: pickR(PROJECTS), hosted: rand() < 0.4 }, Date.now());
+      employees.push(e);
+      window.setTimeout(() => {
+        setState(e, 'working');
+        emit();
+      }, 4000 + rand() * 3000);
+      changed = true;
+    }
+    // Someone goes home every ~40 s.
+    if (t % 40 === 30 && employees.length > 6) {
+      const candidates = employees.filter((e) => e.state === 'idle' || e.state === 'working');
+      if (candidates.length) {
+        remove(pickR(candidates));
+        return;
+      }
+    }
+    // Shuffle what people are doing.
+    if (t % 6 === 0) {
+      const workers = employees.filter((e) => e.state === 'working' && e.activity?.kind !== 'delegating');
+      if (workers.length) {
+        const e = pickR(workers);
+        e.activity = activity(pickR(WORK_KINDS));
+        e.screen = screenFor(e);
+        changed = true;
+      }
+    }
+    if (t % 11 === 0) {
+      // Someone finishes (or gets stuck); someone idle picks up work again.
+      const workers = employees.filter((x) => x.state === 'working' && x.activity?.kind !== 'delegating');
+      const e = workers.length ? pickR(workers) : undefined;
+      if (e) setState(e, rand() < 0.3 ? 'needs-you' : 'idle');
+      const idle = employees.filter((x) => (x.state === 'idle' || x.state === 'starting') && x !== e);
+      if (idle.length) setState(pickR(idle), 'working');
+      changed = true;
+    }
+    // Needs-you gets answered after a while, but there's always someone with a hand up.
+    const now = Date.now();
+    for (const x of employees) {
+      if (x.state === 'needs-you' && now - x.stateSince > 28_000) {
+        setState(x, 'working');
+        changed = true;
+      }
+    }
+    if (!employees.some((x) => x.state === 'needs-you')) {
+      const workers = employees.filter((x) => x.state === 'working' && x.activity?.kind !== 'delegating');
+      if (workers.length) {
+        setState(pickR(workers), 'needs-you');
+        changed = true;
+      }
+    }
+    // Interns come and go.
+    if (t % 13 === 0) {
+      const boss = employees.find((e) => e.activity?.kind === 'delegating');
+      if (boss) {
+        if (boss.interns.length > 1 && rand() < 0.6) boss.interns.shift();
+        if (boss.interns.length < 5) boss.interns.push(makeIntern());
+        boss.activity = { tool: 'Agent', kind: 'delegating', label: `Briefing ${boss.interns.length} interns` };
+        changed = true;
+      }
+    }
+    if (changed) emit();
+  }
+
+  return backend;
+}
+
+/** A toy terminal: Claude Code's welcome box, echo, and a cheerful fake reply. */
+function fakeTerminal(e: Employee | undefined): TermLink {
+  const orange = '\x1b[38;2;217;119;87m';
+  const dim = '\x1b[2m';
+  const reset = '\x1b[0m';
+  let line = '';
+  let closed = false;
+  const link: TermLink = {
+    onOpen: null,
+    onData: null,
+    onClose: null,
+    send(msg) {
+      if (closed || msg.t !== 'in') return;
+      for (const ch of msg.d) {
+        if (ch === '\r') {
+          const said = line.trim();
+          line = '';
+          out('\r\n');
+          if (said) {
+            out(`${orange}●${reset} ${pick(['On it, boss!', 'Great idea. Doing it now.', "Sure! (This is the demo office, so I'm only pretending.)"])}\r\n\r\n`);
+          }
+          out('> ');
+        } else if (ch === '\x7f') {
+          if (line) {
+            line = line.slice(0, -1);
+            out('\b \b');
+          }
+        } else if (ch === '\x03') {
+          line = '';
+          out('^C\r\n> ');
+        } else if (ch >= ' ') {
+          line += ch;
+          out(ch);
+        }
+      }
+    },
+    close() {
+      closed = true;
+    },
+  };
+  const out = (s: string) => link.onData?.(s);
+  const pick = (l: string[]) => l[Math.floor(Math.random() * l.length)];
+  window.setTimeout(() => {
+    link.onOpen?.();
+    const w = 52;
+    const row = (s: string) => `${orange}│${reset} ${s}${' '.repeat(Math.max(0, w - 1 - [...s.replace(/\x1b\[[0-9;]*m/g, '')].length))}${orange}│${reset}\r\n`;
+    out(`${orange}╭${'─'.repeat(w)}╮${reset}\r\n`);
+    out(row(`${orange}✻${reset} Welcome to Claude Code!`));
+    out(row(''));
+    out(row(`${dim}/help for help, /status for your current setup${reset}`));
+    out(row(''));
+    out(row(`${dim}cwd: ~/${e?.project ?? 'somewhere'}${reset}`));
+    out(`${orange}╰${'─'.repeat(w)}╯${reset}\r\n\r\n`);
+    out(` ${dim}※ Demo office: this terminal is pretend. Type away anyway.${reset}\r\n\r\n`);
+    if (e?.lastPrompt) out(`> ${e.lastPrompt}\r\n\r\n${orange}●${reset} ${e.lastText ?? 'Done.'}\r\n\r\n`);
+    out('> ');
+  }, 350);
+  return link;
+}

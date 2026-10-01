@@ -1,0 +1,50 @@
+{
+  "id": "dj_booth",
+  "name": "DJ booth",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Glowing DJ booth with spinning turntables, mixer and headphones",
+  "tags": [
+    "game-room",
+    "party",
+    "music",
+    "fun",
+    "interactable"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "dj": [
+      0,
+      0,
+      -0.75
+    ],
+    "platterL": [
+      -0.48,
+      1.05,
+      -0.02
+    ],
+    "platterR": [
+      0.48,
+      1.05,
+      -0.02
+    ],
+    "mixer": [
+      0,
+      1.04,
+      -0.02
+    ],
+    "crowd": [
+      0,
+      0,
+      1.4
+    ]
+  },
+  "nodes": {
+    "PlatterL": "spin about +Y (three) at ~33 rpm",
+    "PlatterR": "spin about +Y (three)"
+  }
+}

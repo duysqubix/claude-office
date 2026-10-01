@@ -1,0 +1,25 @@
+{
+  "id": "desk_phone",
+  "name": "Desk phone",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky retro desk phone with a coiled cord, keypad and a red message light",
+  "tags": [
+    "desk",
+    "office",
+    "phone",
+    "gadget"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "handset": [
+      -0.052,
+      0.1,
+      -0.0
+    ]
+  }
+}

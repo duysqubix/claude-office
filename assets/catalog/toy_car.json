@@ -1,0 +1,20 @@
+{
+  "id": "toy_car",
+  "name": "Toy car",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "Cute rounded bubble car with a smiley grille, big headlights, fat tyres and a domed roof; no brand",
+  "tags": [
+    "car",
+    "vehicle",
+    "street",
+    "parking"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {},
+  "notes": "Body is 'Accent' (default coral #FF5A5F); tint from PALETTE.chairs or shirts. Faces +Z. Headlight/Taillight are mildly emissive."
+}

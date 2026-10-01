@@ -1,0 +1,19 @@
+{
+  "id": "fruit_bowl",
+  "name": "Fruit bowl",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky ceramic bowl of apples, an orange, grapes and bananas",
+  "tags": [
+    "break-room",
+    "kitchen",
+    "snack",
+    "healthy"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {}
+}

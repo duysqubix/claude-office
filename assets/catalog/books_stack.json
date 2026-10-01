@@ -1,0 +1,23 @@
+{
+  "id": "books_stack",
+  "name": "Books stack",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Pile of four chunky hardback books with a bookmark ribbon",
+  "tags": [
+    "desk",
+    "shelf",
+    "clutter",
+    "reading"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.149,
+      0
+    ]
+  }
+}

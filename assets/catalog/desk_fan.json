@@ -1,0 +1,27 @@
+{
+  "id": "desk_fan",
+  "name": "Desk fan",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Retro desk fan with a chrome cage; the blades are a separate spinning node",
+  "tags": [
+    "desk",
+    "gadget",
+    "animated"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "hub": [
+      0.0,
+      0.212,
+      0.034
+    ]
+  },
+  "nodes": {
+    "Blades": "pivot at the hub; spin about the node's local Z axis in three.js (+Z = the direction the fan blows, out of the front); Blender Y"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "jukebox",
+  "name": "Jukebox",
+  "category": "appliance",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Glowing arched jukebox with a record window",
+  "tags": [
+    "game-room",
+    "lounge",
+    "music",
+    "fun"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "front": [
+      0,
+      0,
+      0.6
+    ],
+    "record": [
+      0,
+      1.05,
+      0.28
+    ]
+  }
+}

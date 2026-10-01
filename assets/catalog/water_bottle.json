@@ -1,0 +1,30 @@
+{
+  "id": "water_bottle",
+  "name": "Water bottle",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky sports water bottle with a grip band, flip spout and carry loop",
+  "tags": [
+    "drink",
+    "desk",
+    "hydration",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "spout": [
+      0,
+      0.238,
+      0
+    ],
+    "loop": [
+      0,
+      0.232,
+      -0.028
+    ]
+  }
+}

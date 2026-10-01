@@ -590,6 +590,50 @@ def ramp(x, a, b):
     return t * t * (3 - 2 * t)
 
 
+def carved(base, grooves, r0=0.002, r1=0.0085, sink=-0.001, extend=0.03, k=0.005):
+    """SDF: `base` with grooves carved along (theta, phi) control paths laid on its own
+    surface (paths are computed once, on first call)."""
+    cache = {}
+
+    def fn(P):
+        if "paths" not in cache:
+            cache["paths"] = [groove_path(base, g, samples=12, sink=sink, extend=extend)
+                              for g in grooves]
+        d = base(P)
+        for pts in cache["paths"]:
+            d = smax(d, -sd_groove(P, pts, r0, r1), k)
+        return d
+    return fn
+
+
+def fib_dirs(n, seed=0):
+    """n roughly even unit directions (Fibonacci sphere), with a little seeded jitter."""
+    rnd = np.random.default_rng(seed)
+    i = np.arange(n) + 0.5
+    z = 1 - 2 * i / n
+    a = math.pi * (1 + 5 ** 0.5) * i + rnd.uniform(-0.25, 0.25, n)
+    r = np.sqrt(1 - z * z)
+    return np.stack([r * np.cos(a), r * np.sin(a), z], axis=1)
+
+
+def sd_spheres(P, centres, radii, k):
+    """Smooth union of many spheres, each evaluated only near itself."""
+    d = np.full(len(P), 1.0, dtype=np.float32)
+    for c, r in zip(centres, radii):
+        m = r + k + 0.004
+        sd = bounded(P, np.asarray(c) - m, np.asarray(c) + m,
+                     lambda Q, c=c, r=r: np.linalg.norm(Q - _arr(c), axis=1) - r)
+        d = smin(d, sd, k)
+    return d
+
+
+def hair_mesh(name, fn, color, lo=(-0.36, -0.38, -0.26), hi=(0.36, 0.38, 0.38), target=1950,
+              voxel=0.0035, rough=0.62):
+    """Mesh a hair SDF (pivot = head centre), trimmed inside the head, decimated to budget."""
+    return sdf_mesh(name, fn, lo, hi, m_hair(color, rough), voxel=voxel, trim=outside_head(),
+                    target=target, remesh="decimate")
+
+
 def sd_shell(P, r_in, r_out, centre=(0, 0, 0)):
     """Spherical shell between r_in and r_out."""
     dist = np.linalg.norm(P - _arr(centre), axis=1)

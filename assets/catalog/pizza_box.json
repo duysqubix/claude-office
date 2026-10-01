@@ -1,0 +1,25 @@
+{
+  "id": "pizza_box",
+  "name": "Pizza box",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Open pizza box with a pepperoni pizza missing one slice",
+  "tags": [
+    "break-room",
+    "snack",
+    "party",
+    "pizza"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "gap": [
+      0.07,
+      0.017,
+      0.085
+    ]
+  }
+}

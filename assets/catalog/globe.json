@@ -1,0 +1,25 @@
+{
+  "id": "globe",
+  "name": "Globe",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky desk globe with blobby continents on a gold meridian; the globe spins",
+  "tags": [
+    "desk",
+    "decor",
+    "animated"
+  ],
+  "tintable": [],
+  "anchors": {
+    "centre": [
+      0.0,
+      0.222,
+      -0.0
+    ]
+  },
+  "nodes": {
+    "Globe": "pivot at the sphere centre; spin with node.rotateOnAxis(new Vector3(0.397, 0.918, 0), angle) \u2014 the tilted pole axis in three.js (Blender (0.397, 0, 0.918))"
+  }
+}

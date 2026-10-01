@@ -1,0 +1,29 @@
+{
+  "id": "mailbox",
+  "name": "Mailbox",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "Chunky round-topped mailbox on a wooden post, cream door, little red flag",
+  "tags": [
+    "mail",
+    "garden",
+    "street",
+    "animated"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "door": [
+      0,
+      1.13,
+      0.22
+    ]
+  },
+  "nodes": {
+    "Flag": "red flag; pivot on its hinge (x 0.16, y 1.1, z -0.08); modelled down (pointing +Z); rotate about X by -90 deg (three.js) to raise it"
+  },
+  "notes": "Box is 'Accent' (default blue #3D7CFF). Raise the flag when a session has news?"
+}

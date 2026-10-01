@@ -1,15 +1,15 @@
 {
-  "generated": "2026-10-01T19:02:17.473Z",
+  "generated": "2026-10-01T23:27:26.348Z",
   "totals": {
     "all": 232,
-    "done": 110,
-    "planned": 122
+    "done": 142,
+    "planned": 90
   },
   "byArtist": {
     "Claude Cézanne": 53,
     "Claude Lorrain": 37,
-    "Claude Monet": 62,
-    "Claude Monet (round 2)": 7,
+    "Claude Monet": 66,
+    "Claude Monet (round 2)": 3,
     "Claude Rodin": 73
   },
   "items": [
@@ -742,6 +742,122 @@
       "bytes": 74760
     },
     {
+      "id": "binder",
+      "name": "Binder",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Upright ring binder with a \"TPS REPORTS\" spine label and a finger hole",
+      "tags": [
+        "desk",
+        "shelf",
+        "paperwork"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "spineLabel": [
+          0,
+          0.2,
+          0.145
+        ]
+      },
+      "status": "done",
+      "file": "models/binder.glb",
+      "thumb": "models/thumbs/binder.jpg",
+      "dims": {
+        "w": 0.075,
+        "h": 0.31,
+        "d": 0.291
+      },
+      "bbox": {
+        "min": [
+          -0.038,
+          0,
+          -0.145
+        ],
+        "max": [
+          0.038,
+          0.31,
+          0.146
+        ]
+      },
+      "tris": 863,
+      "materials": [
+        "Accent",
+        "Pages",
+        "SpineLabel",
+        "Ink",
+        "Chrome"
+      ],
+      "nodes": [
+        "binder"
+      ],
+      "textures": 1,
+      "bytes": 53556
+    },
+    {
+      "id": "books_stack",
+      "name": "Books stack",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Pile of four chunky hardback books with a bookmark ribbon",
+      "tags": [
+        "desk",
+        "shelf",
+        "clutter",
+        "reading"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          0.149,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/books_stack.glb",
+      "thumb": "models/thumbs/books_stack.jpg",
+      "dims": {
+        "w": 0.253,
+        "h": 0.149,
+        "d": 0.191
+      },
+      "bbox": {
+        "min": [
+          -0.125,
+          0,
+          -0.096
+        ],
+        "max": [
+          0.128,
+          0.149,
+          0.096
+        ]
+      },
+      "tris": 1252,
+      "materials": [
+        "CoverBlue",
+        "Pages",
+        "SpineLabel",
+        "SpineBand",
+        "CoverCoral",
+        "CoverYellow",
+        "CoverTeal",
+        "Ribbon"
+      ],
+      "nodes": [
+        "books_stack"
+      ],
+      "textures": 1,
+      "bytes": 81208
+    },
+    {
       "id": "cactus",
       "name": "Cactus",
       "category": "plant",
@@ -799,6 +915,883 @@
       ],
       "textures": 1,
       "bytes": 127640
+    },
+    {
+      "id": "calculator",
+      "name": "Calculator",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky wedge desk calculator with fat keys and an LCD that says 42",
+      "tags": [
+        "desk",
+        "office",
+        "gadget"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "display": [
+          0,
+          0.034,
+          -0.04
+        ]
+      },
+      "status": "done",
+      "file": "models/calculator.glb",
+      "thumb": "models/thumbs/calculator.jpg",
+      "dims": {
+        "w": 0.12,
+        "h": 0.036,
+        "d": 0.17
+      },
+      "bbox": {
+        "min": [
+          -0.06,
+          0,
+          -0.085
+        ],
+        "max": [
+          0.06,
+          0.036,
+          0.085
+        ]
+      },
+      "tris": 2339,
+      "materials": [
+        "Accent",
+        "Bezel",
+        "LCD",
+        "Ink",
+        "Key",
+        "KeyOp",
+        "PrintWhite",
+        "KeyAC",
+        "KeyFn"
+      ],
+      "nodes": [
+        "calculator"
+      ],
+      "textures": 1,
+      "bytes": 130844
+    },
+    {
+      "id": "cookie_jar",
+      "name": "Cookie jar",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Plump ceramic cookie jar with the lid ajar and a cookie escaping",
+      "tags": [
+        "break-room",
+        "kitchen",
+        "snack",
+        "treat"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "lid": [
+          0,
+          0.18,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/cookie_jar.glb",
+      "thumb": "models/thumbs/cookie_jar.jpg",
+      "dims": {
+        "w": 0.184,
+        "h": 0.217,
+        "d": 0.187
+      },
+      "bbox": {
+        "min": [
+          -0.087,
+          0,
+          -0.079
+        ],
+        "max": [
+          0.097,
+          0.216,
+          0.108
+        ]
+      },
+      "tris": 5112,
+      "materials": [
+        "Accent",
+        "Cream",
+        "LabelInk",
+        "Cookie",
+        "Chip"
+      ],
+      "nodes": [
+        "cookie_jar"
+      ],
+      "textures": 1,
+      "bytes": 200748
+    },
+    {
+      "id": "desk_fan",
+      "name": "Desk fan",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Retro desk fan with a chrome cage; the blades are a separate spinning node",
+      "tags": [
+        "desk",
+        "gadget",
+        "animated"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "hub": [
+          0,
+          0.212,
+          0.034
+        ]
+      },
+      "status": "done",
+      "file": "models/desk_fan.glb",
+      "thumb": "models/thumbs/desk_fan.jpg",
+      "dims": {
+        "w": 0.203,
+        "h": 0.313,
+        "d": 0.165
+      },
+      "bbox": {
+        "min": [
+          -0.101,
+          0,
+          -0.085
+        ],
+        "max": [
+          0.101,
+          0.313,
+          0.08
+        ]
+      },
+      "tris": 4128,
+      "materials": [
+        "Blade",
+        "Accent",
+        "Cream",
+        "Badge",
+        "Chrome"
+      ],
+      "nodes": [
+        "desk_fan",
+        "Blades"
+      ],
+      "textures": 1,
+      "bytes": 192020
+    },
+    {
+      "id": "desk_phone",
+      "name": "Desk phone",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky retro desk phone with a coiled cord, keypad and a red message light",
+      "tags": [
+        "desk",
+        "office",
+        "phone",
+        "gadget"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "handset": [
+          -0.052,
+          0.1,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/desk_phone.glb",
+      "thumb": "models/thumbs/desk_phone.jpg",
+      "dims": {
+        "w": 0.231,
+        "h": 0.112,
+        "d": 0.225
+      },
+      "bbox": {
+        "min": [
+          -0.131,
+          0,
+          -0.09
+        ],
+        "max": [
+          0.1,
+          0.112,
+          0.135
+        ]
+      },
+      "tris": 4061,
+      "materials": [
+        "Accent",
+        "Key",
+        "Ink",
+        "Bezel",
+        "LCD",
+        "Light"
+      ],
+      "nodes": [
+        "desk_phone"
+      ],
+      "textures": 1,
+      "bytes": 195500
+    },
+    {
+      "id": "donut_box",
+      "name": "Donut box",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Open pink bakery box of iced donuts with one already gone",
+      "tags": [
+        "break-room",
+        "snack",
+        "treat",
+        "party"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "emptySlot": [
+          0.095,
+          0.0075,
+          0.048
+        ]
+      },
+      "status": "done",
+      "file": "models/donut_box.glb",
+      "thumb": "models/thumbs/donut_box.jpg",
+      "dims": {
+        "w": 0.3,
+        "h": 0.269,
+        "d": 0.264
+      },
+      "bbox": {
+        "min": [
+          -0.15,
+          0,
+          -0.158
+        ],
+        "max": [
+          0.15,
+          0.269,
+          0.106
+        ]
+      },
+      "tris": 3636,
+      "materials": [
+        "Accent",
+        "Paper",
+        "IcingPink",
+        "Dough",
+        "Sprinkle",
+        "IcingBlue",
+        "IcingChoc",
+        "IcingVanilla"
+      ],
+      "nodes": [
+        "donut_box"
+      ],
+      "textures": 1,
+      "bytes": 174644
+    },
+    {
+      "id": "energy_drink",
+      "name": "Energy drink",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky \"MAX TOKENS\" energy drink can with a big lightning bolt",
+      "tags": [
+        "drink",
+        "desk",
+        "energy",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.1212,
+          0
+        ],
+        "sip": [
+          0,
+          0.1185,
+          0.014
+        ]
+      },
+      "status": "done",
+      "file": "models/energy_drink.glb",
+      "thumb": "models/thumbs/energy_drink.jpg",
+      "dims": {
+        "w": 0.068,
+        "h": 0.121,
+        "d": 0.069
+      },
+      "bbox": {
+        "min": [
+          -0.034,
+          0,
+          -0.034
+        ],
+        "max": [
+          0.034,
+          0.121,
+          0.034
+        ]
+      },
+      "tris": 2238,
+      "materials": [
+        "Chrome",
+        "Accent",
+        "Bolt",
+        "Print",
+        "Slot"
+      ],
+      "nodes": [
+        "energy_drink"
+      ],
+      "textures": 1,
+      "bytes": 82872
+    },
+    {
+      "id": "folder",
+      "name": "Folder",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Manila folder with sheets peeking out, a CONFIDENTIAL stamp and a paperclip",
+      "tags": [
+        "desk",
+        "paperwork",
+        "clutter"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          0.012,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/folder.glb",
+      "thumb": "models/thumbs/folder.jpg",
+      "dims": {
+        "w": 0.25,
+        "h": 0.025,
+        "d": 0.328
+      },
+      "bbox": {
+        "min": [
+          -0.12,
+          0,
+          -0.173
+        ],
+        "max": [
+          0.13,
+          0.025,
+          0.155
+        ]
+      },
+      "tris": 1241,
+      "materials": [
+        "Manila",
+        "Paper",
+        "ManilaFlap",
+        "Stamp",
+        "Chrome"
+      ],
+      "nodes": [
+        "folder"
+      ],
+      "textures": 1,
+      "bytes": 65504
+    },
+    {
+      "id": "fruit_bowl",
+      "name": "Fruit bowl",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky ceramic bowl of apples, an orange, grapes and bananas",
+      "tags": [
+        "break-room",
+        "kitchen",
+        "snack",
+        "healthy"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {},
+      "status": "done",
+      "file": "models/fruit_bowl.glb",
+      "thumb": "models/thumbs/fruit_bowl.jpg",
+      "dims": {
+        "w": 0.285,
+        "h": 0.145,
+        "d": 0.285
+      },
+      "bbox": {
+        "min": [
+          -0.142,
+          0,
+          -0.142
+        ],
+        "max": [
+          0.142,
+          0.145,
+          0.142
+        ]
+      },
+      "tris": 4372,
+      "materials": [
+        "Accent",
+        "AppleRed",
+        "Stalk",
+        "Leaf",
+        "AppleGreen",
+        "Orange",
+        "Grape",
+        "Banana"
+      ],
+      "nodes": [
+        "fruit_bowl"
+      ],
+      "textures": 1,
+      "bytes": 178156
+    },
+    {
+      "id": "globe",
+      "name": "Globe",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky desk globe with blobby continents on a gold meridian; the globe spins",
+      "tags": [
+        "desk",
+        "decor",
+        "animated"
+      ],
+      "tintable": [],
+      "anchors": {
+        "centre": [
+          0,
+          0.222,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/globe.glb",
+      "thumb": "models/thumbs/globe.jpg",
+      "dims": {
+        "w": 0.198,
+        "h": 0.321,
+        "d": 0.18
+      },
+      "bbox": {
+        "min": [
+          -0.09,
+          0,
+          -0.09
+        ],
+        "max": [
+          0.108,
+          0.321,
+          0.09
+        ]
+      },
+      "tris": 2894,
+      "materials": [
+        "Ocean",
+        "Land",
+        "Sand",
+        "Ice",
+        "Wood",
+        "Gold"
+      ],
+      "nodes": [
+        "globe",
+        "Globe"
+      ],
+      "textures": 1,
+      "bytes": 111580
+    },
+    {
+      "id": "headphones_stand",
+      "name": "Headphones on a stand",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky over-ear headphones hanging on a wooden desk stand",
+      "tags": [
+        "desk",
+        "music",
+        "gadget"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.254,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/headphones_stand.glb",
+      "thumb": "models/thumbs/headphones_stand.jpg",
+      "dims": {
+        "w": 0.23,
+        "h": 0.255,
+        "d": 0.141
+      },
+      "bbox": {
+        "min": [
+          -0.115,
+          0,
+          -0.071
+        ],
+        "max": [
+          0.115,
+          0.255,
+          0.071
+        ]
+      },
+      "tris": 3032,
+      "materials": [
+        "Wood",
+        "Accent",
+        "Cushion",
+        "Logo"
+      ],
+      "nodes": [
+        "headphones_stand"
+      ],
+      "textures": 1,
+      "bytes": 131344
+    },
+    {
+      "id": "lava_lamp",
+      "name": "Lava lamp",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Groovy lava lamp: translucent glowing bottle with emissive orange wax blobs",
+      "tags": [
+        "desk",
+        "lamp",
+        "glow",
+        "retro"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "glow": [
+          0,
+          0.2,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/lava_lamp.glb",
+      "thumb": "models/thumbs/lava_lamp.jpg",
+      "dims": {
+        "w": 0.131,
+        "h": 0.341,
+        "d": 0.131
+      },
+      "bbox": {
+        "min": [
+          -0.065,
+          0,
+          -0.065
+        ],
+        "max": [
+          0.065,
+          0.341,
+          0.065
+        ]
+      },
+      "tris": 2532,
+      "materials": [
+        "Accent",
+        "Trim",
+        "Glass",
+        "Wax"
+      ],
+      "nodes": [
+        "lava_lamp"
+      ],
+      "textures": 1,
+      "bytes": 95900
+    },
+    {
+      "id": "photo_frame",
+      "name": "Photo frame",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky desk photo frame on an easel stand; a sunny photo of two little people",
+      "tags": [
+        "desk",
+        "clutter",
+        "personal"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "photoCenter": [
+          0,
+          0.082,
+          0.012
+        ]
+      },
+      "status": "done",
+      "file": "models/photo_frame.glb",
+      "thumb": "models/thumbs/photo_frame.jpg",
+      "dims": {
+        "w": 0.13,
+        "h": 0.163,
+        "d": 0.116
+      },
+      "bbox": {
+        "min": [
+          -0.065,
+          -0.003,
+          -0.108
+        ],
+        "max": [
+          0.065,
+          0.161,
+          0.008
+        ]
+      },
+      "tris": 699,
+      "materials": [
+        "Accent",
+        "Backing",
+        "PhotoSky",
+        "PhotoSun",
+        "PhotoHill",
+        "PhotoShirtA",
+        "PhotoSkin",
+        "PhotoInk",
+        "PhotoShirtB"
+      ],
+      "nodes": [
+        "photo_frame"
+      ],
+      "textures": 1,
+      "bytes": 46560
+    },
+    {
+      "id": "pizza_box",
+      "name": "Pizza box",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Open pizza box with a pepperoni pizza missing one slice",
+      "tags": [
+        "break-room",
+        "snack",
+        "party",
+        "pizza"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "gap": [
+          0.07,
+          0.017,
+          0.085
+        ]
+      },
+      "status": "done",
+      "file": "models/pizza_box.glb",
+      "thumb": "models/thumbs/pizza_box.jpg",
+      "dims": {
+        "w": 0.4,
+        "h": 0.444,
+        "d": 0.479
+      },
+      "bbox": {
+        "min": [
+          -0.2,
+          0,
+          -0.278
+        ],
+        "max": [
+          0.2,
+          0.444,
+          0.2
+        ]
+      },
+      "tris": 4000,
+      "materials": [
+        "Cardboard",
+        "Accent",
+        "Grease",
+        "Bread",
+        "Cheese",
+        "Crust",
+        "CheeseCut",
+        "Pepperoni",
+        "Basil"
+      ],
+      "nodes": [
+        "pizza_box"
+      ],
+      "textures": 1,
+      "bytes": 211960
+    },
+    {
+      "id": "smartphone",
+      "name": "Smartphone",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky smartphone lying face up in a colourful case; Screen for game content",
+      "tags": [
+        "desk",
+        "phone",
+        "screen",
+        "gadget"
+      ],
+      "tintable": [
+        "Accent",
+        "Screen"
+      ],
+      "anchors": {
+        "screenCenter": [
+          0,
+          0.0128,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/smartphone.glb",
+      "thumb": "models/thumbs/smartphone.jpg",
+      "dims": {
+        "w": 0.08,
+        "h": 0.013,
+        "d": 0.152
+      },
+      "bbox": {
+        "min": [
+          -0.04,
+          0,
+          -0.076
+        ],
+        "max": [
+          0.04,
+          0.013,
+          0.076
+        ]
+      },
+      "tris": 470,
+      "materials": [
+        "Accent",
+        "Glass",
+        "Screen"
+      ],
+      "nodes": [
+        "smartphone"
+      ],
+      "textures": 1,
+      "bytes": 30080
+    },
+    {
+      "id": "snack_bag",
+      "name": "Snack bag",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Puffy stand-up chip bag with a crimped top and a smiling chip mascot",
+      "tags": [
+        "desk",
+        "snack",
+        "clutter",
+        "break-room"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "top": [
+          0,
+          0.226,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/snack_bag.glb",
+      "thumb": "models/thumbs/snack_bag.jpg",
+      "dims": {
+        "w": 0.176,
+        "h": 0.219,
+        "d": 0.071
+      },
+      "bbox": {
+        "min": [
+          -0.088,
+          0,
+          -0.035
+        ],
+        "max": [
+          0.088,
+          0.219,
+          0.036
+        ]
+      },
+      "tris": 4825,
+      "materials": [
+        "Accent",
+        "PrintWhite",
+        "PrintChip",
+        "PrintInk"
+      ],
+      "nodes": [
+        "snack_bag"
+      ],
+      "textures": 1,
+      "bytes": 150616
     },
     {
       "id": "stapler",
@@ -898,7 +1891,7 @@
           0.051
         ]
       },
-      "tris": 3120,
+      "tris": 2976,
       "materials": [
         "Accent",
         "Soil",
@@ -909,56 +1902,181 @@
         "succulent"
       ],
       "textures": 1,
-      "bytes": 126104
+      "bytes": 121740
+    },
+    {
+      "id": "tissue_box",
+      "name": "Tissue box",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Polka-dot cube tissue box with a fluffy tissue puffing out of the top",
+      "tags": [
+        "desk",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "tissueTop": [
+          0,
+          0.205,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/tissue_box.glb",
+      "thumb": "models/thumbs/tissue_box.jpg",
+      "dims": {
+        "w": 0.121,
+        "h": 0.206,
+        "d": 0.121
+      },
+      "bbox": {
+        "min": [
+          -0.06,
+          0,
+          -0.06
+        ],
+        "max": [
+          0.06,
+          0.206,
+          0.06
+        ]
+      },
+      "tris": 1482,
+      "materials": [
+        "Accent",
+        "Slot",
+        "Dots",
+        "Tissue"
+      ],
+      "nodes": [
+        "tissue_box"
+      ],
+      "textures": 1,
+      "bytes": 64284
+    },
+    {
+      "id": "trophy",
+      "name": "Trophy",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky gold trophy cup with a star, on a wooden base with a #1 plaque",
+      "tags": [
+        "desk",
+        "award",
+        "manager"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          0.187,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/trophy.glb",
+      "thumb": "models/thumbs/trophy.jpg",
+      "dims": {
+        "w": 0.189,
+        "h": 0.187,
+        "d": 0.12
+      },
+      "bbox": {
+        "min": [
+          -0.094,
+          0,
+          -0.06
+        ],
+        "max": [
+          0.094,
+          0.187,
+          0.06
+        ]
+      },
+      "tris": 2704,
+      "materials": [
+        "Wood",
+        "Gold",
+        "Ink",
+        "Star"
+      ],
+      "nodes": [
+        "trophy"
+      ],
+      "textures": 1,
+      "bytes": 105500
+    },
+    {
+      "id": "water_bottle",
+      "name": "Water bottle",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Chunky sports water bottle with a grip band, flip spout and carry loop",
+      "tags": [
+        "drink",
+        "desk",
+        "hydration",
+        "clutter"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "spout": [
+          0,
+          0.238,
+          0
+        ],
+        "loop": [
+          0,
+          0.232,
+          -0.028
+        ]
+      },
+      "status": "done",
+      "file": "models/water_bottle.glb",
+      "thumb": "models/thumbs/water_bottle.jpg",
+      "dims": {
+        "w": 0.074,
+        "h": 0.245,
+        "d": 0.075
+      },
+      "bbox": {
+        "min": [
+          -0.037,
+          0,
+          -0.038
+        ],
+        "max": [
+          0.037,
+          0.245,
+          0.037
+        ]
+      },
+      "tris": 2658,
+      "materials": [
+        "Accent",
+        "White",
+        "Spout"
+      ],
+      "nodes": [
+        "water_bottle"
+      ],
+      "textures": 1,
+      "bytes": 106688
     },
     {
       "id": "award_plaque",
       "name": "Award plaque",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "binder",
-      "name": "Binder",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "books_stack",
-      "name": "Books stack",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "calculator",
-      "name": "Calculator",
       "category": null,
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
@@ -987,21 +2105,6 @@
       "thumb": null
     },
     {
-      "id": "cookie_jar",
-      "name": "Cookie jar",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "cork_board",
       "name": "Cork board",
       "category": null,
@@ -1009,66 +2112,6 @@
       "group": "desk items, small props, food, decor",
       "priority": "P1",
       "description": "with pinned notes",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "desk_fan",
-      "name": "Desk fan",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "blades node `Blades`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "desk_phone",
-      "name": "Desk phone",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "donut_box",
-      "name": "Donut box",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "energy_drink",
-      "name": "Energy drink",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -1094,111 +2137,6 @@
     {
       "id": "fire_extinguisher",
       "name": "Fire extinguisher",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "folder",
-      "name": "Folder",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "fruit_bowl",
-      "name": "Fruit bowl",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "globe",
-      "name": "Globe",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "headphones_stand",
-      "name": "Headphones stand",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "lava_lamp",
-      "name": "Lava lamp",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "emissive",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "photo_frame",
-      "name": "Photo frame",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "pizza_box",
-      "name": "Pizza box",
       "category": null,
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
@@ -1287,83 +2225,8 @@
       "thumb": null
     },
     {
-      "id": "smartphone",
-      "name": "Smartphone",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "snack_bag",
-      "name": "Snack bag",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "tissue_box",
-      "name": "Tissue box",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "trophy",
-      "name": "Trophy",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "wall_shelf",
       "name": "Wall shelf",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "water_bottle",
-      "name": "Water bottle",
       "category": null,
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
@@ -2245,6 +3108,131 @@
       "bytes": 135304
     },
     {
+      "id": "bicycle",
+      "name": "Bicycle",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Chunky step-through city bike with mudguards, fat tyres, a cushy saddle and a wicker basket",
+      "tags": [
+        "bike",
+        "vehicle",
+        "street"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "saddle": [
+          0,
+          0.9,
+          -0.2
+        ],
+        "basket": [
+          0,
+          0.9,
+          0.66
+        ]
+      },
+      "status": "done",
+      "file": "models/bicycle.glb",
+      "thumb": "models/thumbs/bicycle.jpg",
+      "dims": {
+        "w": 0.629,
+        "h": 1.025,
+        "d": 1.868
+      },
+      "bbox": {
+        "min": [
+          -0.314,
+          -0.002,
+          -0.943
+        ],
+        "max": [
+          0.314,
+          1.023,
+          0.925
+        ]
+      },
+      "tris": 4964,
+      "materials": [
+        "Tyre",
+        "Metal",
+        "Accent",
+        "Saddle",
+        "Grip",
+        "Wicker"
+      ],
+      "nodes": [
+        "bicycle"
+      ],
+      "textures": 1,
+      "bytes": 266024
+    },
+    {
+      "id": "bike_rack",
+      "name": "Bike rack",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Three chunky sunny-yellow hoops bolted to two slate floor rails",
+      "tags": [
+        "bike",
+        "street",
+        "garden"
+      ],
+      "tintable": [],
+      "anchors": {
+        "slot0": [
+          -0.75,
+          0,
+          0
+        ],
+        "slot1": [
+          0,
+          0,
+          0
+        ],
+        "slot2": [
+          0.75,
+          0,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/bike_rack.glb",
+      "thumb": "models/thumbs/bike_rack.jpg",
+      "dims": {
+        "w": 2,
+        "h": 0.836,
+        "d": 0.74
+      },
+      "bbox": {
+        "min": [
+          -1,
+          -0.001,
+          -0.37
+        ],
+        "max": [
+          1,
+          0.835,
+          0.37
+        ]
+      },
+      "tris": 2220,
+      "materials": [
+        "Paint",
+        "Base"
+      ],
+      "nodes": [
+        "bike_rack"
+      ],
+      "textures": 1,
+      "bytes": 102480
+    },
+    {
       "id": "fence_picket",
       "name": "Picket fence",
       "category": "outdoor",
@@ -2289,6 +3277,110 @@
       ],
       "textures": 1,
       "bytes": 101644
+    },
+    {
+      "id": "fire_hydrant",
+      "name": "Fire hydrant",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Chunky red hydrant with a sunny-yellow domed bonnet, capped nozzles and a bolted flange",
+      "tags": [
+        "street",
+        "garden"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/fire_hydrant.glb",
+      "thumb": "models/thumbs/fire_hydrant.jpg",
+      "dims": {
+        "w": 0.475,
+        "h": 0.695,
+        "d": 0.438
+      },
+      "bbox": {
+        "min": [
+          -0.237,
+          0,
+          -0.18
+        ],
+        "max": [
+          0.237,
+          0.695,
+          0.257
+        ]
+      },
+      "tris": 2196,
+      "materials": [
+        "Red",
+        "Cap",
+        "Bolt"
+      ],
+      "nodes": [
+        "fire_hydrant"
+      ],
+      "textures": 1,
+      "bytes": 103888
+    },
+    {
+      "id": "flag_pole",
+      "name": "Flag pole",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "5 m cream flag pole on a stone plinth flying a waving Claude-orange flag with a cream sparkle",
+      "tags": [
+        "flag",
+        "garden",
+        "landmark",
+        "animated"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          5.07,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/flag_pole.glb",
+      "thumb": "models/thumbs/flag_pole.jpg",
+      "dims": {
+        "w": 1.73,
+        "h": 5.15,
+        "d": 0.66
+      },
+      "bbox": {
+        "min": [
+          -0.33,
+          0,
+          -0.33
+        ],
+        "max": [
+          1.4,
+          5.15,
+          0.33
+        ]
+      },
+      "tris": 1682,
+      "materials": [
+        "FlagCloth.Flag",
+        "FlagMark.Flag",
+        "Stone",
+        "Pole",
+        "Gold",
+        "Rope"
+      ],
+      "nodes": [
+        "flag_pole",
+        "Flag"
+      ],
+      "textures": 2,
+      "bytes": 83332
     },
     {
       "id": "grass_tuft",
@@ -2387,6 +3479,119 @@
       "bytes": 97696
     },
     {
+      "id": "mailbox",
+      "name": "Mailbox",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Chunky round-topped mailbox on a wooden post, cream door, little red flag",
+      "tags": [
+        "mail",
+        "garden",
+        "street",
+        "animated"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "door": [
+          0,
+          1.13,
+          0.22
+        ]
+      },
+      "status": "done",
+      "file": "models/mailbox.glb",
+      "thumb": "models/thumbs/mailbox.jpg",
+      "dims": {
+        "w": 0.304,
+        "h": 1.27,
+        "d": 0.545
+      },
+      "bbox": {
+        "min": [
+          -0.13,
+          0,
+          -0.29
+        ],
+        "max": [
+          0.174,
+          1.27,
+          0.255
+        ]
+      },
+      "tris": 1192,
+      "materials": [
+        "Hardware.Flag",
+        "FlagRed.Flag",
+        "Accent",
+        "Trim",
+        "Hardware",
+        "Post"
+      ],
+      "nodes": [
+        "mailbox",
+        "Flag"
+      ],
+      "textures": 2,
+      "bytes": 75876
+    },
+    {
+      "id": "outdoor_bin",
+      "name": "Outdoor bin",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Ribbed deep-green park litter bin with a cream band and a domed rain lid over the opening",
+      "tags": [
+        "bin",
+        "street",
+        "garden"
+      ],
+      "tintable": [],
+      "anchors": {
+        "opening": [
+          0,
+          0.84,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/outdoor_bin.glb",
+      "thumb": "models/thumbs/outdoor_bin.jpg",
+      "dims": {
+        "w": 0.64,
+        "h": 1.15,
+        "d": 0.64
+      },
+      "bbox": {
+        "min": [
+          -0.32,
+          0,
+          -0.32
+        ],
+        "max": [
+          0.32,
+          1.15,
+          0.32
+        ]
+      },
+      "tris": 2388,
+      "materials": [
+        "Iron",
+        "Band",
+        "Inside"
+      ],
+      "nodes": [
+        "outdoor_bin"
+      ],
+      "textures": 1,
+      "bytes": 109520
+    },
+    {
       "id": "palm_indoor",
       "name": "Indoor palm",
       "category": "plant",
@@ -2439,6 +3644,79 @@
       ],
       "textures": 1,
       "bytes": 295460
+    },
+    {
+      "id": "picnic_table",
+      "name": "Picnic table",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Classic A-frame picnic table with two attached benches in chunky honey planks",
+      "tags": [
+        "seating",
+        "table",
+        "garden",
+        "lunch"
+      ],
+      "tintable": [],
+      "anchors": {
+        "seatN0": [
+          -0.45,
+          0.45,
+          -0.62
+        ],
+        "seatN1": [
+          0.45,
+          0.45,
+          -0.62
+        ],
+        "seatS0": [
+          -0.45,
+          0.45,
+          0.62
+        ],
+        "seatS1": [
+          0.45,
+          0.45,
+          0.62
+        ],
+        "tableTop": [
+          0,
+          0.76,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/picnic_table.glb",
+      "thumb": "models/thumbs/picnic_table.jpg",
+      "dims": {
+        "w": 1.8,
+        "h": 0.754,
+        "d": 1.6
+      },
+      "bbox": {
+        "min": [
+          -0.9,
+          0.006,
+          -0.8
+        ],
+        "max": [
+          0.9,
+          0.76,
+          0.8
+        ]
+      },
+      "tris": 2684,
+      "materials": [
+        "Wood",
+        "WoodDark"
+      ],
+      "nodes": [
+        "picnic_table"
+      ],
+      "textures": 1,
+      "bytes": 132756
     },
     {
       "id": "plant_fern",
@@ -2713,6 +3991,60 @@
       "bytes": 53504
     },
     {
+      "id": "toy_car",
+      "name": "Toy car",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Cute rounded bubble car with a smiley grille, big headlights, fat tyres and a domed roof; no brand",
+      "tags": [
+        "car",
+        "vehicle",
+        "street",
+        "parking"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {},
+      "status": "done",
+      "file": "models/toy_car.glb",
+      "thumb": "models/thumbs/toy_car.jpg",
+      "dims": {
+        "w": 1.7,
+        "h": 1.415,
+        "d": 2.735
+      },
+      "bbox": {
+        "min": [
+          -0.85,
+          -0.005,
+          -1.375
+        ],
+        "max": [
+          0.85,
+          1.41,
+          1.36
+        ]
+      },
+      "tris": 7384,
+      "materials": [
+        "Accent",
+        "Window",
+        "Trim",
+        "Headlight",
+        "Taillight",
+        "Grille",
+        "Tyre"
+      ],
+      "nodes": [
+        "toy_car"
+      ],
+      "textures": 1,
+      "bytes": 315632
+    },
+    {
       "id": "tree_blossom",
       "name": "Blossom tree",
       "category": "outdoor",
@@ -2777,126 +4109,6 @@
       "group": "building, outdoors, plants",
       "priority": "P0",
       "description": "3 variants: cloud_a / cloud_b / cloud_c",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "bicycle",
-      "name": "Bicycle",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "bike_rack",
-      "name": "Bike rack",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "fire_hydrant",
-      "name": "Fire hydrant",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "flag_pole",
-      "name": "Flag pole",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "mailbox",
-      "name": "Mailbox",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "outdoor_bin",
-      "name": "Outdoor bin",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "picnic_table",
-      "name": "Picnic table",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "toy_car",
-      "name": "Toy car",
-      "category": null,
-      "artist": "Claude Lorrain",
-      "group": "building, outdoors, plants",
-      "priority": "P1",
-      "description": "cute parked car",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -5126,6 +6338,83 @@
       "bytes": 89708
     },
     {
+      "id": "coffee_bar",
+      "name": "Coffee bar",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Espresso bar counter with machine, grinder, cups and donuts",
+      "tags": [
+        "break-room",
+        "kitchen",
+        "coffee",
+        "interactable"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "customer": [
+          0,
+          0,
+          0.75
+        ],
+        "barista": [
+          0,
+          0,
+          -0.7
+        ],
+        "pickup": [
+          0.1,
+          1.02,
+          0.2
+        ]
+      },
+      "status": "done",
+      "file": "models/coffee_bar.glb",
+      "thumb": "models/thumbs/coffee_bar.jpg",
+      "dims": {
+        "w": 2.08,
+        "h": 1.39,
+        "d": 0.7
+      },
+      "bbox": {
+        "min": [
+          -1.04,
+          0,
+          -0.35
+        ],
+        "max": [
+          1.04,
+          1.39,
+          0.35
+        ]
+      },
+      "tris": 4221,
+      "materials": [
+        "Body",
+        "Wood",
+        "Accent",
+        "Stone",
+        "Machine",
+        "Chrome",
+        "Dark",
+        "Cup",
+        "Glass",
+        "Beans",
+        "Dough",
+        "Icing",
+        "Chalk",
+        "ChalkText"
+      ],
+      "nodes": [
+        "coffee_bar"
+      ],
+      "textures": 1,
+      "bytes": 256732
+    },
+    {
       "id": "coffee_table",
       "name": "Coffee table",
       "category": "furniture",
@@ -5287,6 +6576,110 @@
       ],
       "textures": 1,
       "bytes": 61484
+    },
+    {
+      "id": "dj_booth",
+      "name": "DJ booth",
+      "category": "furniture",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Glowing DJ booth with spinning turntables, mixer and headphones",
+      "tags": [
+        "game-room",
+        "party",
+        "music",
+        "fun",
+        "interactable"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "dj": [
+          0,
+          0,
+          -0.75
+        ],
+        "platterL": [
+          -0.48,
+          1.05,
+          -0.02
+        ],
+        "platterR": [
+          0.48,
+          1.05,
+          -0.02
+        ],
+        "mixer": [
+          0,
+          1.04,
+          -0.02
+        ],
+        "crowd": [
+          0,
+          0,
+          1.4
+        ]
+      },
+      "status": "done",
+      "file": "models/dj_booth.glb",
+      "thumb": "models/thumbs/dj_booth.jpg",
+      "dims": {
+        "w": 1.75,
+        "h": 1.22,
+        "d": 0.781
+      },
+      "bbox": {
+        "min": [
+          -0.875,
+          0,
+          -0.385
+        ],
+        "max": [
+          0.875,
+          1.22,
+          0.396
+        ]
+      },
+      "tris": 6856,
+      "materials": [
+        "Chrome",
+        "Vinyl",
+        "LabelL",
+        "Accent",
+        "LabelR",
+        "Shell",
+        "Deck",
+        "DJDisc",
+        "DJLetters",
+        "EQ0",
+        "EQ1",
+        "EQ2",
+        "EQ3",
+        "EQ4",
+        "EQ5",
+        "EQ6",
+        "Turntable",
+        "Mat",
+        "Mixer",
+        "Knob0",
+        "Knob1",
+        "Knob2",
+        "Knob3",
+        "Knob4",
+        "Knob5",
+        "Woofer",
+        "Headphones",
+        "EarPad"
+      ],
+      "nodes": [
+        "dj_booth",
+        "PlatterL",
+        "PlatterR"
+      ],
+      "textures": 1,
+      "bytes": 392764
     },
     {
       "id": "employee_of_month",
@@ -5463,6 +6856,78 @@
       ],
       "textures": 1,
       "bytes": 105608
+    },
+    {
+      "id": "jukebox",
+      "name": "Jukebox",
+      "category": "appliance",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Glowing arched jukebox with a record window",
+      "tags": [
+        "game-room",
+        "lounge",
+        "music",
+        "fun"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "front": [
+          0,
+          0,
+          0.6
+        ],
+        "record": [
+          0,
+          1.05,
+          0.28
+        ]
+      },
+      "status": "done",
+      "file": "models/jukebox.glb",
+      "thumb": "models/thumbs/jukebox.jpg",
+      "dims": {
+        "w": 0.84,
+        "h": 1.618,
+        "d": 0.585
+      },
+      "bbox": {
+        "min": [
+          -0.42,
+          0,
+          -0.27
+        ],
+        "max": [
+          0.42,
+          1.618,
+          0.315
+        ]
+      },
+      "tris": 2808,
+      "materials": [
+        "Wood",
+        "Face",
+        "Chrome",
+        "Accent",
+        "GlowGold",
+        "Glass",
+        "Vinyl",
+        "RecordLabel",
+        "Btn0",
+        "Btn1",
+        "Btn2",
+        "Btn3",
+        "Btn4",
+        "Grille"
+      ],
+      "nodes": [
+        "jukebox"
+      ],
+      "textures": 1,
+      "bytes": 155924
     },
     {
       "id": "locker",
@@ -5710,6 +7175,66 @@
       ],
       "textures": 1,
       "bytes": 64444
+    },
+    {
+      "id": "plant_wall",
+      "name": "Plant wall",
+      "category": "plant",
+      "artist": "Claude Monet",
+      "group": "Team Room, shop items, game room",
+      "priority": "P1",
+      "description": "Living green wall panel with soft leaves and flowers",
+      "tags": [
+        "team-room",
+        "wall",
+        "plant",
+        "decor"
+      ],
+      "tintable": [],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.1
+        ]
+      },
+      "status": "done",
+      "file": "models/plant_wall.glb",
+      "thumb": "models/thumbs/plant_wall.jpg",
+      "dims": {
+        "w": 2.04,
+        "h": 1.44,
+        "d": 0.31
+      },
+      "bbox": {
+        "min": [
+          -1.02,
+          -0.72,
+          -0.06
+        ],
+        "max": [
+          1.02,
+          0.72,
+          0.25
+        ]
+      },
+      "tris": 5456,
+      "materials": [
+        "Felt",
+        "Frame",
+        "Leaf4",
+        "Leaf0",
+        "Leaf1",
+        "Leaf3",
+        "Leaf2",
+        "FlowerYellow",
+        "FlowerPink"
+      ],
+      "nodes": [
+        "plant_wall"
+      ],
+      "textures": 1,
+      "bytes": 321132
     },
     {
       "id": "printer_copier",
@@ -6670,66 +8195,6 @@
       ],
       "textures": 1,
       "bytes": 136956
-    },
-    {
-      "id": "coffee_bar",
-      "name": "Coffee bar",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "espresso bar counter",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "dj_booth",
-      "name": "Dj booth",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "two turntables (nodes `PlatterL`, `PlatterR` spin) + mixer, glowing front",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "jukebox",
-      "name": "Jukebox",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "glowing, emissive `Accent`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "plant_wall",
-      "name": "Plant wall",
-      "category": null,
-      "artist": "Claude Monet (round 2)",
-      "group": "Team Room, shop items, game room",
-      "priority": "P1",
-      "description": "living green wall panel",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
     },
     {
       "id": "christmas_tree",

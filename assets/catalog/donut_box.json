@@ -1,0 +1,25 @@
+{
+  "id": "donut_box",
+  "name": "Donut box",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Open pink bakery box of iced donuts with one already gone",
+  "tags": [
+    "break-room",
+    "snack",
+    "treat",
+    "party"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "emptySlot": [
+      0.095,
+      0.0075,
+      0.048
+    ]
+  }
+}

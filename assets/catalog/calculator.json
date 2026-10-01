@@ -1,0 +1,24 @@
+{
+  "id": "calculator",
+  "name": "Calculator",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky wedge desk calculator with fat keys and an LCD that says 42",
+  "tags": [
+    "desk",
+    "office",
+    "gadget"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "display": [
+      0,
+      0.034,
+      -0.04
+    ]
+  }
+}

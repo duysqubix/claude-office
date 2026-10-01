@@ -1,0 +1,31 @@
+{
+  "id": "smartphone",
+  "name": "Smartphone",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky smartphone lying face up in a colourful case; Screen for game content",
+  "tags": [
+    "desk",
+    "phone",
+    "screen",
+    "gadget"
+  ],
+  "tintable": [
+    "Accent",
+    "Screen"
+  ],
+  "anchors": {
+    "screenCenter": [
+      0,
+      0.0128,
+      0
+    ]
+  },
+  "screen": {
+    "width": 0.064,
+    "height": 0.136,
+    "facing": "up (+Y three.js); top edge towards -Z three.js"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "snack_bag",
+  "name": "Snack bag",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Puffy stand-up chip bag with a crimped top and a smiling chip mascot",
+  "tags": [
+    "desk",
+    "snack",
+    "clutter",
+    "break-room"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "top": [
+      0,
+      0.226,
+      0
+    ]
+  }
+}

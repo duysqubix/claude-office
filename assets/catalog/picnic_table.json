@@ -1,0 +1,44 @@
+{
+  "id": "picnic_table",
+  "name": "Picnic table",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "status": "done",
+  "priority": "P1",
+  "description": "Classic A-frame picnic table with two attached benches in chunky honey planks",
+  "tags": [
+    "seating",
+    "table",
+    "garden",
+    "lunch"
+  ],
+  "tintable": [],
+  "anchors": {
+    "seatN0": [
+      -0.45,
+      0.45,
+      -0.62
+    ],
+    "seatN1": [
+      0.45,
+      0.45,
+      -0.62
+    ],
+    "seatS0": [
+      -0.45,
+      0.45,
+      0.62
+    ],
+    "seatS1": [
+      0.45,
+      0.45,
+      0.62
+    ],
+    "tableTop": [
+      0,
+      0.76,
+      0
+    ]
+  },
+  "notes": "Benches run along X at z = +-0.62; seat top 0.45, table top 0.76."
+}

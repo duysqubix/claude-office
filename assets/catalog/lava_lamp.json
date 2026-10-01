@@ -1,0 +1,28 @@
+{
+  "id": "lava_lamp",
+  "name": "Lava lamp",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Groovy lava lamp: translucent glowing bottle with emissive orange wax blobs",
+  "tags": [
+    "desk",
+    "lamp",
+    "glow",
+    "retro"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "glow": [
+      0,
+      0.2,
+      0
+    ]
+  },
+  "transparent": [
+    "Glass"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "trophy",
+  "name": "Trophy",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky gold trophy cup with a star, on a wooden base with a #1 plaque",
+  "tags": [
+    "desk",
+    "award",
+    "manager"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.187,
+      0
+    ]
+  }
+}

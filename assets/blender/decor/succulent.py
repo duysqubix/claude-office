@@ -37,7 +37,7 @@ def pot(M):
             (0.045, 0.053), (0.0478, 0.0585), (0.048, 0.066), (0.0458, 0.0705),
             (0.0425, 0.0712), (0.0403, 0.0685), (0.0396, SOIL + 0.002), (0.0392, SOIL),
             (0.0, SOIL)]
-    p = D.lathe("Pot", prof, M["pot"], verts=24, sharp=55)
+    p = D.lathe("Pot", prof, M["pot"], verts=22, sharp=55)
     D.paint(p, M["soil"], lambda c, n: abs(c.z - SOIL) < 0.0005 and n.z > 0.9)
 
 

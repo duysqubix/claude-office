@@ -1,0 +1,24 @@
+{
+  "id": "headphones_stand",
+  "name": "Headphones on a stand",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky over-ear headphones hanging on a wooden desk stand",
+  "tags": [
+    "desk",
+    "music",
+    "gadget"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "top": [
+      0,
+      0.254,
+      0
+    ]
+  }
+}

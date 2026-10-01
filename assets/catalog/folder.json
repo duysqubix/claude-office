@@ -1,0 +1,22 @@
+{
+  "id": "folder",
+  "name": "Folder",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Manila folder with sheets peeking out, a CONFIDENTIAL stamp and a paperclip",
+  "tags": [
+    "desk",
+    "paperwork",
+    "clutter"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0,
+      0.012,
+      0
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "tissue_box",
+  "name": "Tissue box",
+  "category": "desk-item",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Polka-dot cube tissue box with a fluffy tissue puffing out of the top",
+  "tags": [
+    "desk",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "tissueTop": [
+      0,
+      0.205,
+      0
+    ]
+  }
+}

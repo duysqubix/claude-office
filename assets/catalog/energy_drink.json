@@ -1,0 +1,30 @@
+{
+  "id": "energy_drink",
+  "name": "Energy drink",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky \"MAX TOKENS\" energy drink can with a big lightning bolt",
+  "tags": [
+    "drink",
+    "desk",
+    "energy",
+    "clutter"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "top": [
+      0,
+      0.1212,
+      0
+    ],
+    "sip": [
+      0,
+      0.1185,
+      0.014
+    ]
+  }
+}

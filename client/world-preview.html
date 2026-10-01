@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>World preview · Claude Office</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #cfefff;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #hud {
+        position: fixed;
+        left: 10px;
+        top: 10px;
+        font: 12px/1.45 ui-monospace, Menlo, monospace;
+        color: #2b2d42;
+        background: rgba(255, 253, 247, 0.88);
+        padding: 7px 10px;
+        border-radius: 12px;
+        white-space: pre;
+        pointer-events: none;
+        box-shadow: 0 3px 0 rgba(43, 45, 66, 0.2);
+      }
+      #hud.hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="hud"></div>
+    <script type="module" src="/src/world/preview.ts"></script>
+  </body>
+</html>

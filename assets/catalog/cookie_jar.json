@@ -1,0 +1,25 @@
+{
+  "id": "cookie_jar",
+  "name": "Cookie jar",
+  "category": "food",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Plump ceramic cookie jar with the lid ajar and a cookie escaping",
+  "tags": [
+    "break-room",
+    "kitchen",
+    "snack",
+    "treat"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "lid": [
+      0,
+      0.18,
+      0
+    ]
+  }
+}

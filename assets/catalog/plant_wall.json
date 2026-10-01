@@ -1,0 +1,24 @@
+{
+  "id": "plant_wall",
+  "name": "Plant wall",
+  "category": "plant",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Living green wall panel with soft leaves and flowers",
+  "tags": [
+    "team-room",
+    "wall",
+    "plant",
+    "decor"
+  ],
+  "tintable": [],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.1
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

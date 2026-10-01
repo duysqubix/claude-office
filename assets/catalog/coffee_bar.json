@@ -1,0 +1,35 @@
+{
+  "id": "coffee_bar",
+  "name": "Coffee bar",
+  "category": "furniture",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Espresso bar counter with machine, grinder, cups and donuts",
+  "tags": [
+    "break-room",
+    "kitchen",
+    "coffee",
+    "interactable"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "customer": [
+      0,
+      0,
+      0.75
+    ],
+    "barista": [
+      0,
+      0,
+      -0.7
+    ],
+    "pickup": [
+      0.1,
+      1.02,
+      0.2
+    ]
+  }
+}
