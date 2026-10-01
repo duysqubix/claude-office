@@ -1,0 +1,24 @@
+{
+  "id": "hat_party",
+  "name": "Party hat",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Striped party cone with a pom-pom",
+  "tags": [
+    "hat",
+    "party",
+    "celebration"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0.1672,
+      0.5814,
+      -0.0
+    ]
+  }
+}

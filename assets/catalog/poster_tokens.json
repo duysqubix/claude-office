@@ -1,0 +1,25 @@
+{
+  "id": "poster_tokens",
+  "name": "Poster: Tokens are temporary",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Framed lilac poster with a git graph: \"Tokens are temporary, commits are forever\"",
+  "tags": [
+    "wall",
+    "poster",
+    "joke"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.03
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

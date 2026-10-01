@@ -49,8 +49,8 @@ def frame(M):
             length = math.hypot(*d)
             mid = (x, (foot[1] + top[1]) / 2, (foot[2] + top[2]) / 2)
             lib.rbox(f"Leg{sx}{sy}", (0.08, 0.08, length), mid, M["frame"], r=0.025, seg=2,
-                     rot=(math.atan2(-d[0], d[1]) if False else -math.atan2(d[0], d[1]), 0, 0))
-        # Brace from the bench rail to the middle of the top.
+                     rot=(-math.atan2(d[0], d[1]), 0, 0))
+    # Braces from each bench rail up to the middle of the top.
     for sx in (-1, 1):
         _env.tube(f"Brace{sx}", (sx * (L / 2 - 0.25), 0, BENCH_Z - 0.12), (0, 0, TOP_Z - 0.09),
                   0.025, material=M["frame"], verts=8)

@@ -1,0 +1,32 @@
+{
+  "id": "coffee_truck",
+  "name": "Coffee truck",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P2",
+  "status": "done",
+  "description": "Chunky mint food truck with a smiley cab, a serving hatch under a striped scalloped awning, cups on the counter and a giant takeaway cup on the roof",
+  "tags": [
+    "vehicle",
+    "coffee",
+    "food",
+    "garden",
+    "event"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "counter": [
+      1.09,
+      1.25,
+      -0.5
+    ],
+    "customer": [
+      1.9,
+      0,
+      -0.5
+    ]
+  },
+  "notes": "Body is 'Accent' (default mint #8FE0C8). Faces +Z; the hatch opens on +X."
+}

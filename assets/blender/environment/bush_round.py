@@ -1,12 +1,10 @@
-"""Round bush: a low, flat-bottomed mound of faceted low-poly puffs, darker underneath and lighter on
-top (PALETTE.treeLeaf). About 1.3 m across, 0.85 m tall. Origin at the ground centre."""
-import math
-
+"""Round bush: a low, flat-bottomed mound of faceted low-poly puffs, darker underneath and
+lighter on top (PALETTE.treeLeaf). About 1.5 m across, 1 m tall. Origin at the ground centre."""
 import lib
 from environment import _env
 
 NAME = "bush_round"
-AO_RES = 512
+AO_RES = 256
 AO_DISTANCE = 0.45
 
 # (x, y, z, radius, material). Materials: 0 Leaf, 1 LeafDark, 2 LeafLight.

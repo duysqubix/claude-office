@@ -18,7 +18,7 @@ META = dict(
     name="Clipboard (held)", category="character-held", priority="P0",
     description="Wooden clipboard with a checklist and a pen; held by its bottom edge",
     tags=["held", "clipboard", "planning", "paper"], tintable=["Accent"],
-    anchors_bl={"handGrip": (0, 0, 0)},
+    anchors_bl={"handGrip": (0, 0, 0), "handCentre": tuple(kit.hand_from_grip())},
 )
 
 
@@ -75,6 +75,7 @@ def build():
     # Lean the whole board back about its bottom edge, and drop it onto the grip.
     tf = Matrix.Translation((0, 0, GRIP_DROP)) @ Matrix.Rotation(LEAN, 4, "X")
     kit.transform(lib.coll().objects, tf)
+    kit.regrip()  # origin: the rig's handGrip (3 cm below, 6 cm ahead of the mitten centre)
 
 
 def finalize(name):

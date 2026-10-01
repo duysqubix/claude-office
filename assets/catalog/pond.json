@@ -1,0 +1,24 @@
+{
+  "id": "pond",
+  "name": "Pond",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P2",
+  "status": "done",
+  "description": "Little garden pond: glossy water ringed by faceted stones, lily pads and a pink lily, reeds with cattails and a paddling duck",
+  "tags": [
+    "garden",
+    "water",
+    "lawn",
+    "decor"
+  ],
+  "tintable": [],
+  "anchors": {
+    "duck": [
+      0.25,
+      0.03,
+      -0.02
+    ]
+  },
+  "notes": "The water sits 3 cm above the lawn; no hole needed. The duck could bob on a spring."
+}

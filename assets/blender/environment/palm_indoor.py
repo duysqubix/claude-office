@@ -1,5 +1,5 @@
 """Indoor palm: three slim canes in a ribbed woven basket, crowned by eight arching fronds,
-each a drooping rachis with pairs of slender leaflets. About 1.7 m tall. Origin at the floor
+each a drooping rachis with pairs of slender leaflets. About 1.5 m tall. Origin at the floor
 centre of the basket."""
 import math
 

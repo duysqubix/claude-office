@@ -1,5 +1,5 @@
 """Street lamp: a chunky stepped base, a tapered slate post with sunny collar rings and a big
-glowing globe under a domed cap with a ball finial. 3.2 m tall. The globe is emissive
+glowing globe under a domed cap with a ball finial. 3.4 m tall. The globe is emissive
 (`LampGlow`); put a warm PointLight at the `light` anchor. Origin at the ground centre."""
 import lib
 from environment import _env

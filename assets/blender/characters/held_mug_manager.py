@@ -1,7 +1,8 @@
 """Held mug, manager edition: the very same mug as Cézanne's desk `mug_manager` (cream glaze,
 raised red "WORLD'S OKAYEST MANAGER", gold rim, coffee inside), turned so its handle points
-back into the mitten and the lettering faces forward. Pivot = hand grip (the mitten's
-centre): the handle disappears into the hand and the mug sits just in front of it, upright.
+back into the mitten and the lettering faces forward. Modelled around the mitten's
+centre, shifted onto the rig's handGrip point): the handle disappears into the hand and the
+mug sits just in front of it, upright.
 Front faces -Y."""
 import math
 
@@ -22,8 +23,10 @@ META = dict(
     name="Manager's mug (held)", category="character-held", priority="P0",
     description="The WORLD'S OKAYEST MANAGER mug, gripped by its handle; pivot at the hand",
     tags=["held", "manager", "coffee", "mug"], tintable=[],
-    anchors_bl={"handGrip": (0, 0, 0), "coffee": (0, -GRIP_Y, MUG.COFFEE_Z * S - GRIP_Z),
-                "rim": (0, -GRIP_Y, 0.1 * S - GRIP_Z)},
+    anchors_bl={"handGrip": (0, 0, 0), "handCentre": tuple(kit.hand_from_grip()),
+                "coffee": tuple(kit.hand_from_grip() + kit.Vector(
+                    (0, -GRIP_Y, MUG.COFFEE_Z * S - GRIP_Z))),
+                "rim": tuple(kit.hand_from_grip() + kit.Vector((0, -GRIP_Y, 0.1 * S - GRIP_Z)))},
 )
 
 
@@ -37,6 +40,7 @@ def build():
     MM.lettering(M)  # wraps the front (-Y), opposite the handle
     MM.rim(M)
     kit.transform(lib.coll().objects, Matrix.Translation((0, -GRIP_Y, -GRIP_Z)))
+    kit.regrip()  # origin: the rig's handGrip (3 cm below, 6 cm ahead of the mitten centre)
 
 
 def finalize(name):

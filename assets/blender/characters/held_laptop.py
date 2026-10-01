@@ -17,8 +17,9 @@ META = dict(
     name="Laptop (held)", category="character-held", priority="P0",
     description="Tiny chunky laptop with stickers, carried open on the hands; Screen faces the holder",
     tags=["held", "intern", "laptop", "screen"], tintable=["Accent"],
-    anchors_bl={"handGrip": (0, 0, 0), "handL": (0.12, 0.05, -0.045),
-                "handR": (-0.12, 0.05, -0.045),
+    anchors_bl={"handL": (0.12, 0.05, -0.045), "handR": (-0.12, 0.05, -0.045),
+                "gripL": tuple(kit.Vector((0.12, 0.05, -0.045)) - kit.hand_from_grip()),
+                "gripR": tuple(kit.Vector((-0.12, 0.05, -0.045)) - kit.hand_from_grip()),
                 "screen": (0, HINGE[1] - math.sin(TILT) * LID_H / 2 + 0.01,
                            H + math.cos(TILT) * LID_H / 2)},
 )

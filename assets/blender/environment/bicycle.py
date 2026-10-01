@@ -1,6 +1,6 @@
 """Bicycle: a chunky step-through city bike with an `Accent` frame and mudguards, fat tyres
 with five-spoke wheels, a cushy saddle, swept-back bars and a wicker basket up front, standing
-on its kickstand. It rides toward -Y. 1.6 m long, about 1.05 m tall. Origin on the ground
+on its kickstand. It rides toward -Y. 1.9 m long, about 1 m tall. Origin on the ground
 between the wheels."""
 import math
 
@@ -61,7 +61,8 @@ def frame(M):
         pts = []
         for k in range(10):
             a = math.radians(a0 + (a1 - a0) * k / 9)
-            pts.append((0, c[1] + math.cos(a) * (WHEEL_R + 0.03), c[2] + math.sin(a) * (WHEEL_R + 0.03)))
+            rr = WHEEL_R + 0.03
+            pts.append((0, c[1] + math.cos(a) * rr, c[2] + math.sin(a) * rr))
         _env.sweep_tube(name, pts, 0.03, t, verts=8)
 
 

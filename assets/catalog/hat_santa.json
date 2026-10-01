@@ -1,0 +1,30 @@
+{
+  "id": "hat_santa",
+  "name": "Santa hat",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P2",
+  "status": "done",
+  "description": "Floppy Santa hat with a fluffy cuff and pom",
+  "tags": [
+    "hat",
+    "santa",
+    "seasonal",
+    "holiday"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.49,
+      -0.04
+    ],
+    "pom": [
+      -0.4,
+      0.21,
+      -0.1
+    ]
+  }
+}

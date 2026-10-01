@@ -10,13 +10,13 @@ META = dict(
     name="Mouth: smile", category="character-face", priority="P0",
     description="Small closed smile (default expression)",
     tags=["face", "mouth", "expression", "happy"], tintable=[],
-    anchors_bl={"mouth": tuple(kit.face_point(0, -0.088))},
+    anchors_bl={"mouth": tuple(kit.face_point(0, kit.FACE["mouth"]["y"]))},
 )
 
 
 def build():
     lib.begin(NAME)
-    kit.smile("Mouth", kit.m_mouth(), width=0.044, depth=0.027, thick=0.0078)
+    kit.smile("Mouth", kit.m_mouth(), depth=0.027, thick=0.0078)
 
 
 def finalize(name):

@@ -1,0 +1,24 @@
+{
+  "id": "hat_beret",
+  "name": "Beret",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Slouchy puffy beret with a little stalk",
+  "tags": [
+    "hat",
+    "beret",
+    "artist"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0.1404,
+      0.2848,
+      -0.0636
+    ]
+  }
+}

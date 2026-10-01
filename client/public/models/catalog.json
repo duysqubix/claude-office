@@ -1,15 +1,15 @@
 {
-  "generated": "2026-10-01T23:33:57.330Z",
+  "generated": "2026-10-01T23:39:57.394Z",
   "totals": {
     "all": 231,
-    "done": 150,
-    "planned": 81
+    "done": 173,
+    "planned": 58
   },
   "byArtist": {
     "Claude Cézanne": 53,
     "Claude Lorrain": 36,
-    "Claude Monet": 69,
-    "Claude Rodin": 73
+    "Claude Monet": 83,
+    "Claude Rodin": 59
   },
   "items": [
     {
@@ -1675,6 +1675,185 @@
       "bytes": 211960
     },
     {
+      "id": "poster_compact",
+      "name": "Poster: Have you tried /compact?",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Framed teal poster: a document squeezed by arrows, \"Have you tried /compact?\"",
+      "tags": [
+        "wall",
+        "poster",
+        "joke"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.03
+        ]
+      },
+      "status": "done",
+      "file": "models/poster_compact.glb",
+      "thumb": "models/thumbs/poster_compact.jpg",
+      "dims": {
+        "w": 0.728,
+        "h": 1.008,
+        "d": 0.051
+      },
+      "bbox": {
+        "min": [
+          -0.364,
+          -0.504,
+          0
+        ],
+        "max": [
+          0.364,
+          0.504,
+          0.051
+        ]
+      },
+      "tris": 3850,
+      "materials": [
+        "Poster",
+        "Accent",
+        "Cream",
+        "Fold",
+        "DocLine",
+        "Arrow",
+        "Ink"
+      ],
+      "nodes": [
+        "poster_compact"
+      ],
+      "textures": 1,
+      "bytes": 214140
+    },
+    {
+      "id": "poster_ship_it",
+      "name": "Poster: SHIP IT",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Framed yellow poster with a raised rocket and big \"SHIP IT\" lettering",
+      "tags": [
+        "wall",
+        "poster",
+        "joke"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.03
+        ]
+      },
+      "status": "done",
+      "file": "models/poster_ship_it.glb",
+      "thumb": "models/thumbs/poster_ship_it.jpg",
+      "dims": {
+        "w": 0.728,
+        "h": 1.008,
+        "d": 0.051
+      },
+      "bbox": {
+        "min": [
+          -0.364,
+          -0.504,
+          0
+        ],
+        "max": [
+          0.364,
+          0.504,
+          0.051
+        ]
+      },
+      "tris": 4248,
+      "materials": [
+        "Poster",
+        "Accent",
+        "Cream",
+        "Red",
+        "Chrome",
+        "Porthole",
+        "Flame",
+        "FlameCore",
+        "Ink"
+      ],
+      "nodes": [
+        "poster_ship_it"
+      ],
+      "textures": 1,
+      "bytes": 214212
+    },
+    {
+      "id": "poster_tokens",
+      "name": "Poster: Tokens are temporary",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P1",
+      "description": "Framed lilac poster with a git graph: \"Tokens are temporary, commits are forever\"",
+      "tags": [
+        "wall",
+        "poster",
+        "joke"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "center": [
+          0,
+          0,
+          0.03
+        ]
+      },
+      "status": "done",
+      "file": "models/poster_tokens.glb",
+      "thumb": "models/thumbs/poster_tokens.jpg",
+      "dims": {
+        "w": 0.728,
+        "h": 1.008,
+        "d": 0.051
+      },
+      "bbox": {
+        "min": [
+          -0.364,
+          -0.504,
+          0
+        ],
+        "max": [
+          0.364,
+          0.504,
+          0.051
+        ]
+      },
+      "tris": 5077,
+      "materials": [
+        "Poster",
+        "Accent",
+        "Cream",
+        "CommitYellow",
+        "CommitCoral",
+        "CommitMint",
+        "Ink"
+      ],
+      "nodes": [
+        "poster_tokens"
+      ],
+      "textures": 1,
+      "bytes": 260952
+    },
+    {
       "id": "smartphone",
       "name": "Smartphone",
       "category": "desk-item",
@@ -1891,13 +2070,14 @@
         "Accent",
         "Soil",
         "Leaf",
+        "LeafTip",
         "LeafYoung"
       ],
       "nodes": [
         "succulent"
       ],
       "textures": 1,
-      "bytes": 116076
+      "bytes": 125756
     },
     {
       "id": "tissue_box",
@@ -2145,51 +2325,6 @@
       "thumb": null
     },
     {
-      "id": "poster_compact",
-      "name": "Poster compact",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "\"Have you tried /compact?\"",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "poster_ship_it",
-      "name": "Poster ship it",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "framed",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "poster_tokens",
-      "name": "Poster tokens",
-      "category": null,
-      "artist": "Claude Cézanne",
-      "group": "desk items, small props, food, decor",
-      "priority": "P1",
-      "description": "\"Tokens are temporary, commits are forever\"",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "rug_rect",
       "name": "Rug rect",
       "category": null,
@@ -2385,7 +2520,7 @@
         "bush_round"
       ],
       "textures": 1,
-      "bytes": 100328
+      "bytes": 78652
     },
     {
       "id": "cloud_a",
@@ -2394,7 +2529,7 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 5 m long; faintly blue white (#E6F4FC) like WL's",
+      "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 4.7 m long; faintly blue white (#E6F4FC) like WL's",
       "tags": [
         "cloud",
         "sky",
@@ -2439,7 +2574,7 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Tall bumpy cumulus dome on a flat belly, about 3.8 m wide; faintly blue white (#E6F4FC) like WL's",
+      "description": "Tall bumpy cumulus dome on a flat belly, about 3.1 m wide; faintly blue white (#E6F4FC) like WL's",
       "tags": [
         "cloud",
         "sky",
@@ -2484,7 +2619,7 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Small three-bump wisp, about 2.9 m long; faintly blue white (#E6F4FC) like WL's",
+      "description": "Small three-bump wisp, about 2.3 m long; faintly blue white (#E6F4FC) like WL's",
       "tags": [
         "cloud",
         "sky",
@@ -2565,7 +2700,7 @@
           0.789
         ]
       },
-      "tris": 10025,
+      "tris": 9783,
       "materials": [
         "Stone",
         "StoneCap",
@@ -2585,7 +2720,7 @@
         "company_sign"
       ],
       "textures": 1,
-      "bytes": 545604
+      "bytes": 539600
     },
     {
       "id": "doormat",
@@ -2669,7 +2804,7 @@
           0.45
         ]
       },
-      "tris": 6651,
+      "tris": 5979,
       "materials": [
         "Wood",
         "Soil",
@@ -2689,7 +2824,7 @@
         "flower_bed"
       ],
       "textures": 1,
-      "bytes": 391680
+      "bytes": 372140
     },
     {
       "id": "office_window",
@@ -2732,7 +2867,7 @@
           0.28
         ]
       },
-      "tris": 1952,
+      "tris": 1792,
       "materials": [
         "Trim",
         "Sill",
@@ -2742,7 +2877,7 @@
         "office_window"
       ],
       "textures": 1,
-      "bytes": 91500
+      "bytes": 87132
     },
     {
       "id": "park_bench",
@@ -2804,7 +2939,7 @@
         "park_bench"
       ],
       "textures": 1,
-      "bytes": 147860
+      "bytes": 147872
     },
     {
       "id": "plant_monstera",
@@ -2983,7 +3118,7 @@
         "street_lamp"
       ],
       "textures": 1,
-      "bytes": 130416
+      "bytes": 130116
     },
     {
       "id": "tree_pine",
@@ -3159,7 +3294,7 @@
         "bicycle"
       ],
       "textures": 1,
-      "bytes": 257728
+      "bytes": 257672
     },
     {
       "id": "bike_rack",
@@ -3267,7 +3402,7 @@
         "fence_picket"
       ],
       "textures": 1,
-      "bytes": 97200
+      "bytes": 97092
     },
     {
       "id": "fire_hydrant",
@@ -3371,7 +3506,7 @@
         "Flag"
       ],
       "textures": 1,
-      "bytes": 78604
+      "bytes": 79632
     },
     {
       "id": "grass_tuft",
@@ -3526,7 +3661,7 @@
         "Flag"
       ],
       "textures": 1,
-      "bytes": 75548
+      "bytes": 62328
     },
     {
       "id": "outdoor_bin",
@@ -3579,7 +3714,7 @@
         "outdoor_bin"
       ],
       "textures": 1,
-      "bytes": 110300
+      "bytes": 92356
     },
     {
       "id": "palm_indoor",
@@ -3744,7 +3879,7 @@
           0.388
         ]
       },
-      "tris": 5916,
+      "tris": 4948,
       "materials": [
         "Pot",
         "PotRim",
@@ -3758,7 +3893,7 @@
         "plant_fern"
       ],
       "textures": 1,
-      "bytes": 367568
+      "bytes": 314360
     },
     {
       "id": "plant_hanging",
@@ -3873,7 +4008,7 @@
         "plant_snake"
       ],
       "textures": 1,
-      "bytes": 103020
+      "bytes": 79364
     },
     {
       "id": "planter_box",
@@ -3911,7 +4046,7 @@
           0.286
         ]
       },
-      "tris": 3924,
+      "tris": 3770,
       "materials": [
         "Wood",
         "WoodDark",
@@ -3929,7 +4064,7 @@
         "planter_box"
       ],
       "textures": 1,
-      "bytes": 271084
+      "bytes": 263648
     },
     {
       "id": "rock_cluster",
@@ -3978,7 +4113,7 @@
         "rock_cluster"
       ],
       "textures": 1,
-      "bytes": 62776
+      "bytes": 47116
     },
     {
       "id": "toy_car",
@@ -4032,7 +4167,7 @@
         "toy_car"
       ],
       "textures": 1,
-      "bytes": 312256
+      "bytes": 312228
     },
     {
       "id": "tree_blossom",
@@ -4094,62 +4229,262 @@
     {
       "id": "birdbath",
       "name": "Birdbath",
-      "category": null,
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P2",
-      "description": "",
-      "tags": [],
+      "description": "Stone baluster birdbath with a bowl of bright water and two round little birds perched on the rim",
+      "tags": [
+        "garden",
+        "birds",
+        "water",
+        "decor"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "water": [
+          0,
+          0.865,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/birdbath.glb",
+      "thumb": "models/thumbs/birdbath.jpg",
+      "dims": {
+        "w": 0.92,
+        "h": 1.057,
+        "d": 0.92
+      },
+      "bbox": {
+        "min": [
+          -0.46,
+          0,
+          -0.46
+        ],
+        "max": [
+          0.46,
+          1.057,
+          0.46
+        ]
+      },
+      "tris": 2868,
+      "materials": [
+        "Stone",
+        "Water",
+        "BirdBlue",
+        "BirdBelly",
+        "Beak",
+        "Eye",
+        "BirdYellow"
+      ],
+      "nodes": [
+        "birdbath"
+      ],
+      "textures": 1,
+      "bytes": 117188
     },
     {
       "id": "coffee_truck",
       "name": "Coffee truck",
-      "category": null,
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P2",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Chunky mint food truck with a smiley cab, a serving hatch under a striped scalloped awning, cups on the counter and a giant takeaway cup on the roof",
+      "tags": [
+        "vehicle",
+        "coffee",
+        "food",
+        "garden",
+        "event"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "counter": [
+          1.09,
+          1.25,
+          -0.5
+        ],
+        "customer": [
+          1.9,
+          0,
+          -0.5
+        ]
+      },
+      "status": "done",
+      "file": "models/coffee_truck.glb",
+      "thumb": "models/thumbs/coffee_truck.jpg",
+      "dims": {
+        "w": 2.642,
+        "h": 4.08,
+        "d": 3.99
+      },
+      "bbox": {
+        "min": [
+          -1.09,
+          -0.005,
+          -1.98
+        ],
+        "max": [
+          1.553,
+          4.075,
+          2.01
+        ]
+      },
+      "tris": 11244,
+      "materials": [
+        "Accent",
+        "Cream",
+        "Coffee",
+        "Window",
+        "Chassis",
+        "Headlight",
+        "Inside",
+        "Counter",
+        "Awning",
+        "MenuBoard",
+        "Steam",
+        "Tyre"
+      ],
+      "nodes": [
+        "coffee_truck"
+      ],
+      "textures": 1,
+      "bytes": 495128
     },
     {
       "id": "hot_air_balloon",
       "name": "Hot air balloon",
-      "category": null,
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P2",
-      "description": "sky decor",
-      "tags": [],
+      "description": "Plump teardrop balloon of puffy orange, cream and yellow gores over a woven basket with sandbags and a glowing burner",
+      "tags": [
+        "sky",
+        "decor",
+        "balloon",
+        "event"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "basket": [
+          0,
+          0.95,
+          0
+        ],
+        "burner": [
+          0,
+          1.89,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hot_air_balloon.glb",
+      "thumb": "models/thumbs/hot_air_balloon.jpg",
+      "dims": {
+        "w": 4.487,
+        "h": 7.87,
+        "d": 4.487
+      },
+      "bbox": {
+        "min": [
+          -2.244,
+          0,
+          -2.244
+        ],
+        "max": [
+          2.244,
+          7.87,
+          2.244
+        ]
+      },
+      "tris": 3740,
+      "materials": [
+        "GoreOrange",
+        "GoreCream",
+        "GoreYellow",
+        "GoreCream2",
+        "Mouth",
+        "BasketRim",
+        "Wicker",
+        "Sandbag",
+        "Cord",
+        "Burner",
+        "Flame"
+      ],
+      "nodes": [
+        "hot_air_balloon"
+      ],
+      "textures": 1,
+      "bytes": 173796
     },
     {
       "id": "pond",
       "name": "Pond",
-      "category": null,
+      "category": "outdoor",
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P2",
-      "description": "",
-      "tags": [],
+      "description": "Little garden pond: glossy water ringed by faceted stones, lily pads and a pink lily, reeds with cattails and a paddling duck",
+      "tags": [
+        "garden",
+        "water",
+        "lawn",
+        "decor"
+      ],
       "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "anchors": {
+        "duck": [
+          0.25,
+          0.03,
+          -0.02
+        ]
+      },
+      "status": "done",
+      "file": "models/pond.glb",
+      "thumb": "models/thumbs/pond.jpg",
+      "dims": {
+        "w": 3.122,
+        "h": 0.867,
+        "d": 2.008
+      },
+      "bbox": {
+        "min": [
+          -1.492,
+          -0.019,
+          -1.043
+        ],
+        "max": [
+          1.63,
+          0.849,
+          0.965
+        ]
+      },
+      "tris": 3306,
+      "materials": [
+        "WaterDeep",
+        "WaterShallow",
+        "Rock",
+        "RockLight",
+        "RockWarm",
+        "LilyPad",
+        "Lily",
+        "LilyCentre",
+        "Reed",
+        "Cattail",
+        "Duck",
+        "Bill",
+        "Eye"
+      ],
+      "nodes": [
+        "pond"
+      ],
+      "textures": 1,
+      "bytes": 267032
     },
     {
       "id": "coffee_machine",
@@ -4912,6 +5247,114 @@
       ],
       "textures": 1,
       "bytes": 30644
+    },
+    {
+      "id": "glasses_round",
+      "name": "Round glasses",
+      "category": "character-face",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Chunky round specs",
+      "tags": [
+        "glasses",
+        "face",
+        "circle"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "bridge": [
+          0,
+          -0.005,
+          0.3
+        ]
+      },
+      "status": "done",
+      "file": "models/glasses_round.glb",
+      "thumb": "models/thumbs/glasses_round.jpg",
+      "dims": {
+        "w": 0.573,
+        "h": 0.146,
+        "d": 0.365
+      },
+      "bbox": {
+        "min": [
+          -0.287,
+          -0.079,
+          -0.04
+        ],
+        "max": [
+          0.287,
+          0.067,
+          0.324
+        ]
+      },
+      "tris": 1600,
+      "materials": [
+        "Accent",
+        "Lens"
+      ],
+      "nodes": [
+        "glasses_round"
+      ],
+      "textures": 1,
+      "bytes": 66956
+    },
+    {
+      "id": "glasses_square",
+      "name": "Square glasses",
+      "category": "character-face",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Chunky square-framed specs",
+      "tags": [
+        "glasses",
+        "face",
+        "square"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "bridge": [
+          0,
+          -0.005,
+          0.3
+        ]
+      },
+      "status": "done",
+      "file": "models/glasses_square.glb",
+      "thumb": "models/thumbs/glasses_square.jpg",
+      "dims": {
+        "w": 0.575,
+        "h": 0.132,
+        "d": 0.368
+      },
+      "bbox": {
+        "min": [
+          -0.287,
+          -0.072,
+          -0.041
+        ],
+        "max": [
+          0.287,
+          0.06,
+          0.327
+        ]
+      },
+      "tris": 1464,
+      "materials": [
+        "Accent",
+        "Lens"
+      ],
+      "nodes": [
+        "glasses_square"
+      ],
+      "textures": 1,
+      "bytes": 61084
     },
     {
       "id": "intern_bench",
@@ -5742,6 +6185,60 @@
       ],
       "textures": 1,
       "bytes": 177104
+    },
+    {
+      "id": "sunglasses",
+      "name": "Sunglasses",
+      "category": "character-face",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Big dark sunglasses",
+      "tags": [
+        "glasses",
+        "face",
+        "shades"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "bridge": [
+          0,
+          -0.005,
+          0.3
+        ]
+      },
+      "status": "done",
+      "file": "models/sunglasses.glb",
+      "thumb": "models/thumbs/sunglasses.jpg",
+      "dims": {
+        "w": 0.576,
+        "h": 0.146,
+        "d": 0.373
+      },
+      "bbox": {
+        "min": [
+          -0.288,
+          -0.079,
+          -0.042
+        ],
+        "max": [
+          0.288,
+          0.067,
+          0.331
+        ]
+      },
+      "tris": 1600,
+      "materials": [
+        "Accent",
+        "Lens"
+      ],
+      "nodes": [
+        "sunglasses"
+      ],
+      "textures": 1,
+      "bytes": 67508
     },
     {
       "id": "wall_clock",
@@ -6831,6 +7328,496 @@
       ],
       "textures": 1,
       "bytes": 107032
+    },
+    {
+      "id": "hat_beret",
+      "name": "Beret",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Slouchy puffy beret with a little stalk",
+      "tags": [
+        "hat",
+        "beret",
+        "artist"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0.1404,
+          0.2848,
+          -0.0636
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_beret.glb",
+      "thumb": "models/thumbs/hat_beret.jpg",
+      "dims": {
+        "w": 0.652,
+        "h": 0.299,
+        "d": 0.666
+      },
+      "bbox": {
+        "min": [
+          -0.267,
+          0.081,
+          -0.347
+        ],
+        "max": [
+          0.385,
+          0.38,
+          0.319
+        ]
+      },
+      "tris": 1804,
+      "materials": [
+        "Accent"
+      ],
+      "nodes": [
+        "hat_beret"
+      ],
+      "textures": 1,
+      "bytes": 52260
+    },
+    {
+      "id": "hat_bucket",
+      "name": "Bucket hat",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Soft oversized bucket hat with a droopy brim",
+      "tags": [
+        "hat",
+        "bucket",
+        "summer"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4624,
+          -0.0841
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_bucket.glb",
+      "thumb": "models/thumbs/hat_bucket.jpg",
+      "dims": {
+        "w": 0.797,
+        "h": 0.502,
+        "d": 0.784
+      },
+      "bbox": {
+        "min": [
+          -0.398,
+          -0.02,
+          -0.383
+        ],
+        "max": [
+          0.398,
+          0.483,
+          0.401
+        ]
+      },
+      "tris": 2968,
+      "materials": [
+        "Accent",
+        "Band"
+      ],
+      "nodes": [
+        "hat_bucket"
+      ],
+      "textures": 1,
+      "bytes": 91056
+    },
+    {
+      "id": "hat_chef",
+      "name": "Chef's hat",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Tall puffy chef's toque",
+      "tags": [
+        "hat",
+        "chef",
+        "kitchen"
+      ],
+      "tintable": [],
+      "anchors": {
+        "headTop": [
+          0,
+          0.6553,
+          -0.079
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_chef.glb",
+      "thumb": "models/thumbs/hat_chef.jpg",
+      "dims": {
+        "w": 0.807,
+        "h": 0.534,
+        "d": 0.737
+      },
+      "bbox": {
+        "min": [
+          -0.404,
+          0.068,
+          -0.409
+        ],
+        "max": [
+          0.404,
+          0.602,
+          0.328
+        ]
+      },
+      "tris": 2376,
+      "materials": [
+        "ToqueBand",
+        "Toque"
+      ],
+      "nodes": [
+        "hat_chef"
+      ],
+      "textures": 1,
+      "bytes": 73288
+    },
+    {
+      "id": "hat_cowboy",
+      "name": "Cowboy hat",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Wide-brimmed cowboy hat with curled sides",
+      "tags": [
+        "hat",
+        "cowboy",
+        "western"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4258,
+          -0.06
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_cowboy.glb",
+      "thumb": "models/thumbs/hat_cowboy.jpg",
+      "dims": {
+        "w": 0.92,
+        "h": 0.391,
+        "d": 0.911
+      },
+      "bbox": {
+        "min": [
+          -0.46,
+          0.044,
+          -0.453
+        ],
+        "max": [
+          0.46,
+          0.435,
+          0.458
+        ]
+      },
+      "tris": 3760,
+      "materials": [
+        "Accent",
+        "Band"
+      ],
+      "nodes": [
+        "hat_cowboy"
+      ],
+      "textures": 1,
+      "bytes": 109568
+    },
+    {
+      "id": "hat_crown",
+      "name": "Crown",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Chunky gold crown with ball-tipped points and jewels",
+      "tags": [
+        "hat",
+        "crown",
+        "royal",
+        "reward"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4286,
+          -0.0344
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_crown.glb",
+      "thumb": "models/thumbs/hat_crown.jpg",
+      "dims": {
+        "w": 0.532,
+        "h": 0.296,
+        "d": 0.539
+      },
+      "bbox": {
+        "min": [
+          -0.266,
+          0.151,
+          -0.286
+        ],
+        "max": [
+          0.266,
+          0.447,
+          0.254
+        ]
+      },
+      "tris": 1992,
+      "materials": [
+        "Gold",
+        "Accent"
+      ],
+      "nodes": [
+        "hat_crown"
+      ],
+      "textures": 1,
+      "bytes": 88896
+    },
+    {
+      "id": "hat_hard",
+      "name": "Hard hat",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Chunky yellow construction hard hat",
+      "tags": [
+        "hat",
+        "hard-hat",
+        "safety",
+        "work"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4245,
+          -0.0685
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_hard.glb",
+      "thumb": "models/thumbs/hat_hard.jpg",
+      "dims": {
+        "w": 0.672,
+        "h": 0.386,
+        "d": 0.723
+      },
+      "bbox": {
+        "min": [
+          -0.336,
+          0.048,
+          -0.339
+        ],
+        "max": [
+          0.336,
+          0.434,
+          0.384
+        ]
+      },
+      "tris": 3076,
+      "materials": [
+        "Accent"
+      ],
+      "nodes": [
+        "hat_hard"
+      ],
+      "textures": 1,
+      "bytes": 98928
+    },
+    {
+      "id": "hat_party",
+      "name": "Party hat",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Striped party cone with a pom-pom",
+      "tags": [
+        "hat",
+        "party",
+        "celebration"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0.1672,
+          0.5814,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_party.glb",
+      "thumb": "models/thumbs/hat_party.jpg",
+      "dims": {
+        "w": 0.341,
+        "h": 0.442,
+        "d": 0.314
+      },
+      "bbox": {
+        "min": [
+          -0.13,
+          0.153,
+          -0.157
+        ],
+        "max": [
+          0.212,
+          0.595,
+          0.157
+        ]
+      },
+      "tris": 1260,
+      "materials": [
+        "Accent",
+        "Stripe",
+        "Fluff"
+      ],
+      "nodes": [
+        "hat_party"
+      ],
+      "textures": 1,
+      "bytes": 55344
+    },
+    {
+      "id": "hat_propeller",
+      "name": "Propeller cap",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Beanie cap with a spinning propeller",
+      "tags": [
+        "hat",
+        "propeller",
+        "fun",
+        "intern"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4865,
+          -0.0587
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_propeller.glb",
+      "thumb": "models/thumbs/hat_propeller.jpg",
+      "dims": {
+        "w": 0.606,
+        "h": 0.406,
+        "d": 0.663
+      },
+      "bbox": {
+        "min": [
+          -0.303,
+          0.073,
+          -0.311
+        ],
+        "max": [
+          0.303,
+          0.479,
+          0.352
+        ]
+      },
+      "tris": 2120,
+      "materials": [
+        "Stem",
+        "Panel",
+        "Blade",
+        "Accent"
+      ],
+      "nodes": [
+        "hat_propeller",
+        "Propeller"
+      ],
+      "textures": 1,
+      "bytes": 76120
+    },
+    {
+      "id": "headband",
+      "name": "Headband",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Terry sweatband with a white stripe",
+      "tags": [
+        "hat",
+        "headband",
+        "sport",
+        "gym"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.3,
+          -0.01
+        ]
+      },
+      "status": "done",
+      "file": "models/headband.glb",
+      "thumb": "models/thumbs/headband.jpg",
+      "dims": {
+        "w": 0.563,
+        "h": 0.218,
+        "d": 0.537
+      },
+      "bbox": {
+        "min": [
+          -0.282,
+          0.021,
+          -0.269
+        ],
+        "max": [
+          0.282,
+          0.239,
+          0.269
+        ]
+      },
+      "tris": 2304,
+      "materials": [
+        "Accent",
+        "Stripe"
+      ],
+      "nodes": [
+        "headband"
+      ],
+      "textures": 1,
+      "bytes": 82900
     },
     {
       "id": "jukebox",
@@ -8051,6 +9038,122 @@
       "bytes": 250232
     },
     {
+      "id": "hat_santa",
+      "name": "Santa hat",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P2",
+      "description": "Floppy Santa hat with a fluffy cuff and pom",
+      "tags": [
+        "hat",
+        "santa",
+        "seasonal",
+        "holiday"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.49,
+          -0.04
+        ],
+        "pom": [
+          -0.4,
+          0.21,
+          -0.1
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_santa.glb",
+      "thumb": "models/thumbs/hat_santa.jpg",
+      "dims": {
+        "w": 0.828,
+        "h": 0.586,
+        "d": 0.7
+      },
+      "bbox": {
+        "min": [
+          -0.47,
+          0.028,
+          -0.35
+        ],
+        "max": [
+          0.358,
+          0.614,
+          0.35
+        ]
+      },
+      "tris": 2636,
+      "materials": [
+        "Accent",
+        "Fluff"
+      ],
+      "nodes": [
+        "hat_santa"
+      ],
+      "textures": 1,
+      "bytes": 92116
+    },
+    {
+      "id": "hat_witch",
+      "name": "Witch hat",
+      "category": "character-hat",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P2",
+      "description": "Tall bent witch hat with a wide brim",
+      "tags": [
+        "hat",
+        "witch",
+        "seasonal",
+        "halloween"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.6583,
+          -0.3452
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_witch.glb",
+      "thumb": "models/thumbs/hat_witch.jpg",
+      "dims": {
+        "w": 0.977,
+        "h": 0.558,
+        "d": 0.961
+      },
+      "bbox": {
+        "min": [
+          -0.489,
+          0.027,
+          -0.479
+        ],
+        "max": [
+          0.489,
+          0.585,
+          0.482
+        ]
+      },
+      "tris": 3628,
+      "materials": [
+        "Accent",
+        "Band",
+        "Buckle"
+      ],
+      "nodes": [
+        "hat_witch"
+      ],
+      "textures": 1,
+      "bytes": 109212
+    },
+    {
       "id": "massage_chair",
       "name": "Massage chair",
       "category": "furniture",
@@ -8872,6 +9975,134 @@
       "bytes": 53748
     },
     {
+      "id": "headphones",
+      "name": "Headphones",
+      "category": "character-accessory",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Big cushy over-ear headphones with a padded band",
+      "tags": [
+        "headphones",
+        "music",
+        "focus",
+        "head"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.365,
+          -0.01
+        ],
+        "cupL": [
+          0.31,
+          -0.005,
+          -0.01
+        ],
+        "cupR": [
+          -0.31,
+          -0.005,
+          -0.01
+        ]
+      },
+      "status": "done",
+      "file": "models/headphones.glb",
+      "thumb": "models/thumbs/headphones.jpg",
+      "dims": {
+        "w": 0.712,
+        "h": 0.454,
+        "d": 0.176
+      },
+      "bbox": {
+        "min": [
+          -0.356,
+          -0.092,
+          -0.098
+        ],
+        "max": [
+          0.356,
+          0.361,
+          0.078
+        ]
+      },
+      "tris": 2380,
+      "materials": [
+        "Accent",
+        "Cushion",
+        "Plate"
+      ],
+      "nodes": [
+        "headphones"
+      ],
+      "textures": 1,
+      "bytes": 105640
+    },
+    {
+      "id": "headset_mic",
+      "name": "Headset with mic",
+      "category": "character-accessory",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Slim call-centre headset with a boom mic and foam tip",
+      "tags": [
+        "headset",
+        "mic",
+        "support",
+        "head"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "micTip": [
+          0.0861,
+          -0.1148,
+          0.2748
+        ],
+        "headTop": [
+          0,
+          0.32,
+          -0.01
+        ]
+      },
+      "status": "done",
+      "file": "models/headset_mic.glb",
+      "thumb": "models/thumbs/headset_mic.jpg",
+      "dims": {
+        "w": 0.624,
+        "h": 0.444,
+        "d": 0.359
+      },
+      "bbox": {
+        "min": [
+          -0.305,
+          -0.133,
+          -0.066
+        ],
+        "max": [
+          0.319,
+          0.311,
+          0.293
+        ]
+      },
+      "tris": 1584,
+      "materials": [
+        "Band",
+        "Accent",
+        "Cushion",
+        "Foam"
+      ],
+      "nodes": [
+        "headset_mic"
+      ],
+      "textures": 1,
+      "bytes": 73588
+    },
+    {
       "id": "held_box",
       "name": "Box of desk stuff (held)",
       "category": "character-held",
@@ -9341,36 +10572,6 @@
       "thumb": null
     },
     {
-      "id": "glasses_round",
-      "name": "Glasses round",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "glasses_square",
-      "name": "Glasses square",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "hair_afro",
       "name": "Hair afro",
       "category": null,
@@ -9476,36 +10677,6 @@
       "thumb": null
     },
     {
-      "id": "headphones",
-      "name": "Headphones",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "headset_mic",
-      "name": "Headset mic",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "lanyard_badge",
       "name": "Lanyard badge",
       "category": null,
@@ -9573,21 +10744,6 @@
       "group": "characters",
       "priority": "P0",
       "description": "assembled full characters, for previews and the catalog",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "sunglasses",
-      "name": "Sunglasses",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -9821,141 +10977,6 @@
       "thumb": null
     },
     {
-      "id": "hat_beret",
-      "name": "Hat beret",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_bucket",
-      "name": "Hat bucket",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_chef",
-      "name": "Hat chef",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_cowboy",
-      "name": "Hat cowboy",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_crown",
-      "name": "Hat crown",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_hard",
-      "name": "Hat hard",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_party",
-      "name": "Hat party",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_propeller",
-      "name": "Hat propeller",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "headband",
-      "name": "Headband",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "legs_shorts",
       "name": "Legs shorts",
       "category": null,
@@ -10018,36 +11039,6 @@
     {
       "id": "cape_hero",
       "name": "Cape hero",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P2",
-      "description": "seasonal",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_santa",
-      "name": "Hat santa",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P2",
-      "description": "seasonal",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_witch",
-      "name": "Hat witch",
       "category": null,
       "artist": "Claude Rodin",
       "group": "characters",

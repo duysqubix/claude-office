@@ -1,0 +1,24 @@
+{
+  "id": "hat_bucket",
+  "name": "Bucket hat",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Soft oversized bucket hat with a droopy brim",
+  "tags": [
+    "hat",
+    "bucket",
+    "summer"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4624,
+      -0.0841
+    ]
+  }
+}

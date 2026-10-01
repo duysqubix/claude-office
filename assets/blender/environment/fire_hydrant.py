@@ -34,7 +34,8 @@ def body(M):
 
 
 def nozzles(M):
-    for name, d, r, length in (("Pumper", (0, -1, 0), 0.06, 0.1), ("SideL", (-1, 0, 0), 0.042, 0.08),
+    for name, d, r, length in (("Pumper", (0, -1, 0), 0.06, 0.1),
+                               ("SideL", (-1, 0, 0), 0.042, 0.08),
                                ("SideR", (1, 0, 0), 0.042, 0.08)):
         z = 0.36 if name == "Pumper" else 0.39
         base = (d[0] * 0.1, d[1] * 0.1, z)

@@ -237,7 +237,7 @@ def lobed_disc(name, r, thick, lobes, amp, loc=(0, 0, 0), material=None, rot=(0,
 
 def flower(prefix, loc, petal_mat, centre_mat, r=0.06, lobes=5, face=(0.0, 0.0), spin=0.0,
            cup=0.012):
-    """Cartoon flower: lobed petal disc with a domed centre, about 230 tris. It faces up,
+    """Cartoon flower: lobed petal disc with a domed centre, about 210 tris. It faces up,
     spun by `spin` about its own axis, then tipped toward -Y by face[0] and toward +X by
     face[1] (radians)."""
     R = (Matrix.Rotation(face[0], 3, "X") @ Matrix.Rotation(face[1], 3, "Y")
@@ -245,7 +245,7 @@ def flower(prefix, loc, petal_mat, centre_mat, r=0.06, lobes=5, face=(0.0, 0.0),
     rot = R.to_euler()
     lobed_disc(prefix + "Petals", r, r * 0.28, lobes, 0.42, loc, petal_mat, rot, cup=cup)
     c = Vector(loc) + R @ Vector((0, 0, r * 0.14 + cup * 0.2))
-    lib.sphere(prefix + "Centre", r * 0.36, tuple(c), centre_mat, scale=(1, 1, 0.62), u=8, v=5,
+    lib.sphere(prefix + "Centre", r * 0.36, tuple(c), centre_mat, scale=(1, 1, 0.62), u=7, v=4,
                rot=rot)
 
 
@@ -377,7 +377,7 @@ def tulip(prefix, loc, material, r=0.05, rot=(0, 0, 0)):
     """Tulip head: a plump egg cup whose rim rises into three rounded petal tips."""
     prof = [(0.0, 0.0), (r * 0.55, r * 0.12), (r * 0.92, r * 0.55), (r, r * 1.05),
             (r * 0.82, r * 1.55), (r * 0.5, r * 1.72), (r * 0.25, r * 1.45), (0.0, r * 1.38)]
-    ob = lib.lathe(prefix + "Head", prof, material=material, verts=18)
+    ob = lib.lathe(prefix + "Head", prof, material=material, verts=15)
     for v in ob.data.vertices:
         if v.co.z > r * 1.2:
             a = math.atan2(v.co.y, v.co.x)

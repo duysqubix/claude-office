@@ -1,6 +1,6 @@
 """Pine tree: four stacked faceted cones with zig-zag scalloped hems, darkest at the bottom and
 lightest at the tip (PALETTE.treeLeaf), on a short chunky trunk with buttress roots.
-About 4.0 m tall, 2.6 m across. Origin at the trunk foot."""
+About 3.8 m tall, 2.8 m across. Origin at the trunk foot."""
 import lib
 from environment import _env
 

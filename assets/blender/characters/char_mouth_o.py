@@ -6,7 +6,7 @@ from characters import _kit as kit
 import lib
 
 NAME = "char_mouth_o"
-CX, CY = 0.0, -0.096
+CX, CY = 0.0, kit.FACE["mouth"]["y"] - 0.003
 META = dict(
     name="Mouth: O", category="character-face", priority="P0",
     description="Round open mouth with a little tongue (surprise / alert)",

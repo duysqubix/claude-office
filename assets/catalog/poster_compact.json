@@ -1,0 +1,25 @@
+{
+  "id": "poster_compact",
+  "name": "Poster: Have you tried /compact?",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Framed teal poster: a document squeezed by arrows, \"Have you tried /compact?\"",
+  "tags": [
+    "wall",
+    "poster",
+    "joke"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.03
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

@@ -1,5 +1,5 @@
 """Cloud B: a tall, round cumulus: a big bumpy dome on a flat belly, one soft merged surface
-(metaballs). About 3.8 m wide, 2.8 m tall. Origin at the centre of the belly."""
+(metaballs). About 3.1 m wide, 2.5 m tall. Origin at the centre of the belly."""
 import lib
 from environment import _env
 
@@ -31,7 +31,7 @@ META = dict(
     name="Cloud (tall)",
     category="outdoor",
     priority="P0",
-    description=("Tall bumpy cumulus dome on a flat belly, about 3.8 m wide; faintly blue white "
+    description=("Tall bumpy cumulus dome on a flat belly, about 3.1 m wide; faintly blue white "
                  "(#E6F4FC) like WL's"),
     tags=["cloud", "sky", "decor"],
     tintable=[],

@@ -1,7 +1,7 @@
 """Picket fence: a 2 m section of chunky cream pickets with pointed, softened tops on two
 rails, with one square post with a ball cap at its left end (x = -1). Sections tile end to
 end along X at 2.0 m; add one more section's post (or a hedge) at the right end of a run.
-0.95 m tall. Origin at the ground centre; front is -Y."""
+About 1 m tall. Origin at the ground centre; front is -Y."""
 import lib
 from environment import _env
 

@@ -1,8 +1,6 @@
 """Planter box: a long wooden trough of chunky horizontal planks with corner posts and feet,
 overflowing with a faceted green hedge-top and a sprinkle of flowers. 1.2 × 0.45 m, about
 0.75 m tall. Origin at the ground centre; front is -Y."""
-import math
-
 import lib
 from environment import _env
 

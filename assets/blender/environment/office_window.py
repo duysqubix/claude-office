@@ -30,11 +30,11 @@ def frame(M):
     depth = WALL_T + 0.08
     _env.rr_ring("Frame", (OPEN_W + 0.22, OPEN_H + 0.22, 0.17), (OPEN_W - 0.08, OPEN_H - 0.08, 0.1),
                  depth, (0, 0, OPEN_H / 2), M["trim"], seg=8, bevel=0.035)
-    # Cross mullion, slimmer than the frame and set into the wall's middle.
-    lib.rbox("MullionV", (0.11, 0.12, OPEN_H - 0.04), (0, 0, OPEN_H / 2), M["trim"], r=0.035,
-             seg=3)
-    lib.rbox("MullionH", (OPEN_W - 0.04, 0.12, 0.1), (0, 0, MULLION_Z), M["trim"], r=0.035,
-             seg=3)
+    # Cross mullion: flat chunky bars, slimmer than the frame, in the wall's middle.
+    lib.rbox("MullionV", (0.12, 0.13, OPEN_H - 0.04), (0, 0, OPEN_H / 2), M["trim"], r=0.02,
+             seg=2)
+    lib.rbox("MullionH", (OPEN_W - 0.04, 0.12, 0.1), (0, 0, MULLION_Z), M["trim"], r=0.02,
+             seg=2)
     # Sill ledge: sticks out on both faces, slightly wider than the frame.
     _env.rr_prism("SillLedge", OPEN_W + 0.36, WALL_T + 0.26, 0.075, 0.06, (0, 0, -0.07),
                   M["sill"], seg=5, bevel=0.03, bseg=3)

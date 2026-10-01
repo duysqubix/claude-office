@@ -1,5 +1,5 @@
 """Outdoor bin: a ribbed deep-green park litter bin (it matches the bench's iron) with a cream
-band, and a domed rain lid floating on four posts over a dark opening. About 1.0 m tall.
+band, and a domed rain lid floating on four posts over a dark opening. About 1.15 m tall.
 Origin at the ground centre."""
 import math
 
@@ -7,7 +7,7 @@ import lib
 from environment import _env
 
 NAME = "outdoor_bin"
-AO_RES = 512
+AO_RES = 256
 AO_DISTANCE = 0.15
 
 BODY_H = 0.78

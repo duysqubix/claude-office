@@ -17,7 +17,7 @@ META = dict(
     name="Phone (held)", category="character-held", priority="P0",
     description="Chunky smartphone in a bright case; Screen faces the holder",
     tags=["held", "phone", "screen"], tintable=["Accent"],
-    anchors_bl={"handGrip": (0, 0, 0)},
+    anchors_bl={"handGrip": (0, 0, 0), "handCentre": tuple(kit.hand_from_grip())},
 )
 
 
@@ -57,6 +57,7 @@ def build():
     # hand and the holder (+Y), clear of the mitten.
     tf = Matrix.Translation((0, 0.078, -0.035)) @ Matrix.Rotation(LEAN, 4, "X")
     kit.transform(lib.coll().objects, tf)
+    kit.regrip()  # origin: the rig's handGrip (3 cm below, 6 cm ahead of the mitten centre)
 
 
 def finalize(name):

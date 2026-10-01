@@ -1,0 +1,29 @@
+{
+  "id": "hot_air_balloon",
+  "name": "Hot air balloon",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P2",
+  "status": "done",
+  "description": "Plump teardrop balloon of puffy orange, cream and yellow gores over a woven basket with sandbags and a glowing burner",
+  "tags": [
+    "sky",
+    "decor",
+    "balloon",
+    "event"
+  ],
+  "tintable": [],
+  "anchors": {
+    "basket": [
+      0,
+      0.95,
+      0
+    ],
+    "burner": [
+      0,
+      1.89,
+      0
+    ]
+  },
+  "notes": "Sky decor: origin at the basket bottom. About 8 m tall; bob it slowly."
+}

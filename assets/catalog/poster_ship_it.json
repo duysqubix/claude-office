@@ -1,0 +1,25 @@
+{
+  "id": "poster_ship_it",
+  "name": "Poster: SHIP IT",
+  "category": "decor",
+  "artist": "Claude C\u00e9zanne",
+  "priority": "P1",
+  "status": "done",
+  "description": "Framed yellow poster with a raised rocket and big \"SHIP IT\" lettering",
+  "tags": [
+    "wall",
+    "poster",
+    "joke"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "center": [
+      0,
+      0,
+      0.03
+    ]
+  },
+  "mount": "wall: origin is the back centre"
+}

@@ -1,5 +1,5 @@
 """Grass tuft: a clump of a dozen chunky faceted blades fanning out, dark at the root and
-light at the tips. About 0.35 m tall. Origin at the ground centre; scatter freely."""
+light at the tips. About 0.3 m tall. Origin at the ground centre; scatter freely."""
 import math
 
 import lib

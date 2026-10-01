@@ -1,7 +1,7 @@
 """Toy car: a cute, rounded bubble car with no brand. A plump `Accent` body, a round-cornered
 glasshouse of dark glossy windows under a body-colour roof, fat tyres with cream hubcaps,
-cream bumpers, big friendly headlights and a smiley grille. It faces -Y. 2.6 m long, 1.5 m
-wide, 1.45 m tall. Origin at the ground centre."""
+cream bumpers, big friendly headlights and a smiley grille. It faces -Y. 2.7 m long, 1.7 m
+wide with mirrors, 1.4 m tall. Origin at the ground centre."""
 import math
 
 import lib

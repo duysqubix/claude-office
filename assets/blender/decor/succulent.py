@@ -18,7 +18,7 @@ META = dict(
     anchors_bl={"top": (0, 0, 0.125)},
 )
 # (leaves, tilt from vertical in degrees, length, yaw offset in degrees)
-RINGS = [(8, 76, 0.05, 0), (7, 57, 0.045, 24), (6, 38, 0.036, 6), (4, 15, 0.027, 45)]
+RINGS = [(7, 76, 0.053, 0), (6, 56, 0.047, 30), (5, 36, 0.038, 8), (3, 14, 0.028, 50)]
 
 
 def materials():
@@ -39,17 +39,17 @@ def rosette(M, base):
             d = Vector((math.sin(t) * math.cos(a), math.sin(t) * math.sin(a), math.cos(t)))
             leaf = lib.sphere(f"Leaf{r}_{i}", 1.0, tuple(base + d * length * 0.48),
                               M["young"] if r >= 2 else M["leaf"],
-                              scale=(length * 0.36, length * 0.5, length * 0.19), u=10, v=6,
-                              rot=d.to_track_quat("Y", "Z").to_euler())
+                              scale=(length * 0.36, length * 0.19, length * 0.5), u=11, v=6,
+                              rot=d.to_track_quat("Z", "Y").to_euler())
             if r < 3:
-                # Blush the pointed end (local +Y on the unit sphere).
-                D.paint(leaf, M["tip"], lambda c, n: c.y > 0.72)
+                # The sphere's pole is the leaf tip, so the blush is a soft round cap.
+                D.paint(leaf, M["tip"], lambda c, n: c.z > 0.9)
 
 
 def build():
     lib.begin(NAME)
     M = materials()
-    zs = D.pot("Pot", 0.034, 0.043, 0.07, M["pot"], M["soil"], rim=0.008)
+    zs = D.pot("Pot", 0.034, 0.043, 0.07, M["pot"], M["soil"], rim=0.008, verts=24)
     rosette(M, Vector((0, 0, zs + 0.014)))
 
 

@@ -7,7 +7,7 @@ import lib
 from environment import _env
 
 NAME = "mailbox"
-AO_RES = 512
+AO_RES = 256
 AO_DISTANCE = 0.15
 
 BOX_Z = 1.0      # underside of the box

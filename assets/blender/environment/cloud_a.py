@@ -1,6 +1,6 @@
 """Cloud A: a long, lazy cumulus: one soft merged surface (metaballs) with a big dome in the
-middle, bumps along the top, tapering to the ends, and a flat belly. About 5 m long, 2 m
-tall. Origin at the centre of the belly."""
+middle, bumps along the top, tapering to the ends, and a flat belly. About 4.7 m long,
+1.8 m tall. Origin at the centre of the belly."""
 import lib
 from environment import _env
 
@@ -35,7 +35,7 @@ META = dict(
     name="Cloud (long)",
     category="outdoor",
     priority="P0",
-    description=("Long lazy cumulus: one soft merged surface with a flat belly, about 5 m long; "
+    description=("Long lazy cumulus: one soft merged surface with a flat belly, about 4.7 m long; "
                  "faintly blue white (#E6F4FC) like WL's"),
     tags=["cloud", "sky", "decor"],
     tintable=[],

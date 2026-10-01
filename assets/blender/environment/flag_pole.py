@@ -5,7 +5,6 @@ centre; the flag flies toward +X and reads from -Y."""
 import math
 
 import bmesh
-from mathutils import Vector
 
 import lib
 from environment import _env

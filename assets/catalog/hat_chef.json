@@ -1,0 +1,22 @@
+{
+  "id": "hat_chef",
+  "name": "Chef's hat",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Tall puffy chef's toque",
+  "tags": [
+    "hat",
+    "chef",
+    "kitchen"
+  ],
+  "tintable": [],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.6553,
+      -0.079
+    ]
+  }
+}

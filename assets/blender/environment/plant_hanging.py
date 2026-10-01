@@ -78,7 +78,7 @@ def foliage(M):
     # Trailing vines over the rim, mostly toward the front and sides.
     for v, deg in enumerate((200, 250, 290, 330, 20, 75, 150)):
         a = math.radians(deg)
-        start = Vector3(cx + math.cos(a) * (POT_R - 0.01), cy + math.sin(a) * (POT_R - 0.01), cz + 0.01)
+        start = (cx + math.cos(a) * (POT_R - 0.01), cy + math.sin(a) * (POT_R - 0.01), cz + 0.01)
         drop = 0.32 + 0.22 * ((v * 3) % 4) / 3
         pts = []
         for k in range(7):
@@ -91,13 +91,10 @@ def foliage(M):
         for k in range(1, 7):
             px, py, pz = pts[k]
             side = 1 if k % 2 else -1
-            leaf(f"Vine{v}Leaf{k}", (px, py, pz), a - math.pi / 2 + side * 1.1 + rnd.uniform(-0.3, 0.3),
+            yaw = a - math.pi / 2 + side * 1.1 + rnd.uniform(-0.3, 0.3)
+            leaf(f"Vine{v}Leaf{k}", (px, py, pz), yaw,
                  math.radians(-50 + rnd.uniform(-15, 15)), 0.1 - 0.005 * k,
                  M["leaves"][(v + k) % 3])
-
-
-def Vector3(x, y, z):
-    return (x, y, z)
 
 
 def build():

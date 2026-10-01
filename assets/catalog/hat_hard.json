@@ -1,0 +1,25 @@
+{
+  "id": "hat_hard",
+  "name": "Hard hat",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky yellow construction hard hat",
+  "tags": [
+    "hat",
+    "hard-hat",
+    "safety",
+    "work"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4245,
+      -0.0685
+    ]
+  }
+}

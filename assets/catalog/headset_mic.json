@@ -1,0 +1,30 @@
+{
+  "id": "headset_mic",
+  "name": "Headset with mic",
+  "category": "character-accessory",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Slim call-centre headset with a boom mic and foam tip",
+  "tags": [
+    "headset",
+    "mic",
+    "support",
+    "head"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "micTip": [
+      0.0861,
+      -0.1148,
+      0.2748
+    ],
+    "headTop": [
+      0,
+      0.32,
+      -0.01
+    ]
+  }
+}

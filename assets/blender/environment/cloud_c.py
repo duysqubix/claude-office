@@ -1,5 +1,5 @@
 """Cloud C: a small wisp of three bumps on a flat belly, one soft merged surface (metaballs).
-About 2.9 m long, 1.3 m tall. Origin at the centre of the belly."""
+About 2.3 m long, 1.1 m tall. Origin at the centre of the belly."""
 import lib
 from environment import _env
 
@@ -27,7 +27,7 @@ META = dict(
     name="Cloud (small)",
     category="outdoor",
     priority="P0",
-    description="Small three-bump wisp, about 2.9 m long; faintly blue white (#E6F4FC) like WL's",
+    description="Small three-bump wisp, about 2.3 m long; faintly blue white (#E6F4FC) like WL's",
     tags=["cloud", "sky", "decor"],
     tintable=[],
     anchors={},

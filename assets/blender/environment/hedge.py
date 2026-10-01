@@ -1,6 +1,7 @@
 """Hedge: a 2 m section of clipped box hedge: one faceted low-poly block with softly rounded
-edges and jittered facets, its facets mottled in three greens like clipped leaves, sunlit on top and darker at the foot. 2.0 × 0.8 m,
-0.9 m tall. Origin at the ground centre; sections tile end to end along X at 2.0 m."""
+edges and jittered facets, mottled in three greens like clipped leaves, sunlit on top and
+darker at the foot. 2.0 × 0.8 m, 0.9 m tall. Origin at the ground centre; sections tile end to
+end along X at 2.0 m."""
 import lib
 from environment import _env
 

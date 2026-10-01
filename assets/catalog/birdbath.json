@@ -1,0 +1,23 @@
+{
+  "id": "birdbath",
+  "name": "Birdbath",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P2",
+  "status": "done",
+  "description": "Stone baluster birdbath with a bowl of bright water and two round little birds perched on the rim",
+  "tags": [
+    "garden",
+    "birds",
+    "water",
+    "decor"
+  ],
+  "tintable": [],
+  "anchors": {
+    "water": [
+      0,
+      0.865,
+      0
+    ]
+  }
+}

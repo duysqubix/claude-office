@@ -108,9 +108,11 @@ def begin(name):
     """Start an asset in a fresh collection and hide the other assets."""
     scene = bpy.context.scene
     for c in scene.collection.children:
-        if c.name not in (name, STUDIO):
-            c.hide_viewport = True
-            c.hide_render = True
+        if c.name in (name, STUDIO):
+            continue
+        c.hide_viewport = True
+        # Helper collections ("_Mannequin", ...) stay renderable: previews need them.
+        c.hide_render = not c.name.startswith("_")
     coll = bpy.data.collections.get(name)
     if coll:
         for ob in list(coll.objects):

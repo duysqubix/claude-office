@@ -19,8 +19,9 @@ META = dict(
     name="Box of desk stuff (held)", category="character-held", priority="P0",
     description="Open cardboard box with a plant, photo and rubber duck; carried in both hands",
     tags=["held", "box", "leaving", "fired"], tintable=[],
-    anchors_bl={"handGrip": (0, 0, 0), "handL": (W / 2 + 0.035, 0, 0),
-                "handR": (-W / 2 - 0.035, 0, 0)},
+    anchors_bl={"handL": (W / 2 + 0.035, 0, 0), "handR": (-W / 2 - 0.035, 0, 0),
+                "gripL": tuple(kit.Vector((W / 2 + 0.035, 0, 0)) - kit.hand_from_grip()),
+                "gripR": tuple(kit.Vector((-W / 2 - 0.035, 0, 0)) - kit.hand_from_grip())},
 )
 
 

@@ -1,0 +1,25 @@
+{
+  "id": "hat_crown",
+  "name": "Crown",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky gold crown with ball-tipped points and jewels",
+  "tags": [
+    "hat",
+    "crown",
+    "royal",
+    "reward"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4286,
+      -0.0344
+    ]
+  }
+}

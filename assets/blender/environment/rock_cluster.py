@@ -1,12 +1,12 @@
 """Rock cluster: one big and three smaller faceted boulders in warm greys, half-sunk in the
 ground, moss on the sky-facing facets of the
-big ones. About 1.3 m across, 0.6 m tall. Origin at the ground
+big ones. About 1.4 m across, 0.45 m tall. Origin at the ground
 centre."""
 import lib
 from environment import _env
 
 NAME = "rock_cluster"
-AO_RES = 512
+AO_RES = 256
 AO_DISTANCE = 0.3
 
 # (x, y, z, radius, scale, material, seed)

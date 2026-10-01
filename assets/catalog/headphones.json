@@ -1,0 +1,35 @@
+{
+  "id": "headphones",
+  "name": "Headphones",
+  "category": "character-accessory",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Big cushy over-ear headphones with a padded band",
+  "tags": [
+    "headphones",
+    "music",
+    "focus",
+    "head"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.365,
+      -0.01
+    ],
+    "cupL": [
+      0.31,
+      -0.005,
+      -0.01
+    ],
+    "cupR": [
+      -0.31,
+      -0.005,
+      -0.01
+    ]
+  }
+}

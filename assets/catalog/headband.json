@@ -1,0 +1,25 @@
+{
+  "id": "headband",
+  "name": "Headband",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Terry sweatband with a white stripe",
+  "tags": [
+    "hat",
+    "headband",
+    "sport",
+    "gym"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.3,
+      -0.01
+    ]
+  }
+}

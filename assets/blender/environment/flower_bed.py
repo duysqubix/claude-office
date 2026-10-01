@@ -40,7 +40,7 @@ def stem_with_leaf(prefix, x, y, h, lean, M, leaf_yaw):
     _env.tube(prefix + "Stem", (x, y, SOIL_Z - 0.02), top, 0.015, 0.012, M["stem"], verts=6)
     for k in (0, 1):
         _env.blade(f"{prefix}Leaf{k}", (x, y, SOIL_Z), leaf_yaw + k * math.pi,
-                   math.radians(50), h * 0.6, 0.075, 0.014, M["leaf"], droop=0.35, segs=6)
+                   math.radians(50), h * 0.6, 0.075, 0.014, M["leaf"], droop=0.35, segs=4)
     return top
 
 

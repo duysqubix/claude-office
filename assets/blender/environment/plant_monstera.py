@@ -1,6 +1,6 @@
 """Monstera: nine big glossy split leaves (cartoon cardioids with slits) on arching stems,
 in a chunky rolled-rim ceramic pot. The pot is `Accent` so the game can recolour it.
-About 1.4 m tall. Origin at the floor centre of the pot."""
+About 1.6 m tall. Origin at the floor centre of the pot."""
 import math
 
 import lib

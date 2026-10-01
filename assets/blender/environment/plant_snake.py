@@ -7,7 +7,7 @@ import lib
 from environment import _env
 
 NAME = "plant_snake"
-AO_RES = 512
+AO_RES = 256
 AO_DISTANCE = 0.18
 
 SOIL_Z = 0.33

@@ -45,15 +45,43 @@ if os.path.exists(RIG_JSON):
 if os.environ.get("RODIN_HEAD") == "box":  # what-if previews of the ART-REFERENCE head
     HEAD.update(shape="roundedBox", size=[0.58, 0.54, 0.50], radius=0.19, jaw=0.06)
 
+# Everything else the rig file pins down (three.js metres; see rig-dimensions.json).
+_h = RIG.get("head", {})
+if "r" in _h:
+    HEAD.update(shape=_h.get("shape", "sphere"), size=[2 * _h["r"]] * 3, radius=_h["r"])
+    DIM["headR"] = _h["r"]
+DIM["neckY"] = _h.get("neckY", DIM["neckY"])
+DIM["headUp"] = _h.get("centerAboveNeck", DIM["headUp"])
+FACE = dict(eyes=dict(x=0.088, y=-0.005, radii=[0.037, 0.055, 0.0225], inset=0.012),
+            brows=dict(x=0.092, y=0.094), mouth=dict(y=-0.093, width=0.08),
+            cheeks=dict(x=0.158, y=-0.062, radii=[0.046, 0.032, 0.012]))
+FACE.update(RIG.get("face", {}))
+LIMB = dict(shoulder=dict(x=0.215, y=0.25, restSplayDeg=17), upperArm=dict(len=0.15, r=0.072),
+            forearm=dict(len=0.13, r=0.066),
+            hand=dict(radii=[0.074, 0.084, 0.06], offset=0.045,
+                      thumb=dict(r=0.032, at=[0.0, -0.01, 0.045])),
+            hip=dict(x=0.105), thigh=dict(len=0.17, r=0.085), shin=dict(len=0.15, r=0.078),
+            foot=dict(size=[0.188, 0.14, 0.27], below=0.03, forward=0.052, toeOutDeg=7))
+for _k in LIMB:
+    if isinstance(RIG.get(_k), dict):
+        LIMB[_k].update({k: v for k, v in RIG[_k].items() if not k.startswith("_")})
+TORSO = dict(scaleZ=0.85, beltY=0.015, pantsOffset=0.011, chestPivotY=0.12)
+if isinstance(RIG.get("torso"), dict):
+    TORSO.update({k: v for k, v in RIG["torso"].items() if not k.startswith("_")})
+ATTACH = {k: v for k, v in RIG.get("attach", {}).items() if not k.startswith("_")}
+# Held items pivot at the rig's handGrip: this far from the mitten centre (three.js).
+GRIP_FROM_HAND = ATTACH.get("handGrip", {}).get("at", [0.0, -0.03, 0.06])
+
 R = DIM["headR"]  # nominal head radius (spherical helpers)
 # Blender half extents of the head: x = width, y = depth, z = height.
 HX, HY, HZ = HEAD["size"][0] / 2, HEAD["size"][2] / 2, HEAD["size"][1] / 2
 HEAD_Y = DIM["neckY"] + DIM["headUp"]  # head centre above the pelvis
 
-# Torso bean profile from rig.ts (radius, height above pelvis); scaled 0.85 front-to-back.
-TORSO_CTRL = [(0.0, -0.155), (0.12, -0.142), (0.205, -0.095), (0.243, 0.0), (0.24, 0.1),
-              (0.214, 0.21), (0.165, 0.31), (0.09, 0.385), (0.0, 0.41)]
-TORSO_Z = 0.85
+# Torso bean profile (radius, height above pelvis), scaled front-to-back by TORSO_Z.
+TORSO_CTRL = [tuple(p) for p in TORSO.get("profile", [
+    (0.0, -0.155), (0.12, -0.142), (0.205, -0.095), (0.243, 0.0), (0.24, 0.1),
+    (0.214, 0.21), (0.165, 0.31), (0.09, 0.385), (0.0, 0.41)])]
+TORSO_Z = TORSO["scaleZ"]
 
 
 def bl(x, y, z):
@@ -227,6 +255,18 @@ def place(ob, loc, frame):
     ob.location = loc
     ob.rotation_euler = frame.to_euler()
     return ob
+
+
+def hand_from_grip():
+    """Blender offset of the mitten centre from the rig's handGrip point (held items are
+    modelled around the mitten centre, then shifted so the GLB origin is the grip)."""
+    return -bl(*GRIP_FROM_HAND)
+
+
+def regrip(objs=None):
+    """Re-pivot a held item modelled around the mitten centre onto the rig's handGrip."""
+    objs = list(lib.coll().objects) if objs is None else objs
+    return transform(objs, Matrix.Translation(hand_from_grip()))
 
 
 def transform(objs, m):
@@ -861,23 +901,26 @@ def head_mesh(name, material, cuts=11, loc=(0, 0, 0)):
 def cheeks(prefix, material, at=Vector((0, 0, 0)), scale=1.0):
     """Two soft blush discs sunk into the head so only a thin cap shows."""
     out = []
+    cx, cy = FACE["cheeks"]["x"], FACE["cheeks"]["y"]
+    crx, cry, crz = FACE["cheeks"]["radii"]
     for s in (1, -1):
-        loc, fr = on_head(s * 0.158, -0.064, -0.004)
+        loc, fr = on_head(s * cx, cy, -0.004)
         ob = dome(f"{prefix}Cheek{'L' if s > 0 else 'R'}", material, u=20, v=10, keep=0.3)
-        ob.scale = (0.05 * scale, 0.012 * scale, 0.034 * scale)
+        ob.scale = (crx * scale, crz * scale, cry * scale)
         place(ob, at + loc, fr)
         out.append(ob)
     return out
 
 
-EYE_X, EYE_Y = 0.088, -0.005
+EYE_X, EYE_Y = FACE["eyes"]["x"], FACE["eyes"]["y"]
 
 
 def eye(prefix, side, M, at=Vector((0, 0, 0)), size=1.0):
     """One big glossy eye on the head at face coords (side*EYE_X, EYE_Y). Returns parts and
     the eye centre (its blink pivot)."""
-    loc, fr = on_head(side * EYE_X, EYE_Y, -0.011)
-    rx, rz, ry = 0.0372 * size, 0.0555 * size, 0.0215 * size  # half width, height, depth
+    loc, fr = on_head(side * EYE_X, EYE_Y, -FACE["eyes"]["inset"])
+    ex, ey, ez = FACE["eyes"]["radii"]
+    rx, rz, ry = ex * size, ey * size, ez * size  # half width, height, depth
     parts = []
     body = dome(f"{prefix}Ball", M["eye"], u=28, v=16, keep=0.2)
     body.scale = (rx, ry, rz)
@@ -903,14 +946,21 @@ def eye(prefix, side, M, at=Vector((0, 0, 0)), size=1.0):
     return parts, at + loc
 
 
-def brow(prefix, side, material, at=Vector((0, 0, 0)), fy=0.096, length=0.062, thick=0.0135,
+def brow_centre(side):
+    return face_point(side * FACE["brows"]["x"], FACE["brows"]["y"])
+
+
+def brow(prefix, side, material, at=Vector((0, 0, 0)), fy=None, length=0.062, thick=0.0135,
          arch=0.006, tilt=0.0):
-    """A chunky, slightly arched brow lying on the head surface."""
+    """A chunky, slightly arched brow lying on the head surface; its middle sits on the
+    rig's brow point (face.brows)."""
+    fy = FACE["brows"]["y"] - arch if fy is None else fy
+    bx = FACE["brows"]["x"]
     pts = []
     n = 7
     for i in range(n):
         t = i / (n - 1) - 0.5
-        fx = side * (0.092 + t * length)
+        fx = side * (bx + t * length)
         y = fy + arch * (1 - 4 * t * t) + tilt * t * side
         pts.append(face_point(fx, y, thick * 0.35))
     rad = lambda t: thick * (0.78 + 0.22 * math.sin(math.pi * t))
@@ -918,9 +968,12 @@ def brow(prefix, side, material, at=Vector((0, 0, 0)), fy=0.096, length=0.062, t
     return ob
 
 
-def smile(prefix, material, at=Vector((0, 0, 0)), width=0.042, depth=0.026, fy=-0.074,
+def smile(prefix, material, at=Vector((0, 0, 0)), width=None, depth=0.026, fy=None,
           thick=0.0072):
-    """The rig's little smile, thicker in the middle with round ends."""
+    """The rig's little smile, thicker in the middle with round ends, centred on the rig's
+    mouth point (face.mouth): `width` is half the mouth width, `fy` the corners' height."""
+    width = FACE["mouth"]["width"] / 2 if width is None else width
+    fy = FACE["mouth"]["y"] + depth * 0.5 if fy is None else fy
     ctrl = [(-width, fy), (-width * 0.55, fy - depth * 0.72), (0, fy - depth),
             (width * 0.55, fy - depth * 0.72), (width, fy)]
     pts = catmull([(x, y, 0) for x, y in ctrl], 16)

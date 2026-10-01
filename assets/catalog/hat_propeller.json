@@ -1,0 +1,28 @@
+{
+  "id": "hat_propeller",
+  "name": "Propeller cap",
+  "category": "character-hat",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Beanie cap with a spinning propeller",
+  "tags": [
+    "hat",
+    "propeller",
+    "fun",
+    "intern"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4865,
+      -0.0587
+    ]
+  },
+  "nodes": {
+    "Propeller": "spin about +Y (three) around its origin"
+  }
+}
