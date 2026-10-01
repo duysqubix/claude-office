@@ -74,3 +74,9 @@ async function liveProcesses(pids: number[]): Promise<Map<number, { lstart: stri
   }
   return out;
 }
+
+/** How many Claude Code processes are running (to tell "nobody's here" from "can't read the registry"). */
+export async function claudeProcessCount(): Promise<number> {
+  const r = await run('ps', ['-axo', 'comm=']);
+  return r.stdout.split('\n').filter((c) => /(^|\/)claude(\.exe)?$/i.test(c.trim())).length;
+}

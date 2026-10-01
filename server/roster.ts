@@ -7,7 +7,7 @@ import { POLL_MS } from './config';
 import { projectName } from './archive';
 import { activeInterns } from './interns';
 import { assignNames, pickName } from './names';
-import { readRegistry, type RegistryEntry } from './registry';
+import { claudeProcessCount, readRegistry, type RegistryEntry } from './registry';
 import { capture, kill, listHosted, readOfficeMeta, type HostedPane, type OfficeMeta } from './tmux';
 import { TranscriptTail } from './transcript';
 
@@ -43,6 +43,7 @@ export class Roster extends EventEmitter {
   private tickN = 0;
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
+  private warnedUnreadable = false;
 
   constructor(private readonly asks?: AskSource) {
     super();
@@ -118,6 +119,11 @@ export class Roster extends EventEmitter {
     this.tickN++;
     const now = Date.now();
     const [reg, panes] = await Promise.all([readRegistry(), listHosted()]);
+    if (!reg.length && !this.warnedUnreadable && this.tickN % 10 === 1 && (await claudeProcessCount()) > 0) {
+      // Claude is running but its session registry gave us nothing: likely a newer Claude Code format.
+      this.warnedUnreadable = true;
+      this.notice('warn', "Claude Code is running, but the office can't read its live sessions (~/.claude/sessions). Your Claude Code version may be newer than this office supports.");
+    }
 
     const livePanes = panes.filter((p) => !p.dead);
     const paneByPid = new Map(livePanes.map((p) => [p.panePid, p.tmuxName]));
