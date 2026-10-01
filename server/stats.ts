@@ -1,10 +1,11 @@
 // Live numbers for the Team Room wall: plan usage, team totals, context fill per employee.
 //
-// Plan usage: Claude Code reports rate limits to status-line programs. The office reads the
-// copies oh-my-claudecode's HUD keeps (no credentials involved):
-//   ~/.claude/plugins/oh-my-claudecode/.usage-cache-*.json   five-hour, weekly, per-model buckets
-//   ~/.omc/state/hud-stdin-cache.json                       the last status-line input (rate_limits)
-// Whichever was updated most recently wins. Without either, plan.updatedAt is null.
+// Plan usage: Claude Code reports rate limits to status-line programs. The office reads
+// whichever snapshot is freshest (no credentials involved):
+//   ~/.claude/plugins/oh-my-claudecode/.usage-cache-*.json   oh-my-claudecode HUD: five-hour, weekly, per-model
+//   ~/.omc/state/hud-stdin-cache.json                       oh-my-claudecode HUD: last status-line input
+//   ~/.claude-office/statusline.json                        the office's own tap (npm run statusline:install)
+// Without any of them, plan.updatedAt is null and the board says it's waiting for data.
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ContextFill, Employee, PlanLimit, TeamStats } from '../shared/protocol';
@@ -110,27 +111,41 @@ async function readPlan(windowByModel: Map<string, number>): Promise<Plan> {
     }
   }
 
-  // 2. The last status-line input Claude Code sent (rate_limits + this model's context window).
+  // 2. The last status-line input Claude Code sent, as cached by the HUD.
   try {
     const path = join(HOME, '.omc', 'state', 'hud-stdin-cache.json');
     const [raw, s] = await Promise.all([readFile(path, 'utf8'), stat(path)]);
-    const input = JSON.parse(raw);
-    if (input?.model?.id && input?.context_window?.context_window_size) {
-      windowByModel.set(input.model.id, Number(input.context_window.context_window_size));
-    }
-    const rl = input?.rate_limits;
-    if (rl && typeof rl === 'object') {
-      const limits: PlanLimit[] = Object.entries(rl as Record<string, { used_percentage?: number; resets_at?: number }>)
-        .filter(([, v]) => typeof v?.used_percentage === 'number')
-        .map(([id, v]) => ({ id, label: LABELS[id] ?? id.replace(/_/g, ' '), usedPct: v.used_percentage!, resetsAt: toMs(v.resets_at) }));
-      if (limits.length) candidates.push({ limits, updatedAt: Math.round(s.mtimeMs) });
-    }
+    const plan = fromStatusInput(JSON.parse(raw), Math.round(s.mtimeMs), windowByModel);
+    if (plan) candidates.push(plan);
   } catch {
     // no HUD cache on this machine
   }
 
+  // 3. The office's own status line tap (`npm run statusline:install`), for setups without the HUD.
+  try {
+    const tap = JSON.parse(await readFile(join(HOME, '.claude-office', 'statusline.json'), 'utf8'));
+    const plan = fromStatusInput(tap?.data, Number(tap?.savedAt) || null, windowByModel);
+    if (plan) candidates.push(plan);
+  } catch {
+    // tap not installed
+  }
+
   candidates.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
   return candidates[0] ?? { limits: [], updatedAt: null };
+}
+
+/** Plan limits (and the model's context window size) from one status-line input snapshot. */
+function fromStatusInput(input: any, updatedAt: number | null, windowByModel: Map<string, number>): Plan | null {
+  if (!input || typeof input !== 'object') return null;
+  if (input.model?.id && input.context_window?.context_window_size) {
+    windowByModel.set(input.model.id, Number(input.context_window.context_window_size));
+  }
+  const rl = input.rate_limits;
+  if (!rl || typeof rl !== 'object') return null;
+  const limits: PlanLimit[] = Object.entries(rl as Record<string, { used_percentage?: number; resets_at?: number }>)
+    .filter(([, v]) => typeof v?.used_percentage === 'number')
+    .map(([id, v]) => ({ id, label: LABELS[id] ?? id.replace(/_/g, ' '), usedPct: v.used_percentage!, resetsAt: toMs(v.resets_at) }));
+  return limits.length ? { limits, updatedAt } : null;
 }
 
 /** Accepts epoch seconds, epoch ms, or an ISO string. */

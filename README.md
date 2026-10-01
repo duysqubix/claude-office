@@ -47,6 +47,7 @@ you want to hire, resume or let go of sessions from inside the game.
 | Want | Do | Undo |
 | --- | --- | --- |
 | Answer permission prompts, questions and plan approvals **in the game** (Allow / Deny / pick an option) | `npm run hooks:install` | `npm run hooks:uninstall` |
+| Plan-usage gauges (5-hour / weekly) on the Team Room board, if you don't use oh-my-claudecode's HUD | `npm run statusline:install` (wraps your current status line, which keeps working) | `npm run statusline:uninstall` |
 | Develop the client with hot reload | `npm run dev` | |
 
 With the hooks installed, the office only steps in while you're actually looking at it

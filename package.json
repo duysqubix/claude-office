@@ -20,7 +20,10 @@
     "catalog": "node scripts/catalog.mjs",
     "hooks:install": "node scripts/hooks.mjs install",
     "hooks:uninstall": "node scripts/hooks.mjs uninstall",
-    "hooks:status": "node scripts/hooks.mjs status"
+    "hooks:status": "node scripts/hooks.mjs status",
+    "statusline:install": "node scripts/statusline.mjs install",
+    "statusline:uninstall": "node scripts/statusline.mjs uninstall",
+    "statusline:status": "node scripts/statusline.mjs status"
   },
   "dependencies": {
     "@fontsource/fredoka": "^5.3.0",
