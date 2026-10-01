@@ -1,0 +1,24 @@
+{
+  "id": "bow_tie",
+  "name": "Bow tie",
+  "category": "character-accessory",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky puffy bow tie",
+  "tags": [
+    "bow-tie",
+    "formal",
+    "accessory"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "knot": [
+      0.0,
+      0.2937,
+      0.1671
+    ]
+  }
+}

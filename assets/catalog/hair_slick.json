@@ -1,0 +1,25 @@
+{
+  "id": "hair_slick",
+  "name": "Slicked back",
+  "category": "character-hair",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "The manager's glossy slicked-back hair with a pompadour wave",
+  "tags": [
+    "hair",
+    "short",
+    "slick",
+    "manager"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.33,
+      0
+    ]
+  }
+}

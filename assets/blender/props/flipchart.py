@@ -39,13 +39,15 @@ def materials():
 def easel(M):
     rot = Euler((TILT, 0, 0))
     fwd = rot.to_matrix() @ Vector((0, -1, 0))
+    # Legs stay entirely behind the tilted backboard: its back face sits at
+    # y = 0.035 + (z - PC.z) * tan(10°); the legs clear it by more than their radius.
     for s in (-1, 1):
-        a = Vector((s * 0.36, -0.12, 0.0))
-        b = Vector((s * 0.3, 0.06, 1.72))
+        a = Vector((s * 0.36, 0.0, 0.0))
+        b = Vector((s * 0.3, 0.19, 1.72))
         d = b - a
         lib.cyl(f"FC_Leg{s}", 0.022, d.length, tuple((a + b) / 2), M["wood"], r=0.008, seg=1,
                 verts=12, rot=d.to_track_quat("Z", "Y").to_euler())
-    a, b = Vector((0, 0.55, 0.0)), Vector((0, 0.1, 1.5))
+    a, b = Vector((0, 0.6, 0.0)), Vector((0, 0.17, 1.45))
     d = b - a
     lib.cyl("FC_BackLeg", 0.02, d.length, tuple((a + b) / 2), M["wood"], r=0.008, seg=1,
             verts=12, rot=d.to_track_quat("Z", "Y").to_euler())

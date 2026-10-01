@@ -49,9 +49,10 @@ def build():
         for i in range(n):
             y = (i - (n - 1) / 2) * (RD - 0.14) / (n - 1)
             x0 = s * (RW / 2 - 0.01)
-            D.tube(f"Tassel{s}_{i}", [(x0, y, T * 0.5), (x0 + s * 0.035, y, T * 0.35),
-                                      (x0 + s * 0.065, y + 0.004 * ((i % 3) - 1), 0.004)],
-                   0.0095, M["tassel"], verts=6, smooth=2, caps="round")
+            r = 0.0075  # chunky knotted tassels lying on the floor
+            D.tube(f"Tassel{s}_{i}", [(x0, y, r), (x0 + s * 0.035, y, r),
+                                      (x0 + s * 0.065, y + 0.004 * ((i % 3) - 1), r)],
+                   r, M["tassel"], verts=6, smooth=2, caps="round")
 
 
 def finalize(id):

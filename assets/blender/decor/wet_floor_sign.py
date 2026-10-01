@@ -81,9 +81,7 @@ def build():
     lib.cyl("Hinge", 0.012, TOPW - 0.03, (0, 0, H - 0.004), M["panel"], r=0.004, seg=1, verts=14,
             rot=(0, math.pi / 2, 0))
     # Splaying lifted the feet; set the whole sign back down on the floor.
-    objs = list(lib.coll().objects)
-    lo, _ = lib._world_bounds(objs)
-    D.place(objs, loc=(0, 0, -lo.z))
+    D.ground()
 
 
 def finalize(id):

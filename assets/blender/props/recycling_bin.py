@@ -26,7 +26,9 @@ def parts(M):
     lib.rbox("RB_Body", (0.36, 0.36, 0.56), (0, 0, 0.28), M["bin"], r=0.05, seg=3)
     lib.rbox("RB_Lid", (0.39, 0.39, 0.06), (0, 0, 0.59), M["lid"], r=0.025, seg=2)
     lib.rbox("RB_Slot", (0.22, 0.05, 0.01), (0, -0.05, 0.62), M["slot"], r=0.004, seg=1)
-    lib.rbox("RB_Band", (0.364, 0.364, 0.035), (0, 0, 0.47), M["white"], r=0.016, seg=1)
+    # Band follows the body's rounded corners (a thin rbox can't: its bevel is capped).
+    lib.slab("RB_Band", lib.rounded_rect(0.366, 0.366, 0.052, 6), 0.4525, 0.4875,
+             material=M["white"], r=0.008, seg=1)
     # Three chasing arrows on a triangle.
     cz, cy, rr = 0.26, -0.185, 0.06
     for i in range(3):

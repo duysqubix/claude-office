@@ -2,30 +2,28 @@
   "id": "party_banner",
   "name": "Party banner",
   "category": "decor",
-  "artist": "Claude Monet",
+  "artist": "Claude C\u00e9zanne",
   "priority": "P2",
   "status": "done",
-  "description": "Rainbow bunting banner spelling PARTY!",
+  "description": "Bunting garland of nine colourful pennants on a sagging string",
   "tags": [
-    "party",
-    "event",
     "wall",
-    "text"
+    "party",
+    "birthday",
+    "celebrate"
   ],
-  "tintable": [
-    "Accent"
-  ],
+  "tintable": [],
   "anchors": {
-    "left": [
-      -1.0,
+    "pinL": [
+      -0.8,
       0,
-      0.02
+      0.01
     ],
-    "right": [
-      1.0,
+    "pinR": [
+      0.8,
       0,
-      0.02
+      0.01
     ]
   },
-  "mount": "wall: origin is midway between the two fixing points"
+  "mount": "wall: origin is midway between the two pins (the string's ends), at the wall"
 }

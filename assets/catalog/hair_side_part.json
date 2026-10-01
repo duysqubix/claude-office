@@ -1,0 +1,25 @@
+{
+  "id": "hair_side_part",
+  "name": "Side part",
+  "category": "character-hair",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Neat short cut with a deep side parting and a plump swept fringe",
+  "tags": [
+    "hair",
+    "short",
+    "side-part",
+    "neat"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.32,
+      0
+    ]
+  }
+}

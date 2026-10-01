@@ -1,0 +1,38 @@
+{
+  "id": "hat_beanie",
+  "name": "Beanie",
+  "category": "character-hat",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Ribbed knit beanie with a folded cuff and a bouncy pom-pom (node Pom)",
+  "tags": [
+    "hat",
+    "beanie",
+    "winter",
+    "jiggle"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "hatBand": [
+      0,
+      0.141,
+      0.31
+    ],
+    "headTop": [
+      0.0,
+      0.46,
+      -0.03
+    ],
+    "pomBase": [
+      0,
+      0.338,
+      -0.03
+    ]
+  },
+  "nodes": {
+    "Pom": "jiggle: rotate about its origin (the pom's base)"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "hair_ponytail",
+  "name": "Ponytail",
+  "category": "character-hair",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Hair combed back into a high ponytail with a coloured tie; node Ponytail swings",
+  "tags": [
+    "hair",
+    "ponytail",
+    "long",
+    "swing"
+  ],
+  "tintable": [
+    "Hair",
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.3,
+      0
+    ],
+    "tie": [
+      0.0,
+      0.2443,
+      -0.1909
+    ]
+  },
+  "nodes": {
+    "Ponytail": "swing: rotate about its origin (the hair tie)"
+  }
+}

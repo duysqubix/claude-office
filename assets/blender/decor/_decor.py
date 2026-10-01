@@ -251,6 +251,27 @@ def turn(objs, pivot, rot):
     return place(objs, loc=p, rot=rot)
 
 
+def ground(objs=None, z=0.0):
+    """Drop (or lift) parts so their lowest evaluated vertex sits at z (after leans/turns)."""
+    bpy.context.view_layer.update()
+    objs = list(lib.coll().objects) if objs is None else objs
+    dg = bpy.context.evaluated_depsgraph_get()
+    lo = None
+    for o in objs:
+        if o.type != "MESH":
+            continue
+        ev = o.evaluated_get(dg)
+        me = ev.to_mesh()
+        mw = o.matrix_world
+        for v in me.vertices:
+            w = (mw @ v.co).z
+            lo = w if lo is None or w < lo else lo
+        ev.to_mesh_clear()
+    if lo is not None:
+        place(objs, loc=(0, 0, z - lo))
+    return objs
+
+
 def paint(ob, material, pred):
     """Give faces where pred(centre, normal) is true (object space) a second material."""
     me = ob.data
@@ -532,96 +553,6 @@ def arc_pts(r, a0, a1, n=12, cx=0.0, cz=0.0, y=0.0, sx=1.0, sz=1.0):
 
 # ---------------------------------------------------------------- finalize
 
-def bake_ao(ob, res=256, distance=0.06, strength=1.0, samples=1024, margin=None):
-    """lib.bake_ao with two knobs it lacks: an island margin scaled to the texture (0.01 leaves
-    ~2.5 px gaps at 256², so dark buried islands bleed into neighbours as seam lines) and more
-    samples (smooth, noise-free AO). Otherwise the same contract: one 'AO' atlas over the
-    asset's objects, multiplied into every material not flagged emissive / no_ao, planar
-    0..1 UVs on Screen/Board/Label faces."""
-    margin = max(0.01, 7.0 / res) if margin is None else margin
-    scene = bpy.context.scene
-    objs = lib.asset_objects(ob)
-    for o in objs:
-        me = o.data
-        while me.uv_layers:
-            me.uv_layers.remove(me.uv_layers[0])
-        me.uv_layers.new(name="AO")
-    lib._deselect()
-    for o in objs:
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=margin,
-                             scale_to_bounds=True)
-    bpy.ops.object.mode_set(mode="OBJECT")
-
-    img_name = ob.name + "_AO"
-    if img_name in bpy.data.images:
-        bpy.data.images.remove(bpy.data.images[img_name])
-    img = bpy.data.images.new(img_name, res, res, alpha=False)
-    img.generated_color = (1, 1, 1, 1)
-    mats = []
-    for o in objs:
-        for m in o.data.materials:
-            if m not in mats:
-                mats.append(m)
-    tex_nodes = []
-    for m in mats:
-        nt = m.node_tree
-        for n in [n for n in nt.nodes if n.get("ao")]:
-            nt.nodes.remove(n)
-        t = nt.nodes.new("ShaderNodeTexImage")
-        t.image = img
-        t["ao"] = True
-        t.location = (-700, 300)
-        nt.nodes.active = t
-        tex_nodes.append((m, t))
-
-    floor = _plane("_ao_floor", 5, (0, 0, 0), (0, 0, 0), lib.coll())
-    prev_engine = scene.render.engine
-    lib._set_engine(scene, "CYCLES")
-    scene.cycles.samples = samples
-    scene.cycles.device = "CPU"
-    if scene.world is None:
-        scene.world = bpy.data.worlds.new("World")
-    scene.world.light_settings.distance = distance
-    scene.render.bake.margin = 8
-    # EXTEND (nearest island texel) instead of ADJACENT_FACES, which leaves dark notches
-    # along diagonal island borders at these small sizes.
-    scene.render.bake.margin_type = "EXTEND"
-    bpy.ops.object.bake(type="AO", use_clear=True)
-    _drop(floor)
-    lib._set_engine(scene, prev_engine)
-
-    import numpy as np
-    px = np.empty(res * res * 4, dtype=np.float32)
-    img.pixels.foreach_get(px)
-    px = px.reshape(-1, 4)
-    px[:, :3] = 1.0 - strength * (1.0 - px[:, :3])
-    img.pixels.foreach_set(px.ravel())
-    img.update()
-    img.pack()
-
-    for o in objs:
-        lib._screen_uvs(o.data)
-    for m, t in tex_nodes:
-        if m.get("emissive") or m.get("no_ao"):
-            continue
-        nt = m.node_tree
-        b = lib.principled(m)
-        mix = nt.nodes.new("ShaderNodeMix")
-        mix["ao"] = True
-        mix.data_type = "RGBA"
-        mix.blend_type = "MULTIPLY"
-        mix.location = (-350, 300)
-        mix.inputs[0].default_value = 1.0
-        mix.inputs[6].default_value = b.inputs["Base Color"].default_value
-        nt.links.new(t.outputs["Color"], mix.inputs[7])
-        nt.links.new(mix.outputs[2], b.inputs["Base Color"])
-    return img
-
-
 def planar_uvs(ob, names, up=(0, 0, 1)):
     """Faces using a material in `names` get a 0..1 planar UV per facing direction, oriented
     to read left-to-right from the side the face looks at (a two-sided tent card, a phone
@@ -681,7 +612,7 @@ def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=Fals
     planar  material names whose faces get per-direction planar 0..1 UVs (two-sided `Label`,
             a `Screen` lying flat).
     wall    wall-hung item (origin at the back-centre wall contact): AO is baked against a
-            wall instead of the floor, and the preview hangs it on a wall.
+            wall plane instead of the floor, and the preview hangs it on a wall.
     meta    lib.sidecar kwargs (artist defaults to Claude Cézanne).
     preview callable that adds preview-only parts after export (e.g. a sample name on a
             blank Label); they are removed again after the render.
@@ -691,17 +622,7 @@ def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=Fals
     objs = lib.asset_objects(ob)
     tris = lib.tri_count(ob)
 
-    wall_ob = None
-    if wall:
-        # Lift far above lib's AO floor; bake against a wall plane at the back instead.
-        ob.location = (0, 0, 50.0)
-        wall_ob = _plane("_ao_wall", 3, (0, 0.0005, 50.0), (math.pi / 2, 0, 0), c)
-        bpy.context.view_layer.update()
-    bake_ao(ob, ao_res, ao_distance)
-    if wall_ob is not None:
-        _drop(wall_ob)
-        ob.location = (0, 0, 0)
-        bpy.context.view_layer.update()
+    lib.bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
     if planar:
         for o in objs:
             planar_uvs(o, set(planar))
@@ -724,12 +645,6 @@ def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=Fals
             for o in extras:
                 o.matrix_world = ob.matrix_world @ o.matrix_world
     png = lib.render_preview(ob, name)
-    # lib lowers its preview floor for wall items; keep things that stand on z = 0 grounded.
-    lo, _ = lib._world_bounds(objs)
-    floor = bpy.data.objects.get("_floor")
-    if floor is not None and lo.z > -0.02 and abs(floor.location.z) > 1e-4:
-        floor.location.z = 0.0
-        bpy.ops.render.render(write_still=True)
     for o in extras:
         _drop(o)
     if backdrop is not None:

@@ -32,8 +32,9 @@ def body(M):
     lib.rbox("PC_Body", (W, D, H - 0.12), (0, 0, 0.06 + (H - 0.12) / 2), M["body"], r=0.06,
              seg=3)
     lib.rbox("PC_Plinth", (W - 0.06, D - 0.06, 0.07), (0, 0, 0.035), M["dark"], r=0.02, seg=1)
-    lib.rbox("PC_Stripe", (W + 0.004, D + 0.004, 0.05), (0, 0, 0.6), M["accent"], r=0.022,
-             seg=2)
+    # Stripe follows the body's rounded corners (a thin rbox can't: its bevel is capped).
+    lib.slab("PC_Stripe", lib.rounded_rect(W + 0.006, D + 0.006, 0.062, 6), 0.575, 0.625,
+             material=M["accent"], r=0.01, seg=1)
     lib.rbox("PC_Lid", (W - 0.02, D - 0.04, 0.06), (0, 0.01, H - 0.03), M["body"], r=0.025,
              seg=2)
     lib.rbox("PC_LidHandle", (0.2, 0.03, 0.025), (0, -D / 2 + 0.01, H - 0.035), M["dark"],

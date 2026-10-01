@@ -27,13 +27,13 @@ META = dict(
 def shield():
     hw, top = PW / 2, PH / 2
     pts = [(-hw, top), (-hw, -0.02)]
-    for k in range(1, 12):  # sides curving in to a soft point at the bottom
-        t = k / 12
+    for k in range(1, 8):  # sides curving in to a soft point at the bottom
+        t = k / 8
         pts.append((-hw * (1 - t) ** 1.25, -0.02 - (top - 0.02 + 0.0) * math.sin(t * math.pi / 2)))
     pts.append((0.0, -top))
     pts += [(-x, z) for x, z in reversed(pts[1:-1])]
     pts.append((hw, top))
-    return D.rounded_pts(D._dedupe(pts), 0.03, steps=4)
+    return D.rounded_pts(D._dedupe(pts), 0.03, steps=3)
 
 
 def materials():
@@ -48,18 +48,19 @@ def materials():
 def build():
     lib.begin(NAME)
     M = materials()
-    D.prism("Shield", shield(), PT, M["wood"], loc=(0, 0, 0), rot=D.FRONT, r=0.006, seg=2)
+    D.prism("Shield", shield(), PT, M["wood"], loc=(0, 0, 0), rot=D.FRONT, r=0.006, seg=1)
     f = -PT
     D.prism("Star", D.rounded_pts(D.star_pts(5, 0.042, 0.019), 0.004, steps=2), 0.01, M["gold"],
-            loc=(0, f, 0.115), rot=D.FRONT, r=0.003, seg=2)
+            loc=(0, f, 0.115), rot=D.FRONT, r=0.003, seg=1)
     D.text("Txt_Employee", "EMPLOYEE", 0.03, M["gold"], loc=(0, f, 0.055), depth=0.004, res=1)
-    D.text("Txt_Month", "OF THE MONTH", 0.019, M["gold"], loc=(0, f, 0.026), depth=0.004, res=1)
+    D.text("Txt_Month", "OF THE MONTH", 0.019, M["gold"], loc=(0, f - 0.0004, 0.026), depth=0,
+           res=1)
     D.prism("Plate", D.rrect_pts(LABEL_W + 0.02, LABEL_H + 0.02, 0.012), 0.006, M["gold"],
             loc=(0, f, LABEL_Z), rot=D.FRONT, r=0.002, seg=1)
     D.face("Label", D.rrect_pts(LABEL_W, LABEL_H, 0.006, steps=2), M["label"],
            loc=(0, f - 0.0065, LABEL_Z), rot=D.FRONT)
     for s in (-1, 1):
-        lib.sphere(f"Screw{s}", 0.008, (s * 0.115, f, 0.155), M["gold"], u=12, v=6,
+        lib.sphere(f"Screw{s}", 0.008, (s * 0.115, f, 0.155), M["gold"], u=10, v=5,
                    scale=(1, 0.5, 1))
 
 

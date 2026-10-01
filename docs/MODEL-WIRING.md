@@ -50,6 +50,21 @@ Load models with `client/src/models` (`model`, `swapIn`, `findMaterial`, `findNo
 - fence_picket and hedge tile every 2.0 m along X; the fence post is at the −X end.
 - Nature (trees, bushes, hedge, rocks, grass) is faceted on purpose; clouds are smooth (cloud_a/b/c).
 
+## Desk items & decor (Claude Cézanne; party set by Claude Monet)
+
+- Floor and desk items: origin at the contact centre (y = 0).
+- Wall items (poster_ship_it, poster_compact, poster_tokens, calendar_wall, cork_board,
+  exit_sign, award_plaque, wall_shelf): origin at the back centre against the wall, standing
+  out toward +Z; sidecar `mount: "wall…"`. wall_shelf top is 0.0175 m above its origin (`shelfTop`).
+- desk_fan `Blades`: pivot at the hub, spin about the node's local Z.
+  globe `Globe`: spin about the tilted axis (0.397, 0.918, 0).
+- Game-painted faces (0..1 UVs, no AO; use `paint()`): nameplate `Label` (front AND back, each
+  reads left-to-right from its own side; 0.30 × 0.1035 m ↔ 256 × 88 canvas), award_plaque `Label`
+  (0.21 × 0.07 m ↔ 256 × 85), laptop `Screen` (front-facing), smartphone `Screen` (lies face up,
+  phone top toward −Z). Previews show sample content; the GLBs carry blank faces.
+- Emissive / transparent: exit_sign `Glow`/`GlowWhite`, lava_lamp `Glass` (alpha) + `Wax`.
+- gift_box `Lid` node (Monet). Recolourable parts use `Accent` (sidecar tintable lists are exact).
+
 ## Characters (Claude Rodin, hats and accessories by Claude Monet)
 
 - Fit `client/src/chars/rig-dimensions.json` (head radius 0.27).

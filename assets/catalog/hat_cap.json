@@ -1,0 +1,28 @@
+{
+  "id": "hat_cap",
+  "name": "Cap",
+  "category": "character-hat",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Oversized baseball cap with a chunky curved bill",
+  "tags": [
+    "hat",
+    "cap"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "hatBand": [
+      0,
+      0.149,
+      0.31
+    ],
+    "headTop": [
+      0,
+      0.36,
+      -0.01
+    ]
+  }
+}

@@ -2,6 +2,8 @@
 rim and a pom-pom on top. `Accent` stripes alternate with white. Pivot at the head centre."""
 import math
 
+from mathutils import Euler, Vector
+
 from characters import _kit as kit
 from characters import _monet as mo
 
@@ -14,7 +16,7 @@ BASE_Z = 0.215
 H = 0.34
 META = mo.meta("Party hat", "character-hat", "Striped party cone with a pom-pom",
                ["hat", "party", "celebration"],
-               anchors_bl={"headTop": mo.tilted((0, 0, BASE_Z + H + 0.05), 0, ROLL)})
+               anchors_bl={"headTop": (math.sin(ROLL) * (H + 0.05), 0.0, BASE_Z + math.cos(ROLL) * (H + 0.05))})
 
 
 def build():
@@ -33,9 +35,12 @@ def build():
     for p in cone.data.polygons:                        # alternate stripes by height
         if 0 < p.center.z < H and int(p.center.z / (H / 5)) % 2 == 1:
             p.material_index = 1
-    lib.torus("Rim", 0.135, 0.022, mo.tilted((0, 0, BASE_Z + 0.005), 0, ROLL), fluff, seg=28,
+    # The cone turns about its own base centre, so rim and pom must too.
+    base = Vector((0, 0, BASE_Z))
+    roll = Euler((0, ROLL, 0)).to_matrix()
+    lib.torus("Rim", 0.135, 0.022, tuple(base + roll @ Vector((0, 0, 0.005))), fluff, seg=28,
               ring=8, rot=(0, ROLL, 0))
-    lib.sphere("Pom", 0.042, mo.tilted((0, 0, BASE_Z + H + 0.02), 0, ROLL), fluff, u=14, v=8)
+    lib.sphere("Pom", 0.042, tuple(base + roll @ Vector((0, 0, H + 0.02))), fluff, u=14, v=8)
 
 
 def finalize(name):

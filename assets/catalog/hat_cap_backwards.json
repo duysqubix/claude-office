@@ -1,0 +1,29 @@
+{
+  "id": "hat_cap_backwards",
+  "name": "Cap (backwards)",
+  "category": "character-hat",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "The same cap worn backwards, bill over the nape (interns)",
+  "tags": [
+    "hat",
+    "cap",
+    "intern"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "hatBand": [
+      0,
+      0.141,
+      0.31
+    ],
+    "headTop": [
+      0,
+      0.36,
+      -0.01
+    ]
+  }
+}

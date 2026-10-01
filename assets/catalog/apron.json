@@ -1,0 +1,25 @@
+{
+  "id": "apron",
+  "name": "Apron",
+  "category": "character-accessory",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Bib apron with a pocket and waist ties",
+  "tags": [
+    "apron",
+    "kitchen",
+    "barista",
+    "accessory"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "pocket": [
+      0.0,
+      0.02,
+      0.24
+    ]
+  }
+}

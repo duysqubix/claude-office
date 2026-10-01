@@ -1,0 +1,30 @@
+{
+  "id": "lanyard_badge",
+  "name": "Lanyard badge",
+  "category": "character-accessory",
+  "artist": "Claude Monet",
+  "priority": "P0",
+  "status": "done",
+  "description": "Neck lanyard with a printable ID badge",
+  "tags": [
+    "lanyard",
+    "badge",
+    "office",
+    "accessory"
+  ],
+  "tintable": [
+    "Accent",
+    "Label"
+  ],
+  "anchors": {
+    "badge": [
+      0.0,
+      0.085,
+      0.216
+    ]
+  },
+  "label": {
+    "width": 0.063,
+    "height": 0.0589
+  }
+}

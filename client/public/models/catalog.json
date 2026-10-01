@@ -1,15 +1,15 @@
 {
-  "generated": "2026-10-01T23:46:27.538Z",
+  "generated": "2026-10-01T23:54:12.619Z",
   "totals": {
     "all": 232,
-    "done": 198,
-    "planned": 34
+    "done": 214,
+    "planned": 18
   },
   "byArtist": {
-    "Claude Cézanne": 47,
-    "Claude Lorrain": 37,
-    "Claude Monet": 91,
-    "Claude Rodin": 57
+    "Claude Cézanne": 51,
+    "Claude Lorrain": 38,
+    "Claude Monet": 93,
+    "Claude Rodin": 50
   },
   "items": [
     {
@@ -84,7 +84,7 @@
         "cardboard_box"
       ],
       "textures": 1,
-      "bytes": 302284
+      "bytes": 302844
     },
     {
       "id": "clipboard",
@@ -144,7 +144,7 @@
         "clipboard"
       ],
       "textures": 1,
-      "bytes": 103604
+      "bytes": 102276
     },
     {
       "id": "coffee_cup",
@@ -206,7 +206,7 @@
         "coffee_cup"
       ],
       "textures": 1,
-      "bytes": 72324
+      "bytes": 70116
     },
     {
       "id": "laptop",
@@ -275,7 +275,7 @@
         "laptop"
       ],
       "textures": 1,
-      "bytes": 148184
+      "bytes": 147888
     },
     {
       "id": "mug",
@@ -336,7 +336,7 @@
         "mug"
       ],
       "textures": 1,
-      "bytes": 61400
+      "bytes": 60872
     },
     {
       "id": "mug_manager",
@@ -396,7 +396,7 @@
         "mug_manager"
       ],
       "textures": 1,
-      "bytes": 120872
+      "bytes": 117828
     },
     {
       "id": "nameplate",
@@ -516,7 +516,7 @@
         "paper_stack"
       ],
       "textures": 1,
-      "bytes": 100988
+      "bytes": 101332
     },
     {
       "id": "pen_cup",
@@ -571,7 +571,7 @@
         "pen_cup"
       ],
       "textures": 1,
-      "bytes": 126332
+      "bytes": 125264
     },
     {
       "id": "rubber_duck",
@@ -626,7 +626,7 @@
         "rubber_duck"
       ],
       "textures": 1,
-      "bytes": 104908
+      "bytes": 104168
     },
     {
       "id": "service_bell",
@@ -738,7 +738,7 @@
         "sticky_notes"
       ],
       "textures": 1,
-      "bytes": 74760
+      "bytes": 73856
     },
     {
       "id": "award_plaque",
@@ -768,13 +768,13 @@
       "thumb": "models/thumbs/award_plaque.jpg",
       "dims": {
         "w": 0.3,
-        "h": 0.38,
+        "h": 0.379,
         "d": 0.036
       },
       "bbox": {
         "min": [
           -0.15,
-          -0.19,
+          -0.189,
           0
         ],
         "max": [
@@ -783,7 +783,7 @@
           0.036
         ]
       },
-      "tris": 3789,
+      "tris": 2019,
       "materials": [
         "Wood",
         "Gold",
@@ -793,7 +793,7 @@
         "award_plaque"
       ],
       "textures": 1,
-      "bytes": 174724
+      "bytes": 102700
     },
     {
       "id": "binder",
@@ -969,7 +969,7 @@
         "cactus"
       ],
       "textures": 1,
-      "bytes": 92428
+      "bytes": 92452
     },
     {
       "id": "calculator",
@@ -1014,7 +1014,7 @@
           0.085
         ]
       },
-      "tris": 2339,
+      "tris": 1881,
       "materials": [
         "Accent",
         "Bezel",
@@ -1030,7 +1030,7 @@
         "calculator"
       ],
       "textures": 1,
-      "bytes": 130844
+      "bytes": 114124
     },
     {
       "id": "calendar_wall",
@@ -1091,7 +1091,7 @@
         "calendar_wall"
       ],
       "textures": 1,
-      "bytes": 181908
+      "bytes": 187692
     },
     {
       "id": "cookie_jar",
@@ -1149,7 +1149,7 @@
         "cookie_jar"
       ],
       "textures": 1,
-      "bytes": 152348
+      "bytes": 152296
     },
     {
       "id": "cork_board",
@@ -1217,7 +1217,7 @@
         "cork_board"
       ],
       "textures": 1,
-      "bytes": 140688
+      "bytes": 145528
     },
     {
       "id": "desk_fan",
@@ -1247,7 +1247,7 @@
       "thumb": "models/thumbs/desk_fan.jpg",
       "dims": {
         "w": 0.203,
-        "h": 0.313,
+        "h": 0.312,
         "d": 0.164
       },
       "bbox": {
@@ -1258,11 +1258,11 @@
         ],
         "max": [
           0.101,
-          0.313,
+          0.312,
           0.08
         ]
       },
-      "tris": 3760,
+      "tris": 3644,
       "materials": [
         "Blade",
         "Accent",
@@ -1275,7 +1275,7 @@
         "Blades"
       ],
       "textures": 1,
-      "bytes": 179904
+      "bytes": 177076
     },
     {
       "id": "desk_phone",
@@ -1334,7 +1334,7 @@
         "desk_phone"
       ],
       "textures": 1,
-      "bytes": 174064
+      "bytes": 174044
     },
     {
       "id": "donut_box",
@@ -1395,7 +1395,7 @@
         "donut_box"
       ],
       "textures": 1,
-      "bytes": 174644
+      "bytes": 173812
     },
     {
       "id": "energy_drink",
@@ -1512,7 +1512,7 @@
         "exit_sign"
       ],
       "textures": 1,
-      "bytes": 65552
+      "bytes": 66732
     },
     {
       "id": "fire_extinguisher",
@@ -1679,7 +1679,7 @@
         "fruit_bowl"
       ],
       "textures": 1,
-      "bytes": 168424
+      "bytes": 168480
     },
     {
       "id": "globe",
@@ -1736,7 +1736,7 @@
         "Globe"
       ],
       "textures": 1,
-      "bytes": 111860
+      "bytes": 111576
     },
     {
       "id": "headphones_stand",
@@ -1879,12 +1879,12 @@
       "bbox": {
         "min": [
           -0.065,
-          -0.005,
+          0,
           -0.072
         ],
         "max": [
           0.065,
-          0.163,
+          0.168,
           0.008
         ]
       },
@@ -1905,7 +1905,7 @@
         "photo_frame"
       ],
       "textures": 1,
-      "bytes": 35696
+      "bytes": 35944
     },
     {
       "id": "pizza_box",
@@ -2026,7 +2026,7 @@
         "poster_compact"
       ],
       "textures": 1,
-      "bytes": 214140
+      "bytes": 219608
     },
     {
       "id": "poster_ship_it",
@@ -2087,7 +2087,7 @@
         "poster_ship_it"
       ],
       "textures": 1,
-      "bytes": 214212
+      "bytes": 220096
     },
     {
       "id": "poster_tokens",
@@ -2146,7 +2146,7 @@
         "poster_tokens"
       ],
       "textures": 1,
-      "bytes": 260952
+      "bytes": 266104
     },
     {
       "id": "rug_rect",
@@ -2175,18 +2175,18 @@
       "file": "models/rug_rect.glb",
       "thumb": "models/thumbs/rug_rect.jpg",
       "dims": {
-        "w": 2.129,
-        "h": 0.021,
+        "w": 2.125,
+        "h": 0.015,
         "d": 1.3
       },
       "bbox": {
         "min": [
-          -1.064,
-          -0.005,
+          -1.062,
+          0,
           -0.65
         ],
         "max": [
-          1.064,
+          1.063,
           0.015,
           0.65
         ]
@@ -2203,7 +2203,7 @@
         "rug_rect"
       ],
       "textures": 1,
-      "bytes": 135136
+      "bytes": 136480
     },
     {
       "id": "rug_round",
@@ -2659,7 +2659,7 @@
         "wall_shelf"
       ],
       "textures": 1,
-      "bytes": 135872
+      "bytes": 136500
     },
     {
       "id": "water_bottle",
@@ -2756,12 +2756,12 @@
       "bbox": {
         "min": [
           -0.157,
-          0.111,
+          0,
           -0.164
         ],
         "max": [
           0.157,
-          0.743,
+          0.632,
           0.164
         ]
       },
@@ -2776,7 +2776,240 @@
         "wet_floor_sign"
       ],
       "textures": 1,
-      "bytes": 166364
+      "bytes": 168008
+    },
+    {
+      "id": "balloon_cluster",
+      "name": "Balloon cluster",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Bunch of five glossy party balloons on strings, weighted by a heart",
+      "tags": [
+        "party",
+        "birthday",
+        "celebrate"
+      ],
+      "tintable": [],
+      "anchors": {
+        "top": [
+          0,
+          1.62,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/balloon_cluster.glb",
+      "thumb": "models/thumbs/balloon_cluster.jpg",
+      "dims": {
+        "w": 0.698,
+        "h": 1.678,
+        "d": 0.479
+      },
+      "bbox": {
+        "min": [
+          -0.349,
+          0,
+          -0.208
+        ],
+        "max": [
+          0.349,
+          1.678,
+          0.27
+        ]
+      },
+      "tris": 4630,
+      "materials": [
+        "BalloonRed",
+        "Shine",
+        "String",
+        "BalloonYellow",
+        "BalloonBlue",
+        "BalloonMint",
+        "BalloonPink",
+        "Weight"
+      ],
+      "nodes": [
+        "balloon_cluster"
+      ],
+      "textures": 1,
+      "bytes": 197736
+    },
+    {
+      "id": "gift_box",
+      "name": "Gift box",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Polka-dot wrapped present with a gold ribbon and a big bow",
+      "tags": [
+        "party",
+        "present",
+        "birthday"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "bow": [
+          0,
+          0.27,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/gift_box.glb",
+      "thumb": "models/thumbs/gift_box.jpg",
+      "dims": {
+        "w": 0.218,
+        "h": 0.235,
+        "d": 0.218
+      },
+      "bbox": {
+        "min": [
+          -0.109,
+          0,
+          -0.109
+        ],
+        "max": [
+          0.109,
+          0.235,
+          0.109
+        ]
+      },
+      "tris": 2156,
+      "materials": [
+        "Accent",
+        "Dots",
+        "Ribbon"
+      ],
+      "nodes": [
+        "gift_box"
+      ],
+      "textures": 1,
+      "bytes": 100876
+    },
+    {
+      "id": "party_banner",
+      "name": "Party banner",
+      "category": "decor",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Bunting garland of nine colourful pennants on a sagging string",
+      "tags": [
+        "wall",
+        "party",
+        "birthday",
+        "celebrate"
+      ],
+      "tintable": [],
+      "anchors": {
+        "pinL": [
+          -0.8,
+          0,
+          0.01
+        ],
+        "pinR": [
+          0.8,
+          0,
+          0.01
+        ]
+      },
+      "status": "done",
+      "file": "models/party_banner.glb",
+      "thumb": "models/thumbs/party_banner.jpg",
+      "dims": {
+        "w": 1.615,
+        "h": 0.313,
+        "d": 0.029
+      },
+      "bbox": {
+        "min": [
+          -0.808,
+          -0.305,
+          0
+        ],
+        "max": [
+          0.808,
+          0.008,
+          0.029
+        ]
+      },
+      "tris": 1692,
+      "materials": [
+        "String",
+        "Pin",
+        "Flag_coral",
+        "FlagDot",
+        "Flag_yellow",
+        "Flag_sky",
+        "Flag_mint",
+        "Flag_lilac",
+        "Flag_pink"
+      ],
+      "nodes": [
+        "party_banner"
+      ],
+      "textures": 1,
+      "bytes": 109976
+    },
+    {
+      "id": "pizza_slice",
+      "name": "Pizza slice",
+      "category": "food",
+      "artist": "Claude Cézanne",
+      "group": "desk items, small props, food, decor",
+      "priority": "P2",
+      "description": "Single pizza slice with pepperoni, basil and a stretchy cheese tip",
+      "tags": [
+        "food",
+        "snack",
+        "party"
+      ],
+      "tintable": [],
+      "anchors": {
+        "tip": [
+          0,
+          0.01,
+          0.1
+        ]
+      },
+      "status": "done",
+      "file": "models/pizza_slice.glb",
+      "thumb": "models/thumbs/pizza_slice.jpg",
+      "dims": {
+        "w": 0.178,
+        "h": 0.025,
+        "d": 0.207
+      },
+      "bbox": {
+        "min": [
+          -0.089,
+          -0.003,
+          -0.09
+        ],
+        "max": [
+          0.089,
+          0.022,
+          0.117
+        ]
+      },
+      "tris": 1044,
+      "materials": [
+        "Bread",
+        "Cheese",
+        "Crust",
+        "Pepperoni",
+        "Basil"
+      ],
+      "nodes": [
+        "pizza_slice"
+      ],
+      "textures": 1,
+      "bytes": 58132
     },
     {
       "id": "bush_round",
@@ -3913,6 +4146,68 @@
       ],
       "textures": 1,
       "bytes": 39132
+    },
+    {
+      "id": "hair_ponytail",
+      "name": "Ponytail",
+      "category": "character-hair",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Hair combed back into a high ponytail with a coloured tie; node Ponytail swings",
+      "tags": [
+        "hair",
+        "ponytail",
+        "long",
+        "swing"
+      ],
+      "tintable": [
+        "Hair",
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.3,
+          0
+        ],
+        "tie": [
+          0,
+          0.2443,
+          -0.1909
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_ponytail.glb",
+      "thumb": "models/thumbs/hair_ponytail.jpg",
+      "dims": {
+        "w": 0.571,
+        "h": 0.547,
+        "d": 0.683
+      },
+      "bbox": {
+        "min": [
+          -0.286,
+          -0.169,
+          -0.465
+        ],
+        "max": [
+          0.286,
+          0.378,
+          0.218
+        ]
+      },
+      "tris": 2250,
+      "materials": [
+        "Hair",
+        "Accent"
+      ],
+      "nodes": [
+        "hair_ponytail",
+        "Ponytail"
+      ],
+      "textures": 1,
+      "bytes": 87316
     },
     {
       "id": "hedge",
@@ -5471,18 +5766,18 @@
       "dims": {
         "w": 0.78,
         "h": 1.769,
-        "d": 0.707
+        "d": 0.711
       },
       "bbox": {
         "min": [
           -0.39,
           -0.003,
-          -0.567
+          -0.617
         ],
         "max": [
           0.39,
           1.766,
-          0.141
+          0.094
         ]
       },
       "tris": 890,
@@ -5499,7 +5794,7 @@
         "flipchart"
       ],
       "textures": 1,
-      "bytes": 55112
+      "bytes": 53160
     },
     {
       "id": "fridge",
@@ -6077,6 +6372,64 @@
       ],
       "textures": 1,
       "bytes": 120912
+    },
+    {
+      "id": "lanyard_badge",
+      "name": "Lanyard badge",
+      "category": "character-accessory",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Neck lanyard with a printable ID badge",
+      "tags": [
+        "lanyard",
+        "badge",
+        "office",
+        "accessory"
+      ],
+      "tintable": [
+        "Accent",
+        "Label"
+      ],
+      "anchors": {
+        "badge": [
+          0,
+          0.085,
+          0.216
+        ]
+      },
+      "status": "done",
+      "file": "models/lanyard_badge.glb",
+      "thumb": "models/thumbs/lanyard_badge.jpg",
+      "dims": {
+        "w": 0.34,
+        "h": 0.301,
+        "d": 0.385
+      },
+      "bbox": {
+        "min": [
+          -0.17,
+          0.035,
+          -0.154
+        ],
+        "max": [
+          0.17,
+          0.336,
+          0.231
+        ]
+      },
+      "tris": 1142,
+      "materials": [
+        "Accent",
+        "Clip",
+        "Holder",
+        "Label"
+      ],
+      "nodes": [
+        "lanyard_badge"
+      ],
+      "textures": 1,
+      "bytes": 59144
     },
     {
       "id": "manager_chair",
@@ -6834,6 +7187,61 @@
       "bytes": 101600
     },
     {
+      "id": "apron",
+      "name": "Apron",
+      "category": "character-accessory",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Bib apron with a pocket and waist ties",
+      "tags": [
+        "apron",
+        "kitchen",
+        "barista",
+        "accessory"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "pocket": [
+          0,
+          0.02,
+          0.24
+        ]
+      },
+      "status": "done",
+      "file": "models/apron.glb",
+      "thumb": "models/thumbs/apron.jpg",
+      "dims": {
+        "w": 0.504,
+        "h": 0.44,
+        "d": 0.49
+      },
+      "bbox": {
+        "min": [
+          -0.235,
+          -0.104,
+          -0.258
+        ],
+        "max": [
+          0.27,
+          0.336,
+          0.232
+        ]
+      },
+      "tris": 2556,
+      "materials": [
+        "Accent",
+        "Pocket"
+      ],
+      "nodes": [
+        "apron"
+      ],
+      "textures": 1,
+      "bytes": 99668
+    },
+    {
       "id": "aquarium",
       "name": "Aquarium",
       "category": "furniture",
@@ -6953,6 +7361,62 @@
       ],
       "textures": 1,
       "bytes": 105620
+    },
+    {
+      "id": "backpack",
+      "name": "Backpack",
+      "category": "character-accessory",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Chunky backpack with padded straps",
+      "tags": [
+        "backpack",
+        "intern",
+        "school",
+        "accessory"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "pack": [
+          0,
+          0.1561,
+          -0.2867
+        ]
+      },
+      "status": "done",
+      "file": "models/backpack.glb",
+      "thumb": "models/thumbs/backpack.jpg",
+      "dims": {
+        "w": 0.381,
+        "h": 0.412,
+        "d": 0.605
+      },
+      "bbox": {
+        "min": [
+          -0.19,
+          -0.012,
+          -0.403
+        ],
+        "max": [
+          0.19,
+          0.399,
+          0.202
+        ]
+      },
+      "tris": 1956,
+      "materials": [
+        "Accent",
+        "Zip",
+        "Trim"
+      ],
+      "nodes": [
+        "backpack"
+      ],
+      "textures": 1,
+      "bytes": 83340
     },
     {
       "id": "basketball_hoop",
@@ -7172,6 +7636,59 @@
       ],
       "textures": 1,
       "bytes": 210476
+    },
+    {
+      "id": "bow_tie",
+      "name": "Bow tie",
+      "category": "character-accessory",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Chunky puffy bow tie",
+      "tags": [
+        "bow-tie",
+        "formal",
+        "accessory"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "knot": [
+          0,
+          0.2937,
+          0.1671
+        ]
+      },
+      "status": "done",
+      "file": "models/bow_tie.glb",
+      "thumb": "models/thumbs/bow_tie.jpg",
+      "dims": {
+        "w": 0.175,
+        "h": 0.046,
+        "d": 0.038
+      },
+      "bbox": {
+        "min": [
+          -0.088,
+          0.27,
+          0.148
+        ],
+        "max": [
+          0.088,
+          0.316,
+          0.187
+        ]
+      },
+      "tris": 576,
+      "materials": [
+        "Accent"
+      ],
+      "nodes": [
+        "bow_tie"
+      ],
+      "textures": 1,
+      "bytes": 29544
     },
     {
       "id": "coat_rack",
@@ -8006,7 +8523,7 @@
         "hat_crown"
       ],
       "textures": 1,
-      "bytes": 88896
+      "bytes": 88808
     },
     {
       "id": "hat_hard",
@@ -8089,19 +8606,19 @@
       "file": "models/hat_party.glb",
       "thumb": "models/thumbs/hat_party.jpg",
       "dims": {
-        "w": 0.341,
+        "w": 0.302,
         "h": 0.442,
         "d": 0.314
       },
       "bbox": {
         "min": [
-          -0.13,
-          0.153,
+          -0.15,
+          0.161,
           -0.157
         ],
         "max": [
-          0.212,
-          0.595,
+          0.152,
+          0.603,
           0.157
         ]
       },
@@ -8115,7 +8632,7 @@
         "hat_party"
       ],
       "textures": 1,
-      "bytes": 55344
+      "bytes": 55312
     },
     {
       "id": "hat_propeller",
@@ -8173,7 +8690,7 @@
         "Propeller"
       ],
       "textures": 1,
-      "bytes": 76120
+      "bytes": 76052
     },
     {
       "id": "headband",
@@ -8781,6 +9298,54 @@
       "bytes": 43380
     },
     {
+      "id": "scarf",
+      "name": "Scarf",
+      "category": "character-accessory",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Chunky striped knit scarf with tails",
+      "tags": [
+        "scarf",
+        "winter",
+        "accessory"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {},
+      "status": "done",
+      "file": "models/scarf.glb",
+      "thumb": "models/thumbs/scarf.jpg",
+      "dims": {
+        "w": 0.462,
+        "h": 0.377,
+        "d": 0.469
+      },
+      "bbox": {
+        "min": [
+          -0.231,
+          0.023,
+          -0.215
+        ],
+        "max": [
+          0.231,
+          0.4,
+          0.254
+        ]
+      },
+      "tris": 2472,
+      "materials": [
+        "Accent",
+        "Stripe"
+      ],
+      "nodes": [
+        "scarf"
+      ],
+      "textures": 1,
+      "bytes": 109856
+    },
+    {
       "id": "server_rack",
       "name": "Server rack",
       "category": "appliance",
@@ -9374,65 +9939,6 @@
       "bytes": 160448
     },
     {
-      "id": "balloon_cluster",
-      "name": "Balloon cluster",
-      "category": "decor",
-      "artist": "Claude Monet",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "Bunch of party balloons tied to a little weight",
-      "tags": [
-        "party",
-        "event",
-        "celebration"
-      ],
-      "tintable": [
-        "Accent"
-      ],
-      "anchors": {
-        "top": [
-          0,
-          1.76,
-          -0.1
-        ]
-      },
-      "status": "done",
-      "file": "models/balloon_cluster.glb",
-      "thumb": "models/thumbs/balloon_cluster.jpg",
-      "dims": {
-        "w": 0.7,
-        "h": 1.776,
-        "d": 0.59
-      },
-      "bbox": {
-        "min": [
-          -0.35,
-          0,
-          -0.27
-        ],
-        "max": [
-          0.35,
-          1.776,
-          0.32
-        ]
-      },
-      "tris": 3672,
-      "materials": [
-        "Weight",
-        "Accent",
-        "Shine",
-        "String",
-        "BalloonYellow",
-        "BalloonTeal",
-        "BalloonPurple"
-      ],
-      "nodes": [
-        "balloon_cluster"
-      ],
-      "textures": 1,
-      "bytes": 158316
-    },
-    {
       "id": "birthday_cake",
       "name": "Birthday cake",
       "category": "food",
@@ -9494,6 +10000,57 @@
       ],
       "textures": 1,
       "bytes": 225820
+    },
+    {
+      "id": "cape_hero",
+      "name": "Hero cape",
+      "category": "character-accessory",
+      "artist": "Claude Monet",
+      "group": "characters",
+      "priority": "P2",
+      "description": "Swishy superhero cape with a gold lining",
+      "tags": [
+        "cape",
+        "hero",
+        "seasonal",
+        "fun",
+        "accessory"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {},
+      "status": "done",
+      "file": "models/cape_hero.glb",
+      "thumb": "models/thumbs/cape_hero.jpg",
+      "dims": {
+        "w": 0.683,
+        "h": 0.733,
+        "d": 0.449
+      },
+      "bbox": {
+        "min": [
+          -0.333,
+          -0.359,
+          -0.292
+        ],
+        "max": [
+          0.351,
+          0.374,
+          0.157
+        ]
+      },
+      "tris": 3612,
+      "materials": [
+        "Accent",
+        "Lining",
+        "Clasp"
+      ],
+      "nodes": [
+        "cape_hero"
+      ],
+      "textures": 1,
+      "bytes": 116956
     },
     {
       "id": "christmas_tree",
@@ -9622,62 +10179,6 @@
       ],
       "textures": 1,
       "bytes": 250232
-    },
-    {
-      "id": "gift_box",
-      "name": "Gift box",
-      "category": "decor",
-      "artist": "Claude Monet",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "Wrapped present with a big bow and a pop-off lid (node Lid)",
-      "tags": [
-        "party",
-        "event",
-        "reward",
-        "shop"
-      ],
-      "tintable": [
-        "Accent"
-      ],
-      "anchors": {
-        "lidTop": [
-          0,
-          0.34,
-          0
-        ]
-      },
-      "status": "done",
-      "file": "models/gift_box.glb",
-      "thumb": "models/thumbs/gift_box.jpg",
-      "dims": {
-        "w": 0.326,
-        "h": 0.37,
-        "d": 0.326
-      },
-      "bbox": {
-        "min": [
-          -0.163,
-          0,
-          -0.163
-        ],
-        "max": [
-          0.163,
-          0.37,
-          0.163
-        ]
-      },
-      "tris": 1112,
-      "materials": [
-        "Accent",
-        "Ribbon"
-      ],
-      "nodes": [
-        "gift_box",
-        "Lid"
-      ],
-      "textures": 1,
-      "bytes": 59248
     },
     {
       "id": "hat_santa",
@@ -9967,73 +10468,6 @@
       "bytes": 15068
     },
     {
-      "id": "party_banner",
-      "name": "Party banner",
-      "category": "decor",
-      "artist": "Claude Monet",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "Rainbow bunting banner spelling PARTY!",
-      "tags": [
-        "party",
-        "event",
-        "wall",
-        "text"
-      ],
-      "tintable": [
-        "Accent"
-      ],
-      "anchors": {
-        "left": [
-          -1,
-          0,
-          0.02
-        ],
-        "right": [
-          1,
-          0,
-          0.02
-        ]
-      },
-      "status": "done",
-      "file": "models/party_banner.glb",
-      "thumb": "models/thumbs/party_banner.jpg",
-      "dims": {
-        "w": 2.036,
-        "h": 0.537,
-        "d": 0.038
-      },
-      "bbox": {
-        "min": [
-          -1.018,
-          -0.517,
-          0.001
-        ],
-        "max": [
-          1.018,
-          0.02,
-          0.039
-        ]
-      },
-      "tris": 1096,
-      "materials": [
-        "String",
-        "Pin",
-        "Accent",
-        "Letters",
-        "FlagYellow",
-        "FlagGreen",
-        "FlagBlue",
-        "FlagPurple",
-        "FlagOrange"
-      ],
-      "nodes": [
-        "party_banner"
-      ],
-      "textures": 1,
-      "bytes": 78196
-    },
-    {
       "id": "ping_pong_table",
       "name": "Ping pong table",
       "category": "furniture",
@@ -10100,62 +10534,6 @@
       ],
       "textures": 1,
       "bytes": 136956
-    },
-    {
-      "id": "pizza_slice",
-      "name": "Pizza slice",
-      "category": "food",
-      "artist": "Claude Monet",
-      "group": "desk items, small props, food, decor",
-      "priority": "P2",
-      "description": "Chunky pepperoni pizza slice",
-      "tags": [
-        "party",
-        "event",
-        "food",
-        "snack"
-      ],
-      "tintable": [],
-      "anchors": {
-        "grip": [
-          0,
-          0.03,
-          -0.1
-        ]
-      },
-      "status": "done",
-      "file": "models/pizza_slice.glb",
-      "thumb": "models/thumbs/pizza_slice.jpg",
-      "dims": {
-        "w": 0.22,
-        "h": 0.053,
-        "d": 0.262
-      },
-      "bbox": {
-        "min": [
-          -0.11,
-          -0.007,
-          -0.134
-        ],
-        "max": [
-          0.11,
-          0.046,
-          0.128
-        ]
-      },
-      "tris": 992,
-      "materials": [
-        "Base",
-        "Sauce",
-        "Cheese",
-        "Crust",
-        "Pepperoni"
-      ],
-      "nodes": [
-        "pizza_slice"
-      ],
-      "textures": 1,
-      "bytes": 56208
     },
     {
       "id": "popcorn_machine",
@@ -10955,6 +11333,142 @@
       "bytes": 10208
     },
     {
+      "id": "char_torso_hoodie",
+      "name": "Torso: hoodie",
+      "category": "character-body",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Cosy hoodie with a bunched hood, drawstrings and a kangaroo pocket; node Chest",
+      "tags": [
+        "body",
+        "torso",
+        "hoodie",
+        "casual"
+      ],
+      "tintable": [
+        "Shirt",
+        "Pants"
+      ],
+      "anchors": {
+        "chestJoint": [
+          0,
+          0.12,
+          0
+        ],
+        "neck": [
+          0,
+          0.34,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/char_torso_hoodie.glb",
+      "thumb": "models/thumbs/char_torso_hoodie.jpg",
+      "dims": {
+        "w": 0.573,
+        "h": 0.569,
+        "d": 0.492
+      },
+      "bbox": {
+        "min": [
+          -0.286,
+          -0.159,
+          -0.246
+        ],
+        "max": [
+          0.286,
+          0.41,
+          0.246
+        ]
+      },
+      "tris": 3424,
+      "materials": [
+        "Shirt",
+        "Cord",
+        "Aglet",
+        "Pants",
+        "PocketShadow"
+      ],
+      "nodes": [
+        "char_torso_hoodie",
+        "Chest"
+      ],
+      "textures": 1,
+      "bytes": 135036
+    },
+    {
+      "id": "char_torso_shirt_tie",
+      "name": "Torso: shirt and tie",
+      "category": "character-body",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "The manager's white shirt with collar, pocket pen and a fat red tie; node Chest",
+      "tags": [
+        "body",
+        "torso",
+        "manager",
+        "tie",
+        "shirt"
+      ],
+      "tintable": [
+        "Shirt",
+        "Pants",
+        "Accent"
+      ],
+      "anchors": {
+        "chestJoint": [
+          0,
+          0.12,
+          0
+        ],
+        "tieKnot": [
+          0,
+          0.272,
+          0.17
+        ],
+        "neck": [
+          0,
+          0.34,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/char_torso_shirt_tie.glb",
+      "thumb": "models/thumbs/char_torso_shirt_tie.jpg",
+      "dims": {
+        "w": 0.519,
+        "h": 0.569,
+        "d": 0.446
+      },
+      "bbox": {
+        "min": [
+          -0.259,
+          -0.159,
+          -0.22
+        ],
+        "max": [
+          0.259,
+          0.41,
+          0.225
+        ]
+      },
+      "tris": 2968,
+      "materials": [
+        "Shirt",
+        "Accent",
+        "PenBlue",
+        "Pants"
+      ],
+      "nodes": [
+        "char_torso_shirt_tie",
+        "Chest"
+      ],
+      "textures": 1,
+      "bytes": 111836
+    },
+    {
       "id": "char_torso_tee",
       "name": "Torso: t-shirt",
       "category": "character-body",
@@ -10994,23 +11508,23 @@
       "file": "models/char_torso_tee.glb",
       "thumb": "models/thumbs/char_torso_tee.jpg",
       "dims": {
-        "w": 0.52,
+        "w": 0.519,
         "h": 0.569,
-        "d": 0.442
+        "d": 0.441
       },
       "bbox": {
         "min": [
-          -0.26,
+          -0.259,
           -0.159,
-          -0.221
+          -0.22
         ],
         "max": [
-          0.26,
+          0.259,
           0.41,
-          0.221
+          0.22
         ]
       },
-      "tris": 3500,
+      "tris": 2136,
       "materials": [
         "Shirt",
         "Accent",
@@ -11021,7 +11535,7 @@
         "Chest"
       ],
       "textures": 0,
-      "bytes": 69872
+      "bytes": 45080
     },
     {
       "id": "char_upper_arm",
@@ -11079,6 +11593,59 @@
       "bytes": 21528
     },
     {
+      "id": "hair_afro",
+      "name": "Afro",
+      "category": "character-hair",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Big round puffy afro, lumpy with curl clusters",
+      "tags": [
+        "hair",
+        "afro",
+        "volume"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.44,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_afro.glb",
+      "thumb": "models/thumbs/hair_afro.jpg",
+      "dims": {
+        "w": 0.819,
+        "h": 0.644,
+        "d": 0.773
+      },
+      "bbox": {
+        "min": [
+          -0.413,
+          -0.191,
+          -0.471
+        ],
+        "max": [
+          0.406,
+          0.453,
+          0.302
+        ]
+      },
+      "tris": 1949,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_afro"
+      ],
+      "textures": 1,
+      "bytes": 75724
+    },
+    {
       "id": "hair_bob",
       "name": "Bob",
       "category": "character-hair",
@@ -11131,6 +11698,167 @@
       "bytes": 67104
     },
     {
+      "id": "hair_curly",
+      "name": "Curly",
+      "category": "character-hair",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "A mop of fat round curls, sculpted toy-style",
+      "tags": [
+        "hair",
+        "curly",
+        "volume"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.345,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_curly.glb",
+      "thumb": "models/thumbs/hair_curly.jpg",
+      "dims": {
+        "w": 0.723,
+        "h": 0.499,
+        "d": 0.618
+      },
+      "bbox": {
+        "min": [
+          -0.364,
+          -0.132,
+          -0.365
+        ],
+        "max": [
+          0.359,
+          0.367,
+          0.252
+        ]
+      },
+      "tris": 1950,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_curly"
+      ],
+      "textures": 1,
+      "bytes": 93012
+    },
+    {
+      "id": "hair_side_part",
+      "name": "Side part",
+      "category": "character-hair",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Neat short cut with a deep side parting and a plump swept fringe",
+      "tags": [
+        "hair",
+        "short",
+        "side-part",
+        "neat"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.32,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_side_part.glb",
+      "thumb": "models/thumbs/hair_side_part.jpg",
+      "dims": {
+        "w": 0.576,
+        "h": 0.436,
+        "d": 0.535
+      },
+      "bbox": {
+        "min": [
+          -0.287,
+          -0.112,
+          -0.306
+        ],
+        "max": [
+          0.288,
+          0.324,
+          0.229
+        ]
+      },
+      "tris": 1949,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_side_part"
+      ],
+      "textures": 1,
+      "bytes": 67024
+    },
+    {
+      "id": "hair_slick",
+      "name": "Slicked back",
+      "category": "character-hair",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "The manager's glossy slicked-back hair with a pompadour wave",
+      "tags": [
+        "hair",
+        "short",
+        "slick",
+        "manager"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.33,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_slick.glb",
+      "thumb": "models/thumbs/hair_slick.jpg",
+      "dims": {
+        "w": 0.568,
+        "h": 0.425,
+        "d": 0.54
+      },
+      "bbox": {
+        "min": [
+          -0.284,
+          -0.109,
+          -0.308
+        ],
+        "max": [
+          0.284,
+          0.316,
+          0.232
+        ]
+      },
+      "tris": 1950,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_slick"
+      ],
+      "textures": 1,
+      "bytes": 76220
+    },
+    {
       "id": "hair_tuft",
       "name": "Tuft",
       "category": "character-hair",
@@ -11150,36 +11878,36 @@
       "anchors": {
         "headTop": [
           0,
-          0.4392,
-          -0.0264
+          0.44,
+          0
         ],
         "tuftBase": [
           0,
-          0.2695,
-          -0.0162
+          0.27,
+          0
         ]
       },
       "status": "done",
       "file": "models/hair_tuft.glb",
       "thumb": "models/thumbs/hair_tuft.jpg",
       "dims": {
-        "w": 0.193,
-        "h": 0.192,
-        "d": 0.154
+        "w": 0.262,
+        "h": 0.16,
+        "d": 0.183
       },
       "bbox": {
         "min": [
-          -0.1,
-          0.246,
-          -0.074
+          -0.131,
+          0.22,
+          -0.061
         ],
         "max": [
-          0.093,
-          0.439,
-          0.08
+          0.131,
+          0.38,
+          0.121
         ]
       },
-      "tris": 1530,
+      "tris": 1524,
       "materials": [
         "Hair"
       ],
@@ -11188,7 +11916,191 @@
         "Tuft"
       ],
       "textures": 1,
-      "bytes": 53748
+      "bytes": 53340
+    },
+    {
+      "id": "hat_beanie",
+      "name": "Beanie",
+      "category": "character-hat",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Ribbed knit beanie with a folded cuff and a bouncy pom-pom (node Pom)",
+      "tags": [
+        "hat",
+        "beanie",
+        "winter",
+        "jiggle"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "hatBand": [
+          0,
+          0.141,
+          0.31
+        ],
+        "headTop": [
+          0,
+          0.46,
+          -0.03
+        ],
+        "pomBase": [
+          0,
+          0.338,
+          -0.03
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_beanie.glb",
+      "thumb": "models/thumbs/hat_beanie.jpg",
+      "dims": {
+        "w": 0.636,
+        "h": 0.46,
+        "d": 0.627
+      },
+      "bbox": {
+        "min": [
+          -0.318,
+          0.011,
+          -0.338
+        ],
+        "max": [
+          0.318,
+          0.47,
+          0.289
+        ]
+      },
+      "tris": 1988,
+      "materials": [
+        "Pom",
+        "Accent",
+        "Label_Leather"
+      ],
+      "nodes": [
+        "hat_beanie",
+        "Pom"
+      ],
+      "textures": 1,
+      "bytes": 88648
+    },
+    {
+      "id": "hat_cap",
+      "name": "Cap",
+      "category": "character-hat",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "Oversized baseball cap with a chunky curved bill",
+      "tags": [
+        "hat",
+        "cap"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "hatBand": [
+          0,
+          0.149,
+          0.31
+        ],
+        "headTop": [
+          0,
+          0.36,
+          -0.01
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_cap.glb",
+      "thumb": "models/thumbs/hat_cap.jpg",
+      "dims": {
+        "w": 0.626,
+        "h": 0.344,
+        "d": 0.82
+      },
+      "bbox": {
+        "min": [
+          -0.313,
+          -0.001,
+          -0.33
+        ],
+        "max": [
+          0.313,
+          0.343,
+          0.491
+        ]
+      },
+      "tris": 1984,
+      "materials": [
+        "Accent",
+        "Strap"
+      ],
+      "nodes": [
+        "hat_cap"
+      ],
+      "textures": 1,
+      "bytes": 74248
+    },
+    {
+      "id": "hat_cap_backwards",
+      "name": "Cap (backwards)",
+      "category": "character-hat",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P0",
+      "description": "The same cap worn backwards, bill over the nape (interns)",
+      "tags": [
+        "hat",
+        "cap",
+        "intern"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "hatBand": [
+          0,
+          0.141,
+          0.31
+        ],
+        "headTop": [
+          0,
+          0.36,
+          -0.01
+        ]
+      },
+      "status": "done",
+      "file": "models/hat_cap_backwards.glb",
+      "thumb": "models/thumbs/hat_cap_backwards.jpg",
+      "dims": {
+        "w": 0.617,
+        "h": 0.325,
+        "d": 0.813
+      },
+      "bbox": {
+        "min": [
+          -0.309,
+          0.018,
+          -0.49
+        ],
+        "max": [
+          0.308,
+          0.343,
+          0.323
+        ]
+      },
+      "tris": 1983,
+      "materials": [
+        "Accent",
+        "Strap"
+      ],
+      "nodes": [
+        "hat_cap_backwards"
+      ],
+      "textures": 1,
+      "bytes": 76716
     },
     {
       "id": "headphones",
@@ -11334,11 +12246,6 @@
       ],
       "tintable": [],
       "anchors": {
-        "handGrip": [
-          0,
-          0,
-          0
-        ],
         "handL": [
           0.225,
           0,
@@ -11348,6 +12255,16 @@
           -0.225,
           0,
           0
+        ],
+        "gripL": [
+          0.225,
+          -0.03,
+          0.06
+        ],
+        "gripR": [
+          -0.225,
+          -0.03,
+          0.06
         ]
       },
       "status": "done",
@@ -11390,7 +12307,7 @@
         "held_box"
       ],
       "textures": 1,
-      "bytes": 114160
+      "bytes": 114104
     },
     {
       "id": "held_clipboard",
@@ -11414,6 +12331,11 @@
           0,
           0,
           0
+        ],
+        "handCentre": [
+          0,
+          0.03,
+          -0.06
         ]
       },
       "status": "done",
@@ -11427,13 +12349,13 @@
       "bbox": {
         "min": [
           -0.115,
-          0.034,
-          -0.004
+          0.064,
+          -0.064
         ],
         "max": [
           0.115,
-          0.335,
-          0.149
+          0.365,
+          0.089
         ]
       },
       "tris": 1660,
@@ -11450,7 +12372,7 @@
         "held_clipboard"
       ],
       "textures": 1,
-      "bytes": 92080
+      "bytes": 91124
     },
     {
       "id": "held_laptop",
@@ -11470,11 +12392,6 @@
         "Accent"
       ],
       "anchors": {
-        "handGrip": [
-          0,
-          0,
-          0
-        ],
         "handL": [
           0.12,
           -0.045,
@@ -11484,6 +12401,16 @@
           -0.12,
           -0.045,
           -0.05
+        ],
+        "gripL": [
+          0.12,
+          -0.075,
+          0.01
+        ],
+        "gripR": [
+          -0.12,
+          -0.075,
+          0.01
         ],
         "screen": [
           0,
@@ -11527,7 +12454,7 @@
         "held_laptop"
       ],
       "textures": 1,
-      "bytes": 122236
+      "bytes": 121644
     },
     {
       "id": "held_mug_manager",
@@ -11550,15 +12477,20 @@
           0,
           0
         ],
+        "handCentre": [
+          0,
+          0.03,
+          -0.06
+        ],
         "coffee": [
           0,
-          0.0319,
-          0.1296
+          0.0619,
+          0.0696
         ],
         "rim": [
           0,
-          0.0462,
-          0.1296
+          0.0762,
+          0.0696
         ]
       },
       "status": "done",
@@ -11572,13 +12504,13 @@
       "bbox": {
         "min": [
           -0.05,
-          -0.064,
-          0.035
+          -0.034,
+          -0.025
         ],
         "max": [
           0.05,
-          0.048,
-          0.18
+          0.078,
+          0.12
         ]
       },
       "tris": 2983,
@@ -11593,7 +12525,7 @@
         "held_mug_manager"
       ],
       "textures": 1,
-      "bytes": 116472
+      "bytes": 116988
     },
     {
       "id": "held_phone",
@@ -11616,6 +12548,11 @@
           0,
           0,
           0
+        ],
+        "handCentre": [
+          0,
+          0.03,
+          -0.06
         ]
       },
       "status": "done",
@@ -11629,13 +12566,13 @@
       "bbox": {
         "min": [
           -0.039,
-          -0.035,
-          -0.084
+          -0.005,
+          -0.144
         ],
         "max": [
           0.039,
-          0.113,
-          -0.032
+          0.143,
+          -0.092
         ]
       },
       "tris": 1152,
@@ -11650,157 +12587,7 @@
         "held_phone"
       ],
       "textures": 1,
-      "bytes": 60908
-    },
-    {
-      "id": "char_torso_hoodie",
-      "name": "Char torso hoodie",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "hood + strings",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_torso_shirt_tie",
-      "name": "Char torso shirt tie",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "manager: collar + tie (`Accent`)",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_afro",
-      "name": "Hair afro",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Hair`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_curly",
-      "name": "Hair curly",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Hair`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_side_part",
-      "name": "Hair side part",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Hair`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_slick",
-      "name": "Hair slick",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Hair`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_beanie",
-      "name": "Hat beanie",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Accent`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_cap",
-      "name": "Hat cap",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Accent`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hat_cap_backwards",
-      "name": "Hat cap backwards",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "`Accent`",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "lanyard_badge",
-      "name": "Lanyard badge",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P0",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "bytes": 59844
     },
     {
       "id": "preset_employee_a",
@@ -11855,51 +12642,6 @@
       "group": "characters",
       "priority": "P0",
       "description": "assembled full characters, for previews and the catalog",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "apron",
-      "name": "Apron",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "backpack",
-      "name": "Backpack",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "bow_tie",
-      "name": "Bow tie",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
       "tags": [],
       "tintable": [],
       "anchors": {},
@@ -12043,21 +12785,6 @@
       "thumb": null
     },
     {
-      "id": "hair_ponytail",
-      "name": "Hair ponytail",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
       "id": "hair_spiky",
       "name": "Hair spiky",
       "category": null,
@@ -12095,36 +12822,6 @@
       "group": "characters",
       "priority": "P1",
       "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "scarf",
-      "name": "Scarf",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "cape_hero",
-      "name": "Cape hero",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P2",
-      "description": "seasonal",
       "tags": [],
       "tintable": [],
       "anchors": {},

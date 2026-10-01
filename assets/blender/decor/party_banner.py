@@ -1,68 +1,63 @@
-"""Party banner: bunting strung in a gentle sag across 2 m, with chunky triangular flags in a
-rainbow (every other flag `Accent`) spelling P-A-R-T-Y-! in white rounded letters. Wall item:
-origin at the centre between the two fixing points (the string's ends); flags face -Y."""
+"""Party banner: a bunting garland of nine chunky pennants in alternating palette colours on
+a gently sagging string between two wall pins. 1.6 m between the pins; wall item: origin
+at the wall-contact point midway between the pins (the string's ends), front looks -Y."""
 import math
 
-from mathutils import Vector
-
 import lib
+from decor import _decor as D
 
 NAME = "party_banner"
-AO_RES = 256
-SPAN, SAG = 2.0, 0.22
-LETTERS = "PARTY!"
+AO_RES = 512
+AO_DISTANCE = 0.04
+SPAN, SAG = 1.6, 0.13
+N = 9
+FW, FH = 0.16, 0.2
+COLOURS = ["coral", "yellow", "sky", "mint", "lilac", "pink"]
 META = dict(
-    name="Party banner", category="decor", priority="P2", artist="Claude Monet",
-    description="Rainbow bunting banner spelling PARTY!",
-    tags=["party", "event", "wall", "text"], tintable=["Accent"],
-    anchors_bl={"left": (-SPAN / 2, -0.02, 0), "right": (SPAN / 2, -0.02, 0)},
-    mount="wall: origin is midway between the two fixing points",
+    name="Party banner", category="decor", priority="P2",
+    description="Bunting garland of nine colourful pennants on a sagging string",
+    tags=["wall", "party", "birthday", "celebrate"], tintable=[],
+    anchors_bl={"pinL": (-SPAN / 2, -0.01, 0), "pinR": (SPAN / 2, -0.01, 0)},
+    mount="wall: origin is midway between the two pins (the string's ends), at the wall",
 )
 
 
-def materials():
-    return dict(
-        string=lib.mat("String", "#FFFFFF", rough=0.7),
-        letters=lib.mat("Letters", "#FFFFFF", rough=0.5),
-        pins=lib.mat("Pin", "#2B2D42", rough=0.5),
-        flags=[lib.mat("Accent", "#FF5A5F", rough=0.6), lib.mat("FlagYellow", "#FFD93D", rough=0.6),
-               lib.mat("FlagGreen", "#6BCB77", rough=0.6), lib.mat("FlagBlue", "#4D96FF", rough=0.6),
-               lib.mat("FlagPurple", "#B983FF", rough=0.6), lib.mat("FlagOrange", "#FF9F45",
-                                                                      rough=0.6)],
-    )
-
-
-def sag(x):
+def string_z(x):
+    """Sagging string height (a soft parabola)."""
     return -SAG * (1 - (2 * x / SPAN) ** 2)
 
 
-def parts(M):
-    n = 24
-    pts = [Vector((-SPAN / 2 + SPAN * k / n, -0.02, sag(-SPAN / 2 + SPAN * k / n)))
-           for k in range(n + 1)]
-    for k in range(n):
-        d = pts[k + 1] - pts[k]
-        lib.cyl(f"PB_String{k}", 0.006, d.length, tuple((pts[k] + pts[k + 1]) / 2), M["string"],
-                r=0, verts=6, rot=d.to_track_quat("Z", "Y").to_euler())
-    for s in (-1, 1):
-        lib.sphere(f"PB_Pin{s}", 0.02, (s * SPAN / 2, -0.02, 0), M["pins"], u=10, v=5)
-    m = len(LETTERS)
-    for i, ch in enumerate(LETTERS):
-        x = -SPAN / 2 + SPAN * (i + 0.5) / m
-        z = sag(x)
-        slope = math.atan(-8 * SAG * x / SPAN ** 2)
-        w, h = 0.24, 0.3
-        flag = lib.slab(f"PB_Flag{i}", [(-w / 2, 0), (0, -h), (w / 2, 0)], -0.005, 0.005,
-                        (x, -0.02, z - 0.008), M["flags"][i % len(M["flags"])], r=0.004, seg=1,
-                        rot=(math.pi / 2, slope, 0))
-        lib.text(f"PB_Letter{i}", ch, 0.11, (x + math.sin(slope) * 0.0, -0.027, z - 0.1),
-                 M["letters"], extrude=0, bevel=0, res=2, rot=(math.pi / 2, slope, 0))
+def materials():
+    M = {c: D.mat(f"Flag_{c}", c, rough=0.6) for c in COLOURS}
+    M.update(string=D.mat("String", "paper", rough=0.7),
+             pin=D.mat("Pin", "chrome", rough=0.3, metal=0.4),
+             dot=D.mat("FlagDot", "paper", rough=0.6))
+    return M
 
 
 def build():
     lib.begin(NAME)
-    parts(materials())
+    M = materials()
+    y = -0.012
+    pts = [(x, y, string_z(x)) for x in [-SPAN / 2 + SPAN * k / 24 for k in range(25)]]
+    D.tube("String", pts, 0.0035, M["string"], verts=6, caps="round")
+    for s in (-1, 1):
+        lib.cyl(f"Pin{s}", 0.004, 0.02, (s * SPAN / 2, -0.01, 0.0), M["pin"], r=0.001, seg=1,
+                verts=8, rot=(math.pi / 2, 0, 0))
+        lib.sphere(f"PinHead{s}", 0.008, (s * SPAN / 2, -0.021, 0.0), M["pin"], u=10, v=6)
+    tri = D.rounded_pts([(-FW / 2, 0.0), (FW / 2, 0.0), (0.0, -FH)], 0.012, steps=3)
+    for i in range(N):
+        x = -SPAN / 2 + SPAN * (i + 1) / (N + 1)
+        z = string_z(x)
+        slope = math.atan(-SAG * (-8 * x / SPAN ** 2))
+        before = D.snapshot()
+        D.prism(f"Flag{i}", tri, 0.004, M[COLOURS[i % len(COLOURS)]], loc=(0, 0.002, 0.004),
+                rot=D.FRONT, r=0.0015, seg=1)
+        if i % 2 == 0:
+            D.face(f"Flag{i}_Dot", D.circle_pts(0.016, 14), M["dot"], loc=(0, -0.0024, -FH * 0.38),
+                   rot=D.FRONT)
+        D.place(D.since(before), loc=(x, y, z), rot=(0, -slope, 0))
 
 
 def finalize(id):
-    return lib.finalize(id, AO_RES, meta=META)
+    return D.finalize(id, AO_RES, AO_DISTANCE, meta=META, wall=True)

@@ -94,3 +94,51 @@ def glasses(loop, rim_mat, lens_mat, rim_r=0.009, out=0.03, eye_y=None, temple=T
             mid = kit.head_point((s * 0.85, -0.45, 0.04), out=0.014)
             kit.tube(f"Temple{tag}", kit.catmull([p0, mid, ear], samples=10), rim_r * 0.75,
                      rim_mat, ring=8)
+
+
+# ---------------------------------------------------------------- torso-worn
+
+def torso_patch(name, half_width, ys, material, out=0.012, back=False, nu=10, thick=0.008,
+                inner=None, bulge=None):
+    """A cloth panel hugging the shirt bean (pelvis space): rows at heights `ys` (top → down),
+    each spanning x in ±half_width(y). `bulge(u, v)` adds extra lift (u in -1..1 across,
+    v in 0..1 down). Solidified `thick`; `inner` material goes on the inside/edges."""
+    from characters import _body as B
+    verts, faces = [], []
+    n = len(ys)
+    for j, y in enumerate(ys):
+        hw = half_width(y)
+        for i in range(nu + 1):
+            u = -1 + 2 * i / nu
+            r = kit.torso_radius_at(y)
+            x = max(-r * 0.98, min(r * 0.98, u * hw))
+            p, nrm = B.torso_surface(x, y, back=back)
+            lift = out + (bulge(u, j / max(n - 1, 1)) if bulge else 0.0)
+            verts.append(p + nrm * lift)
+    w = nu + 1
+    for j in range(n - 1):
+        for i in range(nu):
+            a, b = j * w + i, j * w + i + 1
+            c, d = b + w, a + w
+            faces.append((a, d, c, b) if not back else (a, b, c, d))
+    ob = kit.mesh_from(name, verts, faces, material)
+    # Faces must point away from the body (solidify then grows inward).
+    poly = ob.data.polygons[len(ob.data.polygons) // 2]
+    from mathutils import Vector
+    c = poly.center
+    away = Vector((c.x, c.y / (kit.TORSO_Z ** 2), 0)).normalized()
+    if poly.normal.dot(away) < 0:
+        ob.data.flip_normals()
+    if inner is not None:
+        ob.data.materials.append(inner)
+    m = ob.modifiers.new("Solidify", "SOLIDIFY")
+    m.thickness = thick
+    m.offset = -1.0
+    m.material_offset = 1 if inner is not None else 0
+    m.material_offset_rim = 1 if inner is not None else 0
+    return ob
+
+
+def finalize_torso_item(name, META, **kw):
+    kw.setdefault("ao_distance", 0.06)
+    return kit.finalize(name, META, mount="torso", **kw)

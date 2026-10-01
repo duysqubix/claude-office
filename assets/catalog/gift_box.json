@@ -2,27 +2,23 @@
   "id": "gift_box",
   "name": "Gift box",
   "category": "decor",
-  "artist": "Claude Monet",
+  "artist": "Claude C\u00e9zanne",
   "priority": "P2",
   "status": "done",
-  "description": "Wrapped present with a big bow and a pop-off lid (node Lid)",
+  "description": "Polka-dot wrapped present with a gold ribbon and a big bow",
   "tags": [
     "party",
-    "event",
-    "reward",
-    "shop"
+    "present",
+    "birthday"
   ],
   "tintable": [
     "Accent"
   ],
   "anchors": {
-    "lidTop": [
+    "bow": [
       0,
-      0.34,
+      0.27,
       0
     ]
-  },
-  "nodes": {
-    "Lid": "pivot at the lid centre; lift / tumble it to open"
   }
 }

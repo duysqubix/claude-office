@@ -1,0 +1,18 @@
+{
+  "id": "scarf",
+  "name": "Scarf",
+  "category": "character-accessory",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky striped knit scarf with tails",
+  "tags": [
+    "scarf",
+    "winter",
+    "accessory"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {}
+}

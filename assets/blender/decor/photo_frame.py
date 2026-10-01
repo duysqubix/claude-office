@@ -72,6 +72,7 @@ def build():
     D.turn(D.since(before), (0, 0, 0.0), (LEAN, 0, 0))
     lib.rbox("Stand", (0.03, 0.006, 0.11), (0, 0.042, 0.05), M["frame"], r=0.0025, seg=1,
              rot=(math.radians(32), 0, 0))
+    D.ground()
 
 
 def finalize(id):

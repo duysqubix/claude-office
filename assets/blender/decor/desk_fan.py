@@ -39,7 +39,7 @@ def base(M):
                      (0.06, 0.027), (0.0, 0.029)], M["body"], verts=28, sharp=60)
     for i, x in enumerate((-0.024, 0.0, 0.024)):
         lib.cyl(f"Button{i}", 0.0085, 0.008, (x, -0.06, 0.022), M["badge" if i == 0 else "cream"],
-                r=0.003, seg=1, verts=14, rot=(math.radians(-35), 0, 0))
+                r=0.003, seg=1, verts=10, rot=(math.radians(-35), 0, 0))
     lib.cyl("Neck", 0.015, 0.15, (0, 0.022, 0.1), M["body"], r=0.004, seg=1, verts=16)
     lib.rbox("Yoke", (0.034, 0.03, 0.032), (0, 0.024, 0.175), M["body"], r=0.011, seg=2)
     lib.sphere("Motor", 0.05, (0, 0.03, HUB[2]), M["body"], scale=(1.0, 1.1, 0.98), u=18, v=9)
@@ -50,7 +50,7 @@ def base(M):
 def cage(M):
     face_on = (math.pi / 2, 0, 0)
     hx, hy, hz = HUB
-    lib.torus("Cage_Rim", R_RIM, 0.0055, (hx, hy, hz), M["chrome"], seg=24, ring=5, rot=face_on)
+    lib.torus("Cage_Rim", R_RIM, 0.0055, (hx, hy, hz), M["chrome"], seg=22, ring=5, rot=face_on)
     for r, y in ((0.07, hy - 0.022), (0.042, hy - 0.03)):
         lib.torus(f"Cage_Ring{r}", r, 0.0022, (hx, y, hz), M["chrome"], seg=16, ring=4, rot=face_on)
     lib.torus("Cage_Back", 0.07, 0.0022, (hx, hy + 0.02, hz), M["chrome"], seg=16, ring=4,

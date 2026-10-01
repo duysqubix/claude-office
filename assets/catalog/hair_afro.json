@@ -1,0 +1,24 @@
+{
+  "id": "hair_afro",
+  "name": "Afro",
+  "category": "character-hair",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Big round puffy afro, lumpy with curl clusters",
+  "tags": [
+    "hair",
+    "afro",
+    "volume"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.44,
+      0
+    ]
+  }
+}

@@ -1,54 +1,52 @@
-"""Pizza slice: a chunky triangular slice. Golden puffy crust along the back, saucy edge,
-melty cheese top with a drip off the tip, and fat pepperoni discs. Tip points -Y; origin at
-the bottom centre (lies flat on a plate or table)."""
+"""Pizza slice: one chunky slice with a fat crust, melty cheese, pepperoni, a basil leaf and
+a cheese string stretching off the tip. 0.2 m long; origin at the desk-contact centre; the
+tip points to the front (-Y)."""
 import math
 
 import lib
+from decor import _decor as D
+from decor import _food as F
 
 NAME = "pizza_slice"
 AO_RES = 256
-L, W = 0.24, 0.2
+AO_DISTANCE = 0.025
+R = 0.19
+A0, A1 = math.radians(64), math.radians(116)
 META = dict(
-    name="Pizza slice", category="food", priority="P2", artist="Claude Monet",
-    description="Chunky pepperoni pizza slice",
-    tags=["party", "event", "food", "snack"], tintable=[],
-    anchors_bl={"grip": (0, L / 2 - 0.02, 0.03)},
+    name="Pizza slice", category="food", priority="P2",
+    description="Single pizza slice with pepperoni, basil and a stretchy cheese tip",
+    tags=["food", "snack", "party"], tintable=[],
+    anchors_bl={"tip": (0, -0.1, 0.01)},
 )
 
 
 def materials():
     return dict(
-        base=lib.mat("Base", "#F2C27B", rough=0.7),
-        crust=lib.mat("Crust", "#D9963F", rough=0.65),
-        sauce=lib.mat("Sauce", "#E2462E", rough=0.5),
-        cheese=lib.mat("Cheese", "#FFD86B", rough=0.4),
-        pep=lib.mat("Pepperoni", "#B8322A", rough=0.45),
+        bread=D.mat("Bread", F.DOUGH, rough=0.7),
+        cheese=D.mat("Cheese", F.CHEESE, rough=0.5),
+        crust=D.mat("Crust", F.CRUST, rough=0.65),
+        pepperoni=D.mat("Pepperoni", F.PEPPERONI, rough=0.45),
+        basil=D.mat("Basil", "leaf", rough=0.55),
     )
-
-
-def parts(M):
-    tip, back = (0, -L / 2), L / 2
-    lib.slab("PZ_Base", [tip, (W / 2, back), (-W / 2, back)], 0.0, 0.016, material=M["base"],
-             r=0.004, seg=1)
-    lib.slab("PZ_Sauce", [(0, -L / 2 + 0.008), (W / 2 - 0.01, back - 0.012),
-                          (-W / 2 + 0.01, back - 0.012)], 0.016, 0.02, material=M["sauce"],
-             r=0.002, seg=1)
-    ch = lib.slab("PZ_Cheese", [(0, -L / 2 + 0.018), (W / 2 - 0.02, back - 0.022),
-                               (-W / 2 + 0.02, back - 0.022)], 0.019, 0.028,
-                  material=M["cheese"], r=0.003, seg=1)
-    lib.subsurf(ch, 1)
-    lib.cyl("PZ_Crust", 0.024, W + 0.02, (0, back - 0.01, 0.022), M["crust"], r=0.012, seg=2,
-            verts=16, rot=(0, math.pi / 2, 0))
-    for i, (x, y) in enumerate(((0.0, 0.0), (-0.035, 0.06), (0.04, 0.055), (0.0, -0.06))):
-        lib.cyl(f"PZ_Pep{i}", 0.022, 0.008, (x, y, 0.031), M["pep"], r=0.003, seg=1, verts=16)
-    lib.sphere("PZ_Drip", 0.012, (0, -L / 2 + 0.004, 0.012), M["cheese"], scale=(1, 1, 1.6),
-               u=10, v=6)
 
 
 def build():
     lib.begin(NAME)
-    parts(materials())
+    M = materials()
+    before = D.snapshot()
+    F.pizza("Slice", M, R, A0, A1, z=0.0, n=14)
+    top = 0.011
+    for i, (rr, a) in enumerate(((0.07, 90), (0.125, 78), (0.13, 103))):
+        F.pepperoni(f"Pep{i}", M, rr * math.cos(math.radians(a)), rr * math.sin(math.radians(a)),
+                    top, r=0.019)
+    F.basil("Basil", M, 0.1 * math.cos(math.radians(97)), 0.1 * math.sin(math.radians(97)),
+            top + 0.0045, 0.6)
+    # A cheese string hanging off the tip.
+    D.tube("Cheese_String", [(0.0, 0.012, top - 0.001), (0.0, -0.004, top - 0.002),
+                             (0.002, -0.014, 0.004)], 0.003, M["cheese"], verts=6, smooth=3,
+           caps="round", radii=[1.0, 0.75, 1.0])
+    D.place(D.since(before), loc=(0, -0.1, 0))
 
 
 def finalize(id):
-    return lib.finalize(id, AO_RES, meta=META)
+    return D.finalize(id, AO_RES, AO_DISTANCE, meta=META)

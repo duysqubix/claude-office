@@ -1,0 +1,25 @@
+{
+  "id": "backpack",
+  "name": "Backpack",
+  "category": "character-accessory",
+  "artist": "Claude Monet",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky backpack with padded straps",
+  "tags": [
+    "backpack",
+    "intern",
+    "school",
+    "accessory"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "pack": [
+      0.0,
+      0.1561,
+      -0.2867
+    ]
+  }
+}

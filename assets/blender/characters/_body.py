@@ -23,7 +23,7 @@ HEAD_C = kit.HEAD_Y  # head centre above the pelvis
 
 
 def _profile(girth=1.0):
-    return kit.torso_profile(girth, samples=36)
+    return kit.torso_profile(girth, samples=22)
 
 
 def _slice(prof, y0, y1):
@@ -51,7 +51,7 @@ def _deriv(prof, y, eps=0.003):
     return (at(y + eps) - at(y - eps)) / (2 * eps)
 
 
-def lathe_part(name, prof, material, verts=32, at=Vector((0, 0, 0)), normals_from=None):
+def lathe_part(name, prof, material, verts=28, at=Vector((0, 0, 0)), normals_from=None):
     """Lathe a (radius, height) profile, squashed front-to-back by TORSO_Z, with the true
     surface normals of `normals_from` (a full profile) as custom normals: two parts cut
     from one surface then shade as one, with no crease at the cut."""
@@ -167,7 +167,7 @@ def neck_ring(girth=1.0, n=28, out=0.004):
 
 def crew_collar(M, girth=1.0):
     """A rolled crew neckline where the head meets the shirt."""
-    return kit.ring_tube("Collar", neck_ring(girth, out=0.004), 0.013, M["shirt"], ring=8)
+    return kit.ring_tube("Collar", neck_ring(girth, n=24, out=0.004), 0.013, M["shirt"], ring=6)
 
 
 # ---------------------------------------------------------------- limbs (joint space)

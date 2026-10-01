@@ -2,23 +2,21 @@
   "id": "balloon_cluster",
   "name": "Balloon cluster",
   "category": "decor",
-  "artist": "Claude Monet",
+  "artist": "Claude C\u00e9zanne",
   "priority": "P2",
   "status": "done",
-  "description": "Bunch of party balloons tied to a little weight",
+  "description": "Bunch of five glossy party balloons on strings, weighted by a heart",
   "tags": [
     "party",
-    "event",
-    "celebration"
+    "birthday",
+    "celebrate"
   ],
-  "tintable": [
-    "Accent"
-  ],
+  "tintable": [],
   "anchors": {
     "top": [
       0,
-      1.76,
-      -0.1
+      1.62,
+      0
     ]
   }
 }

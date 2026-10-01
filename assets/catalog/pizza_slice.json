@@ -2,22 +2,21 @@
   "id": "pizza_slice",
   "name": "Pizza slice",
   "category": "food",
-  "artist": "Claude Monet",
+  "artist": "Claude C\u00e9zanne",
   "priority": "P2",
   "status": "done",
-  "description": "Chunky pepperoni pizza slice",
+  "description": "Single pizza slice with pepperoni, basil and a stretchy cheese tip",
   "tags": [
-    "party",
-    "event",
     "food",
-    "snack"
+    "snack",
+    "party"
   ],
   "tintable": [],
   "anchors": {
-    "grip": [
+    "tip": [
       0,
-      0.03,
-      -0.1
+      0.01,
+      0.1
     ]
   }
 }
