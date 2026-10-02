@@ -21,7 +21,7 @@ GRIP_Y = HANDLE_OUT + 0.046  # hand centre behind the mug axis: handle inside th
 GRIP_Z = 0.058 * S           # handle's mid-height above the mug bottom
 META = dict(
     name="Manager's mug (held)", category="character-held", priority="P0",
-    description="The WORLD'S OKAYEST MANAGER mug, gripped by its handle; pivot at the hand",
+    description="The WORLD'S OKAYEST MANAGER mug, gripped by its handle; pivot at the rig's handGrip",
     tags=["held", "manager", "coffee", "mug"], tintable=[],
     anchors_bl={"handGrip": (0, 0, 0), "handCentre": tuple(kit.hand_from_grip()),
                 "coffee": tuple(kit.hand_from_grip() + kit.Vector(

@@ -1,7 +1,9 @@
 # Claude Office: UX spec (v0)
 
 How the office feels, reads and sounds. [SPEC.md](SPEC.md) §2–4 own data and §6.6–6.7 behaviour; this file replaces §6.8
-and owns layout, copy, motion, sound, controls and feedback. **P0** ships in v0, **P1** next. Sizes px, times ms.
+and owns layout, copy, motion, sound, controls and feedback. **P0** ships in v0, **P1** next. Sizes px, times ms. Built
+in `client/src/ui/` (theme.css, components, faces, icons, bus, edge, askpanel, teamstats); see every state at
+`/ui-kit.html`.
 
 ## 0. Principles
 
@@ -172,11 +174,17 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
 - **Employee panel**: shirt-colour band, face (56) straddling its edge, name as the outlined title, state chip + time;
   icon chips for project, branch, model, uptime, cost; "Context" bar (`pct`, "128k of 200k"; danger from 85 %: "Nearly
   full: expect a /compact"); rows Now, Working on, Last said, You asked, Interns; collapsible "Recent chatter". Footer:
-  primary with `E`, "Quick message", danger text "Let go" far left. External: "Started in your own terminal (crateswipe,
-  pid 66880). Talk to them there." **Help** (`?`): controls, legend, "Calmer motion".
-- **Quick message** (hosted): inline composer "Message Claudette…" (≤ 4 rows; Enter sends, Shift+Enter new line, `Esc`
-  closes). Working: "They'll read it after this step." Needs-you: disabled, "Answer them first: sit down at their
-  computer." (a 409 shows it too and keeps the draft). Sent: toast "Sent to Claudette", bubble "On it!".
+  primary "Talk" `E` (the chat), "Sit at their computer", danger text "Let go" far left. External: "Started in your own
+  terminal (crateswipe, pid 66880). Talk to them there." **Help** (`?`): controls, legend, "Calmer motion".
+- **Chat** ("Talk" `E` in the employee panel; `chatpanel.ts`): their conversation as in Claude Code, polled every 1.2 s:
+  assistant text as light markdown, tool steps as chips (3+ in a row collapse to "5 steps, last: Editing auth.ts"), a
+  time label after 10-minute gaps. Enter sends, Shift+Enter adds a line, slash commands pass through, Esc hands the keys
+  back to the game; your message shows at once ("Sending…", "Sent", or why it failed with Try again / Edit) and
+  reconciles with the feed. Working: a typing indicator with `activity.label`. Needs you: the ask card inline, scrolled
+  to its question, and sending waits ("Answer their question above first."). Header: Interrupt (Esc in their terminal),
+  Sit at their computer. Started elsewhere: read-only history and "Bring into the office" (`/api/adopt`; "Type /exit in
+  their terminal: they'll walk in here with their whole conversation."), then a waiting state until they're back,
+  hosted.
 - **Roster** (`R`, button, whiteboard): mint panel "Roster", grouped Needs you, Working, Starting, Free, Asleep. Row 56:
   face 40, name 16/600, project, activity or `lastText` 14 ink-2; right: "12m" in state, "+2" interns. Click or Enter →
   go to. Footer "Hire someone" `H`. Empty: "Nobody's in yet." (as the first-run card).
@@ -184,9 +192,10 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   sessions". Row: title (else last prompt, else "Untitled session"), project, "3 days ago", "$1.24", small primary "Call
   back in" (live: "In the office" + "Go to them"). Toast "Called back in. They're on their way."; arrival "Welcome back,
   Claudette!". Empty: "No past sessions yet. Finished sessions end up here."
-- **Team Room board** (`E` at the wall, or the plan meter): no panel; the camera eases to the board (2.4 m out, eye
-  height, 900) and the HUD fades but for the needs-you chip. The world draws `TeamStats` there (plan gauges with reset
-  countdowns, team numbers, a context bar per employee). "[E] Step back", any move key or `Esc` returns.
+- **Team Room board** (`E` at the wall): the camera eases to the board (2.4 m out, eye height, 900) and the HUD fades
+  but for the needs-you chip; the world draws `TeamStats` there. "[E] Step back", any move key or `Esc` returns. The
+  plan meter opens the board's HTML twin as a panel, "Team Room" (plan gauges with reset countdowns, today's numbers, a
+  context bar per person; rows go to them), while you walk there.
 - **Intern desk** (`E` there): panel "Intern desk", one row per intern: type, description, "for" + their boss's face and
   name (click → go to the boss). Empty: "No interns right now. They show up when someone hands off work."
 - **Let go** (hosted) turns the action row into an in-place confirm: **"Let Claudette go?"** "This ends their Claude
@@ -312,8 +321,9 @@ sound"). `M` mutes (`claude-office:muted`, master to 0 in 50). P1: pan by screen
 
 ## 6. Extension hooks (v0 must not block these)
 
-- **Event bus** (`ui/events.ts`, P0): typed `clock-in`, `clock-out`, `hired`, `rehired`, `fired`, `needs-you`, `ask`,
-  `answered`, `turn-done`, `go-to`, `jump`, `bump`, `coffee`, `panel`; sfx, fx, toasts, tab title, coach cards and later
-  achievements and Beans ("First hire", "10 hands answered", "Inbox zero for an hour") all subscribe.
+- **Event bus** (`ui/bus.ts`, P0): typed `arrive`, `leave`, `needs-you`, `ask`, `answered`, `turn-done`, `hired`,
+  `rehired`, `fired`, `go-to`, `toast`, `sfx`, `panel`, `jump`, `land`, `bump`, `coffee`, `offline`. Gameplay emits;
+  sfx, fx, toasts, tab title, coach cards and later achievements and Beans ("First hire", "10 hands answered", "Inbox
+  zero for an hour") subscribe.
 - **Emotes** (wave, stretch, shrug, hop, cheer) are named `Body.play(emote)` clips, so a manager emote wheel is content.
   Persistence stays under `claude-office:*`. The world exposes decor slots; a wandering NPC becomes the office dog.

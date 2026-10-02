@@ -25,7 +25,7 @@ META = dict(
     name="Preset: intern", category="preset", priority="P0",
     description="Mini intern: backwards cap, orange tee, tiny laptop held out",
     tags=["preset", "intern", "character"],
-    tintable=["Skin", "Shirt", "Pants", "Shoes", "Hair", "Accent"],
+    tintable=["Skin", "Shirt", "Pants", "Shoes", "Hair"],
     anchors_bl={"headTop": (0, 0, (kit.DIM["pelvisY"] + kit.HEAD_Y + kit.R + 0.09) * 0.7)},
 )
 

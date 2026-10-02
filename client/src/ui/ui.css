@@ -294,6 +294,179 @@ kbd {
 .c-interns {
   --c: #ff7eb6;
 }
+.c-usage {
+  --c: var(--working);
+  cursor: pointer;
+}
+.c-usage[data-level='warm'] {
+  --c: var(--needs);
+}
+.c-usage[data-level='hot'] {
+  --c: #ff5a5f;
+  background: #ffe3e0;
+}
+body.seated .hud-right kbd,
+body.seated .hud-prompt {
+  display: none !important;
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.btn-ghost:hover {
+  box-shadow: none;
+}
+.small {
+  font-size: 13px;
+}
+.meter {
+  height: 14px;
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  overflow: hidden;
+}
+.meter i {
+  display: block;
+  height: 100%;
+  background: var(--working);
+}
+.meter.warm i {
+  background: var(--needs);
+}
+.meter.hot i {
+  background: #ff5a5f;
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 48px 130px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.stat-row .num {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.stat-grid > div {
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  padding: 6px 10px;
+  font-weight: 700;
+  font-size: 17px;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.stat-grid small {
+  display: block;
+  font-size: 12px;
+  opacity: 0.6;
+}
+/* Ask panel */
+.ask-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.ask-detail {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 15px;
+  user-select: text;
+}
+.ask-detail.mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 14px;
+  background: #2e3440;
+  color: #e8eef6;
+}
+.ask-detail.plan {
+  font-family: var(--font);
+}
+.ask-q {
+  margin-bottom: 14px;
+}
+.ask-q p {
+  margin: 6px 0;
+  font-weight: 600;
+}
+.ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ask-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  font-family: var(--font);
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  padding: 6px 12px;
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+  box-shadow: 0 3px 0 var(--shade);
+}
+.ask-chip small {
+  font-size: 12px;
+  opacity: 0.65;
+}
+.ask-chip.on {
+  background: #dff5ff;
+  border-color: #2e9fdb;
+  box-shadow: 0 3px 0 #2e9fdb;
+}
+.ask-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+.ask-opt {
+  flex-direction: column;
+  gap: 2px;
+}
+.ask-opt small {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+  text-shadow: none;
+}
+.ask-note {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.ask-note .row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.ask-timer {
+  font-variant-numeric: tabular-nums;
+}
 .c-needs.hot {
   background: var(--needs);
   animation: throb 1s var(--pop) infinite;
@@ -520,6 +693,8 @@ kbd {
   transform: translateX(-50%) rotate(45deg);
 }
 .tag-bubble[data-kind='needs'] {
+  pointer-events: auto;
+  cursor: pointer;
   background: var(--needs);
   font-size: 16px;
   font-weight: 700;
@@ -625,15 +800,31 @@ kbd {
 .tag-thought i:nth-child(3) {
   animation-delay: 0.36s;
 }
-.tag-plus {
-  background: #ff7eb6;
-  color: #fff;
-  border: 2.5px solid var(--ink);
-  border-radius: 999px;
-  padding: 0 9px;
-  font-weight: 700;
-  font-size: 12px;
-  text-shadow: 0 1px 0 rgba(43, 45, 66, 0.4);
+.tag-intern {
+  font-size: 11px;
+  padding: 0 8px 0 5px;
+  border-width: 2px;
+}
+.tag-intern i {
+  width: 8px;
+  height: 8px;
+}
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: rgba(255, 253, 247, 0.9);
+  border: 2px solid var(--ink);
+  pointer-events: none;
+  z-index: 6;
+}
+#crosshair.aim {
+  background: var(--claude);
+  transform: scale(1.4);
 }
 .tag-bump {
   font-weight: 700;
@@ -992,6 +1183,13 @@ kbd {
   font-weight: 700;
   opacity: 0.5;
   text-transform: uppercase;
+}
+.chat-step {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.6;
+  padding: 0 6px;
 }
 .chat-user {
   align-self: flex-end;

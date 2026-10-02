@@ -23,4 +23,5 @@ def build():
 
 
 def finalize(name):
-    return kit.finalize(name, META, ao_distance=0.04)
+    # Turned for the catalog shot so the thumb shows in silhouette.
+    return kit.finalize(name, META, ao=False, preview_yaw=143)

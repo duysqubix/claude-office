@@ -16,7 +16,7 @@ LEAN = math.radians(28)             # top leans away from the holder
 GRIP_DROP = 0.035                   # hand centre below the bottom edge
 META = dict(
     name="Clipboard (held)", category="character-held", priority="P0",
-    description="Wooden clipboard with a checklist and a pen; held by its bottom edge",
+    description="Wooden clipboard with a checklist and a pen; held by its bottom edge; pivot at the rig's handGrip",
     tags=["held", "clipboard", "planning", "paper"], tintable=["Accent"],
     anchors_bl={"handGrip": (0, 0, 0), "handCentre": tuple(kit.hand_from_grip())},
 )

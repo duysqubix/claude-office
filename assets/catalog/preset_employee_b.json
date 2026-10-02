@@ -16,8 +16,7 @@
     "Shirt",
     "Pants",
     "Shoes",
-    "Hair",
-    "Accent"
+    "Hair"
   ],
   "anchors": {
     "headTop": [

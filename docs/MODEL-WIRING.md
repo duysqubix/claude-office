@@ -81,6 +81,27 @@ Load models with `client/src/models` (`model`, `swapIn`, `findMaterial`, `findNo
   pivots at the neck (rotate about Y to look around), `Tail` at its root (rotate about Y to wag).
   Recolour coats via `Fur` / `FurLight` / `FurDark`; collar `Accent`.
 
+### Character kit details (Rodin) for wiring into the rig
+
+- GLB +Z is the front, +X is the character's LEFT. Everything fits rig-dimensions.json.
+- char_eye: nodes `EyeL` / `EyeR` at each eye centre (blink with scale.y); catchlights are material `EyeShine`.
+- char_brow: nodes `BrowL` / `BrowR` (raise with y, worry with rotation.z); material `Hair`, tint darker.
+- char_head includes translucent `Cheek` discs (drop the procedural cheeks when using it).
+- Torsos (tee, shirt_tie, hoodie, sweater, vest, labcoat): origin at the pelvis joint; the root holds
+  pants + belly, child node `Chest` (origin at chestPivotY 0.12) holds the upper body: parent arms,
+  neck and badge to `Chest`. Built at girth 1.0: scale x/z by girth. A hidden dome closes the bend.
+- Limbs: upper arm at the shoulder (`Shirt` sleeve, `Skin` below), forearm at the elbow, mitten at the
+  wrist (one mesh for both hands), thigh at the hip, shin at the knee, shoes at the ankle (sole on the
+  floor at rest; the rig applies toe-out). Long sleeves: give arm parts their own `Skin` material
+  painted the shirt colour. legs_shorts replaces the thigh (pair with char_shin tinted `Skin`; its cuff
+  reads as a sock); legs_skirt pivots at the pelvis.
+- Held items: origin = attach.handGrip, modelled upright; held_laptop and held_box are two-handed
+  (sidecar anchors handL/handR, gripL/gripR); laptop/phone `Screen` UVs are mirrored for the holder.
+- Jiggle nodes: `Tuft` (hair_tuft), `Pom` (hat_beanie). AO is baked on hair, hats, held items, shoes and
+  the mitten; head, torsos and limbs have none (convex; N8AO covers them).
+- Presets (preset_manager, preset_employee_a/b, preset_intern) are static showcase meshes (scale baked:
+  manager 1.08, intern 0.7), ~15k tris / ~570 KB each: catalog only, not for the live rig.
+
 ## Open follow-ups
 
 - ~15 GLBs exceed 250 KB (geometry-bound heroes: company_sign 526 KB, coffee_truck 483 KB,

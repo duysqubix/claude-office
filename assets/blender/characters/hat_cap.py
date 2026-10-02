@@ -23,16 +23,23 @@ BAND = {False: (0.075, -0.24), True: (0.095, -0.15)}
 RADII = (kit.HX + 0.048, kit.HY + 0.05, kit.HZ + 0.035)
 
 
+def crown_sdf(back=False):
+    """The dome, cut flat along the tilted band plane."""
+    z0, slope = BAND[back]
+
+    def crown(P):
+        d = kit.sd_ellipsoid(P, CENTRE, RADII)
+        return kit.smax(d, (z0 + slope * P[:, 1]) - P[:, 2], 0.016)
+    return crown
+
+
 def cap_sdf(back=False):
     s = 1.0 if back else -1.0               # which way the bill points along y
     z0, slope = BAND[back]
     yr = s * 0.3
     zr = z0 + slope * yr                    # where the bill leaves the band
     tilt = 0.12 if back else -0.2           # bill pitch as it reaches out
-
-    def crown(P):
-        d = kit.sd_ellipsoid(P, CENTRE, RADII)
-        return kit.smax(d, (z0 + slope * P[:, 1]) - P[:, 2], 0.016)
+    crown = crown_sdf(back)
 
     def bill(P):
         reach = s * P[:, 1] - 0.3
@@ -57,11 +64,14 @@ def cap(M, back=False):
     top = CENTRE[2] + RADII[2]
     lib.sphere("Button", 0.022, (0, CENTRE[1], top - 0.004), M["cap"], scale=(1, 1, 0.55),
                u=14, v=8)
-    # Snapback strap on the side opposite the bill.
+    # Snapback strap on the side opposite the bill, sitting on the dome just above the band.
     z0, slope = BAND[back]
-    yb = -s * 0.315
-    lib.rbox("Strap", (0.085, 0.014, 0.022), (0, yb, z0 + slope * yb + 0.022), M["strap"],
-             r=0.006, seg=2, rot=(-s * 0.35, 0, 0))
+    crown = crown_sdf(back)
+    zs = z0 + slope * (-s * 0.3) + 0.026
+    p = kit.surface_point(crown, (0, -s, 0), centre=(0, CENTRE[1], zs))
+    n = kit.sdf_normal(crown, p)
+    strap = lib.rbox("Strap", (0.085, 0.012, 0.022), (0, 0, 0), M["strap"], r=0.005, seg=2)
+    kit.place(strap, p + n * 0.002, kit.frame_from(n))
 
 
 def materials():

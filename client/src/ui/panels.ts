@@ -1,25 +1,23 @@
-// Chunky pop-in panels: Employee, Hire, Personnel Files (archive), Roster, Help.
+// Chunky pop-in panels: Employee, Hire, Personnel Files (archive), Roster, Help, plus the
+// Ask, Team stats and Interns panels from their own modules. One panel at a time.
 import type { Employee, PastSession, ProjectInfo } from '../../../shared/protocol';
 import type { Backend, RosterStore } from '../net';
 import { PALETTE } from '../style/palette';
-import { STATE_COLOR, ago, append, clear, copyText, doingText, duration, h, money, stateChip, tildify, truncate } from './dom';
+import { answerPanel } from './answerPanel';
+import { STATE_COLOR, ago, append, clear, copyText, doingText, duration, h, money, stateChip, tildify, truncate, waitingLines } from './dom';
+import { internsPanel } from './internsPanel';
 import type { Sfx } from './sfx';
+import { shell, type Panel, type PanelId } from './shell';
+import { statsPanel } from './statsPanel';
 import type { Toasts } from './toasts';
 
-export type PanelId = 'employee' | 'hire' | 'archive' | 'roster' | 'help';
-
-interface Panel {
-  id: PanelId;
-  el: HTMLElement;
-  /** Focus something sensible when opened. */
-  focus?: HTMLElement;
-  dispose?(): void;
-}
+export type { PanelId } from './shell';
 
 type ActionMode = 'idle' | 'message' | 'confirm';
 
 interface ActionHandlers {
   sit(): void;
+  answer(): void;
   setMode(m: ActionMode): void;
   send(text: string): Promise<void>;
   fire(): Promise<void>;
@@ -30,6 +28,8 @@ export interface PanelActions {
   walkTo(sessionId: string): void;
   /** Sit at their computer (hosted only). */
   sitAt(sessionId: string): void;
+  /** An ask was answered in-game (so they can lower their hand right away). */
+  answered(sessionId: string, choice: string): void;
 }
 
 export interface PanelDeps {
@@ -40,16 +40,7 @@ export interface PanelDeps {
   actions: PanelActions;
 }
 
-function shell(title: string, color: string, body: HTMLElement[], onClose: () => void, extraHead: HTMLElement[] = [], cls = ''): HTMLElement {
-  const close = h('button', { class: 'panel-x', type: 'button', title: 'Close (Esc)', 'aria-label': 'Close' }, '×');
-  close.addEventListener('click', onClose);
-  return h(
-    'section',
-    { class: `panel ${cls}`, style: `--head:${color}`, role: 'dialog', 'aria-label': title },
-    h('header', { class: 'panel-head' }, h('h2', null, title), ...extraHead, close),
-    h('div', { class: 'panel-body' }, ...body),
-  );
-}
+type SimplePanel = Exclude<PanelId, 'employee' | 'ask'>;
 
 export class PanelHost {
   private layer: HTMLElement;
@@ -90,22 +81,41 @@ export class PanelHost {
     this.onChange?.(false);
   }
 
-  toggle(id: Exclude<PanelId, 'employee'>): void {
+  toggle(id: SimplePanel): void {
     if (this.current?.id === id) this.close();
     else this.open(id);
   }
 
-  open(id: Exclude<PanelId, 'employee'>): void {
-    const make = { hire: () => this.hire(), archive: () => this.archive(), roster: () => this.roster(), help: () => this.help() }[id];
-    this.show(make());
+  open(id: SimplePanel): void {
+    const close = () => this.close();
+    const { store } = this.deps;
+    const make: Record<SimplePanel, () => Panel> = {
+      hire: () => this.hire(),
+      archive: () => this.archive(),
+      roster: () => this.roster(),
+      help: () => this.help(),
+      stats: () => statsPanel(store, close),
+      interns: () => internsPanel(store, close, (id2) => this.deps.actions.walkTo(id2)),
+    };
+    this.present(make[id]());
   }
 
   openEmployee(sessionId: string): void {
-    this.show(this.employee(sessionId));
+    this.present(this.employee(sessionId));
     this.employeeId = sessionId;
   }
 
-  private show(p: Panel): void {
+  /** The Ask panel for someone's open question (falls back to their employee panel). */
+  openAsk(sessionId: string): void {
+    if (!this.deps.store.get(sessionId)?.ask) {
+      this.openEmployee(sessionId);
+      return;
+    }
+    this.present(answerPanel(sessionId, this.deps, () => this.close()));
+    this.employeeId = sessionId;
+  }
+
+  present(p: Panel): void {
     if (this.current) {
       const old = this.current;
       this.current = null;
@@ -136,6 +146,7 @@ export class PanelHost {
 
     const handlers: ActionHandlers = {
       sit: () => actions.sitAt(sessionId),
+      answer: () => this.openAsk(sessionId),
       setMode: (m) => {
         mode = m;
         renderActions();
@@ -161,10 +172,11 @@ export class PanelHost {
       },
     };
 
+    const actionsKey = (e: Employee) => `${e.hosted}|${e.state === 'needs-you'}|${e.ask?.id ?? ''}`;
     const renderActions = () => {
       const e = store.get(sessionId);
       clear(actionsEl);
-      shownFor = e ? `${e.hosted}` : '';
+      shownFor = e ? actionsKey(e) : '';
       if (e) actionsEl.append(this.employeeActions(e, mode, handlers));
     };
 
@@ -193,7 +205,9 @@ export class PanelHost {
           e.model ? h('span', { class: 'tagpill t-model' }, e.model.replace(/^claude-/, '')) : null,
           e.hosted ? h('span', { class: 'tagpill t-hosted' }, 'hired here') : null,
         ),
-        h('div', { class: `emp-now now-${e.state}` }, h('small', null, 'Now'), doingText(e)),
+        e.state === 'needs-you'
+          ? h('div', { class: 'emp-now now-needs-you' }, h('small', null, 'Needs you'), e.ask?.title ?? waitingLines(e)[1], h('em', null, ` “${waitingLines(e)[0]}”`))
+          : h('div', { class: `emp-now now-${e.state}` }, h('small', null, 'Now'), doingText(e)),
         h(
           'div',
           { class: 'emp-stats' },
@@ -213,7 +227,7 @@ export class PanelHost {
           : null,
       ]);
       // Actions only re-render when they have to, so a half-typed message survives roster pushes.
-      if (shownFor !== `${e.hosted}`) renderActions();
+      if (shownFor !== actionsKey(e)) renderActions();
     };
 
     renderInfo();
@@ -223,7 +237,10 @@ export class PanelHost {
       .then((lines) => {
         clear(chatter);
         if (!lines.length) chatter.append(h('p', { class: 'muted' }, 'Nothing said yet.'));
-        for (const l of lines.slice(-12)) chatter.append(h('div', { class: `chat chat-${l.role}` }, h('small', null, l.role === 'user' ? 'You' : 'Them'), truncate(l.text, 400)));
+        for (const l of lines.slice(-14)) {
+          if (l.role === 'tool') chatter.append(h('div', { class: 'chat-step' }, '· ', truncate(l.text, 80)));
+          else chatter.append(h('div', { class: `chat chat-${l.role}` }, h('small', null, l.role === 'user' ? 'You' : 'Them'), truncate(l.text, 400)));
+        }
         chatter.scrollTop = chatter.scrollHeight;
       })
       .catch((err: Error) => {
@@ -234,6 +251,9 @@ export class PanelHost {
   }
 
   private employeeActions(e: Employee, mode: ActionMode, H: ActionHandlers): HTMLElement {
+    const needs = e.state === 'needs-you';
+    // An open question can be answered right here, whoever started the session.
+    const answer = e.ask ? h('button', { class: 'btn btn-orange btn-big', type: 'button', onclick: () => H.answer() }, 'Answer', h('kbd', null, 'E')) : null;
     if (!e.hosted) {
       const cmd = `claude --resume ${e.sessionId}`;
       const copy = h('button', { class: 'btn btn-small btn-plain', type: 'button' }, 'Copy');
@@ -243,9 +263,14 @@ export class PanelHost {
       });
       return h(
         'div',
-        { class: 'emp-external' },
-        h('p', null, `Started in your own terminal (pid ${e.pid}). Talk to them there.`),
-        h('div', { class: 'cmd' }, h('code', null, cmd), copy),
+        null,
+        answer ? h('div', { class: 'emp-actions' }, answer) : null,
+        h(
+          'div',
+          { class: 'emp-external' },
+          h('p', null, needs && !e.ask ? `They're in your own terminal (pid ${e.pid}). Answer them there.` : `Started in your own terminal (pid ${e.pid}). Talk to them there.`),
+          h('div', { class: 'cmd' }, h('code', null, cmd), copy),
+        ),
       );
     }
     if (mode === 'message') {
@@ -279,12 +304,15 @@ export class PanelHost {
         ),
       );
     }
+    // While they have a question open, Enter would pick the dialog's default answer, so no
+    // quick messages: answer in-game, or sit down at their computer.
+    const sit = h('button', { class: `btn ${answer ? 'btn-plain' : 'btn-orange btn-big'}`, type: 'button', onclick: () => H.sit() }, needs && !answer ? 'Sit down and answer' : 'Sit at their computer', answer ? null : h('kbd', null, 'E'));
+    const msg = h('button', { class: 'btn btn-blue', type: 'button', disabled: needs, title: needs ? 'Answer them first: sit down at their computer.' : '', onclick: () => H.setMode('message') }, 'Quick message');
     return h(
       'div',
-      { class: 'emp-actions' },
-      h('button', { class: 'btn btn-orange btn-big', type: 'button', onclick: () => H.sit() }, 'Sit at their computer'),
-      h('button', { class: 'btn btn-blue', type: 'button', onclick: () => H.setMode('message') }, 'Quick message'),
-      h('button', { class: 'btn btn-red-soft', type: 'button', onclick: () => H.setMode('confirm') }, 'Let go'),
+      null,
+      h('div', { class: 'emp-actions' }, answer, sit, msg, h('button', { class: 'btn btn-red-soft', type: 'button', onclick: () => H.setMode('confirm') }, 'Let go')),
+      needs ? h('p', { class: 'muted small' }, answer ? 'Or sit down at their computer to answer in the real terminal.' : 'Answer them first: sit down at their computer.') : null,
     );
   }
 
@@ -448,9 +476,13 @@ export class PanelHost {
           h('span', { class: 'who' }, h('b', null, e.displayName), h('small', null, e.project)),
           h('span', { class: 'what' }, truncate(doingText(e), 42)),
           e.interns.some((i) => i.active) ? h('span', { class: 'mini-chip' }, `+${e.interns.filter((i) => i.active).length}`) : null,
-          h('span', { class: 'go' }, 'Walk over →'),
+          e.ask ? h('span', { class: 'btn btn-small btn-orange roster-answer' }, 'Answer') : h('span', { class: 'go' }, 'Go to →'),
         );
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (ev) => {
+          if (e.ask && (ev.target as HTMLElement).closest('.roster-answer')) {
+            this.openAsk(e.sessionId);
+            return;
+          }
           this.close();
           actions.walkTo(e.sessionId);
         });
@@ -472,17 +504,19 @@ export class PanelHost {
       ['Shift', 'Run'],
       ['Space', 'Jump'],
       ['Drag / wheel', 'Orbit / zoom the camera'],
-      ['E', 'Talk to someone, use reception, the files, the whiteboard, the coffee'],
-      ['Tab', 'Roster'],
+      ['V', 'First / third person (click to look around in first person)'],
+      ['E', 'Talk to someone, answer them, use reception, the files, the boards, the coffee'],
+      ['Q', 'Go to whoever has needed you longest'],
+      ['R', 'Roster'],
       ['H', 'Hire someone'],
       ['M', 'Mute'],
-      ['Ctrl + ]', 'Stand up from a terminal'],
+      ['Ctrl + ]', 'Stand up from their computer'],
     ];
     const states: [keyof typeof STATE_COLOR, string][] = [
       ['working', 'Busy: typing, reading, running things, thinking'],
       ['needs-you', 'Hand up! Waiting on a permission or an answer'],
-      ['idle', 'Finished their turn, leaning back'],
-      ['sleeping', 'Idle for 15+ minutes. Shh.'],
+      ['idle', 'Free: finished their turn, leaning back'],
+      ['sleeping', 'Free for 15+ minutes. Shh.'],
     ];
     const el = shell(
       'How to manage',

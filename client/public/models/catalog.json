@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-02T01:25:30.210Z",
+  "generated": "2026-10-02T01:57:44.695Z",
   "totals": {
     "all": 232,
     "done": 232
@@ -11346,9 +11346,9 @@
       "file": "models/char_hand_mitten.glb",
       "thumb": "models/thumbs/char_hand_mitten.jpg",
       "dims": {
-        "w": 0.157,
+        "w": 0.158,
         "h": 0.191,
-        "d": 0.15
+        "d": 0.161
       },
       "bbox": {
         "min": [
@@ -11359,7 +11359,7 @@
         "max": [
           0.079,
           0.061,
-          0.079
+          0.09
         ]
       },
       "tris": 900,
@@ -11369,8 +11369,8 @@
       "nodes": [
         "char_hand_mitten"
       ],
-      "textures": 1,
-      "bytes": 29120
+      "textures": 0,
+      "bytes": 17344
     },
     {
       "id": "char_head",
@@ -11430,7 +11430,7 @@
           0.27
         ]
       },
-      "tris": 2304,
+      "tris": 2080,
       "materials": [
         "Skin",
         "Cheek"
@@ -11439,7 +11439,7 @@
         "char_head"
       ],
       "textures": 0,
-      "bytes": 44012
+      "bytes": 39980
     },
     {
       "id": "char_mouth_flat",
@@ -11865,7 +11865,7 @@
           0.224
         ]
       },
-      "tris": 2364,
+      "tris": 2184,
       "materials": [
         "Shirt",
         "Cord",
@@ -11878,7 +11878,7 @@
         "Chest"
       ],
       "textures": 0,
-      "bytes": 52772
+      "bytes": 49528
     },
     {
       "id": "char_torso_shirt_tie",
@@ -12126,7 +12126,7 @@
         "hair_afro"
       ],
       "textures": 1,
-      "bytes": 75724
+      "bytes": 75752
     },
     {
       "id": "hair_bob",
@@ -12178,7 +12178,7 @@
         "hair_bob"
       ],
       "textures": 1,
-      "bytes": 67104
+      "bytes": 67132
     },
     {
       "id": "hair_curly",
@@ -12231,7 +12231,7 @@
         "hair_curly"
       ],
       "textures": 1,
-      "bytes": 93012
+      "bytes": 93040
     },
     {
       "id": "hair_side_part",
@@ -12285,7 +12285,7 @@
         "hair_side_part"
       ],
       "textures": 1,
-      "bytes": 67024
+      "bytes": 67052
     },
     {
       "id": "hair_slick",
@@ -12339,7 +12339,7 @@
         "hair_slick"
       ],
       "textures": 1,
-      "bytes": 76220
+      "bytes": 76248
     },
     {
       "id": "hair_tuft",
@@ -12399,7 +12399,7 @@
         "Tuft"
       ],
       "textures": 1,
-      "bytes": 53340
+      "bytes": 53368
     },
     {
       "id": "hat_beanie",
@@ -12466,7 +12466,7 @@
         "Pom"
       ],
       "textures": 1,
-      "bytes": 88648
+      "bytes": 88676
     },
     {
       "id": "hat_cap",
@@ -12501,13 +12501,13 @@
       "dims": {
         "w": 0.626,
         "h": 0.344,
-        "d": 0.82
+        "d": 0.829
       },
       "bbox": {
         "min": [
           -0.313,
           -0.001,
-          -0.33
+          -0.338
         ],
         "max": [
           0.313,
@@ -12524,7 +12524,7 @@
         "hat_cap"
       ],
       "textures": 1,
-      "bytes": 74248
+      "bytes": 74148
     },
     {
       "id": "hat_cap_backwards",
@@ -12560,7 +12560,7 @@
       "dims": {
         "w": 0.617,
         "h": 0.325,
-        "d": 0.813
+        "d": 0.777
       },
       "bbox": {
         "min": [
@@ -12571,7 +12571,7 @@
         "max": [
           0.308,
           0.343,
-          0.323
+          0.287
         ]
       },
       "tris": 1983,
@@ -12583,7 +12583,7 @@
         "hat_cap_backwards"
       ],
       "textures": 1,
-      "bytes": 76716
+      "bytes": 77164
     },
     {
       "id": "headphones",
@@ -12624,7 +12624,7 @@
       "thumb": "models/thumbs/headphones.jpg",
       "dims": {
         "w": 0.712,
-        "h": 0.454,
+        "h": 0.453,
         "d": 0.176
       },
       "bbox": {
@@ -12639,7 +12639,7 @@
           0.078
         ]
       },
-      "tris": 2380,
+      "tris": 2124,
       "materials": [
         "Accent",
         "Cushion",
@@ -12649,7 +12649,7 @@
         "headphones"
       ],
       "textures": 1,
-      "bytes": 105640
+      "bytes": 95744
     },
     {
       "id": "headset_mic",
@@ -12711,7 +12711,7 @@
         "headset_mic"
       ],
       "textures": 1,
-      "bytes": 73588
+      "bytes": 73616
     },
     {
       "id": "held_box",
@@ -12790,7 +12790,7 @@
         "held_box"
       ],
       "textures": 1,
-      "bytes": 114104
+      "bytes": 114264
     },
     {
       "id": "held_clipboard",
@@ -12799,7 +12799,7 @@
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "Wooden clipboard with a checklist and a pen; held by its bottom edge",
+      "description": "Wooden clipboard with a checklist and a pen; held by its bottom edge; pivot at the rig's handGrip",
       "tags": [
         "held",
         "clipboard",
@@ -12855,7 +12855,7 @@
         "held_clipboard"
       ],
       "textures": 1,
-      "bytes": 91124
+      "bytes": 91152
     },
     {
       "id": "held_laptop",
@@ -12937,7 +12937,7 @@
         "held_laptop"
       ],
       "textures": 1,
-      "bytes": 121644
+      "bytes": 121672
     },
     {
       "id": "held_mug_manager",
@@ -12946,7 +12946,7 @@
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "The WORLD'S OKAYEST MANAGER mug, gripped by its handle; pivot at the hand",
+      "description": "The WORLD'S OKAYEST MANAGER mug, gripped by its handle; pivot at the rig's handGrip",
       "tags": [
         "held",
         "manager",
@@ -13008,7 +13008,7 @@
         "held_mug_manager"
       ],
       "textures": 1,
-      "bytes": 116988
+      "bytes": 115596
     },
     {
       "id": "held_phone",
@@ -13017,7 +13017,7 @@
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "Chunky smartphone in a bright case; Screen faces the holder",
+      "description": "Chunky smartphone in a bright case; Screen faces the holder; pivot at the rig's handGrip",
       "tags": [
         "held",
         "phone",
@@ -13070,7 +13070,7 @@
         "held_phone"
       ],
       "textures": 1,
-      "bytes": 59844
+      "bytes": 59872
     },
     {
       "id": "preset_employee_a",
@@ -13090,8 +13090,7 @@
         "Shirt",
         "Pants",
         "Shoes",
-        "Hair",
-        "Accent"
+        "Hair"
       ],
       "anchors": {
         "headTop": [
@@ -13104,14 +13103,14 @@
       "file": "models/preset_employee_a.glb",
       "thumb": "models/thumbs/preset_employee_a.jpg",
       "dims": {
-        "w": 0.76,
-        "h": 1.287,
+        "w": 0.761,
+        "h": 1.295,
         "d": 0.642
       },
       "bbox": {
         "min": [
-          -0.393,
-          0.001,
+          -0.394,
+          -0.007,
           -0.317
         ],
         "max": [
@@ -13120,7 +13119,7 @@
           0.324
         ]
       },
-      "tris": 14826,
+      "tris": 14896,
       "materials": [
         "Skin",
         "Cheek@char_head",
@@ -13156,7 +13155,7 @@
         "preset_employee_a"
       ],
       "textures": 1,
-      "bytes": 586804
+      "bytes": 602388
     },
     {
       "id": "preset_employee_b",
@@ -13176,8 +13175,7 @@
         "Shirt",
         "Pants",
         "Shoes",
-        "Hair",
-        "Accent"
+        "Hair"
       ],
       "anchors": {
         "headTop": [
@@ -13190,14 +13188,14 @@
       "file": "models/preset_employee_b.glb",
       "thumb": "models/thumbs/preset_employee_b.jpg",
       "dims": {
-        "w": 0.749,
-        "h": 1.33,
+        "w": 0.75,
+        "h": 1.338,
         "d": 0.597
       },
       "bbox": {
         "min": [
-          -0.393,
-          0.001,
+          -0.394,
+          -0.007,
           -0.306
         ],
         "max": [
@@ -13206,7 +13204,7 @@
           0.291
         ]
       },
-      "tris": 14685,
+      "tris": 14627,
       "materials": [
         "Skin",
         "Cheek@char_head",
@@ -13245,7 +13243,7 @@
         "preset_employee_b"
       ],
       "textures": 1,
-      "bytes": 572480
+      "bytes": 589660
     },
     {
       "id": "preset_intern",
@@ -13265,8 +13263,7 @@
         "Shirt",
         "Pants",
         "Shoes",
-        "Hair",
-        "Accent"
+        "Hair"
       ],
       "anchors": {
         "headTop": [
@@ -13279,23 +13276,23 @@
       "file": "models/preset_intern.glb",
       "thumb": "models/thumbs/preset_intern.jpg",
       "dims": {
-        "w": 0.453,
-        "h": 0.918,
+        "w": 0.454,
+        "h": 0.924,
         "d": 0.647
       },
       "bbox": {
         "min": [
-          -0.226,
-          0.001,
+          -0.227,
+          -0.005,
           -0.343
         ],
         "max": [
-          0.226,
+          0.227,
           0.919,
           0.303
         ]
       },
-      "tris": 13825,
+      "tris": 13895,
       "materials": [
         "Skin",
         "Cheek@char_head",
@@ -13330,7 +13327,7 @@
         "preset_intern"
       ],
       "textures": 1,
-      "bytes": 560220
+      "bytes": 578340
     },
     {
       "id": "preset_manager",
@@ -13350,8 +13347,7 @@
         "Shirt",
         "Pants",
         "Shoes",
-        "Hair",
-        "Accent"
+        "Hair"
       ],
       "anchors": {
         "headTop": [
@@ -13365,13 +13361,13 @@
       "thumb": "models/thumbs/preset_manager.jpg",
       "dims": {
         "w": 0.766,
-        "h": 1.388,
+        "h": 1.396,
         "d": 0.765
       },
       "bbox": {
         "min": [
           -0.341,
-          0.001,
+          -0.007,
           -0.333
         ],
         "max": [
@@ -13380,7 +13376,7 @@
           0.432
         ]
       },
-      "tris": 14415,
+      "tris": 14486,
       "materials": [
         "Skin",
         "Cheek@char_head",
@@ -13413,7 +13409,7 @@
         "preset_manager"
       ],
       "textures": 1,
-      "bytes": 555756
+      "bytes": 574420
     },
     {
       "id": "char_shoe_boot",
@@ -13755,22 +13751,22 @@
       "thumb": "models/thumbs/legs_skirt.jpg",
       "dims": {
         "w": 0.7,
-        "h": 0.284,
+        "h": 0.285,
         "d": 0.644
       },
       "bbox": {
         "min": [
           -0.35,
-          -0.238,
+          -0.237,
           -0.322
         ],
         "max": [
           0.35,
-          0.046,
+          0.047,
           0.322
         ]
       },
-      "tris": 2896,
+      "tris": 1584,
       "materials": [
         "Pants"
       ],
@@ -13778,7 +13774,7 @@
         "legs_skirt"
       ],
       "textures": 1,
-      "bytes": 95184
+      "bytes": 59904
     }
   ]
 }

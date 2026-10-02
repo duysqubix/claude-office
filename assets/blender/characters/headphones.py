@@ -42,11 +42,11 @@ def build():
         x = s * CUP_X
         rot = (0, math.pi / 2, 0)
         lib.cyl(f"Cup{s}", 0.088, 0.064, (x + s * 0.006, 0.01, CUP_Z), M["shell"], r=0.024,
-                seg=2, verts=22, rot=rot)
+                seg=2, verts=18, rot=rot)
         lib.cyl(f"Plate{s}", 0.062, 0.012, (x + s * 0.04, 0.01, CUP_Z), M["plate"], r=0.005,
-                seg=1, verts=20, rot=rot)
+                seg=1, verts=16, rot=rot)
         lib.cyl(f"Cushion{s}", 0.078, 0.032, (x - s * 0.032, 0.01, CUP_Z), M["pad"], r=0.014,
-                seg=2, verts=20, rot=rot)
+                seg=2, verts=16, rot=rot)
         # Slider from the band's end down into the top of the cup.
         top = band_pts(s * 72, s * 72, 0, *BAND_R)[0]
         kit.tube(f"Slider{s}", [top, Vector((x + s * 0.006, 0.01, CUP_Z + 0.08))], 0.013,

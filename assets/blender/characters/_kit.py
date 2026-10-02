@@ -1,14 +1,20 @@
-"""Claude Rodin's character kit helpers, on top of lib.py.
+"""Claude Rodin's character kit helpers, on top of lib.py (Monet and Lorrain build on it too:
+keep it backward compatible).
 
-- Rig dimensions: client/src/chars/rig-dimensions.json when it exists, else rig.ts DIM.
+- Rig dimensions: client/src/chars/rig-dimensions.json (head shape and size, face points,
+  limb lengths and radii, mitten, foot, torso profile and chest joint, attach points),
+  falling back to rig.ts DIM. HEAD may be a sphere or a rounded box; everything that sits
+  on the head (face parts, hair, hats) finds the surface with head_sdf / head_front.
 - Materials with the tintable names (`Skin`, `Shirt`, `Pants`, `Shoes`, `Hair`, `Accent`) in
   representative palette colours; the game recolours them by name.
-- SDF sculpting: organic parts (hair, hands, shoes, pets) are signed-distance fields built
-  from smooth-unioned ellipsoids, round cones and boxes, meshed with OpenVDB and decimated
-  to budget. That is what makes hair read as chunky sculpted blobs instead of stuck-on balls.
-- Head-surface placement: face coords (x = character-left, y = up) like rig.ts `onHead`.
+- SDF sculpting: organic parts (hair, mitten, shoes, hood) are signed-distance fields built
+  from smooth-unioned ellipsoids, round cones and boxes, cut along angular hairlines,
+  grooved, meshed with OpenVDB and decimated to budget (sdf_mesh).
+- Tubes, closed rings, decal patches on the face, lathes with seamless analytic normals
+  (see _body.py for the torso, limbs and shoes).
 - Preview mannequin: worn items are shown on a neutral bust; finalize() bakes AO with the
-  mannequin as occluder (hair gets contact shading where it meets the scalp).
+  bust as occluder (before the face is added), exports at the pivot, renders the catalog
+  preview and writes the sidecar (artist Claude Rodin by default).
 
 Conventions: Blender metres, Z-up, front faces -Y, character-left is +X (three.js +X).
 Three.js (x, y, z) == Blender (x, -z, y).
@@ -927,7 +933,7 @@ def cheeks(prefix, material, at=Vector((0, 0, 0)), scale=1.0):
     crx, cry, crz = FACE["cheeks"]["radii"]
     for s in (1, -1):
         loc, fr = on_head(s * cx, cy, -0.004)
-        ob = dome(f"{prefix}Cheek{'L' if s > 0 else 'R'}", material, u=20, v=10, keep=0.3)
+        ob = dome(f"{prefix}Cheek{'L' if s > 0 else 'R'}", material, u=16, v=8, keep=0.3)
         ob.scale = (crx * scale, crz * scale, cry * scale)
         place(ob, at + loc, fr)
         out.append(ob)

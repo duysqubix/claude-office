@@ -341,8 +341,11 @@ def mitten_sdf(P, side=1):
                                      (rx, rz * 0.96, ry * 0.62)), 0.03)
     t = h["thumb"]
     tc = c + kit.bl(*t["at"])
-    d = kit.smin(d, kit.sd_round_cone(P, tuple(c + Vector((0, -0.015, -0.0))),
-                                      tuple(tc), t["r"] * 1.05, t["r"]), 0.022)
+    # The thumb: the rig's sphere at thumb.at, pushed a touch further out along its own
+    # direction and blended tightly so it reads as a thumb rather than melting away.
+    tip = tc + (tc - c).normalized() * 0.014 + Vector((0, 0, 0.008))
+    d = kit.smin(d, kit.sd_round_cone(P, tuple(c + Vector((0, -0.02, -0.004))), tuple(tip),
+                                      t["r"] * 1.08, t["r"] * 0.98), 0.01)
     # A soft wrist so it reads as a mitten, not a ball.
     d = kit.smin(d, kit.sd_round_cone(P, (0, 0, 0.02), tuple(c), 0.05, 0.06), 0.03)
     return d

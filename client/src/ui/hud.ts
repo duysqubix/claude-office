@@ -1,11 +1,15 @@
 // HUD: company badge, clock and stat chips (top-left), buttons (top-right), the
 // interaction prompt (bottom centre) and the "server offline" banner.
+import type { TeamStats } from '../../../shared/protocol';
 import type { OfficeStats } from '../world/types';
-import { h } from './dom';
+import { duration, h } from './dom';
+import { usageLevel } from './statsPanel';
 
 export interface HudHandlers {
   /** Clicked the "need you" chip. */
   needsYou(): void;
+  /** Clicked the plan-usage chip. */
+  stats(): void;
   roster(): void;
   hire(): void;
   mute(): void;
@@ -26,6 +30,8 @@ export class Hud {
   private offlineSince = 0;
   private backTimer = 0;
   private demoTag: HTMLElement;
+  private usage: HTMLElement;
+  private usageN: HTMLElement;
 
   constructor(root: HTMLElement, on: HudHandlers) {
     const chip = (cls: string, label: string) => {
@@ -38,6 +44,9 @@ export class Hud {
     const [needEl, needN] = chip('c-needs', 'need you');
     const [internEl, internN] = chip('c-interns', 'interns');
     this.chips = { staff: staffN, working: workN, needsYou: needN, interns: internN };
+    this.usageN = h('b', null, '');
+    this.usage = h('span', { class: 'hud-chip c-usage', hidden: true, role: 'button', tabindex: 0 }, h('i'), h('span', null, '5h'), this.usageN);
+    this.usage.addEventListener('click', () => on.stats());
     this.needsChip = needEl;
     needEl.title = 'Walk over to whoever needs you';
     needEl.addEventListener('click', () => on.needsYou());
@@ -49,7 +58,7 @@ export class Hud {
       h('div', { class: 'hud-logo' }, h('i'), h('i'), h('b')),
       h('div', { class: 'hud-title' }, h('strong', null, 'Claude Office'), h('span', null, this.clock, this.demoTag)),
     );
-    const left = h('div', { class: 'hud-left' }, badge, h('div', { class: 'hud-chips' }, staffEl, workEl, needEl, internEl));
+    const left = h('div', { class: 'hud-left' }, badge, h('div', { class: 'hud-chips' }, needEl, staffEl, workEl, internEl, this.usage));
 
     const btn = (label: string, key: string, fn: () => void, cls = '') => {
       const b = h('button', { class: `btn btn-hud ${cls}`, type: 'button', title: `${label} (${key})` }, label, h('kbd', null, key));
@@ -60,7 +69,7 @@ export class Hud {
       return b;
     };
     this.muteBtn = btn('Mute', 'M', on.mute, 'btn-mute');
-    const right = h('div', { class: 'hud-right' }, btn('Roster', 'Tab', on.roster, 'btn-blue'), btn('Hire', 'H', on.hire, 'btn-orange'), this.muteBtn, btn('Help', '?', on.help, 'btn-plain'));
+    const right = h('div', { class: 'hud-right' }, btn('Roster', 'R', on.roster, 'btn-blue'), btn('Hire', 'H', on.hire, 'btn-orange'), this.muteBtn, btn('Help', '?', on.help, 'btn-plain'));
 
     this.promptText = h('span');
     this.prompt = h('div', { class: 'hud-prompt', hidden: true }, h('kbd', null, 'E'), this.promptText);
@@ -80,6 +89,22 @@ export class Hud {
     this.chips.needsYou.textContent = String(s.needsYou);
     this.chips.interns.textContent = String(s.interns);
     this.needsChip.classList.toggle('hot', s.needsYou > 0);
+  }
+
+  /** The 5-hour plan limit at a glance (amber from 60 %, red from 85 %); weekly in the tooltip. */
+  setUsage(stats: TeamStats, serverNow: number): void {
+    const limits = stats.plan.limits;
+    const five = limits.find((l) => l.id === 'five_hour') ?? limits[0];
+    if (!five) {
+      this.usage.hidden = true;
+      return;
+    }
+    this.usage.hidden = false;
+    this.usageN.textContent = `${Math.round(five.usedPct)}%`;
+    this.usage.dataset.level = usageLevel(five.usedPct);
+    this.usage.title = limits
+      .map((l) => `${l.label}: ${Math.round(l.usedPct)}%${l.resetsAt ? ` · resets in ${duration(l.resetsAt - serverNow)}` : ''}`)
+      .join('\n');
   }
 
   setMuted(m: boolean): void {

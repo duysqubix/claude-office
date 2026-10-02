@@ -15,7 +15,7 @@ PW, PT, PH = 0.078, 0.013, 0.152
 LEAN = math.radians(14)
 META = dict(
     name="Phone (held)", category="character-held", priority="P0",
-    description="Chunky smartphone in a bright case; Screen faces the holder",
+    description="Chunky smartphone in a bright case; Screen faces the holder; pivot at the rig's handGrip",
     tags=["held", "phone", "screen"], tintable=["Accent"],
     anchors_bl={"handGrip": (0, 0, 0), "handCentre": tuple(kit.hand_from_grip())},
 )

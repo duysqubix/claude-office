@@ -32,7 +32,7 @@ def radius(y):
 def build():
     lib.begin(NAME)
     M = B.materials(pants="#B983FF")
-    n, rows = PLEATS * 4, 9
+    n, rows = PLEATS * 3, 6
     bm = bmesh.new()
     rings = []
     for k in range(rows + 1):
@@ -60,8 +60,8 @@ def build():
     mod.offset = -1.0
     r = radius(TOP)
     pts = [Vector((r * math.cos(a), 0.92 * r * math.sin(a), TOP)) for a in
-           np.linspace(0, 2 * math.pi, 28, endpoint=False)]
-    kit.ring_tube("Waistband", pts, 0.013, M["pants"], ring=6)
+           np.linspace(0, 2 * math.pi, 24, endpoint=False)]
+    kit.ring_tube("Waistband", pts, 0.013, M["pants"], ring=5)
 
 
 def finalize(name):
