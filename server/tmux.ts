@@ -115,6 +115,9 @@ async function newSession(tmuxName: string, cwd: string, claudeArgs: string[], m
   // Ctrl+B to send a running command to the background.
   await tmux(['set-option', '-t', `=${tmuxName}:`, 'prefix', 'None']);
   await tmux(['set-option', '-t', `=${tmuxName}:`, 'prefix2', 'None']);
+  // Mouse mode: the wheel scrolls back through Claude's output (tmux copy mode, which exits
+  // by itself at the bottom) instead of reaching Claude as arrow keys.
+  await tmux(['set-option', '-t', `=${tmuxName}:`, 'mouse', 'on']);
 }
 
 export function newSessionId(): string {

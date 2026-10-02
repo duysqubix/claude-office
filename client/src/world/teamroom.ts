@@ -32,9 +32,9 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   const b = ctx.statics;
 
   // Rug in bold flat shapes: teal border, cream field, coral oval under the table.
-  b.slab(4.3, 4.7, 0.022, 0.6, '#3FB8AF', { at: [rx, 0.011, tableZ - 0.3], cast: false, finish: 'matte' });
-  b.slab(3.9, 4.3, 0.026, 0.45, '#FFF1DC', { at: [rx, 0.013, tableZ - 0.3], cast: false, finish: 'matte' });
-  b.add(G.puck(1, 0.03, 0.012, 48), '#FF9A7A', { at: [rx, 0.015, tableZ - 0.1], scale: [1.25, 1, 2.1], cast: false, finish: 'matte' });
+  b.slab(4.3, 4.7, 0.022, 0.6, '#3FB8AF', { at: [rx, 0.011, tableZ - 0.3], cast: false, finish: 'matte', tex: 'carpet' });
+  b.slab(3.9, 4.3, 0.026, 0.45, '#FFF1DC', { at: [rx, 0.013, tableZ - 0.3], cast: false, finish: 'matte', tex: 'carpet' });
+  b.add(G.puck(1, 0.03, 0.012, 48), '#FF9A7A', { at: [rx, 0.015, tableZ - 0.1], scale: [1.25, 1, 2.1], cast: false, finish: 'matte', tex: 'carpet' });
 
   // ---- Wall screen ----------------------------------------------------------------------------
   const board = new TeamBoard();
@@ -289,7 +289,8 @@ export function buildStickyWall(b: Batch, d = D.stickyWall): void {
 /** Snake plant: upright striped leaves in a cream pot. */
 export function buildSnakePlant(b: Batch): void {
   b.cyl(0.15, 0.12, 0.3, '#F4ECDC', { at: [0, 0.15, 0], seg: 20, finish: 'plastic' });
-  b.puck(0.13, 0.02, PALETTE.coffee, { at: [0, 0.29, 0], cast: false });
+  // Soil top 2 mm above the pot's top cap (0.30): coplanar faces z-fought.
+  b.puck(0.13, 0.012, PALETTE.coffee, { at: [0, 0.296, 0], cast: false });
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2;
     const h = 0.45 + (i % 3) * 0.12;

@@ -1,5 +1,8 @@
 // Furniture and fittings: reception, manager's corner, break area, whiteboard, posters, clock,
-// plants and the lounge. Tall props get their own fade group; low ones go into the static batch.
+// plants, lounge bits. Every prop has one builder that works in its own local frame (pivot at
+// the floor contact point, front facing +Z, sizes from dimensions.json), so a catalog model can
+// later replace any builder's output one for one. Tall props get their own fade group; low
+// ones go into the static batch.
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
 import type { OfficeStats } from './types';
@@ -9,6 +12,7 @@ import { wallFacingYaw } from './building';
 import { OFFICE } from './layout';
 import D from './dimensions.json';
 import { sparkle } from './screens';
+import { couch } from './decor';
 
 const WALL_FACE = OFFICE.halfD; // |z| or |x| of the inside face of the walls
 /** The whiteboard hangs left of the Team Room. */
@@ -51,15 +55,6 @@ export function tallProp(ctx: WorldCtx, name: string, fill: (b: Batch) => void, 
   return g;
 }
 
-/** A plane with a canvas texture, hung on the inside of a wall and faded with its bay. */
-function wallPlane(ctx: WorldCtx, side: WallSide, u: number, y: number, w: number, h: number, tex: THREE.Texture, depth = 0.06): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75, metalness: 0 }));
-  placeOnWall(mesh, side, u, y, depth);
-  mesh.receiveShadow = true;
-  ctx.root.add(mesh);
-  return mesh;
-}
-
 /** Position an object against the inside face of a wall, `depth` metres into the room. */
 export function placeOnWall(obj: THREE.Object3D, side: WallSide, u: number, y: number, depth: number): void {
   const hw = OFFICE.halfW;
@@ -81,42 +76,34 @@ export function placeOnWall(obj: THREE.Object3D, side: WallSide, u: number, y: n
   obj.rotation.y = wallFacingYaw(side);
 }
 
+/** A slow wobble about the object's base: plants and trees breathe a little. */
+export function sway(ctx: WorldCtx, obj: THREE.Object3D, amp: number, phase: number): void {
+  const p = phase * Math.PI * 2;
+  const speed = 0.8 + phase * 0.5;
+  ctx.tickers.push((_dt, t) => {
+    obj.rotation.z = Math.sin(t * speed + p) * amp;
+    obj.rotation.x = Math.sin(t * speed * 0.77 + p * 1.3) * amp * 0.6;
+  });
+}
+
 // ---------------------------------------------------------------------------------------------
 // Reception (just inside the door, on the right)
 
+const RECEPTION_YAW = (-3 * Math.PI) / 4; // the visitor side faces the door and the boulevard
+
 function buildReception(ctx: WorldCtx): void {
-  const cx = 6.7;
-  const cz = 8.7;
-  const th0 = THREE.MathUtils.degToRad(165);
-  const th1 = THREE.MathUtils.degToRad(285);
-  const b = ctx.statics;
-  const counterH = 1.0;
-  b.add(arcSlab(1.0, 1.5, th0, th1, counterH - 0.06, 0.05), '#5CC8FF', { at: [cx, 0, cz] });
-  b.add(arcSlab(0.95, 1.6, th0 - 0.03, th1 + 0.03, 0.06, 0.03), PALETTE.deskTop, { at: [cx, counterH - 0.06, cz] });
-  // A stripe of the warm accent around the front.
-  b.add(arcSlab(1.49, 1.585, th0 + 0.03, th1 - 0.03, 0.1, 0.02), '#FFC94A', { at: [cx, 0.62, cz], cast: false });
-  b.add(arcSlab(1.49, 1.585, th0 + 0.03, th1 - 0.03, 0.05, 0.015), '#FFFDF7', { at: [cx, 0.12, cz], cast: false });
-  // Bell.
-  const bell = polar(cx, cz, 1.28, THREE.MathUtils.degToRad(222));
-  b.puck(0.08, 0.025, '#3B4252', { at: [bell.x, counterH + 0.012, bell.z] });
-  b.add(G.hemisphere(), '#FFD34E', { at: [bell.x, counterH + 0.025, bell.z], scale: [0.065, 0.06, 0.065], finish: 'gloss' });
-  b.ball(0.014, '#FFD34E', { at: [bell.x, counterH + 0.09, bell.z], finish: 'gloss' });
-  // Receptionist's monitor, facing into the arc.
-  const mon = polar(cx, cz, 1.2, THREE.MathUtils.degToRad(250));
-  b.box(0.5, 0.34, 0.05, PALETTE.monitorBezel, { at: [mon.x, counterH + 0.24, mon.z], rot: [0, -THREE.MathUtils.degToRad(250) - Math.PI / 2, 0], finish: 'gloss' });
-  b.box(0.05, 0.12, 0.04, PALETTE.monitorBezel, { at: [mon.x, counterH + 0.06, mon.z], finish: 'gloss' });
-  // A little pot of pens and a plant on the counter.
-  const pl = polar(cx, cz, 1.25, THREE.MathUtils.degToRad(180));
-  b.cyl(0.08, 0.065, 0.12, PALETTE.plantPot, { at: [pl.x, counterH + 0.06, pl.z] });
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    b.ball([0.05, 0.09, 0.05], i % 2 ? PALETTE.plantLeaf : shade(PALETTE.plantLeaf, 0.08), { at: [pl.x + Math.cos(a) * 0.04, counterH + 0.19, pl.z + Math.sin(a) * 0.04], rot: [Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5] });
-  }
+  const R = D.reception;
+  // Arc centre in the room; the builder's pivot is the middle of the counter's footprint.
+  const arcX = 6.7;
+  const arcZ = 8.7;
+  const mid = (R.innerR + R.outerR) / 2;
+  const px = arcX + Math.sin(RECEPTION_YAW) * mid;
+  const pz = arcZ + Math.cos(RECEPTION_YAW) * mid;
+  ctx.statics.place(px, 0, pz, RECEPTION_YAW, () => buildReceptionDesk(ctx.statics));
   ctx.colliders.push(aabb(5.1, 5.8, 7.75, 9.2), aabb(5.7, 7.2, 7.1, 7.8), aabb(5.3, 6.1, 7.3, 8.1));
   ctx.blobs.add(5.8, 8.1, 2.4, 2.4, { shape: 'round' });
 
   // The "NOW HIRING!" sign on two posts behind the counter, angled toward the door.
-  const yaw = Math.atan2(-0.8, 0.6);
   const sign = new CanvasTex(512, 256, (c, w, h) => {
     c.fillStyle = '#FFD23F';
     c.beginPath();
@@ -140,18 +127,13 @@ function buildReception(ctx: WorldCtx): void {
   });
   const sx = 7.35;
   const sz = 9.2;
-  const signFace = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.7 }));
-  signFace.position.set(0, 1.85, 0.045);
-  tallProp(
-    ctx,
-    'hiring-sign',
-    (s) => {
-      s.box(1.62, 0.87, 0.07, '#FF5A5F', { at: [0, 1.85, 0], r: 0.06 });
-      for (const k of [-1, 1]) s.cyl(0.04, 0.04, 1.45, '#3B4252', { at: [k * 0.62, 0.72, -0.04], seg: 14 });
-      for (const k of [-1, 1]) s.puck(0.16, 0.05, '#3B4252', { at: [k * 0.62, 0.025, -0.04] });
-    },
-    { extra: [signFace], at: [sx, sz], yaw },
+  // A little emissive so the sign glows into the bloom pass.
+  const signFace = new THREE.Mesh(
+    new THREE.PlaneGeometry(D.hiringSign.w - 0.12, D.hiringSign.h - 0.12),
+    new THREE.MeshStandardMaterial({ map: sign.tex, emissive: '#FFFFFF', emissiveMap: sign.tex, emissiveIntensity: 0.55, roughness: 0.7 }),
   );
+  signFace.position.set(0, D.hiringSign.centerY, 0.045);
+  tallProp(ctx, 'hiring-sign', (b) => buildHiringSignFrame(b), { extra: [signFace], at: [sx, sz], yaw: Math.atan2(-0.8, 0.6) });
   ctx.colliders.push(footprint(sx, sz, 0.9, 0.9));
 
   ctx.interactables.push({
@@ -183,8 +165,49 @@ function arcSlab(ri: number, ro: number, th0: number, th1: number, h: number, be
   return g;
 }
 
-function polar(cx: number, cz: number, r: number, th: number): { x: number; z: number } {
-  return { x: cx + Math.cos(th) * r, z: cz + Math.sin(th) * r };
+/**
+ * Curved reception counter: blue body, white top, a yellow stripe, a bell, the receptionist's
+ * monitor and a little plant. Pivot at the middle of the footprint; the convex visitor side
+ * faces +Z (the arc is centred behind it, on -Z).
+ */
+export function buildReceptionDesk(b: Batch, d = D.reception): void {
+  const mid = (d.innerR + d.outerR) / 2;
+  const span = THREE.MathUtils.degToRad(d.arcToDeg - d.arcFromDeg);
+  const th0 = Math.PI / 2 - span / 2;
+  const th1 = Math.PI / 2 + span / 2;
+  const c = (r: number, th: number, y: number): [number, number, number] => [Math.cos(th) * r, y, Math.sin(th) * r - mid];
+  const o = { at: [0, 0, -mid] as [number, number, number] };
+  b.add(arcSlab(d.innerR, d.outerR, th0, th1, d.h - 0.06, 0.05), '#5CC8FF', { ...o, finish: 'plastic' });
+  b.add(arcSlab(d.innerR - 0.05, d.outerR + 0.1, th0 - 0.03, th1 + 0.03, 0.06, 0.03), '#FBF6EC', { at: [0, d.h - 0.06, -mid], tex: 'speckle' });
+  b.add(arcSlab(d.outerR - 0.01, d.outerR + 0.085, th0 + 0.03, th1 - 0.03, 0.1, 0.02), '#FFC94A', { at: [0, 0.62, -mid], cast: false });
+  b.add(arcSlab(d.outerR - 0.01, d.outerR + 0.085, th0 + 0.03, th1 - 0.03, 0.05, 0.015), '#FFFDF7', { at: [0, 0.12, -mid], cast: false });
+  // Bell on the visitor's side of the counter.
+  const bell = Math.PI / 2 - 0.05;
+  b.puck(0.08, 0.025, '#3B4252', { at: c(d.outerR - 0.22, bell, d.h + 0.012), finish: 'plastic' });
+  b.add(G.hemisphere(), '#FFD34E', { at: c(d.outerR - 0.22, bell, d.h + 0.025), scale: [0.065, 0.06, 0.065], finish: 'gloss' });
+  b.ball(0.014, '#FFD34E', { at: c(d.outerR - 0.22, bell, d.h + 0.09), finish: 'gloss' });
+  // Receptionist's monitor, facing into the arc.
+  const mon = Math.PI / 2 + 0.45;
+  b.box(0.5, 0.34, 0.05, PALETTE.monitorBezel, { at: c(d.innerR + 0.2, mon, d.h + 0.24), rot: [0, -mon - Math.PI / 2, 0], finish: 'plastic' });
+  b.box(0.05, 0.12, 0.04, PALETTE.monitorBezel, { at: c(d.innerR + 0.2, mon, d.h + 0.06), finish: 'plastic' });
+  // A little pot plant at the far end.
+  const pl = th0 + 0.12;
+  const [plx, , plz] = c(mid, pl, 0);
+  b.cyl(0.08, 0.065, 0.12, PALETTE.plantPot, { at: [plx, d.h + 0.06, plz] });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    b.ball([0.05, 0.09, 0.05], i % 2 ? PALETTE.plantLeaf : shade(PALETTE.plantLeaf, 0.08), {
+      at: [plx + Math.cos(a) * 0.04, d.h + 0.19, plz + Math.sin(a) * 0.04],
+      rot: [Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5],
+    });
+  }
+}
+
+/** The NOW HIRING board's frame and posts (the printed face is a separate textured plane). */
+export function buildHiringSignFrame(b: Batch, d = D.hiringSign): void {
+  b.box(d.w, d.h, 0.07, '#FF5A5F', { at: [0, d.centerY, 0], r: 0.06, finish: 'plastic' });
+  for (const k of [-1, 1]) b.cyl(0.04, 0.04, d.centerY - d.h / 2 + 0.03, '#3B4252', { at: [k * 0.62, (d.centerY - d.h / 2 + 0.03) / 2, -0.04], seg: 14, finish: 'plastic' });
+  for (const k of [-1, 1]) b.puck(0.16, 0.05, '#3B4252', { at: [k * 0.62, 0.025, -0.04], finish: 'plastic' });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -194,111 +217,48 @@ function buildManagerCorner(ctx: WorldCtx): void {
   const b = ctx.statics;
   const dx = 10.8;
   const dz = -7.4;
-  const top = 0.74;
-  // Rug.
-  b.puck(2.2, 0.03, '#F49AC1', { at: [dx, 0.015, dz - 0.3], cast: false, finish: 'matte', seg: 48 });
-  b.puck(1.9, 0.034, '#FFC1DA', { at: [dx, 0.017, dz - 0.3], cast: false, finish: 'matte', seg: 48 });
-  // Big wooden desk with drawer pedestals.
-  b.box(2.2, 0.08, 1.0, PALETTE.wood, { at: [dx, top - 0.04, dz], r: 0.04 });
-  for (const s of [-1, 1]) {
-    b.box(0.5, top - 0.08, 0.86, shade(PALETTE.wood, -0.06), { at: [dx + s * 0.8, (top - 0.08) / 2, dz], r: 0.04 });
-    for (let i = 0; i < 3; i++) b.box(0.42, 0.17, 0.03, shade(PALETTE.wood, 0.05), { at: [dx + s * 0.8, 0.13 + i * 0.2, dz + 0.43], r: 0.015 });
-    for (let i = 0; i < 3; i++) b.capsule(0.012, 0.08, '#E8C07D', { at: [dx + s * 0.8, 0.15 + i * 0.2, dz + 0.455], rot: [0, 0, Math.PI / 2] });
-  }
-  b.box(1.1, 0.5, 0.04, shade(PALETTE.wood, -0.1), { at: [dx, 0.42, dz - 0.38], r: 0.02 });
-  // Laptop, lamp, "WORLD'S OKAYEST MANAGER" mug, a little gold trophy.
-  b.box(0.42, 0.02, 0.3, '#C8D0DC', { at: [dx - 0.1, top + 0.01, dz - 0.05], r: 0.01, finish: 'gloss' });
-  // The manager sits on the −Z side (chair at dz − 0.95), so the lid hinges at the +Z edge,
-  // leans away from them, and the screen faces them.
-  b.box(0.42, 0.28, 0.02, '#C8D0DC', { at: [dx - 0.1, top + 0.15, dz + 0.11], rot: [0.25, 0, 0], r: 0.01, finish: 'gloss' });
-  b.box(0.38, 0.24, 0.005, '#7FD8FF', { at: [dx - 0.1, top + 0.15, dz + 0.098], rot: [0.25, 0, 0], r: 0.002, cast: false });
-  b.puck(0.09, 0.03, '#3B4252', { at: [dx + 0.8, top + 0.015, dz - 0.25] });
-  b.cyl(0.012, 0.012, 0.36, '#3B4252', { at: [dx + 0.8, top + 0.2, dz - 0.25], seg: 8 });
-  b.cyl(0.05, 0.11, 0.12, '#FFC94A', { at: [dx + 0.72, top + 0.38, dz - 0.18], rot: [0.5, 0, 0.4] });
-  b.puck(0.05, 0.02, '#E8B33C', { at: [dx - 0.75, top + 0.01, dz - 0.25], finish: 'gloss' });
-  b.cyl(0.012, 0.02, 0.08, '#E8B33C', { at: [dx - 0.75, top + 0.06, dz - 0.25], finish: 'gloss' });
-  b.add(G.hemisphere(), '#FFD34E', { at: [dx - 0.75, top + 0.16, dz - 0.25], scale: [0.06, -0.07, 0.06], finish: 'gloss' });
-  ctx.colliders.push(footprint(dx, dz, 2.2, 1.0));
+  // Rug, then the desk with the boss's side (+Z in desk space) to the north, facing the room.
+  b.puck(2.2, 0.03, '#F49AC1', { at: [dx, 0.015, dz - 0.3], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+  b.puck(1.9, 0.034, '#FFC1DA', { at: [dx, 0.017, dz - 0.3], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+  b.place(dx, 0, dz, Math.PI, () => buildManagerDesk(b));
+  ctx.colliders.push(footprint(dx, dz, D.managerDesk.w, D.managerDesk.d));
   ctx.blobs.add(dx, dz, 2.6, 1.4);
 
+  // "WORLD'S OKAYEST MANAGER" mug: printed sleeve on a separate mesh.
+  const top = D.managerDesk.h;
   const mugTex = new CanvasTex(256, 96, (c, w, h) => {
-    c.fillStyle = '#FFFFFF';
+    c.fillStyle = '#FFFDF8';
     c.fillRect(0, 0, w, h);
     c.fillStyle = '#E63946';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.font = font(700, 22);
-    c.fillText("WORLD'S OKAYEST", w / 4, h / 2 - 14);
-    c.fillText('MANAGER', w / 4, h / 2 + 14);
-    c.fillText("WORLD'S OKAYEST", (w * 3) / 4, h / 2 - 14);
-    c.fillText('MANAGER', (w * 3) / 4, h / 2 + 14);
+    for (const x of [w / 4, (w * 3) / 4]) {
+      c.fillText("WORLD'S OKAYEST", x, h / 2 - 14);
+      c.fillText('MANAGER', x, h / 2 + 14);
+    }
   });
-  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.12, 24, 1, true), new THREE.MeshStandardMaterial({ map: mugTex.tex, roughness: 0.5 }));
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.12, 24, 1, true), new THREE.MeshStandardMaterial({ map: mugTex.tex, roughness: 0.45 }));
   mug.position.set(dx + 0.45, top + 0.06, dz + 0.15);
   mug.rotation.y = -Math.PI / 2;
   mug.castShadow = true;
   ctx.root.add(mug);
-  b.puck(0.05, 0.01, '#FFFFFF', { at: [dx + 0.45, top + 0.005, dz + 0.15] });
+  b.puck(0.05, 0.01, '#FFFDF8', { at: [dx + 0.45, top + 0.005, dz + 0.15], finish: 'plastic' });
   b.cyl(0.048, 0.048, 0.005, PALETTE.coffee, { at: [dx + 0.45, top + 0.115, dz + 0.15], cast: false });
-  b.torus(0.032, 0.011, '#FFFFFF', { at: [dx + 0.51, top + 0.06, dz + 0.15], rot: [0, 0, 0] });
+  b.torus(0.032, 0.011, '#FFFDF8', { at: [dx + 0.51, top + 0.06, dz + 0.15], finish: 'plastic' });
 
-  // The boss chair: tall, plush and red.
+  // The boss chair, facing the desk.
   const chair = new Batch();
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2;
-    chair.box(0.07, 0.05, 0.36, '#2B2D42', { at: [Math.sin(a) * 0.18, 0.08, Math.cos(a) * 0.18], rot: [0, a, 0], r: 0.022 });
-    chair.ball(0.05, '#1F2230', { at: [Math.sin(a) * 0.34, 0.05, Math.cos(a) * 0.34], ws: 12, hs: 8 });
-  }
-  chair.cyl(0.035, 0.035, 0.3, PALETTE.metal, { at: [0, 0.26, 0], finish: 'gloss' });
-  chair.box(0.66, 0.14, 0.6, '#B23A48', { at: [0, 0.46, 0], r: 0.06 });
-  chair.box(0.66, 0.85, 0.16, '#B23A48', { at: [0, 0.98, 0.28], rot: [0.12, 0, 0], r: 0.07 });
-  chair.box(0.5, 0.2, 0.1, shade('#B23A48', 0.1), { at: [0, 1.32, 0.31], rot: [0.12, 0, 0], r: 0.05 });
-  for (const s of [-1, 1]) {
-    chair.box(0.1, 0.06, 0.48, '#2B2D42', { at: [s * 0.36, 0.68, 0.02], r: 0.03 });
-    chair.box(0.05, 0.2, 0.05, '#2B2D42', { at: [s * 0.36, 0.57, 0.02], r: 0.02 });
-  }
+  buildBossChair(chair);
   const chairGroup = chair.build({ name: 'boss-chair' });
   chairGroup.position.set(dx, 0, dz - 0.95);
-  // Built with the backrest toward local +Z; turn it so the boss faces the desk (south).
-  chairGroup.rotation.y = Math.PI;
   ctx.root.add(chairGroup);
 
   // Bookshelf on the north wall.
   const bx = 12.2;
-  tallProp(ctx, 'bookshelf', (s) => {
-    const w = 2.2;
-    const hgt = 1.9;
-    const z = -WALL_FACE + 0.22;
-    const caseCol = shade(PALETTE.wood, -0.04);
-    // Open-fronted case: back, sides, top and a plinth.
-    s.box(w, hgt, 0.05, shade(PALETTE.wood, -0.12), { at: [bx, hgt / 2, z - 0.175], r: 0.02 });
-    for (const k of [-1, 1]) s.box(0.07, hgt, 0.4, caseCol, { at: [bx + k * (w / 2 - 0.035), hgt / 2, z], r: 0.03 });
-    s.box(w + 0.06, 0.07, 0.44, caseCol, { at: [bx, hgt - 0.02, z], r: 0.03 });
-    s.box(w, 0.1, 0.4, caseCol, { at: [bx, 0.05, z], r: 0.03 });
-    const r = rng(99);
-    for (let shelf = 0; shelf < 4; shelf++) {
-      const y = 0.1 + shelf * 0.44;
-      if (shelf > 0) s.box(w - 0.12, 0.045, 0.36, shade(PALETTE.wood, 0.06), { at: [bx, y, z + 0.01], r: 0.018 });
-      let x = bx - w / 2 + 0.12;
-      while (x < bx + w / 2 - 0.25) {
-        const bw = 0.06 + r() * 0.07;
-        const bh = 0.24 + r() * 0.14;
-        if (r() < 0.12) {
-          x += 0.15;
-          continue;
-        }
-        s.box(bw, bh, 0.26, ['#FF7A6B', '#5CC8FF', '#FFC94A', '#6EDC9A', '#B48CFF', '#FF9DCB', '#3D7CFF'][Math.floor(r() * 7)], {
-          at: [x + bw / 2, y + 0.025 + bh / 2, z + 0.02],
-          rot: [0, 0, r() < 0.15 ? 0.2 : 0],
-          r: 0.012,
-          seg: 2,
-          cast: false,
-        });
-        x += bw + 0.008;
-      }
-    }
-  });
-  ctx.colliders.push(aabb(bx - 1.1, bx + 1.1, -WALL_FACE, -WALL_FACE + 0.42));
+  const r = rng(99);
+  tallProp(ctx, 'bookshelf', (s) => buildBookshelf(s, r), { at: [bx, -WALL_FACE + D.bookshelf.d / 2 + 0.02] });
+  ctx.colliders.push(aabb(bx - D.bookshelf.w / 2, bx + D.bookshelf.w / 2, -WALL_FACE, -WALL_FACE + D.bookshelf.d + 0.02));
 
   // Filing cabinet: the Personnel Files (call back old sessions).
   const fx = OFFICE.halfW - 0.33;
@@ -323,20 +283,8 @@ function buildManagerCorner(ctx: WorldCtx): void {
   const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.27), new THREE.MeshStandardMaterial({ map: label.tex, roughness: 0.6 }));
   signMesh.position.set(Math.sin(signYaw) * 0.036, 1.56, Math.cos(signYaw) * 0.036);
   signMesh.rotation.set(-0.1, signYaw, 0, 'YXZ');
-  tallProp(ctx, 'filing-cabinet', (s) => {
-    s.box(0.78, 1.32, 0.62, '#5C8DFF', { at: [0, 0.66, 0], r: 0.05 });
-    for (let i = 0; i < 4; i++) {
-      const y = 0.2 + i * 0.31;
-      s.box(0.68, 0.26, 0.04, '#7AA5FF', { at: [0, y, 0.31], r: 0.03 });
-      s.capsule(0.018, 0.16, '#E9EEF6', { at: [0, y + 0.05, 0.345], rot: [0, 0, Math.PI / 2], finish: 'gloss' });
-      s.box(0.18, 0.07, 0.008, '#FFFDF7', { at: [0, y - 0.05, 0.333], r: 0.004, cast: false });
-    }
-    // A sign frame on top, and folders poking out of the top drawer.
-    s.box(0.94, 0.35, 0.06, '#3B4252', { at: [0, 1.56, 0], rot: [-0.1, 0, 0], r: 0.035, parent: new THREE.Matrix4().makeRotationY(signYaw) });
-    s.box(0.06, 0.12, 0.06, '#3B4252', { at: [0, 1.36, 0], r: 0.02 });
-    for (let i = 0; i < 4; i++) s.box(0.04, 0.2, 0.26, ['#FFC94A', '#FF7A6B', '#6EDC9A', '#FFFFFF'][i], { at: [-0.2 + i * 0.13, 1.25, 0.08], rot: [0, 0, (i - 1.5) * 0.12], r: 0.01, cast: false });
-  }, { extra: [signMesh], at: [fx, fz], yaw: -Math.PI / 2 });
-  ctx.colliders.push(footprint(fx, fz, 0.78, 0.66, 1));
+  tallProp(ctx, 'filing-cabinet', (s) => buildFilingCabinet(s, signYaw), { extra: [signMesh], at: [fx, fz], yaw: -Math.PI / 2 });
+  ctx.colliders.push(footprint(fx, fz, D.fileCabinet.w, D.fileCabinet.d + 0.04, 1));
   ctx.blobs.add(fx - 0.05, fz, 1.0, 1.1);
   ctx.interactables.push({
     id: 'archive',
@@ -347,52 +295,112 @@ function buildManagerCorner(ctx: WorldCtx): void {
   });
 }
 
+/**
+ * The manager's big wooden desk. The boss sits on its +Z side; the drawer pedestals and the
+ * gold trophy face visitors (-Z), so the office sees them.
+ */
+export function buildManagerDesk(b: Batch, d = D.managerDesk): void {
+  const wood = PALETTE.wood;
+  const top = d.h;
+  b.box(d.w, 0.08, d.d, wood, { at: [0, top - 0.04, 0], r: 0.04, finish: 'wood' });
+  for (const s of [-1, 1]) {
+    b.box(0.5, top - 0.08, d.d - 0.14, shade(wood, -0.06), { at: [s * 0.8, (top - 0.08) / 2, 0], r: 0.04, finish: 'wood' });
+    for (let i = 0; i < 3; i++) b.box(0.42, 0.17, 0.03, shade(wood, 0.05), { at: [s * 0.8, 0.13 + i * 0.2, -d.d / 2 + 0.07], r: 0.015, finish: 'wood' });
+    for (let i = 0; i < 3; i++) b.capsule(0.012, 0.08, '#E8C07D', { at: [s * 0.8, 0.15 + i * 0.2, -d.d / 2 + 0.045], rot: [0, 0, Math.PI / 2], finish: 'gloss' });
+  }
+  b.box(1.1, 0.5, 0.04, shade(wood, -0.1), { at: [0, 0.42, d.d / 2 - 0.12], r: 0.02, finish: 'wood' });
+  // Laptop (its screen faces the boss), desk lamp, a little gold trophy.
+  b.box(0.42, 0.02, 0.3, '#C8D0DC', { at: [0.1, top + 0.01, 0.05], r: 0.01, finish: 'gloss' });
+  // The lid hinges at the far edge and leans away from the boss.
+  b.box(0.42, 0.28, 0.02, '#C8D0DC', { at: [0.1, top + 0.15, -0.11], rot: [-0.25, 0, 0], r: 0.01, finish: 'gloss' });
+  b.box(0.38, 0.24, 0.005, '#7FD8FF', { at: [0.1, top + 0.15, -0.098], rot: [-0.25, 0, 0], r: 0.002, glow: 0.5, cast: false });
+  b.puck(0.09, 0.03, '#3B4252', { at: [-0.8, top + 0.015, 0.25], finish: 'plastic' });
+  b.cyl(0.012, 0.012, 0.36, '#3B4252', { at: [-0.8, top + 0.2, 0.25], seg: 8, finish: 'plastic' });
+  b.cyl(0.05, 0.11, 0.12, '#FFC94A', { at: [-0.72, top + 0.38, 0.18], rot: [-0.5, 0, -0.4], finish: 'plastic' });
+  b.ball(0.035, '#FFF1C9', { at: [-0.74, top + 0.33, 0.2], glow: 2.6, cast: false });
+  b.puck(0.05, 0.02, '#E8B33C', { at: [0.75, top + 0.01, 0.25], finish: 'gloss' });
+  b.cyl(0.012, 0.02, 0.08, '#E8B33C', { at: [0.75, top + 0.06, 0.25], finish: 'gloss' });
+  b.add(G.hemisphere(), '#FFD34E', { at: [0.75, top + 0.16, 0.25], scale: [0.06, -0.07, 0.06], finish: 'gloss' });
+}
+
+/** The boss chair: tall, plush and red, with armrests. Faces +Z. */
+export function buildBossChair(b: Batch, d = D.bossChair): void {
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    b.box(0.07, 0.05, 0.36, '#2B2D42', { at: [Math.sin(a) * 0.18, 0.08, Math.cos(a) * 0.18], rot: [0, a, 0], r: 0.022, finish: 'plastic' });
+    b.ball(0.05, '#1F2230', { at: [Math.sin(a) * 0.34, 0.05, Math.cos(a) * 0.34], ws: 12, hs: 8, finish: 'plastic' });
+  }
+  b.cyl(0.035, 0.035, 0.3, PALETTE.metal, { at: [0, 0.26, 0], finish: 'plastic' });
+  b.box(0.66, 0.14, 0.6, '#B23A48', { at: [0, d.seatH - 0.07, 0], r: 0.06, finish: 'cloth' });
+  b.box(0.66, d.backH, 0.16, '#B23A48', { at: [0, 0.98, -0.28], rot: [-0.12, 0, 0], r: 0.07, finish: 'cloth' });
+  b.box(0.5, 0.2, 0.1, shade('#B23A48', 0.1), { at: [0, 1.32, -0.31], rot: [-0.12, 0, 0], r: 0.05, finish: 'cloth' });
+  for (const s of [-1, 1]) {
+    b.box(0.1, 0.06, 0.48, '#2B2D42', { at: [s * 0.36, 0.68, -0.02], r: 0.03, finish: 'plastic' });
+    b.box(0.05, 0.2, 0.05, '#2B2D42', { at: [s * 0.36, 0.57, -0.02], r: 0.02, finish: 'plastic' });
+  }
+}
+
+/** Open-fronted bookshelf full of chunky books. Front +Z. */
+export function buildBookshelf(b: Batch, r: () => number, d = D.bookshelf): void {
+  const caseCol = shade(PALETTE.wood, -0.04);
+  b.box(d.w, d.h, 0.05, shade(PALETTE.wood, -0.12), { at: [0, d.h / 2, -d.d / 2 + 0.025], r: 0.02, finish: 'wood' });
+  for (const k of [-1, 1]) b.box(0.07, d.h, d.d, caseCol, { at: [k * (d.w / 2 - 0.035), d.h / 2, 0], r: 0.03, finish: 'wood' });
+  b.box(d.w + 0.06, 0.07, d.d + 0.04, caseCol, { at: [0, d.h - 0.02, 0], r: 0.03, finish: 'wood' });
+  b.box(d.w, 0.1, d.d, caseCol, { at: [0, 0.05, 0], r: 0.03, finish: 'wood' });
+  const books = ['#FF7A6B', '#5CC8FF', '#FFC94A', '#6EDC9A', '#B48CFF', '#FF9DCB', '#3D7CFF'];
+  for (let shelf = 0; shelf < d.shelves; shelf++) {
+    const y = 0.1 + shelf * 0.44;
+    if (shelf > 0) b.box(d.w - 0.12, 0.045, d.d - 0.04, shade(PALETTE.wood, 0.06), { at: [0, y, 0.01], r: 0.018, finish: 'wood' });
+    let x = -d.w / 2 + 0.12;
+    while (x < d.w / 2 - 0.25) {
+      const bw = 0.06 + r() * 0.07;
+      const bh = 0.24 + r() * 0.14;
+      if (r() < 0.12) {
+        x += 0.15;
+        continue;
+      }
+      b.box(bw, bh, 0.26, books[Math.floor(r() * books.length)], { at: [x + bw / 2, y + 0.025 + bh / 2, 0.02], rot: [0, 0, r() < 0.15 ? 0.2 : 0], r: 0.012, seg: 2, cast: false });
+      x += bw + 0.008;
+    }
+  }
+}
+
+/** The Personnel Files: a blue four-drawer cabinet with a sign on top (printed face separate). Front +Z. */
+export function buildFilingCabinet(b: Batch, signYaw = 0, d = D.fileCabinet): void {
+  b.box(d.w, d.h, d.d, '#5C8DFF', { at: [0, d.h / 2, 0], r: 0.05, finish: 'plastic' });
+  const step = (d.h - 0.08) / d.drawers;
+  for (let i = 0; i < d.drawers; i++) {
+    const y = 0.2 + i * step;
+    b.box(d.w - 0.1, step - 0.05, 0.04, '#7AA5FF', { at: [0, y, d.d / 2], r: 0.03, finish: 'plastic' });
+    b.capsule(0.018, 0.16, '#E9EEF6', { at: [0, y + 0.05, d.d / 2 + 0.035], rot: [0, 0, Math.PI / 2], finish: 'gloss' });
+    b.box(0.18, 0.07, 0.008, '#FFFDF7', { at: [0, y - 0.05, d.d / 2 + 0.023], r: 0.004, cast: false });
+  }
+  b.box(0.94, 0.35, 0.06, '#3B4252', { at: [0, 1.56, 0], rot: [-0.1, 0, 0], r: 0.035, parent: new THREE.Matrix4().makeRotationY(signYaw), finish: 'plastic' });
+  b.box(0.06, 0.12, 0.06, '#3B4252', { at: [0, 1.36, 0], r: 0.02 });
+  for (let i = 0; i < 4; i++) b.box(0.04, 0.2, 0.26, ['#FFC94A', '#FF7A6B', '#6EDC9A', '#FFFDF8'][i], { at: [-0.2 + i * 0.13, d.h - 0.07, 0.08], rot: [0, 0, (i - 1.5) * 0.12], r: 0.01, cast: false });
+}
+
 // ---------------------------------------------------------------------------------------------
 // Break area (north-west)
 
 function buildBreakArea(ctx: WorldCtx): void {
   const b = ctx.statics;
   const wz = -WALL_FACE;
-  // Kitchen counter along the north wall.
-  const x0 = -13.15;
-  const x1 = -9.95;
-  const depth = 0.62;
-  const h = 0.92;
-  const cz = wz + depth / 2 + 0.02;
-  b.box(x1 - x0, h - 0.06, depth - 0.04, '#8FE0C8', { at: [(x0 + x1) / 2, (h - 0.06) / 2, cz], r: 0.04 });
-  b.box(x1 - x0 + 0.06, 0.06, depth + 0.04, PALETTE.wood, { at: [(x0 + x1) / 2, h - 0.03, cz + 0.02], r: 0.03 });
-  for (let i = 0; i < 4; i++) {
-    const x = x0 + 0.42 + i * 0.8;
-    b.box(0.72, h - 0.24, 0.03, '#B6EEDD', { at: [x, (h - 0.06) / 2, cz + depth / 2 - 0.01], r: 0.025 });
-    b.capsule(0.014, 0.1, '#FFFDF7', { at: [x + 0.25, h - 0.24, cz + depth / 2 + 0.015], finish: 'gloss' });
-  }
-  ctx.colliders.push(aabb(x0 - 0.05, x1 + 0.05, wz, wz + depth + 0.06));
-  ctx.blobs.add((x0 + x1) / 2, cz + 0.05, x1 - x0 + 0.4, depth + 0.4);
+  const K = D.kitchen;
+  const kx = -11.55;
+  const kz = wz + K.d / 2 + 0.02;
+  b.place(kx, 0, kz, 0, () => buildKitchenCounter(b));
+  ctx.colliders.push(aabb(kx - K.w / 2 - 0.05, kx + K.w / 2 + 0.05, wz, wz + K.d + 0.06));
+  ctx.blobs.add(kx, kz + 0.05, K.w + 0.4, K.d + 0.4);
 
-  // Upper cupboards on the wall.
   const upper = new Batch();
-  for (let i = 0; i < 3; i++) {
-    const x = x0 + 0.55 + i * 1.05;
-    upper.box(0.98, 0.62, 0.34, '#FFFDF7', { at: [x, 1.95, wz + 0.19], r: 0.04 });
-    upper.capsule(0.013, 0.09, '#8FE0C8', { at: [x + 0.32, 1.76, wz + 0.37], finish: 'gloss' });
-  }
-  const upperGroup = upper.build({ name: 'cupboards' });
-  ctx.root.add(upperGroup);
+  upper.place(kx, 0, wz, 0, () => buildUpperCupboards(upper));
+  ctx.root.add(upper.build({ name: 'cupboards' }));
 
-  // Coffee machine (interactable) with a mug and steam.
+  // Coffee machine (interactable) with steam.
   const mx = -11.6;
   const mz = wz + 0.3;
-  tallProp(ctx, 'coffee-machine', (s) => {
-    s.box(0.44, 0.56, 0.4, '#E2504C', { at: [mx, h + 0.28, mz], r: 0.07 });
-    s.box(0.36, 0.14, 0.36, '#3B4252', { at: [mx, h + 0.63, mz], r: 0.05 });
-    s.box(0.3, 0.2, 0.06, '#3B4252', { at: [mx, h + 0.22, mz + 0.2], r: 0.03 });
-    s.box(0.12, 0.05, 0.08, '#C8D0DC', { at: [mx, h + 0.38, mz + 0.22], r: 0.02, finish: 'gloss' });
-    s.box(0.26, 0.025, 0.14, '#C8D0DC', { at: [mx, h + 0.0125, mz + 0.24], r: 0.01, finish: 'gloss' });
-    for (let i = 0; i < 3; i++) s.ball(0.025, ['#6EDC9A', '#FFC94A', '#FFFFFF'][i], { at: [mx - 0.1 + i * 0.1, h + 0.5, mz + 0.205], scale: [1, 1, 0.5], cast: false });
-    s.cyl(0.045, 0.04, 0.09, '#FFFFFF', { at: [mx, h + 0.07, mz + 0.24] });
-    s.torus(0.03, 0.01, '#FFFFFF', { at: [mx + 0.05, h + 0.07, mz + 0.24] });
-  });
-  // Steam: a few soft puffs looping upward.
+  tallProp(ctx, 'coffee-machine', (s) => s.place(0, K.h, 0, 0, () => buildCoffeeMachine(s)), { at: [mx, mz] });
   const steamMat = new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0.5, depthWrite: false });
   const puffs: THREE.Mesh[] = [];
   const puffGeo = new THREE.SphereGeometry(1, 12, 8);
@@ -405,44 +413,11 @@ function buildBreakArea(ctx: WorldCtx): void {
   ctx.tickers.push((_dt, t) => {
     puffs.forEach((p, i) => {
       const k = (t * 0.45 + i / puffs.length) % 1;
-      p.position.set(mx + Math.sin(t * 2 + i) * 0.03 * k, h + 0.16 + k * 0.55, mz + 0.24 + Math.cos(t * 1.7 + i) * 0.02);
+      p.position.set(mx + Math.sin(t * 2 + i) * 0.03 * k, K.h + 0.16 + k * 0.55, mz + 0.24 + Math.cos(t * 1.7 + i) * 0.02);
       p.scale.setScalar(0.025 + k * 0.05);
       (p.material as THREE.MeshBasicMaterial).opacity = Math.sin(k * Math.PI) * 0.55;
     });
   });
-
-  // Fridge in the corner.
-  tallProp(ctx, 'fridge', (s) => {
-    const fx = -OFFICE.halfW + 0.38;
-    const fz = wz + 0.38;
-    s.box(0.74, 1.86, 0.7, '#9AD9FF', { at: [fx, 0.93, fz], r: 0.09 });
-    s.box(0.68, 0.02, 0.02, '#7CC3EE', { at: [fx, 1.22, fz + 0.355], r: 0.008, cast: false });
-    s.capsule(0.022, 0.32, '#FFFDF7', { at: [fx + 0.27, 1.45, fz + 0.37], finish: 'gloss' });
-    s.capsule(0.022, 0.5, '#FFFDF7', { at: [fx + 0.27, 0.75, fz + 0.37], finish: 'gloss' });
-    const r = rng(5);
-    for (let i = 0; i < 5; i++) s.ball(0.035, ['#FF5A5F', '#FFC93C', '#6EDC9A', '#B48CFF', '#FF9DCB'][i], { at: [fx - 0.2 + r() * 0.3, 0.9 + r() * 0.8, fz + 0.36], scale: [1, 1, 0.45], cast: false });
-  });
-  ctx.colliders.push(aabb(-OFFICE.halfW, -OFFICE.halfW + 0.76, wz, wz + 0.76));
-  ctx.blobs.add(-OFFICE.halfW + 0.38, wz + 0.4, 1.1, 1.1);
-
-  // Water cooler.
-  const wcx = -9.35;
-  const wcz = wz + 0.32;
-  const jug = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16, 0.16, 0.42, 24),
-    new THREE.MeshStandardMaterial({ color: '#7FD3FF', roughness: 0.15, transparent: true, opacity: 0.7, depthWrite: false }),
-  );
-  jug.position.set(wcx, 1.2, wcz);
-  tallProp(ctx, 'water-cooler', (s) => {
-    s.box(0.4, 0.98, 0.4, '#FFFDF7', { at: [wcx, 0.49, wcz], r: 0.06 });
-    s.box(0.24, 0.2, 0.04, '#DDE6F3', { at: [wcx, 0.8, wcz + 0.2], r: 0.02 });
-    s.ball(0.03, '#3D7CFF', { at: [wcx - 0.06, 0.84, wcz + 0.22], cast: false });
-    s.ball(0.03, '#FF5A5F', { at: [wcx + 0.06, 0.84, wcz + 0.22], cast: false });
-    s.puck(0.17, 0.06, '#7FD3FF', { at: [wcx, 1.42, wcz] });
-  }, { extra: [jug] });
-  ctx.colliders.push(footprint(wcx, wcz, 0.44, 0.44));
-  ctx.blobs.add(wcx, wcz, 0.7, 0.7, { shape: 'round' });
-
   ctx.interactables.push({
     id: 'coffee',
     kind: 'coffee',
@@ -451,70 +426,189 @@ function buildBreakArea(ctx: WorldCtx): void {
     label: 'Grab a coffee',
   });
 
-  // Couch, coffee table and a round rug by the west windows.
+  // Fridge in the corner, water cooler by the counter.
+  const F = D.fridge;
+  const fx = -OFFICE.halfW + F.w / 2 + 0.01;
+  const fz = wz + F.d / 2 + 0.03;
+  const fr = rng(5);
+  tallProp(ctx, 'fridge', (s) => buildFridge(s, fr), { at: [fx, fz] });
+  ctx.colliders.push(footprint(fx, fz, F.w + 0.02, F.d + 0.06));
+  ctx.blobs.add(fx, fz, 1.1, 1.1);
+
+  const wcx = -9.35;
+  const wcz = wz + 0.32;
+  const jug = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.16, 0.42, 24),
+    new THREE.MeshStandardMaterial({ color: '#7FD3FF', roughness: 0.15, transparent: true, opacity: 0.7, depthWrite: false }),
+  );
+  jug.position.set(0, 1.2, 0);
+  tallProp(ctx, 'water-cooler', (s) => buildWaterCooler(s), { extra: [jug], at: [wcx, wcz] });
+  ctx.colliders.push(footprint(wcx, wcz, D.waterCooler.w + 0.04, D.waterCooler.d + 0.04));
+  ctx.blobs.add(wcx, wcz, 0.7, 0.7, { shape: 'round' });
+
+  // Couch (seat facing east), coffee table and a round rug by the west windows.
   const rx = -12.0;
   const rz = -6.6;
-  b.puck(1.75, 0.03, '#FFD27F', { at: [rx, 0.015, rz], cast: false, finish: 'matte', seg: 48 });
-  b.puck(1.5, 0.034, '#FFE3A8', { at: [rx, 0.017, rz], cast: false, finish: 'matte', seg: 48 });
-  const cx = -OFFICE.halfW + 0.48;
-  const couch = '#FF7A6B';
-  b.box(0.9, 0.36, 2.3, shade(couch, -0.06), { at: [cx, 0.22, rz], r: 0.12 });
-  for (const s of [-1, 1]) b.box(0.92, 0.6, 0.26, couch, { at: [cx, 0.36, rz + s * 1.1], r: 0.12 });
-  b.box(0.3, 0.8, 2.3, couch, { at: [cx - 0.32, 0.5, rz], r: 0.13 });
-  for (const s of [-1, 1]) b.box(0.62, 0.16, 0.95, shade(couch, 0.08), { at: [cx + 0.1, 0.45, rz + s * 0.49], r: 0.08 });
-  b.box(0.16, 0.38, 0.38, '#FFD93D', { at: [cx - 0.08, 0.66, rz - 0.5], rot: [0, 0, -0.35], r: 0.08 });
-  b.box(0.16, 0.38, 0.38, '#5CC8FF', { at: [cx - 0.08, 0.66, rz + 0.55], rot: [0, 0, -0.35], r: 0.08 });
-  for (const s of [-1, 1]) for (const t of [-1, 1]) b.cyl(0.04, 0.03, 0.06, '#3B4252', { at: [cx + s * 0.35, 0.03, rz + t * 1.05], seg: 10 });
-  ctx.colliders.push(aabb(-OFFICE.halfW, cx + 0.47, rz - 1.25, rz + 1.25));
+  b.puck(1.75, 0.03, '#FFD27F', { at: [rx, 0.015, rz], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+  b.puck(1.5, 0.034, '#FFE3A8', { at: [rx, 0.017, rz], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+  const cx = -OFFICE.halfW + D.couch.d / 2 + 0.03;
+  couch(b, new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(cx, 0, rz), D.couch.w, '#FF7A6B', ['#FFD93D', '#5CC8FF']);
+  ctx.colliders.push(aabb(-OFFICE.halfW, cx + D.couch.d / 2 + 0.02, rz - D.couch.w / 2 - 0.05, rz + D.couch.w / 2 + 0.05));
   ctx.blobs.add(cx, rz, 1.3, 2.7);
-  // Coffee table.
   const tx = -12.15;
-  b.puck(0.5, 0.07, PALETTE.wood, { at: [tx, 0.4, rz] });
-  b.cyl(0.07, 0.1, 0.36, shade(PALETTE.wood, -0.1), { at: [tx, 0.18, rz] });
-  b.puck(0.25, 0.04, shade(PALETTE.wood, -0.1), { at: [tx, 0.02, rz] });
-  b.cyl(0.04, 0.035, 0.08, '#5CC8FF', { at: [tx + 0.15, 0.475, rz - 0.1] });
-  b.box(0.22, 0.02, 0.3, '#FF9DCB', { at: [tx - 0.12, 0.445, rz + 0.08], rot: [0, 0.4, 0], r: 0.008 });
-  ctx.colliders.push(footprint(tx, rz, 1.0, 1.0));
+  b.place(tx, 0, rz, 0, () => buildCoffeeTable(b));
+  ctx.colliders.push(footprint(tx, rz, D.coffeeTable.r * 2, D.coffeeTable.r * 2));
   ctx.blobs.add(tx, rz, 1.2, 1.2, { shape: 'round' });
 }
 
+/** Kitchen counter: mint cupboards under a wooden top. Front +Z. */
+export function buildKitchenCounter(b: Batch, d = D.kitchen): void {
+  b.box(d.w, d.h - 0.06, d.d - 0.04, '#8FE0C8', { at: [0, (d.h - 0.06) / 2, -0.02], r: 0.04, finish: 'plastic' });
+  b.box(d.w + 0.06, 0.06, d.d + 0.04, PALETTE.wood, { at: [0, d.h - 0.03, 0], r: 0.03, finish: 'wood' });
+  const doors = 4;
+  const dw = d.w / doors;
+  for (let i = 0; i < doors; i++) {
+    const x = -d.w / 2 + dw * (i + 0.5);
+    b.box(dw - 0.08, d.h - 0.24, 0.03, '#B6EEDD', { at: [x, (d.h - 0.06) / 2, d.d / 2 - 0.03], r: 0.025, finish: 'plastic' });
+    b.capsule(0.014, 0.1, '#FFFDF7', { at: [x + dw * 0.31, d.h - 0.24, d.d / 2 - 0.005], finish: 'gloss' });
+  }
+}
+
+/** Three white wall cupboards, hung above the counter. Origin at the wall, under the middle one. */
+export function buildUpperCupboards(b: Batch): void {
+  for (let i = 0; i < 3; i++) {
+    const x = (i - 1) * 1.05;
+    b.box(0.98, 0.62, 0.34, '#FFFDF7', { at: [x, 1.95, 0.19], r: 0.04, finish: 'plastic' });
+    b.capsule(0.013, 0.09, '#8FE0C8', { at: [x + 0.32, 1.76, 0.37], finish: 'gloss' });
+  }
+}
+
+/** Red espresso machine with a mug under the spout. Pivot on the counter top. Front +Z. */
+export function buildCoffeeMachine(b: Batch, d = D.coffeeMachine): void {
+  b.box(d.w, d.h - 0.14, d.d, '#E2504C', { at: [0, (d.h - 0.14) / 2, 0], r: 0.07, finish: 'plastic' });
+  b.box(d.w - 0.08, 0.14, d.d - 0.04, '#3B4252', { at: [0, d.h - 0.07, 0], r: 0.05, finish: 'plastic' });
+  b.box(0.3, 0.2, 0.06, '#3B4252', { at: [0, 0.22, d.d / 2], r: 0.03, finish: 'plastic' });
+  b.box(0.12, 0.05, 0.08, '#C8D0DC', { at: [0, 0.38, d.d / 2 + 0.02], r: 0.02, finish: 'gloss' });
+  b.box(0.26, 0.025, 0.14, '#C8D0DC', { at: [0, 0.0125, d.d / 2 + 0.04], r: 0.01, finish: 'gloss' });
+  // Status lights: the green one glows.
+  for (let i = 0; i < 3; i++) b.ball(0.025, ['#6EDC9A', '#FFC94A', '#FFFDF7'][i], { at: [-0.1 + i * 0.1, 0.5, d.d / 2 + 0.005], scale: [1, 1, 0.5], glow: i === 0 ? 2.2 : 0, cast: false });
+  b.cyl(0.045, 0.04, 0.09, '#FFFDF8', { at: [0, 0.07, d.d / 2 + 0.04], finish: 'plastic' });
+  b.torus(0.03, 0.01, '#FFFDF8', { at: [0.05, 0.07, d.d / 2 + 0.04], finish: 'plastic' });
+}
+
+/** Retro pastel-blue fridge with chrome handles and a few magnets. Front +Z. */
+export function buildFridge(b: Batch, r: () => number, d = D.fridge): void {
+  b.box(d.w, d.h, d.d, '#9AD9FF', { at: [0, d.h / 2, 0], r: 0.09, finish: 'plastic' });
+  b.box(d.w - 0.06, 0.02, 0.02, '#7CC3EE', { at: [0, d.h * 0.66, d.d / 2], r: 0.008, cast: false });
+  b.capsule(0.022, 0.32, '#FFFDF7', { at: [d.w / 2 - 0.1, d.h * 0.78, d.d / 2 + 0.02], finish: 'gloss' });
+  b.capsule(0.022, 0.5, '#FFFDF7', { at: [d.w / 2 - 0.1, d.h * 0.4, d.d / 2 + 0.02], finish: 'gloss' });
+  for (let i = 0; i < 5; i++) b.ball(0.035, ['#FF5A5F', '#FFC93C', '#6EDC9A', '#B48CFF', '#FF9DCB'][i], { at: [-0.2 + r() * 0.3, 0.9 + r() * 0.8, d.d / 2 + 0.01], scale: [1, 1, 0.45], cast: false });
+}
+
+/** Water cooler cabinet (the blue jug is a separate translucent mesh). Front +Z. */
+export function buildWaterCooler(b: Batch, d = D.waterCooler): void {
+  b.box(d.w, 0.98, d.d, '#FFFDF7', { at: [0, 0.49, 0], r: 0.06, finish: 'plastic' });
+  b.box(0.24, 0.2, 0.04, '#DDE6F3', { at: [0, 0.8, d.d / 2], r: 0.02 });
+  b.ball(0.03, '#3D7CFF', { at: [-0.06, 0.84, d.d / 2 + 0.02], cast: false, finish: 'gloss' });
+  b.ball(0.03, '#FF5A5F', { at: [0.06, 0.84, d.d / 2 + 0.02], cast: false, finish: 'gloss' });
+  b.puck(0.17, 0.06, '#7FD3FF', { at: [0, 1.42, 0], finish: 'gloss' });
+}
+
+/** Round wooden coffee table with magazines and a cup. */
+export function buildCoffeeTable(b: Batch, d = D.coffeeTable): void {
+  b.puck(d.r, 0.07, PALETTE.wood, { at: [0, d.h - 0.035, 0], finish: 'wood' });
+  b.cyl(0.07, 0.1, d.h - 0.07, shade(PALETTE.wood, -0.1), { at: [0, (d.h - 0.07) / 2, 0], finish: 'wood' });
+  b.puck(0.25, 0.04, shade(PALETTE.wood, -0.1), { at: [0, 0.02, 0], finish: 'wood' });
+  b.cyl(0.04, 0.035, 0.08, '#5CC8FF', { at: [0.15, d.h + 0.04, -0.1], finish: 'plastic' });
+  b.box(0.22, 0.02, 0.3, '#FF9DCB', { at: [-0.12, d.h + 0.01, 0.08], rot: [0, 0.4, 0], r: 0.008 });
+}
+
 // ---------------------------------------------------------------------------------------------
-// Lounge corner (south-west, beside the intern bench): bean bags by the break rug, vending machine
+// Lounge bits: bean bags by the break rug, the vending machine, a coat rack and a printer
 
 function buildLounge(ctx: WorldCtx): void {
   const b = ctx.statics;
-  const bags: [number, number, string][] = [
+  for (const [x, z, c] of [
     [-10.55, -5.95, '#B48CFF'],
     [-10.75, -7.45, '#FFC94A'],
-  ];
-  for (const [x, z, c] of bags) {
-    b.ball([0.42, 0.3, 0.42], c, { at: [x, 0.26, z], finish: 'cloth' });
-    b.ball([0.3, 0.2, 0.3], shade(c, 0.06), { at: [x + 0.05, 0.46, z + 0.05], finish: 'cloth' });
+  ] as const) {
+    b.place(x, 0, z, 0, () => buildBeanBag(b, c));
     ctx.colliders.push(footprint(x, z, 0.8, 0.8));
     ctx.blobs.add(x, z, 1.1, 1.1, { shape: 'round' });
   }
 
-  // Vending machine against the west wall.
-  const vx = -OFFICE.halfW + 0.42;
+  const vx = -OFFICE.halfW + D.vending.d / 2 + 0.02;
   const vz = 6.0;
-  tallProp(ctx, 'vending', (s) => {
-    s.box(0.95, 1.9, 0.8, '#FF5A5F', { at: [0, 0.95, 0], r: 0.08 });
-    s.box(0.62, 1.3, 0.05, '#BFE9FF', { at: [-0.1, 1.15, 0.39], r: 0.04, finish: 'gloss' });
-    const r = rng(77);
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 4; col++) {
-        s.box(0.1, 0.16, 0.06, ['#FFC94A', '#6EDC9A', '#B48CFF', '#5CC8FF', '#FF9DCB'][Math.floor(r() * 5)], {
-          at: [-0.32 + col * 0.15, 0.68 + row * 0.3, 0.38],
-          r: 0.02,
-          cast: false,
-        });
-      }
-    }
-    s.box(0.18, 0.5, 0.05, '#3B4252', { at: [0.33, 1.2, 0.39], r: 0.03 });
-    s.box(0.5, 0.16, 0.05, '#3B4252', { at: [-0.1, 0.3, 0.39], r: 0.03 });
-  }, { at: [vx, vz], yaw: Math.PI / 2 });
-  ctx.colliders.push(footprint(vx, vz, 0.95, 0.84, 1));
+  const vr = rng(77);
+  tallProp(ctx, 'vending', (s) => buildVendingMachine(s, vr), { at: [vx, vz], yaw: Math.PI / 2 });
+  ctx.colliders.push(footprint(vx, vz, D.vending.w, D.vending.d + 0.04, 1));
   ctx.blobs.add(vx + 0.05, vz, 1.1, 1.2);
+
+  // Coat rack just inside the door, west side (clear of the intern bench at its longest).
+  const cx = -2.95;
+  const cz = OFFICE.halfD - 0.5;
+  tallProp(ctx, 'coat-rack', (s) => buildCoatRack(s), { at: [cx, cz] });
+  ctx.colliders.push(footprint(cx, cz, 0.5, 0.5));
+  ctx.blobs.add(cx, cz, 0.7, 0.7, { shape: 'round' });
+
+  // A big friendly printer against the east wall, between the windows.
+  const px = OFFICE.halfW - 0.4;
+  const pz = -2.0;
+  tallProp(ctx, 'printer', (s) => buildPrinter(s), { at: [px, pz], yaw: -Math.PI / 2 });
+  ctx.colliders.push(footprint(px, pz, 0.95, 0.72, 1));
+  ctx.blobs.add(px, pz, 1.0, 1.2);
+}
+
+/** Squashy bean bag with a dimple. */
+export function buildBeanBag(b: Batch, color: string): void {
+  b.ball([0.42, 0.3, 0.42], color, { at: [0, 0.26, 0], finish: 'cloth' });
+  b.ball([0.3, 0.2, 0.3], shade(color, 0.06), { at: [0.05, 0.46, 0.05], finish: 'cloth' });
+}
+
+/** Red vending machine: glass front with rows of snacks, coin panel, pickup slot. Front +Z. */
+export function buildVendingMachine(b: Batch, r: () => number, d = D.vending): void {
+  b.box(d.w, d.h, d.d, '#FF5A5F', { at: [0, d.h / 2, 0], r: 0.08, finish: 'plastic' });
+  b.box(0.62, 1.3, 0.05, '#BFE9FF', { at: [-0.1, 1.15, d.d / 2 - 0.01], r: 0.04, finish: 'gloss' });
+  const snacks = ['#FFC94A', '#6EDC9A', '#B48CFF', '#5CC8FF', '#FF9DCB'];
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      b.box(0.1, 0.16, 0.06, snacks[Math.floor(r() * snacks.length)], { at: [-0.32 + col * 0.15, 0.68 + row * 0.3, d.d / 2 - 0.02], r: 0.02, cast: false });
+    }
+  }
+  b.box(0.18, 0.5, 0.05, '#3B4252', { at: [0.33, 1.2, d.d / 2 - 0.01], r: 0.03, finish: 'plastic' });
+  b.ball(0.02, '#6EDC9A', { at: [0.33, 1.36, d.d / 2 + 0.02], glow: 2.2, cast: false });
+  b.box(0.5, 0.16, 0.05, '#3B4252', { at: [-0.1, 0.3, d.d / 2 - 0.01], r: 0.03, finish: 'plastic' });
+}
+
+/** Wooden coat rack with a puffy coat and a scarf. */
+export function buildCoatRack(b: Batch): void {
+  const wood = '#B07A4A';
+  b.cyl(0.03, 0.035, 1.75, wood, { at: [0, 0.875, 0], seg: 10, finish: 'wood' });
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    b.box(0.04, 0.04, 0.34, wood, { at: [Math.sin(a) * 0.13, 0.04, Math.cos(a) * 0.13], rot: [0, a, 0], r: 0.015, finish: 'wood' });
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    b.capsule(0.018, 0.12, wood, { at: [Math.sin(a) * 0.08, 1.62, Math.cos(a) * 0.08], rot: [Math.cos(a) * 0.9, 0, -Math.sin(a) * 0.9], finish: 'wood' });
+  }
+  b.ball(0.06, wood, { at: [0, 1.78, 0], finish: 'wood' });
+  // Puffy coat and a striped scarf.
+  b.ball([0.2, 0.36, 0.12], '#3D7CFF', { at: [0.12, 1.25, 0.08], rot: [0, 0, 0.12], finish: 'cloth' });
+  b.ball([0.08, 0.06, 0.08], '#3D7CFF', { at: [0.1, 1.57, 0.08], finish: 'cloth' });
+  b.capsule(0.035, 0.5, '#FF7A6B', { at: [-0.1, 1.33, -0.06], rot: [0.1, 0, -0.08], finish: 'cloth' });
+}
+
+/** Big friendly printer/copier with a paper tray. Front +Z. */
+export function buildPrinter(b: Batch): void {
+  b.box(0.92, 0.82, 0.66, '#F1EEE6', { at: [0, 0.41, 0], r: 0.07, finish: 'plastic' });
+  b.box(0.86, 0.14, 0.6, '#DCD7CB', { at: [0, 0.9, 0], r: 0.05, finish: 'plastic' });
+  for (let i = 0; i < 2; i++) b.box(0.8, 0.2, 0.03, '#E7E2D6', { at: [0, 0.18 + i * 0.25, 0.33], r: 0.03, finish: 'plastic' });
+  b.box(0.3, 0.08, 0.2, '#3B4252', { at: [0.22, 0.99, 0.2], rot: [-0.3, 0, 0], r: 0.03, finish: 'plastic' });
+  b.box(0.18, 0.05, 0.005, '#7FD8FF', { at: [0.22, 1.0, 0.31], rot: [-0.3, 0, 0], r: 0.004, glow: 1.4, cast: false });
+  b.ball(0.025, '#6EDC9A', { at: [0.36, 1.02, 0.29], glow: 2.0, cast: false });
+  b.box(0.34, 0.03, 0.26, '#FFFDF8', { at: [-0.62, 0.74, 0], rot: [0, 0, 0.12], r: 0.01 });
+  b.box(0.3, 0.02, 0.24, '#FFFDF8', { at: [-0.6, 0.77, 0], rot: [0, 0, 0.12], r: 0.008, cast: false });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -530,21 +624,15 @@ interface BoardState {
 
 function buildWhiteboard(ctx: WorldCtx): { setStats(s: OfficeStats): void } {
   const stats: BoardState = { staff: 0, working: 0, needsYou: 0, idle: 0, interns: 0 };
-  const W = 3.3;
-  const Hh = 1.5;
-  const y = 1.58;
+  const W = D.whiteboard;
   const tex = new CanvasTex(1024, 466, (c, w, h) => drawBoard(c, w, h, stats));
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.1, Hh - 0.1), new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.35 }));
-  placeOnWall(face, 'north', BOARD_X, y, 0.085);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(W.w - 0.1, W.h - 0.1), new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.35 }));
+  placeOnWall(face, 'north', BOARD_X, W.centerY, 0.085);
   face.receiveShadow = true;
   ctx.root.add(face);
   const frame = new Batch();
-  frame.box(W, Hh, 0.06, '#C8D0DC', { at: [BOARD_X, y, -WALL_FACE + 0.05], r: 0.04, finish: 'plastic' });
-  frame.box(W - 0.6, 0.05, 0.12, '#C8D0DC', { at: [BOARD_X, y - Hh / 2 - 0.01, -WALL_FACE + 0.1], r: 0.02, finish: 'plastic' });
-  ['#3D7CFF', '#E63946', '#2EC4B6'].forEach((c, i) => frame.capsule(0.014, 0.1, c, { at: [BOARD_X - 0.4 + i * 0.16, y - Hh / 2 + 0.03, -WALL_FACE + 0.12], rot: [0, 0, Math.PI / 2], cast: false }));
-  const frameGroup = frame.build({ name: 'whiteboard-frame' });
-  ctx.root.add(frameGroup);
-
+  frame.place(BOARD_X, W.centerY, -WALL_FACE, 0, () => buildWhiteboardFrame(frame));
+  ctx.root.add(frame.build({ name: 'whiteboard-frame' }));
 
   ctx.interactables.push({
     id: 'whiteboard',
@@ -570,6 +658,13 @@ function buildWhiteboard(ctx: WorldCtx): { setStats(s: OfficeStats): void } {
       tex.redraw();
     },
   };
+}
+
+/** Whiteboard frame and marker tray. Origin at the wall, board centre at y = 0. */
+export function buildWhiteboardFrame(b: Batch, d = D.whiteboard): void {
+  b.box(d.w, d.h, 0.06, '#C8D0DC', { at: [0, 0, 0.05], r: 0.04, finish: 'plastic' });
+  b.box(d.w - 0.6, 0.05, 0.12, '#C8D0DC', { at: [0, -d.h / 2 - 0.01, 0.1], r: 0.02, finish: 'plastic' });
+  ['#3D7CFF', '#E63946', '#2EC4B6'].forEach((c, i) => b.capsule(0.014, 0.1, c, { at: [-0.4 + i * 0.16, -d.h / 2 + 0.03, 0.12], rot: [0, 0, Math.PI / 2], cast: false }));
 }
 
 function drawBoard(c: CanvasRenderingContext2D, w: number, h: number, s: BoardState): void {
@@ -676,14 +771,13 @@ function drawBoard(c: CanvasRenderingContext2D, w: number, h: number, s: BoardSt
 }
 
 // ---------------------------------------------------------------------------------------------
-// Posters and clock
+// Posters, pictures and the clock
 
 function buildPosters(ctx: WorldCtx): void {
-  const posters: { u: number; side: WallSide; y: number; draw: (c: CanvasRenderingContext2D, w: number, h: number) => void }[] = [
+  const P = D.poster;
+  const posters: { u: number; draw: (c: CanvasRenderingContext2D, w: number, h: number) => void }[] = [
     {
       u: 4.4,
-      side: 'north',
-      y: 1.65,
       draw: (c, w, h) => {
         c.fillStyle = '#FFC94A';
         c.fillRect(0, 0, w, h);
@@ -725,8 +819,6 @@ function buildPosters(ctx: WorldCtx): void {
     },
     {
       u: 5.75,
-      side: 'north',
-      y: 1.65,
       draw: (c, w, h) => {
         c.fillStyle = '#2EC4B6';
         c.fillRect(0, 0, w, h);
@@ -755,11 +847,9 @@ function buildPosters(ctx: WorldCtx): void {
     },
     {
       u: 7.1,
-      side: 'north',
-      y: 1.65,
-      draw: (c, w, h) => {
+      draw: (c, w) => {
         c.fillStyle = '#B48CFF';
-        c.fillRect(0, 0, w, h);
+        c.fillRect(0, 0, w, 700);
         // A little git graph.
         c.strokeStyle = '#FFFDF7';
         c.lineWidth = 12;
@@ -783,11 +873,9 @@ function buildPosters(ctx: WorldCtx): void {
           c.arc(x, y, 22, 0, Math.PI * 2);
           c.fill();
         }
-        c.fillStyle = '#FFFDF7';
         c.textAlign = 'center';
         c.textBaseline = 'middle';
-        const lines = ['Tokens are', 'temporary,', 'commits are', 'forever'];
-        lines.forEach((l, i) => {
+        ['Tokens are', 'temporary,', 'commits are', 'forever'].forEach((l, i) => {
           c.fillStyle = i < 2 ? '#FFFDF7' : '#2B2D42';
           fitText(c, l, 700, 66, w - 60);
           c.fillText(l, w / 2, 430 + i * 68);
@@ -795,7 +883,7 @@ function buildPosters(ctx: WorldCtx): void {
       },
     },
   ];
-  for (const p of posters) hangPicture(ctx, { side: p.side, u: p.u, y: p.y, w: 0.86, h: 0.86 * (700 / 400), px: [400, 700], draw: p.draw });
+  for (const p of posters) hangPicture(ctx, { side: 'north', u: p.u, y: P.centerY - 0.1, w: P.w, h: P.h, px: [400, 700], draw: p.draw });
 }
 
 export interface PictureSpec {
@@ -812,28 +900,29 @@ export interface PictureSpec {
   border?: number;
 }
 
-/** Hang a framed canvas picture on the inside of a wall; it fades with its wall bay. */
+/** Hang a framed canvas picture on the inside of a wall. */
 export function hangPicture(ctx: WorldCtx, p: PictureSpec): void {
   const tex = new CanvasTex(p.px[0], p.px[1], p.draw);
   const border = p.border ?? 0.04;
   const frame = new Batch();
   const pos = new THREE.Object3D();
-  placeOnWall(pos, p.side, p.u, p.y, 0.04);
-  frame.box(p.w + border * 2, p.h + border * 2, 0.04, p.frame ?? '#FFFDF7', {
-    at: [pos.position.x, pos.position.y, pos.position.z],
-    rot: [0, pos.rotation.y, 0],
-    r: Math.min(0.025, border * 0.6),
-  });
-  const fg = frame.build({ name: 'picture-frame' });
-  ctx.root.add(fg);
-  wallPlane(ctx, p.side, p.u, p.y, p.w, p.h, tex.tex, 0.065);
+  placeOnWall(pos, p.side, p.u, p.y, 0);
+  frame.place(pos.position.x, p.y, pos.position.z, pos.rotation.y, () => buildPictureFrame(frame, p.w, p.h, border, p.frame ?? '#FFFDF7'));
+  ctx.root.add(frame.build({ name: 'picture-frame' }));
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.h), new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.75, metalness: 0 }));
+  placeOnWall(mesh, p.side, p.u, p.y, 0.065);
+  mesh.receiveShadow = true;
+  ctx.root.add(mesh);
+}
+
+/** Picture frame (the picture is a separate plane). Origin at the wall, picture centre at y = 0. */
+export function buildPictureFrame(b: Batch, w: number, h: number, border: number, color: string): void {
+  b.box(w + border * 2, h + border * 2, 0.04, color, { at: [0, 0, 0.04], r: Math.min(0.025, border * 0.6), finish: 'plastic' });
 }
 
 function buildClock(ctx: WorldCtx): void {
   // High above the whiteboard, where the Team Room lamps don't hang in front of it.
-  const u = BOARD_X;
-  const y = D.clock.centerY;
-  const R = 0.34;
+  const R = D.clock.r;
   const faceTex = new CanvasTex(256, 256, (c, w, h) => {
     c.fillStyle = '#FFFDF7';
     c.beginPath();
@@ -854,11 +943,10 @@ function buildClock(ctx: WorldCtx): void {
     }
   });
   const group = new THREE.Group();
-  placeOnWall(group, 'north', u, y, 0.06);
+  placeOnWall(group, 'north', BOARD_X, D.clock.centerY, 0.06);
   const b = new Batch();
-  b.add(G.puck(R + 0.05, 0.08), '#FF7A6B', { rot: [Math.PI / 2, 0, 0] });
-  const rim = b.build({ name: 'clock-rim' });
-  group.add(rim);
+  buildClockRim(b);
+  group.add(b.build({ name: 'clock-rim' }));
   const face = new THREE.Mesh(new THREE.CircleGeometry(R, 48), new THREE.MeshStandardMaterial({ map: faceTex.tex, roughness: 0.5 }));
   face.position.z = 0.042;
   group.add(face);
@@ -890,55 +978,113 @@ function buildClock(ctx: WorldCtx): void {
   });
 }
 
+/** The clock's chunky red rim (face and hands are separate). Origin at the wall-side centre, front +Z. */
+export function buildClockRim(b: Batch, d = D.clock): void {
+  b.add(G.puck(d.r + 0.05, 0.08), '#FF7A6B', { rot: [Math.PI / 2, 0, 0], finish: 'plastic' });
+}
+
 // ---------------------------------------------------------------------------------------------
-// Plants
+// Plants: three kinds (leafy pot, fern, palm) dotted around the room
+
+type PlantKind = 'leafy' | 'fern' | 'palm';
 
 function buildPlants(ctx: WorldCtx): void {
-  const spots: [number, number, number][] = [
-    [-3.05, -WALL_FACE + 0.45, 1.25],
-    [3.05, -WALL_FACE + 0.45, 1.1],
-    [-2.35, WALL_FACE - 0.45, 1.0],
-    [2.35, WALL_FACE - 0.45, 1.0],
-    [-OFFICE.halfW + 0.5, WALL_FACE - 0.5, 1.3],
-    [OFFICE.halfW - 0.5, WALL_FACE - 0.5, 1.25],
-    [-OFFICE.halfW + 0.5, -4.4, 1.15],
-    [OFFICE.halfW - 0.5, -4.4, 1.2],
-    [8.0, -WALL_FACE + 0.45, 1.0],
+  const spots: [number, number, number, PlantKind][] = [
+    [-3.05, -WALL_FACE + 0.45, 1.2, 'palm'],
+    [3.05, -WALL_FACE + 0.45, 1.1, 'leafy'],
+    [-2.35, WALL_FACE - 0.45, 1.0, 'fern'],
+    [2.35, WALL_FACE - 0.45, 1.0, 'fern'],
+    [-OFFICE.halfW + 0.5, WALL_FACE - 0.5, 1.3, 'palm'],
+    [OFFICE.halfW - 0.5, WALL_FACE - 0.5, 1.25, 'leafy'],
+    [-OFFICE.halfW + 0.5, -4.4, 1.15, 'leafy'],
+    [OFFICE.halfW - 0.5, -4.4, 1.2, 'palm'],
+    [8.0, -WALL_FACE + 0.45, 1.0, 'fern'],
   ];
-  spots.forEach(([x, z, s], i) => {
+  spots.forEach(([x, z, s, kind], i) => {
     const r = rng(300 + i);
-    // Built around the origin and placed, so the gentle sway pivots on the pot's base.
-    const plant = tallProp(ctx, `plant-${i}`, (b) => pottedPlant(b, 0, 0, s, r), { at: [x, z] });
-    sway(ctx, plant, 0.022, r());
+    const plant = tallProp(ctx, `plant-${i}`, (b) => buildPlant(b, kind, s, r), { at: [x, z], yaw: r() * 6 });
+    sway(ctx, plant, kind === 'palm' ? 0.03 : 0.02, r());
     ctx.colliders.push(footprint(x, z, 0.62 * s, 0.62 * s));
     ctx.blobs.add(x, z, 0.9 * s, 0.9 * s, { shape: 'round' });
   });
 }
 
-/** A slow wobble about the object's base: plants and trees breathe a little. */
-export function sway(ctx: WorldCtx, obj: THREE.Object3D, amp: number, phase: number): void {
-  const p = phase * Math.PI * 2;
-  const speed = 0.8 + phase * 0.5;
-  ctx.tickers.push((_dt, t) => {
-    obj.rotation.z = Math.sin(t * speed + p) * amp;
-    obj.rotation.x = Math.sin(t * speed * 0.77 + p * 1.3) * amp * 0.6;
-  });
+export function buildPlant(b: Batch, kind: PlantKind, s: number, r: () => number): void {
+  if (kind === 'fern') buildFern(b, s, r);
+  else if (kind === 'palm') buildPalm(b, s, r);
+  else buildPottedPlant(b, s, r);
 }
 
-export function pottedPlant(b: Batch, x: number, z: number, s: number, r: () => number): void {
-  b.add(G.lathe('pot', [[0, 0], [0.2, 0], [0.24, 0.04], [0.26, 0.38], [0.29, 0.4], [0.29, 0.44], [0.24, 0.45], [0, 0.42]]), PALETTE.plantPot, { at: [x, 0, z], scale: s });
-  b.puck(0.235 * s, 0.03 * s, PALETTE.coffee, { at: [x, 0.42 * s, z], cast: false });
-  b.cyl(0.025 * s, 0.035 * s, 0.6 * s, '#7A5A3A', { at: [x, 0.7 * s, z], seg: 8 });
-  const leaves = 9;
-  for (let i = 0; i < leaves; i++) {
-    const a = (i / leaves) * Math.PI * 2 + r() * 0.6;
+function terracottaPot(b: Batch, s: number, color: string = PALETTE.plantPot): void {
+  // The rim folds into an inner wall and a flat floor at 0.40, so the soil (0.41–0.434) sits
+  // inside the pot without crossing any pot surface (a sloped inner floor used to cut through
+  // the soil disc and z-fight with it).
+  b.add(G.lathe('pot-well', [[0, 0], [0.2, 0], [0.24, 0.04], [0.26, 0.38], [0.29, 0.4], [0.29, 0.44], [0.24, 0.45], [0.232, 0.4], [0, 0.4]]), color, { scale: s, finish: 'matte' });
+  b.puck(0.226 * s, 0.024 * s, PALETTE.coffee, { at: [0, 0.422 * s, 0], cast: false, finish: 'matte' });
+}
+
+/** Leafy pot plant (rubber-plant-ish): big glossy leaves on a stem. Size scales with `s` (pot ≈ 0.45 m at s = 1). */
+export function buildPottedPlant(b: Batch, s: number, r: () => number): void {
+  terracottaPot(b, s);
+  b.cyl(0.025 * s, 0.035 * s, 0.6 * s, '#7A5A3A', { at: [0, 0.7 * s, 0], seg: 8 });
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + r() * 0.6;
     const tilt = 0.5 + r() * 0.6;
     const yy = (0.75 + r() * 0.45) * s;
     const rad = (0.14 + r() * 0.12) * s;
     b.ball([0.13 * s, 0.07 * s, 0.26 * s], i % 3 === 0 ? shade(PALETTE.plantLeaf, 0.08) : i % 3 === 1 ? PALETTE.plantLeaf : shade(PALETTE.plantLeaf, -0.06), {
-      at: [x + Math.cos(a) * rad, yy, z + Math.sin(a) * rad],
-      rot: [tilt * Math.sin(a) * -1, -a + Math.PI / 2, 0],
+      at: [Math.cos(a) * rad, yy, Math.sin(a) * rad],
+      rot: [-tilt * Math.sin(a), -a + Math.PI / 2, 0],
+      finish: 'plastic',
     });
   }
-  b.ball([0.16 * s, 0.2 * s, 0.16 * s], PALETTE.plantLeaf, { at: [x, 1.2 * s, z] });
+  b.ball([0.16 * s, 0.2 * s, 0.16 * s], PALETTE.plantLeaf, { at: [0, 1.2 * s, 0], finish: 'plastic' });
+}
+
+/** Fern: a low mound of arching fronds in a cream pot. */
+export function buildFern(b: Batch, s: number, r: () => number): void {
+  b.add(G.lathe('fernpot', [[0, 0], [0.18, 0], [0.22, 0.05], [0.24, 0.3], [0.26, 0.32], [0, 0.31]]), '#F4ECDC', { scale: s, finish: 'plastic' });
+  b.puck(0.22 * s, 0.02 * s, PALETTE.coffee, { at: [0, 0.31 * s, 0], cast: false });
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + r() * 0.3;
+    const out = 0.22 + r() * 0.12;
+    for (let k = 0; k < 3; k++) {
+      const t = (k + 1) / 3;
+      b.ball([0.05 * s, 0.025 * s, 0.13 * s], k % 2 ? '#4FB85F' : '#62C96E', {
+        at: [Math.cos(a) * out * t * s, (0.34 + 0.22 * Math.sin(t * Math.PI * 0.8)) * s, Math.sin(a) * out * t * s],
+        rot: [0, -a + Math.PI / 2, (t - 0.5) * 0.9],
+        finish: 'plastic',
+      });
+    }
+  }
+}
+
+/** Indoor palm: three slim canes in a woven basket, crowned with arching fronds. */
+export function buildPalm(b: Batch, s: number, r: () => number): void {
+  b.cyl(0.24 * s, 0.2 * s, 0.38 * s, '#C9955E', { at: [0, 0.19 * s, 0], seg: 18, finish: 'wood' });
+  for (const y of [0.1, 0.22, 0.34]) b.torus(0.225 * s, 0.012 * s, '#A87745', { at: [0, y * s, 0], rot: [Math.PI / 2, 0, 0], finish: 'wood' });
+  b.puck(0.21 * s, 0.02 * s, PALETTE.coffee, { at: [0, 0.37 * s, 0], cast: false });
+  for (let c = 0; c < 3; c++) {
+    const ca = (c / 3) * Math.PI * 2;
+    const h = (0.85 + c * 0.18) * s;
+    const cx = Math.cos(ca) * 0.06 * s;
+    const cz = Math.sin(ca) * 0.06 * s;
+    b.cyl(0.018 * s, 0.024 * s, h, '#8A6B3E', { at: [cx, 0.37 * s + h / 2, cz], seg: 7 });
+    for (let f = 0; f < 5; f++) {
+      const fa = (f / 5) * Math.PI * 2 + r();
+      for (let k = 1; k <= 3; k++) {
+        const t = k / 3;
+        b.ball([0.035 * s, 0.015 * s, 0.11 * s], k % 2 ? '#3FA855' : '#56BE67', {
+          at: [cx + Math.cos(fa) * 0.16 * t * s, 0.37 * s + h - 0.12 * t * t * s + 0.04 * s, cz + Math.sin(fa) * 0.16 * t * s],
+          rot: [0, -fa + Math.PI / 2, -0.4 - t * 0.6],
+          finish: 'plastic',
+        });
+      }
+    }
+  }
+}
+
+/** Kept for callers that place a leafy pot plant directly in world space. */
+export function pottedPlant(b: Batch, x: number, z: number, s: number, r: () => number): void {
+  b.place(x, 0, z, 0, () => buildPottedPlant(b, s, r));
 }

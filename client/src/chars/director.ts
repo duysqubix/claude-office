@@ -1,12 +1,16 @@
 // Runs the floor: turns roster updates into people walking in, sitting down, getting up
 // and going home. Owns desk assignment (stable per session, remembered in localStorage),
-// chairs, interns, desk monitors/nameplates, whiteboard stats and the front door.
+// chairs, the intern bench (stable stations per intern), desk monitors/nameplates,
+// whiteboard stats and the front door.
 import * as THREE from 'three';
 import type { Employee, EmployeeState } from '../../../shared/protocol';
-import type { DeskSlot, OfficeStats, ScreenState, World } from '../world/types';
+import type { DeskSlot, InternSlot, OfficeStats, ScreenState, World } from '../world/types';
 import { Chair, EmployeeChar, distXZ } from './employee';
 import { InternChar } from './intern';
 import type { Bumpable } from './manager';
+
+/** Uniformly random element, or undefined for an empty list. */
+const pickRandom = <T>(xs: readonly T[]): T | undefined => (xs.length ? xs[Math.floor(Math.random() * xs.length)] : undefined);
 
 export interface DirectorHooks {
   added?(e: EmployeeChar, initial: boolean): void;
@@ -14,21 +18,70 @@ export interface DirectorHooks {
   removed?(e: EmployeeChar): void;
   stateChanged?(e: EmployeeChar, prev: EmployeeState): void;
   bumped?(e: EmployeeChar): void;
+  internAdded?(i: InternChar): void;
+  internRemoved?(i: InternChar): void;
 }
 
 const DESK_KEY = 'claude-office:desks';
-const DESK_TTL = 14 * 24 * 3600 * 1000;
-const MAX_INTERNS_SHOWN = 4;
+const SLOT_KEY = 'claude-office:intern-slots';
+const MEMORY_TTL = 14 * 24 * 3600 * 1000;
 
-type DeskMemory = Record<string, [number, number]>; // sessionId → [desk index, last seen ms]
+/** id → [index, last seen ms] */
+type Memory = Record<string, [number, number]>;
 
-function loadMemory(): DeskMemory {
+function loadMemory(key: string): Memory {
   try {
-    const raw = localStorage.getItem(DESK_KEY);
-    const m = raw ? (JSON.parse(raw) as DeskMemory) : {};
+    const raw = localStorage.getItem(key);
+    const m = raw ? (JSON.parse(raw) as Memory) : {};
     return m && typeof m === 'object' ? m : {};
   } catch {
     return {};
+  }
+}
+
+/** Remembers which desk/station each id had, so people come back to the same spot. */
+class SpotMemory {
+  private data: Memory;
+  private dirty = false;
+  private savedAt = 0;
+
+  constructor(private key: string) {
+    this.data = loadMemory(key);
+  }
+
+  get(id: string): number | undefined {
+    return this.data[id]?.[0];
+  }
+
+  /** Indices claimed by other ids seen recently (so returners find their spot free). */
+  claimedByOthers(id: string, withinMs: number): Set<number> {
+    const now = Date.now();
+    const out = new Set<number>();
+    for (const [k, [idx, seen]] of Object.entries(this.data)) if (k !== id && now - seen < withinMs) out.add(idx);
+    return out;
+  }
+
+  set(id: string, index: number): void {
+    if (this.data[id]?.[0] !== index) this.dirty = true;
+    this.data[id] = [index, Date.now()];
+  }
+
+  /** Right away when a claim changes, otherwise once a minute (last-seen times). */
+  save(): void {
+    const now = Date.now();
+    if (!this.dirty && now - this.savedAt < 60_000) return;
+    this.dirty = false;
+    this.savedAt = now;
+    const entries = Object.entries(this.data)
+      .filter(([, [, seen]]) => now - seen < MEMORY_TTL)
+      .sort((a, b) => b[1][1] - a[1][1])
+      .slice(0, 400);
+    this.data = Object.fromEntries(entries);
+    try {
+      localStorage.setItem(this.key, JSON.stringify(this.data));
+    } catch {
+      // Private mode or storage full: spots just won't be remembered.
+    }
   }
 }
 
@@ -46,19 +99,15 @@ function screenFor(e: EmployeeChar): ScreenState {
   }
 }
 
-interface Crew {
-  interns: Map<string, InternChar>;
-  overflow: number;
-}
-
 export class Director {
   readonly employees = new Map<string, EmployeeChar>();
   private chairs = new Map<number, Chair>();
-  private crews = new Map<string, Crew>();
+  /** Each boss's interns, by intern id. */
+  private crews = new Map<string, Map<string, InternChar>>();
+  /** Interns on their way out after their boss (or their entry) went away. */
   private leftovers: InternChar[] = [];
-  private memory = loadMemory();
-  private memoryDirty = false;
-  private memorySavedAt = 0;
+  private desks = new SpotMemory(DESK_KEY);
+  private stations = new SpotMemory(SLOT_KEY);
   private hadRoster = false;
   private deskKeys = new Map<number, string>();
   private desksDirty = true;
@@ -80,11 +129,6 @@ export class Director {
     return this.door;
   }
 
-  /** Number of active interns hidden behind a "+N" bubble for this employee. */
-  internOverflow(sessionId: string): number {
-    return this.crews.get(sessionId)?.overflow ?? 0;
-  }
-
   byDesk(index: number): EmployeeChar | undefined {
     for (const e of this.employees.values()) if (e.desk.index === index && e.atDesk) return e;
     return undefined;
@@ -94,11 +138,17 @@ export class Director {
     return [...this.employees.values()];
   }
 
+  interns(): InternChar[] {
+    const out: InternChar[] = [...this.leftovers];
+    for (const crew of this.crews.values()) out.push(...crew.values());
+    return out;
+  }
+
   /** Everyone the manager can bump into. */
   bumpables(): Bumpable[] {
     const out: Bumpable[] = [];
     for (const e of this.employees.values()) if (e.phase !== 'gone') out.push(e);
-    for (const c of this.crews.values()) for (const i of c.interns.values()) if (i.phase !== 'gone') out.push(i);
+    for (const i of this.interns()) if (i.phase !== 'gone') out.push(i);
     return out;
   }
 
@@ -106,7 +156,6 @@ export class Director {
     const initial = !this.hadRoster;
     this.hadRoster = true;
     const seen = new Set<string>();
-    const now = Date.now();
     for (const data of roster) {
       seen.add(data.sessionId);
       let e = this.employees.get(data.sessionId);
@@ -122,8 +171,7 @@ export class Director {
         e.setData(data);
         if (prev !== data.state) this.hooks.stateChanged?.(e, prev);
       }
-      if (this.memory[data.sessionId]?.[0] !== e.desk.index) this.memoryDirty = true;
-      this.memory[data.sessionId] = [e.desk.index, now];
+      this.desks.set(data.sessionId, e.desk.index);
       this.syncCrew(e, initial);
     }
     for (const e of this.employees.values()) {
@@ -131,16 +179,17 @@ export class Director {
       if (e.phase === 'leaving' || e.phase === 'gone' || e.phase === 'standing-up') continue;
       e.leave();
       this.hooks.leaving?.(e);
-      const crew = this.crews.get(e.data.sessionId);
-      if (crew) for (const i of crew.interns.values()) i.leave();
+      for (const i of this.crews.get(e.data.sessionId)?.values() ?? []) i.leave();
     }
-    this.saveMemory();
+    this.desks.save();
+    this.stations.save();
     this.desksDirty = true;
     this.syncDesks();
   }
 
   update(dt: number, t: number, manager: THREE.Vector3, managerHead: THREE.Vector3): void {
     const head = new THREE.Vector3();
+    const focus = new THREE.Vector3();
     let doorBusy = distXZ(manager, this.door) < 2.5;
     for (const [id, e] of this.employees) {
       const before = e.phase;
@@ -150,14 +199,11 @@ export class Director {
         this.employees.delete(id);
         this.hooks.removed?.(e);
         e.dispose();
-        const crew = this.crews.get(id);
-        if (crew) {
-          for (const i of crew.interns.values()) {
-            i.leave();
-            this.leftovers.push(i);
-          }
-          this.crews.delete(id);
+        for (const i of this.crews.get(id)?.values() ?? []) {
+          i.leave();
+          this.leftovers.push(i);
         }
+        this.crews.delete(id);
         continue;
       }
       if (!doorBusy && distXZ(e.position, this.door) < 2.5) doorBusy = true;
@@ -165,28 +211,29 @@ export class Director {
       if (!crew) continue;
       e.headWorld(head);
       let n = 0;
-      const focus = new THREE.Vector3();
-      for (const [iid, i] of crew.interns) {
+      focus.set(0, 0, 0);
+      for (const [iid, i] of crew) {
         i.update(dt, t, head, managerHead);
         if (i.phase === 'gone') {
-          crew.interns.delete(iid);
-          i.dispose();
+          crew.delete(iid);
+          this.retire(i);
           continue;
         }
         if (!doorBusy && distXZ(i.position, this.door) < 2.5) doorBusy = true;
-        if (i.phase === 'present') {
+        if (i.phase === 'seated') {
           focus.add(i.position);
           n++;
         }
       }
-      e.internFocus = n ? focus.divideScalar(n) : null;
+      // The boss points at where their interns are working (the bench, usually).
+      e.internFocus = n ? (e.internFocus ?? new THREE.Vector3()).copy(focus.divideScalar(n)) : null;
     }
     for (let k = this.leftovers.length - 1; k >= 0; k--) {
       const i = this.leftovers[k];
       i.update(dt, t, this.door, managerHead);
       if (i.phase === 'gone') {
-        i.dispose();
         this.leftovers.splice(k, 1);
+        this.retire(i);
       } else if (!doorBusy && distXZ(i.position, this.door) < 2.5) doorBusy = true;
     }
     if (doorBusy !== this.doorOpen) {
@@ -201,15 +248,20 @@ export class Director {
     for (const e of this.employees.values()) {
       if (e.phase === 'leaving' || e.phase === 'gone' || e.phase === 'standing-up') continue;
       s.staff++;
-      if (e.state === 'working') s.working++;
-      else if (e.state === 'needs-you') s.needsYou++;
+      if (e.state === 'needs-you') s.needsYou++;
+      else if (e.state === 'working') s.working++;
       else s.idle++;
-      s.interns += e.data.interns.filter((i) => i.active).length;
+      s.interns += e.data.interns.length;
     }
     return s;
   }
 
   // -------------------------------------------------------------------------------------
+
+  private retire(i: InternChar): void {
+    this.hooks.internRemoved?.(i);
+    i.dispose();
+  }
 
   private chairFor(desk: DeskSlot): Chair {
     let c = this.chairs.get(desk.index);
@@ -223,81 +275,72 @@ export class Director {
   private assignDesk(sessionId: string): DeskSlot {
     const taken = new Set<number>();
     for (const e of this.employees.values()) if (e.phase !== 'gone' && e.phase !== 'leaving') taken.add(e.desk.index);
-    const desks = this.world.desks;
-    const saved = this.memory[sessionId];
-    if (saved && saved[0] < desks.length && !taken.has(saved[0])) return desks[saved[0]];
+    let desks = this.world.desks;
+    const saved = this.desks.get(sessionId);
+    if (saved !== undefined && saved < desks.length && !taken.has(saved)) return desks[saved];
     // Prefer desks nobody else has a recent claim on, so people who come back keep their spot.
-    const claimed = new Set<number>();
-    const now = Date.now();
-    for (const [id, [idx, seenAt]] of Object.entries(this.memory)) {
-      if (id !== sessionId && now - seenAt < 3 * 24 * 3600 * 1000) claimed.add(idx);
+    const claimed = this.desks.claimedByOthers(sessionId, 3 * 24 * 3600 * 1000);
+    let free = desks.filter((d) => !taken.has(d.index));
+    if (!free.length) {
+      this.world.ensureDesks(desks.length + 1);
+      desks = this.world.desks;
+      free = desks.filter((d) => !taken.has(d.index));
     }
-    const free = desks.filter((d) => !taken.has(d.index));
-    const pick = free.find((d) => !claimed.has(d.index)) ?? free[0];
-    if (pick) return pick;
-    this.world.ensureDesks(desks.length + 1);
-    return this.world.desks[this.world.desks.length - 1];
+    // New arrivals pick a random free desk (not always the first one), avoiding desks someone
+    // else came back to recently. A full office doubles people up rather than failing.
+    return pickRandom(free.filter((d) => !claimed.has(d.index))) ?? pickRandom(free) ?? desks[taken.size % desks.length];
   }
 
-  /** Persist desk claims: right away when one changes, otherwise once a minute (last-seen times). */
-  private saveMemory(): void {
-    const now = Date.now();
-    if (!this.memoryDirty && now - this.memorySavedAt < 60_000) return;
-    this.memoryDirty = false;
-    this.memorySavedAt = now;
-    const entries = Object.entries(this.memory)
-      .filter(([, [, seen]]) => now - seen < DESK_TTL)
-      .sort((a, b) => b[1][1] - a[1][1])
-      .slice(0, 300);
-    this.memory = Object.fromEntries(entries);
-    try {
-      localStorage.setItem(DESK_KEY, JSON.stringify(this.memory));
-    } catch {
-      // Private mode or storage full: desks just won't be remembered.
+  /** A free station at the intern bench (stable per intern), growing the bench if it's full. */
+  private claimStation(internId: string): InternSlot | null {
+    let slots = this.world.internSlots ?? [];
+    const used = new Set<number>();
+    for (const i of this.interns()) if (i.slot && i.phase !== 'leaving' && i.phase !== 'gone') used.add(i.slot.index);
+    const saved = this.stations.get(internId);
+    if (saved !== undefined && saved < slots.length && !used.has(saved)) return slots[saved];
+    let free = slots.filter((s) => !used.has(s.index));
+    if (!free.length && this.world.ensureInternSlots) {
+      this.world.ensureInternSlots(slots.length + 4);
+      slots = this.world.internSlots ?? [];
+      free = slots.filter((s) => !used.has(s.index));
     }
+    const claimed = this.stations.claimedByOthers(internId, 24 * 3600 * 1000);
+    const pick = pickRandom(free.filter((s) => !claimed.has(s.index))) ?? pickRandom(free) ?? null;
+    if (pick) this.stations.set(internId, pick.index);
+    return pick;
   }
 
   private syncCrew(e: EmployeeChar, initial: boolean): void {
     const id = e.data.sessionId;
+    const listed = e.data.interns;
     let crew = this.crews.get(id);
-    const active = e.data.interns.filter((i) => i.active);
     if (!crew) {
-      if (!active.length) return;
-      crew = { interns: new Map(), overflow: 0 };
+      if (!listed.length) return;
+      crew = new Map();
       this.crews.set(id, crew);
     }
-    const shown = active.slice(0, MAX_INTERNS_SHOWN);
-    crew.overflow = Math.max(0, active.length - shown.length);
-    const keep = new Set(shown.map((i) => i.id));
-    for (const [iid, i] of crew.interns) if (!keep.has(iid)) i.leave();
-    const spots = this.internSpots(e.desk);
-    let k = 0;
-    for (const data of shown) {
-      const spot = spots[k++ % spots.length];
-      let i = crew.interns.get(data.id);
-      if (!i || i.phase === 'leaving') {
-        // A leaving one keeps walking out on its own; a fresh one comes in.
-        if (i) this.leftovers.push(i);
-        i = new InternChar(data, spot, this.world, this.scene, initial);
-        crew.interns.set(data.id, i);
-      } else {
-        i.data = data;
-        i.moveTo(spot);
+    const keep = new Set(listed.map((i) => i.id));
+    for (const i of crew.values()) if (!keep.has(i.data.id)) i.leave();
+    const boss = { name: e.data.displayName, shirt: e.rig.looks.shirt };
+    listed.forEach((data, k) => {
+      let i = crew.get(data.id);
+      if (i && (i.phase === 'leaving' || i.phase === 'standing')) {
+        // Came back while heading out: that one keeps walking, a fresh one sits down.
+        crew.delete(data.id);
+        this.leftovers.push(i);
+        i = undefined;
       }
-    }
-  }
-
-  /** Up to four places to stand: the desk's own spots, plus a nudge if it has fewer. */
-  private internSpots(desk: DeskSlot): THREE.Vector3[] {
-    const spots = desk.internSpots.map((p) => p.clone());
-    if (!spots.length) spots.push(desk.approach.clone());
-    const base = spots.length;
-    for (let i = base; i < MAX_INTERNS_SHOWN; i++) {
-      const src = spots[i % base];
-      const away = src.clone().sub(desk.seat).setY(0).normalize().multiplyScalar(0.55);
-      spots.push(src.clone().add(away));
-    }
-    return spots;
+      if (!i) {
+        const slot = this.claimStation(data.id);
+        const spots = e.desk.internSpots;
+        const spot = spots.length ? spots[k % spots.length] : e.desk.approach;
+        i = new InternChar(data, boss, slot, spot.clone(), this.world, this.scene, initial);
+        crew.set(data.id, i);
+        this.hooks.internAdded?.(i);
+      } else {
+        i.setData(data);
+      }
+    });
   }
 
   /** Keep every desk's monitor and nameplate in step with whoever is (or isn't) there. */
