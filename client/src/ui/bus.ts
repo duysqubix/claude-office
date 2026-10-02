@@ -62,6 +62,10 @@ export interface OfficeEvents {
   rehired: { id: string };
   fired: { id: string; name: string };
   'go-to': { id: string };
+  /** Someone thinks out loud (a session's thought from the server, or the demo's). */
+  thought: { id: string; text: string };
+  /** Help → "Thought bubbles" turned on or off. */
+  thoughts: { on: boolean };
   toast: ToastRequest;
   sfx: { name: SfxName; /** Screen x in −1…1 for panning (P1). */ pan?: number };
   /** A docked panel opened or closed. `el` (and `left`/`top`, its box then): so edge faces stay clear of it. */

@@ -2523,6 +2523,118 @@ button.co-pill:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
+/* Thought bubbles (thoughts.ts): a soft cloud with puffs trailing down to the head and italic
+   words, so it reads as thinking, never speech. Floats in, bobs a little, fades after ~6 s. */
+.co-thought {
+  position: relative;
+  box-sizing: border-box;
+  max-width: 230px;
+  margin: 10px 0 22px;
+  padding: 8px 14px 9px;
+  border: 2.5px solid var(--ink);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: 0 3px 0 var(--shade);
+  color: var(--ink);
+  font: italic 500 14px/19px var(--co-font);
+  text-align: center;
+  animation:
+    co-thought-in 420ms var(--spring-soft) both,
+    co-thought-float 3200ms ease-in-out 420ms infinite;
+}
+/* Two half-circle bumps along the top make it a cloud: each ends right on the top border and
+   covers the stretch of it beneath, so the outline runs unbroken over the bump. */
+.co-thought::before,
+.co-thought::after {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+  border: 2.5px solid var(--ink);
+  border-bottom: 0;
+  border-radius: 999px 999px 0 0;
+  background: var(--paper);
+}
+.co-thought::before {
+  top: -14.5px;
+  left: 16%;
+  width: 34px;
+  height: 17px;
+}
+.co-thought::after {
+  top: -10.5px;
+  right: 18%;
+  width: 26px;
+  height: 13px;
+}
+.co-thought__text {
+  position: relative;
+  z-index: 1;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.co-thought__puff {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+}
+.co-thought__puff:nth-of-type(1) {
+  left: 30%;
+  bottom: -15px;
+  width: 13px;
+  height: 11px;
+}
+.co-thought__puff:nth-of-type(2) {
+  left: calc(30% - 10px);
+  bottom: -25px;
+  width: 9px;
+  height: 8px;
+}
+.co-thought__puff:nth-of-type(3) {
+  left: calc(30% - 17px);
+  bottom: -32px;
+  width: 6px;
+  height: 6px;
+}
+.co-thought.is-out {
+  animation: co-thought-out 400ms var(--ease-in) both;
+}
+@keyframes co-thought-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+}
+@keyframes co-thought-float {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes co-thought-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-thought {
+    animation: co-fade-in 150ms linear both !important;
+  }
+  .co-thought.is-out {
+    animation: co-fade-in 150ms linear reverse both !important;
+  }
+}
+html.co-calm .co-thought {
+  animation: co-fade-in 150ms linear both !important;
+}
+html.co-calm .co-thought.is-out {
+  animation: co-fade-in 150ms linear reverse both !important;
+}
+
 /* Big moments slam in; a calm chip that was never anything else just sits there. */
 .co-toast--slam {
   animation: co-slam 350ms var(--ease-out) both;

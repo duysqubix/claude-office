@@ -90,6 +90,11 @@ Contextual: the `[E]` prompt, bubbles, toasts, coach cards. On demand: panels, t
   "Getting settled…"; arriving → "Morning!" (before noon) or "Hi!"; leaving → "Bye!"; asleep → Z z z (14/18/22 px,
   stateSleeping, 2 px ink stroke, rising 40 over 2.4 s, staggered 800). Changes ≤ every 800 (crossfade 120, bump 1.04).
   Needs-you: always, solid amber, ink border, line 1 at 700; beyond R just marker + pill.
+- **Thought** (`thoughts.ts`, issue #36): a soft cloud (two bumps on top, three puffs trailing to the head), italic
+  14/19, floats in (420 soft), bobs 3 px, fades after 6 s; plain text only. A session's thought comes from the server
+  (one line about their real work); regulars daydream from a written pool (by task, night, Monday/Friday) every 20–40
+  s, one at a time. Thoughts take a chatter slot first (within the pill reach, nearest 3); needs-you and speech win.
+  Help "Thought bubbles" (on by default) turns them off and sends presence `thoughts: false`.
 - **"!" marker** (needs-you, above the bubble): 52 px amber disc, 4 px ink border, ink "!" 34/700; bobs 6 px every 900
   with a squash at the bottom; pops out when answered.
 - **Off-screen faces**: needs-you people whose head projects outside the safe rect (inset 24, top 184, bottom 120, right

@@ -15,6 +15,7 @@ import { el, type Markup } from './el';
 import { plainText, visibleText } from './markdown';
 import { employeeFace, faceSvg } from './faces';
 import { stateBadge, STATE_WORD } from './icons';
+import { daydream, thoughtsOn } from './thoughts';
 
 /** Chatter bubbles: within this many metres of the manager, the nearest few only. */
 const BUBBLE_RANGE = 7;
@@ -30,6 +31,10 @@ const REGULAR_BUBBLE_RANGE = 10;
 const MAX_REGULAR_BUBBLES = 3;
 const _p = new THREE.Vector3();
 const _cam = new THREE.Vector3();
+/** A thought stays up this long (then fades over 400 ms). */
+const THOUGHT_MS = 6000;
+/** Regulars daydream every 20–40 s, one at a time. */
+const DAYDREAM_MS = [20_000, 40_000];
 /** Panels go to a bottom sheet below this width (theme.css). */
 const SHEET = typeof window !== 'undefined' ? window.matchMedia('(max-width: 899px)') : null;
 
@@ -41,8 +46,69 @@ function replay(node: HTMLElement): void {
   }
 }
 
+/**
+ * A thought cloud (thoughts.ts): soft cloud, trailing puffs, italic words. Plain text only
+ * (textContent). Shows while `sync(true)` and the thought lasts, then fades out.
+ */
+class Cloud {
+  readonly el: HTMLElement;
+  private text: HTMLElement;
+  private until = 0;
+  private shown = false;
+  private hideTimer = 0;
+
+  constructor() {
+    this.text = el('span', { class: 'co-thought__text' });
+    this.el = el(
+      'div',
+      { class: 'co-thought', attrs: { hidden: true, 'aria-hidden': 'true' } },
+      this.text,
+      el('i', { class: 'co-thought__puff' }),
+      el('i', { class: 'co-thought__puff' }),
+      el('i', { class: 'co-thought__puff' }),
+    );
+  }
+
+  think(text: string, now = performance.now()): void {
+    // Plain text, and nothing that steers how it reads (the server strips these too).
+    this.text.textContent = truncate(text.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, ''), 120);
+    this.until = now + THOUGHT_MS;
+  }
+
+  has(now: number): boolean {
+    return this.until > now;
+  }
+
+  clear(): void {
+    this.until = 0;
+  }
+
+  get visible(): boolean {
+    return !this.el.hidden;
+  }
+
+  sync(ok: boolean, now: number): void {
+    const want = ok && this.until > now;
+    if (want === this.shown) return;
+    this.shown = want;
+    window.clearTimeout(this.hideTimer);
+    if (want) {
+      this.el.classList.remove('is-out');
+      this.el.hidden = false;
+      return;
+    }
+    this.el.classList.add('is-out');
+    this.hideTimer = window.setTimeout(() => {
+      if (!this.shown) this.el.hidden = true;
+    }, 400);
+  }
+}
+
 class Tag {
   readonly obj: CSS2DObject;
+  readonly cloud = new Cloud();
+  /** A thought may show this frame (LabelLayer's budget and distance rules said so). */
+  thoughtOk = false;
   readonly head = new THREE.Vector3();
   /** Distance to the manager this frame (for ordering). */
   dist = 0;
@@ -88,7 +154,7 @@ class Tag {
     this.pillName = el('span');
     this.pill = el('button', { class: 'co-pill', attrs: { type: 'button', tabindex: -1 } }, this.pillBadge, this.pillName);
     this.pill.addEventListener('click', () => bus.emit('go-to', { id: this.e.data.sessionId }));
-    this.root = el('div', { class: 'co-tagstack' }, this.bang, this.bump, this.zzz, this.thought, this.bubble, this.pill);
+    this.root = el('div', { class: 'co-tagstack' }, this.bang, this.bump, this.zzz, this.thought, this.cloud.el, this.bubble, this.pill);
     this.obj = new CSS2DObject(this.root);
     this.obj.center.set(0.5, 1);
     e.labelAnchor.add(this.obj);
@@ -191,7 +257,12 @@ class Tag {
     let line1 = '';
     let line2 = '';
     let code = '';
-    if (e.quipping && camDist < 24) {
+    const now = performance.now();
+    // A thought takes the place of their chatter; what they say out loud and needing you win.
+    const quip = e.quipping && camDist < 24;
+    const thinkAloud = this.thoughtOk && !needs && !quip && this.cloud.has(now);
+    this.cloud.sync(thinkAloud, now);
+    if (quip) {
       kind = 'say';
       text = e.quipText;
     } else if (needs && !walking) {
@@ -199,7 +270,7 @@ class Tag {
         kind = 'needs';
         ({ line1, line2, code } = this.needsLines());
       }
-    } else if (bubbleAllowed && mgrDist < BUBBLE_RANGE && st !== 'sleeping') {
+    } else if (!thinkAloud && bubbleAllowed && mgrDist < BUBBLE_RANGE && st !== 'sleeping') {
       kind = 'say';
       if (e.phase === 'entering') text = new Date().getHours() < 12 ? 'Morning!' : 'Hi!';
       else if (e.phase === 'leaving') text = 'Bye!';
@@ -207,7 +278,6 @@ class Tag {
     }
     if (kind === 'say' && !text) kind = '';
     const key = `${kind}|${text}|${line1}|${line2}|${code}`;
-    const now = performance.now();
     // Needs-you changes land at once; chatter at most every 800 ms so it stays readable.
     if (key !== this.last.bubble && (kind === 'needs' || this.last.kind === 'needs' || now - this.bubbleAt >= BUBBLE_HOLD_MS || !kind)) {
       const was = this.last.kind;
@@ -241,7 +311,7 @@ class Tag {
       }
     }
 
-    const thinking = e.seated && st === 'working' && d.activity?.kind === 'thinking' && this.bubble.hidden && camDist < 18;
+    const thinking = e.seated && st === 'working' && d.activity?.kind === 'thinking' && this.bubble.hidden && !thinkAloud && camDist < 18;
     this.set('thought', thinking, () => (this.thought.hidden = !thinking));
     const sleeping = e.seated && st === 'sleeping' && camDist < 26;
     this.set('zzz', sleeping, () => (this.zzz.hidden = !sleeping));
@@ -298,6 +368,8 @@ class InternTag {
  */
 class RegularTag {
   readonly obj: CSS2DObject;
+  /** Daydreams (thoughts.ts). */
+  readonly cloud = new Cloud();
   private root: HTMLElement;
   private pill: HTMLElement;
   private bubble: HTMLElement;
@@ -311,7 +383,7 @@ class RegularTag {
     this.bump.hidden = true;
     this.bubble = el('div', { class: 'co-bubble', attrs: { hidden: true } });
     this.pill = el('span', { class: 'co-pill co-pill--regular', attrs: { hidden: true, title: `${r.name}, ${r.profile.dept}` } }, r.name);
-    this.root = el('div', { class: 'co-tagstack' }, this.bump, this.bubble, this.pill);
+    this.root = el('div', { class: 'co-tagstack' }, this.bump, this.cloud.el, this.bubble, this.pill);
     this.obj = new CSS2DObject(this.root);
     this.obj.center.set(0.5, 1);
     this.obj.visible = false;
@@ -351,7 +423,7 @@ class RegularTag {
       }
     }
     // Nothing to show: skip the element entirely.
-    this.obj.visible = !this.pill.hidden || !this.bubble.hidden || !this.bump.hidden;
+    this.obj.visible = !this.pill.hidden || !this.bubble.hidden || !this.bump.hidden || this.cloud.visible;
   }
 
   dispose(): void {
@@ -374,6 +446,8 @@ export class LabelLayer {
   private visible = true;
   private vw = window.innerWidth;
   private vh = window.innerHeight;
+  /** When the next regular may daydream. */
+  private nextDaydream = performance.now() + 6000 + Math.random() * 10_000;
   /** Reused every frame. */
   private order: Tag[] = [];
   private targets: EdgeTarget[] = [];
@@ -384,6 +458,16 @@ export class LabelLayer {
     this.renderer.domElement.className = 'labels';
     container.append(this.renderer.domElement);
     this.edges = createEdgeIndicators(document.getElementById('ui') ?? container, (id) => bus.emit('go-to', { id }));
+    // Thoughts: a session's (from the server, or the demo's), and the switch in Help.
+    bus.on('thought', ({ id, text }) => {
+      if (!thoughtsOn()) return;
+      for (const t of this.order) if (t.e.data.sessionId === id) t.cloud.think(text);
+    });
+    bus.on('thoughts', ({ on }) => {
+      if (on) return;
+      for (const t of this.order) t.cloud.clear();
+      for (const t of this.regularTags.values()) t.cloud.clear();
+    });
     bus.on('panel', (p) => {
       this.panelEl = p.open ? (p.el ?? null) : null;
       this.insetAt = 0;
@@ -458,7 +542,13 @@ export class LabelLayer {
     for (const t of order) t.dist = Math.hypot(t.e.position.x - manager.x, t.e.position.z - manager.z);
     order.sort((a, b) => a.dist - b.dist);
     let pills = 0;
+    const now = performance.now();
+    // Thoughts are rare and short: within the pill reach, they get the bubble budget first.
     let bubbles = 0;
+    for (const t of order) {
+      t.thoughtOk = bubbles < MAX_BUBBLES && !t.e.handUp && t.dist <= reach && t.cloud.has(now);
+      if (t.thoughtOk) bubbles++;
+    }
     const targets = this.targets;
     targets.length = 0;
     for (const t of order) {
@@ -468,7 +558,7 @@ export class LabelLayer {
       const camDist = _p.distanceTo(_cam);
       const fade = t.e.handUp ? 1 : pills < MAX_PILLS ? THREE.MathUtils.clamp((reach - d) / 3, 0, 1) : 0;
       if (fade > 0 && !t.e.handUp) pills++;
-      const chatty = !t.e.handUp && bubbles < MAX_BUBBLES && d < BUBBLE_RANGE;
+      const chatty = !t.e.handUp && !t.thoughtOk && bubbles < MAX_BUBBLES && d < BUBBLE_RANGE;
       if (chatty) bubbles++;
       t.update(camDist, d, fade, chatty, d <= reach);
 
@@ -500,11 +590,27 @@ export class LabelLayer {
       const r = t.r;
       const heard = r.quipping && regularBubbles < MAX_REGULAR_BUBBLES && (d < REGULAR_BUBBLE_RANGE || (r.quipLoud && d < 24));
       if (heard) regularBubbles++;
+      // A daydream shows close up, and steps aside for anything they say.
+      const dreaming = !heard && !r.quipping && d < REGULAR_BUBBLE_RANGE && t.cloud.has(now) && regularBubbles < MAX_REGULAR_BUBBLES;
+      if (dreaming) regularBubbles++;
+      t.cloud.sync(dreaming, now);
       t.update(fade, heard ? r.quipText : '');
+    }
+    // Now and then one regular nearby, at their desk or on a break, daydreams (one at a time).
+    if (now >= this.nextDaydream) {
+      // Nobody close enough to see it: look again in a few seconds, not a whole interval later.
+      this.nextDaydream = now + 3000;
+      if (thoughtsOn() && !regulars.some(({ t }) => t.cloud.has(now))) {
+        const pool = regulars.filter(({ t, d }) => d < REGULAR_BUBBLE_RANGE && !t.r.quipping && (t.r.phase === 'seated' || t.r.hanging));
+        const one = pool[Math.floor(Math.random() * pool.length)];
+        if (one) {
+          one.t.cloud.think(daydream(one.t.r), now);
+          this.nextDaydream = now + DAYDREAM_MS[0] + Math.random() * (DAYDREAM_MS[1] - DAYDREAM_MS[0]);
+        }
+      }
     }
     // Longest waiting first: they win when markers merge.
     if (targets.length > 1) targets.sort((a, b) => (a.since ?? 0) - (b.since ?? 0));
-    const now = performance.now();
     if (now - this.insetAt > 250) {
       this.insetAt = now;
       this.measureInset();

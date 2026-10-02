@@ -32,6 +32,10 @@ export interface Backend {
   onStats: ((stats: TeamStats) => void) | null;
   /** online=false comes with the time of the next reconnect attempt. */
   onStatus: ((online: boolean, retryAt: number) => void) | null;
+  /** A session thought something: one short line from the server (see ui/thoughts.ts). */
+  onThought?: ((sessionId: string, text: string, at: number) => void) | null;
+  /** Thought bubbles on/off. Goes out with presence, so the server only thinks while someone wants it. */
+  setThoughts?(on: boolean): void;
   start(): void;
   roster(): Promise<Employee[]>;
   projects(): Promise<ProjectInfo[]>;
@@ -91,6 +95,11 @@ export function createBackend(): Backend {
     onNotice: null,
     onStats: null,
     onStatus: null,
+    onThought: null,
+    setThoughts(on) {
+      wantThoughts = on;
+      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(presence()));
+    },
     start() {
       connect();
       watchPresence(() => ws, (msg) => {
@@ -158,6 +167,7 @@ export function createBackend(): Backend {
       else if (msg.type === 'roster') backend.onRoster?.(msg.employees, msg.now);
       else if (msg.type === 'notice') backend.onNotice?.(msg.level, msg.text);
       else if (msg.type === 'stats') backend.onStats?.(msg.stats);
+      else if (msg.type === 'thought') backend.onThought?.(msg.sessionId, msg.text, msg.at);
     };
     sock.onclose = () => {
       window.clearTimeout(giveUp);
@@ -178,7 +188,14 @@ export function createBackend(): Backend {
 // 0 until a real key/pointer/wheel event: a page that was just opened (or a headless
 // screenshot) must not count as a manager, or real sessions' prompts would wait on it.
 let lastInputAt = 0;
-const presence = (): ClientMessage => ({ type: 'presence', visible: document.visibilityState === 'visible', lastInputAt, canAnswer: true });
+let wantThoughts = false;
+const presence = (): ClientMessage => ({
+  type: 'presence',
+  visible: document.visibilityState === 'visible',
+  lastInputAt,
+  canAnswer: true,
+  thoughts: wantThoughts,
+});
 
 function watchPresence(current: () => WebSocket | null, send: (msg: ClientMessage) => void): void {
   let lastSent = 0;

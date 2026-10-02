@@ -20,6 +20,7 @@ import { enhanceMarkdown, plainText, renderMarkdown } from './markdown';
 import { markNoteSeen, noteSeen } from './notes';
 import { isOffline, needsServer } from './offline';
 import { HIGH_CONTEXT, renderTeamStats } from './teamstats';
+import { setThoughtsOn, thoughtsOn, wireThoughts } from './thoughts';
 import { TerminalView } from './terminal';
 import type { Toasts } from './toasts';
 
@@ -151,6 +152,8 @@ export class PanelHost {
     root.append(this.layer);
     // Edge faces and name pills ask for a go-to; walking there is the game's job.
     bus.on('go-to', ({ id }) => this.deps.actions.walkTo(id));
+    // Thought bubbles: the saved switch goes out with presence (this runs before backend.start()).
+    wireThoughts(this.deps.backend, this.deps.store);
     document.documentElement.classList.toggle('co-calm', readCalm());
   }
 
@@ -1062,6 +1065,9 @@ export class PanelHost {
     const calm = el('input', { attrs: { type: 'checkbox' } });
     calm.checked = document.documentElement.classList.contains('co-calm');
     calm.addEventListener('change', () => applyCalm(calm.checked));
+    const thoughts = el('input', { attrs: { type: 'checkbox' } });
+    thoughts.checked = thoughtsOn();
+    thoughts.addEventListener('change', () => setThoughtsOn(thoughts.checked));
     // Regulars: NPC coworkers at the free desks (chars/regulars.ts), saved per browser.
     const density = readRegularsDensity();
     const presets: Record<RegularsPreset, [string, string]> = {
@@ -1092,6 +1098,12 @@ export class PanelHost {
         ...states.map(([s, what]) => el('div', { class: 'co-row' }, el('dt', null, el('span', { html: stateBadge(s, true) }), STATE_WORD[s]), el('dd', null, what))),
       ),
       el('label', { class: 'co-choice co-choice--toggle' }, calm, el('span', null, 'Calmer motion', el('small', null, 'No bobbing, breathing, wiggles or confetti; pops become fades.'))),
+      el(
+        'label',
+        { class: 'co-choice co-choice--toggle' },
+        thoughts,
+        el('span', null, 'Thought bubbles', el('small', null, "Now and then someone thinks out loud about what they're doing. Off: nobody does, and the office stops asking for thoughts.")),
+      ),
       el('h3', { class: 'co-section' }, 'Office regulars'),
       el('p', { class: 'co-muted' }, 'Coworkers who aren’t Claude sessions fill the free desks, and give one up whenever a session needs it.'),
       regulars,

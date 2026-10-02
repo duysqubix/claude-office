@@ -26,8 +26,17 @@ async function open(url, { live = false } = {}) {
   page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
   await page.evaluateOnNewDocument(() => {
     const send = WebSocket.prototype.send;
+    window.__presence = [];
     WebSocket.prototype.send = function (d) {
-      if (typeof d === 'string' && d.includes('"presence"')) return;
+      // Presence never leaves a test tab (it could make the office hold real prompts); we only note it.
+      if (typeof d === 'string' && d.includes('"presence"')) {
+        try {
+          window.__presence.push(JSON.parse(d));
+        } catch {
+          // not JSON
+        }
+        return;
+      }
       return send.call(this, d);
     };
     // The tree is edited live by other agents: no hot reload may restart the office mid-check.
@@ -477,6 +486,108 @@ try {
     check('"Got it" puts the note away, and it stays away for this wait', afterGot === true && reopened === true, JSON.stringify({ afterGot, reopened }));
     check('no page errors (offline and Got it)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
     await op.close();
+  }
+
+  // ------------------------------------------------------------------ thought bubbles (fresh office)
+  {
+    const o = await open(`${BASE}/?demo=1&quiet=1&debug=1&regulars=lively`);
+    const tp = o.page;
+    // Someone near the manager who doesn't need you.
+    const thinker = await tp.evaluate(() => {
+      const of = window.office;
+      const e = of.director.list().filter((x) => !x.handUp && x.phase === 'seated').sort((a, b) => a.position.distanceTo(of.manager.position) - b.position.distanceTo(of.manager.position))[0];
+      return { id: e.data.sessionId, name: e.data.displayName };
+    });
+    const cloudOf = (name) =>
+      tp.evaluate((n) => {
+        const pill = [...document.querySelectorAll('.co-tagstack .co-pill')].find((p) => p.textContent.trim() === n);
+        const c = pill?.closest('.co-tagstack')?.querySelector('.co-thought');
+        if (!c) return null;
+        const cs = getComputedStyle(c);
+        return { shown: !c.hidden, text: c.querySelector('.co-thought__text')?.textContent, puffs: c.querySelectorAll('.co-thought__puff').length, italic: cs.fontStyle, imgs: c.querySelectorAll('img').length };
+      }, name);
+    await tp.evaluate((id) => window.officeThink(id, 'Come on server, time to think out loud.'), thinker.id);
+    await wait(600);
+    const c1 = await cloudOf(thinker.name);
+    check('a session thought shows as a cloud: italic words, three trailing puffs', !!c1?.shown && c1.text === 'Come on server, time to think out loud.' && c1.puffs === 3 && c1.italic === 'italic', JSON.stringify(c1));
+    await shot(tp, 'thought-session');
+    await wait(6200);
+    const c1b = await cloudOf(thinker.name);
+    check('the thought fades after about 6 s', c1b && !c1b.shown, JSON.stringify(c1b));
+
+    // Hostile text stays text.
+    await tp.evaluate((id) => window.officeThink(id, '<img src=x onerror="window.__xss=9"> **not bold** ‮evil'), thinker.id);
+    await wait(500);
+    const c2 = await cloudOf(thinker.name);
+    const xss = await tp.evaluate(() => window.__xss ?? null);
+    check('a thought is plain text (no markup runs)', !!c2?.shown && c2.imgs === 0 && xss === null && (c2.text ?? '').includes('<img src=x onerror='), JSON.stringify({ c2, xss }));
+
+    // Needs-you beats a thought.
+    const asker3 = await tp.evaluate(() => window.office.director.list().find((x) => x.handUp)?.data.displayName ?? null);
+    if (asker3) {
+      await tp.evaluate((n) => {
+        const e = window.office.director.list().find((x) => x.data.displayName === n);
+        window.officeThink(e.data.sessionId, 'This should never cover the question.');
+      }, asker3);
+      await wait(500);
+      const c3 = await cloudOf(asker3);
+      const needs = await tp.evaluate((n) => {
+        const pill = [...document.querySelectorAll('.co-tagstack .co-pill')].find((p) => p.textContent.trim() === n);
+        return !!pill?.closest('.co-tagstack')?.querySelector('.co-bubble--needs:not([hidden])');
+      }, asker3);
+      check('needs-you beats a thought (no cloud over a raised hand)', (!c3 || !c3.shown) && needs, JSON.stringify({ c3, needs }));
+    } else check('needs-you beats a thought (no one needs you in this demo run)', false);
+
+    // Regulars daydream on their own (first one within ~16 s).
+    await tp.evaluate(() => {
+      const of = window.office;
+      const r = of.regulars.list().find((x) => x.phase === 'seated');
+      if (r) of.manager.teleport(r.position.clone().add(r.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-2.2)).setY(0), of.manager.yaw);
+    });
+    let dream = null;
+    for (let i = 0; i < 24 && !dream; i++) {
+      await wait(1000);
+      dream = await tp.evaluate(() => {
+        const c = [...document.querySelectorAll('.co-tagstack')].find((s) => s.querySelector('.co-pill--regular') && s.querySelector('.co-thought:not([hidden])'));
+        return c ? c.querySelector('.co-thought__text')?.textContent : null;
+      });
+    }
+    check('a regular daydreams now and then', !!dream, String(dream));
+    if (dream) await shot(tp, 'thought-daydream');
+
+    // Help → Thought bubbles off: nothing shows (and the switch is saved).
+    await tp.evaluate(() => window.office.panels.open('help'));
+    await wait(400);
+    await tp.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
+    await wait(300);
+    await tp.evaluate((id) => window.officeThink(id, 'Nobody should see this.'), thinker.id);
+    await wait(500);
+    const off = await tp.evaluate(() => ({ shown: document.querySelectorAll('.co-thought:not([hidden]):not(.is-out)').length, saved: localStorage.getItem('claude-office:thoughts') }));
+    check('Thought bubbles off: none show, and the switch is saved', off.shown === 0 && off.saved === '0', JSON.stringify(off));
+    await tp.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.scrollIntoView({ block: 'center' }));
+    await wait(200);
+    await shot(tp, 'thought-help');
+    await tp.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
+    check('no page errors (thoughts)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
+    await tp.close();
+  }
+
+  // Thought bubbles off tells the office to stop thinking (presence thoughts:false). Live page,
+  // read-only: presence is only recorded, never sent, and nothing is posted.
+  {
+    const lv = await open(`${BASE}/?debug=1`, { live: true });
+    await wait(800);
+    const first = await lv.page.evaluate(() => window.__presence.at(-1) ?? null);
+    await lv.page.evaluate(() => window.office.panels.open('help'));
+    await wait(300);
+    await lv.page.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
+    await wait(300);
+    const after = await lv.page.evaluate(() => window.__presence.at(-1) ?? null);
+    check('presence says thoughts:true, and Help → off sends thoughts:false at once', first?.thoughts === true && after?.thoughts === false, JSON.stringify({ first, after }));
+    await lv.page.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
+    await wait(200);
+    check('live: nothing was posted (thoughts)', lv.posts.length === 0, lv.posts.join(' | '));
+    await lv.page.close();
   }
 
   // Sitting at a computer (demo terminal)
