@@ -17,6 +17,7 @@ import type { Rig } from '../rig';
 import RD from '../rig-dimensions.json';
 import { planKit, type KitPlan } from './plan';
 import { findSlots, type SlotName } from './slots';
+import { cutAway } from './trim';
 
 export { planKit, type KitPlan } from './plan';
 
@@ -320,6 +321,30 @@ class Follow extends THREE.Group {
 
 const staticMatrix = (o: THREE.Object3D, scale = o.scale) => new THREE.Matrix4().compose(o.position, o.quaternion, scale);
 
+/**
+ * beard_full means to leave the mouth open, but its opening sits above the rig's mouth (y −0.074,
+ * 4.8 cm tall, vs mouths at −0.065…−0.128), so it hides every mouth shape. Carve the opening
+ * where the mouth is (head space): wide enough for the smile's corners and the "o", keeping the
+ * mustache above and the chin below.
+ */
+const MOUTH_OPENING = { y: -0.1, rx: 0.085, ry: 0.04 };
+const opened = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+
+function openMouth(part: THREE.Object3D): void {
+  const { y: cy, rx, ry } = MOUTH_OPENING;
+  part.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    // Shared by every bearded character, like the GLB geometry it's cut from (never disposed).
+    let g = opened.get(mesh.geometry);
+    if (!g) {
+      g = cutAway(mesh.geometry, (x, y, z) => (z > 0 ? 1 - (x / rx) ** 2 - ((y - cy) / ry) ** 2 : -1));
+      opened.set(mesh.geometry, g);
+    }
+    mesh.geometry = g;
+  });
+}
+
 /** Remove a model's meshes drawn in the named material (an unwanted layer of a kit part). */
 function drop(part: THREE.Object3D | undefined, material: string): void {
   const doomed: THREE.Object3D[] = [];
@@ -490,7 +515,13 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
   // greys out the dark eyes behind it. Sunglasses keep their dark lenses.
   if (P.glasses !== 'sunglasses') drop(got.glasses, 'Lens');
   put('glasses', got.glasses, { tint: { Accent: C.glasses }, layer: 3, rim: false });
+  const beard = P.facialHair === 'beard_full' ? got.face : undefined;
+  if (beard) openMouth(beard);
   put('face', got.face, { tint: { Hair: C.hair }, layer: 3 });
+  // The cut shell is open: drawing both sides keeps the opening's edge looking solid.
+  beard?.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) ((o as THREE.Mesh).material as THREE.Material).side = THREE.DoubleSide;
+  });
 
   // Held items: the rig keeps the mug upright and the laptop out front; the kit models go inside.
   // A plain mug: no lettering, and no baked texture on the glaze (the lettering is in it too).
