@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-02T23:09:27.879Z",
+  "generated": "2026-10-02T23:44:14.237Z",
   "totals": {
     "all": 232,
     "done": 232
@@ -9573,31 +9573,31 @@
       "anchors": {
         "center": [
           0,
-          -0.0516,
-          0.2854
+          -0.0519,
+          0.2752
         ]
       },
       "status": "done",
       "file": "models/mustache.glb",
       "thumb": "models/thumbs/mustache.jpg",
       "dims": {
-        "w": 0.266,
-        "h": 0.087,
-        "d": 0.069
+        "w": 0.27,
+        "h": 0.069,
+        "d": 0.052
       },
       "bbox": {
         "min": [
-          -0.133,
-          -0.088,
-          0.233
+          -0.135,
+          -0.085,
+          0.225
         ],
         "max": [
-          0.133,
-          0,
-          0.301
+          0.135,
+          -0.016,
+          0.277
         ]
       },
-      "tris": 900,
+      "tris": 899,
       "materials": [
         "Hair"
       ],
@@ -9605,7 +9605,7 @@
         "mustache"
       ],
       "textures": 1,
-      "bytes": 36952
+      "bytes": 39576
     },
     {
       "id": "plant_wall",
