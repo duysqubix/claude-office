@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-02T01:09:30.187Z",
+  "generated": "2026-10-02T01:25:30.210Z",
   "totals": {
     "all": 232,
     "done": 232
@@ -3056,7 +3056,7 @@
         "bush_round"
       ],
       "textures": 1,
-      "bytes": 78652
+      "bytes": 78680
     },
     {
       "id": "clerestory_window",
@@ -3110,7 +3110,7 @@
         "clerestory_window"
       ],
       "textures": 1,
-      "bytes": 79596
+      "bytes": 79624
     },
     {
       "id": "cloud_a",
@@ -3155,7 +3155,7 @@
         "cloud_a"
       ],
       "textures": 1,
-      "bytes": 130632
+      "bytes": 130660
     },
     {
       "id": "cloud_b",
@@ -3200,7 +3200,7 @@
         "cloud_b"
       ],
       "textures": 1,
-      "bytes": 119292
+      "bytes": 119320
     },
     {
       "id": "cloud_c",
@@ -3245,7 +3245,7 @@
         "cloud_c"
       ],
       "textures": 1,
-      "bytes": 78188
+      "bytes": 78216
     },
     {
       "id": "company_sign",
@@ -3310,7 +3310,7 @@
         "company_sign"
       ],
       "textures": 1,
-      "bytes": 539600
+      "bytes": 539628
     },
     {
       "id": "doormat",
@@ -3357,7 +3357,7 @@
         "doormat"
       ],
       "textures": 1,
-      "bytes": 126728
+      "bytes": 126756
     },
     {
       "id": "flower_bed",
@@ -3414,7 +3414,7 @@
         "flower_bed"
       ],
       "textures": 1,
-      "bytes": 372140
+      "bytes": 372168
     },
     {
       "id": "office_window",
@@ -3467,7 +3467,7 @@
         "office_window"
       ],
       "textures": 1,
-      "bytes": 84752
+      "bytes": 84780
     },
     {
       "id": "park_bench",
@@ -3529,7 +3529,7 @@
         "park_bench"
       ],
       "textures": 1,
-      "bytes": 147872
+      "bytes": 148072
     },
     {
       "id": "plant_monstera",
@@ -3583,7 +3583,7 @@
         "plant_monstera"
       ],
       "textures": 1,
-      "bytes": 323424
+      "bytes": 323452
     },
     {
       "id": "sliding_door",
@@ -3654,7 +3654,7 @@
         "DoorR"
       ],
       "textures": 1,
-      "bytes": 237676
+      "bytes": 237756
     },
     {
       "id": "street_lamp",
@@ -3708,7 +3708,7 @@
         "street_lamp"
       ],
       "textures": 1,
-      "bytes": 130116
+      "bytes": 130368
     },
     {
       "id": "tree_pine",
@@ -3765,7 +3765,7 @@
         "tree_pine"
       ],
       "textures": 1,
-      "bytes": 118212
+      "bytes": 118240
     },
     {
       "id": "tree_round",
@@ -3821,7 +3821,7 @@
         "tree_round"
       ],
       "textures": 1,
-      "bytes": 145328
+      "bytes": 145356
     },
     {
       "id": "bicycle",
@@ -3884,7 +3884,7 @@
         "bicycle"
       ],
       "textures": 1,
-      "bytes": 257672
+      "bytes": 257756
     },
     {
       "id": "bike_rack",
@@ -3946,7 +3946,7 @@
         "bike_rack"
       ],
       "textures": 1,
-      "bytes": 102076
+      "bytes": 102104
     },
     {
       "id": "fence_picket",
@@ -3992,7 +3992,7 @@
         "fence_picket"
       ],
       "textures": 1,
-      "bytes": 97092
+      "bytes": 97152
     },
     {
       "id": "fire_hydrant",
@@ -4038,7 +4038,7 @@
         "fire_hydrant"
       ],
       "textures": 1,
-      "bytes": 101808
+      "bytes": 101836
     },
     {
       "id": "flag_pole",
@@ -4096,7 +4096,7 @@
         "Flag"
       ],
       "textures": 1,
-      "bytes": 79632
+      "bytes": 79660
     },
     {
       "id": "grass_tuft",
@@ -4144,7 +4144,7 @@
         "grass_tuft"
       ],
       "textures": 1,
-      "bytes": 39132
+      "bytes": 39160
     },
     {
       "id": "hair_bun",
@@ -4204,7 +4204,7 @@
         "hair_bun"
       ],
       "textures": 1,
-      "bytes": 83812
+      "bytes": 83840
     },
     {
       "id": "hair_buzz",
@@ -4257,7 +4257,7 @@
         "hair_buzz"
       ],
       "textures": 1,
-      "bytes": 44912
+      "bytes": 44940
     },
     {
       "id": "hair_long",
@@ -4310,7 +4310,7 @@
         "hair_long"
       ],
       "textures": 1,
-      "bytes": 84332
+      "bytes": 84360
     },
     {
       "id": "hair_mohawk",
@@ -4364,7 +4364,7 @@
         "hair_mohawk"
       ],
       "textures": 1,
-      "bytes": 58664
+      "bytes": 58692
     },
     {
       "id": "hair_pigtails",
@@ -4432,7 +4432,7 @@
         "PigtailR"
       ],
       "textures": 1,
-      "bytes": 96768
+      "bytes": 96796
     },
     {
       "id": "hair_ponytail",
@@ -4548,7 +4548,7 @@
         "hair_spiky"
       ],
       "textures": 1,
-      "bytes": 79316
+      "bytes": 79344
     },
     {
       "id": "hedge",
@@ -4655,7 +4655,7 @@
         "Flag"
       ],
       "textures": 1,
-      "bytes": 62328
+      "bytes": 62356
     },
     {
       "id": "outdoor_bin",
@@ -4708,7 +4708,7 @@
         "outdoor_bin"
       ],
       "textures": 1,
-      "bytes": 92356
+      "bytes": 92336
     },
     {
       "id": "palm_indoor",
@@ -4762,7 +4762,7 @@
         "palm_indoor"
       ],
       "textures": 1,
-      "bytes": 327276
+      "bytes": 327304
     },
     {
       "id": "picnic_table",
@@ -4835,7 +4835,7 @@
         "picnic_table"
       ],
       "textures": 1,
-      "bytes": 128988
+      "bytes": 129016
     },
     {
       "id": "plant_fern",
@@ -4887,7 +4887,7 @@
         "plant_fern"
       ],
       "textures": 1,
-      "bytes": 314360
+      "bytes": 314388
     },
     {
       "id": "plant_hanging",
@@ -4949,7 +4949,7 @@
         "plant_hanging"
       ],
       "textures": 1,
-      "bytes": 219180
+      "bytes": 219208
     },
     {
       "id": "plant_snake",
@@ -5002,7 +5002,7 @@
         "plant_snake"
       ],
       "textures": 1,
-      "bytes": 79364
+      "bytes": 79392
     },
     {
       "id": "planter_box",
@@ -5058,7 +5058,7 @@
         "planter_box"
       ],
       "textures": 1,
-      "bytes": 263648
+      "bytes": 263676
     },
     {
       "id": "rock_cluster",
@@ -5107,7 +5107,7 @@
         "rock_cluster"
       ],
       "textures": 1,
-      "bytes": 47116
+      "bytes": 47144
     },
     {
       "id": "toy_car",
@@ -5161,7 +5161,7 @@
         "toy_car"
       ],
       "textures": 1,
-      "bytes": 312228
+      "bytes": 312388
     },
     {
       "id": "tree_blossom",
@@ -5218,7 +5218,7 @@
         "tree_blossom"
       ],
       "textures": 1,
-      "bytes": 200728
+      "bytes": 200756
     },
     {
       "id": "birdbath",
@@ -5276,7 +5276,7 @@
         "birdbath"
       ],
       "textures": 1,
-      "bytes": 117188
+      "bytes": 117216
     },
     {
       "id": "coffee_truck",
@@ -5347,7 +5347,7 @@
         "coffee_truck"
       ],
       "textures": 1,
-      "bytes": 495128
+      "bytes": 495092
     },
     {
       "id": "hot_air_balloon",
@@ -5414,7 +5414,7 @@
         "hot_air_balloon"
       ],
       "textures": 1,
-      "bytes": 173796
+      "bytes": 173896
     },
     {
       "id": "pet_cat",
@@ -5485,7 +5485,7 @@
         "Tail"
       ],
       "textures": 1,
-      "bytes": 277020
+      "bytes": 277048
     },
     {
       "id": "pet_dog",
@@ -5556,7 +5556,7 @@
         "Tail"
       ],
       "textures": 1,
-      "bytes": 253428
+      "bytes": 253420
     },
     {
       "id": "pond",
@@ -5620,7 +5620,7 @@
         "pond"
       ],
       "textures": 1,
-      "bytes": 267032
+      "bytes": 267396
     },
     {
       "id": "coffee_machine",
@@ -11733,23 +11733,23 @@
       "file": "models/char_shoe_sneaker.glb",
       "thumb": "models/thumbs/char_shoe_sneaker.jpg",
       "dims": {
-        "w": 0.208,
-        "h": 0.154,
-        "d": 0.273
+        "w": 0.194,
+        "h": 0.156,
+        "d": 0.283
       },
       "bbox": {
         "min": [
-          -0.104,
-          -0.099,
-          -0.084
+          -0.097,
+          -0.107,
+          -0.086
         ],
         "max": [
-          0.104,
-          0.054,
-          0.189
+          0.097,
+          0.049,
+          0.197
         ]
       },
-      "tris": 1750,
+      "tris": 1892,
       "materials": [
         "Shoes",
         "Sole",
@@ -11760,7 +11760,7 @@
         "char_shoe_sneaker"
       ],
       "textures": 1,
-      "bytes": 71604
+      "bytes": 91092
     },
     {
       "id": "char_thigh",
@@ -13444,7 +13444,7 @@
       "dims": {
         "w": 0.2,
         "h": 0.201,
-        "d": 0.297
+        "d": 0.301
       },
       "bbox": {
         "min": [
@@ -13455,7 +13455,7 @@
         "max": [
           0.1,
           0.1,
-          0.191
+          0.195
         ]
       },
       "tris": 1740,
@@ -13468,7 +13468,7 @@
         "char_shoe_boot"
       ],
       "textures": 1,
-      "bytes": 73120
+      "bytes": 76316
     },
     {
       "id": "char_torso_labcoat",
@@ -13778,7 +13778,7 @@
         "legs_skirt"
       ],
       "textures": 1,
-      "bytes": 98204
+      "bytes": 95184
     }
   ]
 }

@@ -86,4 +86,4 @@ def build():
 
 
 def finalize(name):
-    return kit.finalize(name, META, mount="torso", mq_torso=False, ao=False)
+    return kit.finalize(name, META, mount="torso", mq_torso=False, ao=False, mq_raise=0.12)

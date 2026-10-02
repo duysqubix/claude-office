@@ -379,58 +379,85 @@ def shoe_frame():
     return c, (w / 2, ln / 2, h / 2)
 
 
-def sneaker_upper(P):
+SOLE_H = 0.032
+
+
+def _shoe_dims():
     c, (rx, ry, rz) = shoe_frame()
-    d = kit.sd_ellipsoid(P, tuple(c + Vector((0, 0.005, 0.004))), (rx * 0.97, ry * 0.97, rz))
-    # Toe box a little puffier and rounder up front.
-    d = kit.smin(d, kit.sd_ellipsoid(P, tuple(c + Vector((0, -ry * 0.42, -0.006))),
-                                     (rx * 0.98, ry * 0.55, rz * 0.82)), 0.03)
-    # Flat underneath so it stands.
-    return kit.smax(d, (c.z - rz + 0.012) - P[:, 2], 0.012)
+    floor = c.z - rz
+    return c, rx, ry, rz, floor, floor + SOLE_H
+
+
+def _sneaker_core(P):
+    """Heel block blending into a lower toe box, so the instep slopes down to the toe."""
+    c, rx, ry, rz, floor, top = _shoe_dims()
+    heel = kit.sd_ellipsoid(P, (0, c.y + ry * 0.4, c.z - 0.012), (rx * 0.93, ry * 0.58, rz * 0.9))
+    toe = kit.sd_ellipsoid(P, (0, c.y - ry * 0.38, c.z - 0.03), (rx * 0.95, ry * 0.66, rz * 0.66))
+    return kit.smin(heel, toe, 0.05)
+
+
+ANKLE = (0.0, 0.022)  # ankle opening centre (x, y)
+
+
+def sneaker_upper(P):
+    c, rx, ry, rz, floor, top = _shoe_dims()
+    d = _sneaker_core(P)
+    # Tongue: a soft strip from the ankle opening down the instep.
+    tongue = kit.sd_ellipsoid(P, (0, ANKLE[1] - 0.06, c.z + rz * 0.5), (0.034, 0.05, 0.03),
+                              kit.rot3(math.radians(-24), 0, 0))
+    d = kit.smin(d, tongue, 0.02)
+    d = kit.smax(d, -kit.sd_capsule(P, (ANKLE[0], ANKLE[1], c.z + 0.02),
+                                    (ANKLE[0], ANKLE[1], 0.3), 0.056), 0.012)
+    return kit.smax(d, top - 0.002 - P[:, 2], 0.006)
 
 
 def sneaker_sole(P):
-    c, (rx, ry, rz) = shoe_frame()
-    d = kit.sd_ellipsoid(P, tuple(c + Vector((0, -0.002, -0.004))),
-                         (rx + 0.008, ry + 0.01, rz * 0.98))
-    floor = c.z - rz
-    d = kit.smax(d, floor - P[:, 2] - 0.0005, 0.01)
-    d = kit.smax(d, P[:, 2] - (floor + 0.036), 0.008)
-    # Toe cap: the rubber climbs over the front of the toe.
-    toe = kit.sd_ellipsoid(P, tuple(c + Vector((0, -ry * 0.6, -0.01))),
-                           (rx * 0.86, ry * 0.42, rz * 0.62))
-    toe = kit.smax(toe, P[:, 1] - (c.y - ry * 0.55), 0.01)
-    return kit.smin(d, toe, 0.012)
+    """Rubber sole: a flat slab following the shoe's footprint, a lip proud of the upper,
+    with a bumper climbing over the toe."""
+    c, rx, ry, rz, floor, top = _shoe_dims()
+    x, y = P[:, 0], P[:, 1]
+    heel = (np.sqrt((x / (rx * 0.97)) ** 2 + ((y - (c.y + ry * 0.4)) / (ry * 0.62)) ** 2) - 1)
+    toe = (np.sqrt((x / (rx * 0.99)) ** 2 + ((y - (c.y - ry * 0.38)) / (ry * 0.7)) ** 2) - 1)
+    foot = kit.smin(heel * rx, toe * rx, 0.03)
+    slab = kit.smax(foot, np.abs(P[:, 2] - (floor + SOLE_H / 2)) - SOLE_H / 2, 0.012)
+    cap = _sneaker_core(P) - 0.005
+    cap = kit.smax(cap, P[:, 1] - (c.y - ry * 0.62), 0.008)
+    cap = kit.smax(cap, P[:, 2] - (c.z - 0.028), 0.008)
+    return kit.smin(slab, cap, 0.006)
 
 
 def sneaker(M, side=1, laces=True, stripe=True):
-    c, (rx, ry, rz) = shoe_frame()
+    c, rx, ry, rz, floor, top = _shoe_dims()
     lo = tuple(c - Vector((rx + 0.03, ry + 0.03, rz + 0.02)))
-    hi = tuple(c + Vector((rx + 0.03, ry + 0.03, rz + 0.03)))
-    parts = [kit.sdf_mesh("Upper", sneaker_upper, lo, hi, M["shoes"], voxel=0.003, target=820,
-                          remesh="decimate"),
-             kit.sdf_mesh("Sole", sneaker_sole, lo, hi, M["sole"], voxel=0.003, target=420,
+    hi = tuple(c + Vector((rx + 0.03, ry + 0.03, rz + 0.06)))
+    parts = [kit.sdf_mesh("Upper", sneaker_upper, lo, hi, M["shoes"], voxel=0.0028,
+                          target=760, remesh="decimate"),
+             kit.sdf_mesh("Sole", sneaker_sole, lo, hi, M["sole"], voxel=0.0028, target=400,
                           remesh="decimate")]
+    # Padded collar round the ankle opening.
+    ring = []
+    for a in np.linspace(0, 2 * math.pi, 18, endpoint=False):
+        o = (ANKLE[0] + 0.066 * math.cos(a), ANKLE[1] + 0.066 * math.sin(a), 0.2)
+        h = kit.first_hit(sneaker_upper, o, (0, 0, -1))
+        if h is not None:
+            ring.append(h + Vector((0, 0, 0.002)))
+    parts.append(kit.ring_tube("Collar", ring, 0.012, M["shoes"], ring=6))
     if laces:
         for i in range(3):
-            yl = c.y - 0.02 - i * 0.032
-            p = kit.surface_point(sneaker_upper, Vector((0, yl - c.y, 1.0)), centre=c)
-            kit_l = kit.tube(f"Lace{i}", [p + Vector((-0.032, 0, -0.004)),
-                                          p + Vector((0, 0, 0.004)),
-                                          p + Vector((0.032, 0, -0.004))],
-                             0.0065, M["lace"], ring=6, cap_rings=2)
-            parts.append(kit_l)
+            yl = ANKLE[1] - 0.075 - i * 0.028
+            pts = [kit.first_hit(sneaker_upper, (x, yl, 0.2), (0, 0, -1)) + Vector((0, 0, 0.003))
+                   for x in (-0.03, 0.0, 0.03)]
+            parts.append(kit.tube(f"Lace{i}", pts, 0.0062, M["lace"], ring=6, cap_rings=2))
     if stripe and "accent" in M:
         for s in (1, -1):
             pts = []
-            for t in np.linspace(0.0, 1.0, 7):
-                yy = c.y + ry * (0.35 - 0.9 * t)
-                zz = c.z - rz * 0.15 + rz * 0.5 * t * (1 - t) * 1.6
-                p = kit.surface_point(sneaker_upper, Vector((s, (yy - c.y) / rx, (zz - c.z) / rx)),
-                                      centre=c)
-                pts.append(p + Vector((s * 0.002, 0, 0)))
-            parts.append(kit.tube(f"Stripe{s}", kit.catmull(pts, 8), 0.007, M["accent"], ring=5,
-                                  cap_rings=2))
+            for t in np.linspace(0, 1, 7):
+                y = c.y + ry * (0.62 - 1.0 * t)
+                z = c.z - 0.008 - 0.03 * t
+                h = kit.first_hit(sneaker_upper, (s * 0.2, y, z), (-s, 0, 0))
+                pts.append(h + Vector((s * 0.003, 0, 0)))
+            parts.append(kit.tube(f"Stripe{s}", kit.catmull(pts, 8), 0.0075, M["accent"],
+                                  ring=6, cap_rings=2))
     return parts
 
 
@@ -441,7 +468,8 @@ def boot_upper(P):
                            (rx * 0.99, ry * 0.52, rz * 0.86))
     shaft = kit.sd_round_cone(P, (0, 0.012, -0.03), (0, 0.006, 0.075), 0.09, 0.086)
     d = kit.smin(kit.smin(foot, toe, 0.03), shaft, 0.04)
-    d = kit.smax(d, P[:, 2] - 0.072, 0.012)                      # open top
+    d = kit.smax(d, P[:, 2] - 0.072, 0.012)                      # top of the shaft
+    d = kit.smax(d, -kit.sd_capsule(P, (0, 0.01, 0.0), (0, 0.01, 0.2), 0.07), 0.01)  # opening
     return kit.smax(d, (c.z - rz + 0.026) - P[:, 2], 0.01)       # sits on the sole
 
 
@@ -466,12 +494,12 @@ def boot(M):
              kit.sdf_mesh("BootSole", boot_sole, lo, hi, M["sole"], voxel=0.003, target=380,
                           remesh="decimate")]
     # Laces criss-crossing up the front of the shaft and the instep.
-    for i, z in enumerate((-0.035, -0.005, 0.025, 0.052)):
-        p = kit.surface_point(boot_upper, Vector((0, -1.0, (z + 0.0) * 3.0)), centre=(0, 0.01, z))
-        parts.append(kit.tube(f"Lace{i}", [p + Vector((-0.03, 0.004, -0.006)),
-                                            p + Vector((0, -0.003, 0.004)),
-                                            p + Vector((0.03, 0.004, -0.006))],
-                              0.0055, M["lace"], ring=5, cap_rings=1))
+    for i, z in enumerate((-0.03, -0.003, 0.024, 0.05)):
+        p = kit.surface_point(boot_upper, Vector((0, -1.0, 0.0)), centre=(0, 0.01, z))
+        parts.append(kit.tube(f"Lace{i}", [p + Vector((-0.032, 0.008, -0.006)),
+                                            p + Vector((0, -0.002, 0.004)),
+                                            p + Vector((0.032, 0.008, -0.006))],
+                              0.0058, M["lace"], ring=5, cap_rings=1))
     # Padded collar round the top and a pull tab at the back.
     pts = [Vector((0.088 * math.cos(a), 0.008 + 0.086 * math.sin(a), 0.066))
            for a in np.linspace(0, 2 * math.pi, 18, endpoint=False)]

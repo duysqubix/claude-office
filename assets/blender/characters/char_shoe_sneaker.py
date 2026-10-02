@@ -19,7 +19,7 @@ META = dict(
 
 def build():
     lib.begin(NAME)
-    B.sneaker(B.materials(shoes="#E63946", accent="#FFFFFF"))
+    B.sneaker(B.materials(shoes="#E63946", accent="#FFC93C"))
 
 
 def finalize(name):

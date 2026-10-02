@@ -202,6 +202,28 @@ def ray_hits(fn, origins, dirs, t0=0.0, t1=0.7, iters=28):
     return 0.5 * (lo + hi)
 
 
+def first_hit(fn, origin, direction, t_max=0.5, step=0.003):
+    """March from `origin` (outside, fn > 0) along `direction` to the FIRST surface crossing,
+    then refine by bisection. Returns the hit point, or None."""
+    o = Vector(origin)
+    d = Vector(direction).normalized()
+    ts = np.arange(0.0, t_max, step, dtype=np.float32)
+    P = np.array([tuple(o + d * float(t)) for t in ts], dtype=np.float32)
+    v = fn(P)
+    inside = np.nonzero(v < 0)[0]
+    if len(inside) == 0:
+        return None
+    k = int(inside[0])
+    lo, hi = float(ts[max(k - 1, 0)]), float(ts[k])
+    for _ in range(20):
+        m = 0.5 * (lo + hi)
+        if float(fn(np.array([tuple(o + d * m)], dtype=np.float32))[0]) > 0:
+            lo = m
+        else:
+            hi = m
+    return o + d * (0.5 * (lo + hi))
+
+
 def sdf_normal(fn, p, eps=1e-4):
     p = np.asarray(p, dtype=np.float32).reshape(1, 3)
     g = []
@@ -1091,25 +1113,34 @@ def _into_mannequin(fn):
     return out
 
 
-def mannequin(torso=True, pedestal=True, head_mesh_on=True):
+def mannequin(torso=True, pedestal=True, head_mesh_on=True, raise_=0.0):
     """A neutral bust (pedestal, torso bean, bald head) in its own collection: the AO
     occluder and preview context for worn items. Returns the head object (or None)."""
     c = _mq_collection()
     for ob in list(c.objects):
         bpy.data.objects.remove(ob, do_unlink=True)
+    _MQ["raise"] = raise_
 
     def make():
         M = _mannequin_mats()
-        head = head_mesh("_mq_head", M["skin"], loc=MOUNTS["head"]) if head_mesh_on else None
+        up = Vector((0, 0, raise_))
+        head = (head_mesh("_mq_head", M["skin"], loc=MOUNTS["head"] + up) if head_mesh_on
+                else None)
         if torso:
-            t = lib.lathe("_mq_torso", torso_profile(), loc=(0, 0, PELVIS_Z),
+            t = lib.lathe("_mq_torso", torso_profile(), loc=(0, 0, PELVIS_Z + raise_),
                           material=M["body"], verts=40)
             t.scale = (1, TORSO_Z, 1)
         if pedestal:
             lib.cyl("_mq_stand", 0.3, PEDESTAL_H, (0, 0, PEDESTAL_H / 2), M["stand"], r=0.02,
                     seg=3, verts=48)
+            if raise_ > 0:  # a slim post up to the raised bust
+                lib.cyl("_mq_post", 0.035, raise_ + 0.04, (0, 0, PEDESTAL_H + raise_ / 2),
+                        M["stand"], r=0.01, seg=2, verts=24)
         return head
     return _into_mannequin(make)
+
+
+_MQ = {"raise": 0.0}
 
 
 def mannequin_face(face=("eyes", "brows", "mouth", "cheeks")):
@@ -1117,7 +1148,7 @@ def mannequin_face(face=("eyes", "brows", "mouth", "cheeks")):
     AO never carries shadows of features the game may not use)."""
     def make():
         M = _mannequin_mats()
-        hc = MOUNTS["head"]
+        hc = MOUNTS["head"] + Vector((0, 0, _MQ["raise"]))
         if "eyes" in face:
             for s in (1, -1):
                 eye(f"_mq_eye{s}", s, M, at=hc)
@@ -1209,7 +1240,8 @@ def flip_screen_u(ob):
 
 def finalize(name, meta, mount=None, face=("eyes", "brows", "mouth", "cheeks"), ao=True,
              ao_res=256, ao_distance=0.12, lift=None, frame_with_head=True, pad=0.0,
-             frame=None, mq_head=True, preview_yaw=0.0, screen_back=False, mq_torso=True):
+             frame=None, mq_head=True, preview_yaw=0.0, screen_back=False, mq_torso=True,
+             mq_raise=0.0):
     """Join → (mannequin) → AO bake → export GLB at the pivot → preview → sidecar.
 
     mount: "head" / "torso" shows the item on the neutral mannequin bust (and bakes AO
@@ -1223,8 +1255,8 @@ def finalize(name, meta, mount=None, face=("eyes", "brows", "mouth", "cheeks"), 
     ao = ao and ob.type == "MESH"
     head = None
     if mount:
-        head = mannequin(head_mesh_on=mq_head, torso=mq_torso)
-        at = MOUNTS[mount]
+        head = mannequin(head_mesh_on=mq_head, torso=mq_torso, raise_=mq_raise)
+        at = MOUNTS[mount] + Vector((0, 0, mq_raise))
         bake_at = at
     else:
         lo, hi = _bounds(parts)

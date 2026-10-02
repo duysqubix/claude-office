@@ -49,8 +49,7 @@ def build():
         for i in range(n):
             j = (i + 1) % n
             bm.faces.new((ra[i], ra[j], rb[j], rb[i]))
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
-    bm.normal_update()
+    bm.normal_update()  # winding is consistent by construction; just make it face out
     if sum(f.calc_center_median().x * f.normal.x + f.calc_center_median().y * f.normal.y
            for f in bm.faces) < 0:
         bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
@@ -66,4 +65,4 @@ def build():
 
 
 def finalize(name):
-    return kit.finalize(name, META, mount="torso", ao_distance=0.06)
+    return kit.finalize(name, META, mount="torso", ao_distance=0.06, mq_raise=0.3)
