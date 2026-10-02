@@ -120,9 +120,48 @@ export function mergeModel(root: THREE.Object3D, parts: readonly string[] = [], 
   for (const [owner, meshes] of owners) if (meshes.length > 1) mergeInto(owner, meshes, tinted, glowScale, root.name);
 }
 
+/**
+ * Glowing parts are often modelled flush with what they sit on (a bulb against its shade, EXIT
+ * lettering on its panel, an indicator light set into a body), and coplanar faces z-fight. Each
+ * glow part is lifted off along its normals by this much per layer; a model's glow materials are
+ * layered by area, largest first, so the lettering lands on top of its panel.
+ */
+const GLOW_LIFT = 0.0008;
+
+function triangleArea(geo: THREE.BufferGeometry): number {
+  const pos = geo.getAttribute('position');
+  const idx = geo.index;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  let area = 0;
+  const count = idx ? idx.count : pos.count;
+  for (let i = 0; i < count; i += 3) {
+    const [i0, i1, i2] = idx ? [idx.getX(i), idx.getX(i + 1), idx.getX(i + 2)] : [i, i + 1, i + 2];
+    a.fromBufferAttribute(pos, i0);
+    b.fromBufferAttribute(pos, i1);
+    c.fromBufferAttribute(pos, i2);
+    area += b.sub(a).cross(c.sub(a)).length() / 2;
+  }
+  return area;
+}
+
+/** Glow layer per material name: 1 for the largest glowing material, 2 for the next, … (0 = no glow). */
+function glowLayers(meshes: THREE.Mesh[]): Map<string, number> {
+  const areas = new Map<string, number>();
+  for (const mesh of meshes) {
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    if (mat.emissiveIntensity <= 0 || mat.emissive.getHex() === 0) continue;
+    areas.set(mat.name, (areas.get(mat.name) ?? 0) + triangleArea(mesh.geometry));
+  }
+  const order = [...areas.entries()].sort((x, y) => y[1] - x[1]);
+  return new Map(order.map(([name], i) => [name, i + 1]));
+}
+
 /** Merge `meshes` into one ModelMaterial mesh in `owner`'s space, replacing them. */
 function mergeInto(owner: THREE.Object3D, meshes: THREE.Mesh[], tinted: readonly string[], glowScale: number, name: string): void {
   const toOwner = owner.matrixWorld.clone().invert();
+  const layers = glowLayers(meshes);
   const geos: THREE.BufferGeometry[] = [];
   let map: THREE.Texture | null = null;
   let side: THREE.Side = THREE.FrontSide;
@@ -142,6 +181,13 @@ function mergeInto(owner: THREE.Object3D, meshes: THREE.Mesh[], tinted: readonly
     g.setIndex(src.index ? Array.from(src.index.array as ArrayLike<number>) : Array.from({ length: n }, (_, i) => i));
     if (!normal) g.computeVertexNormals();
     g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toOwner, mesh.matrixWorld));
+    const layer = layers.get(mat.name) ?? 0;
+    if (layer > 0) {
+      const p = g.getAttribute('position') as THREE.BufferAttribute;
+      const nrm = g.getAttribute('normal') as THREE.BufferAttribute;
+      const lift = GLOW_LIFT * layer;
+      for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) + nrm.getX(i) * lift, p.getY(i) + nrm.getY(i) * lift, p.getZ(i) + nrm.getZ(i) * lift);
+    }
     const glow = mat.emissive.clone().multiplyScalar(mat.emissiveIntensity * glowScale);
     // A tinted part is white here: the instance colour is its whole colour.
     const tint = tinted.includes(mat.name);
