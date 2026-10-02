@@ -59,6 +59,14 @@ export class AskBroker extends EventEmitter {
     if (!this.managerPresent()) this.releaseAll();
   }
 
+  /**
+   * Announce a change on the next turn of the event loop, so the HTTP reply to an answer
+   * (sent synchronously by the caller) leaves before the roster broadcast that drops the ask.
+   */
+  private changed(): void {
+    setImmediate(() => this.emit('change'));
+  }
+
   managerPresent(): boolean {
     const now = Date.now();
     for (const p of this.presence.values()) if (p.canAnswer && p.visible && now - p.lastInputAt < PRESENCE_FRESH_MS) return true;
@@ -90,13 +98,13 @@ export class AskBroker extends EventEmitter {
         open = false;
         clearTimeout(timer);
         this.pending.delete(ask.id);
-        this.emit('change');
+        this.changed();
         resolve(out);
       };
       const timer = setTimeout(() => settle(null), HOLD_MS);
       this.pending.set(ask.id, { ask, sessionId, hook: payload, settle });
       onAbandon(() => settle(null)); // Claude gave up waiting (Esc, interrupt, hook timeout)
-      this.emit('change');
+      this.changed();
     });
   }
 
