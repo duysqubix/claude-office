@@ -204,7 +204,7 @@ root (feet at y=0, yaw)
    │  │  ├─ mouth: small dark half-torus smile;  cheeks: pink translucent discs
    │  │  └─ hair/hat (variant): tuft, bob, cap, beanie, bun, headphones, bald
    │  ├─ armL / armR: pivot at shoulder (x±0.27): capsule r≈0.075 + hand sphere r≈0.085
-   │  └─ accessory: tie (manager), lanyard badge (hosted), glasses (30%)
+   │  └─ accessory: tie (manager), lanyard badge (every Claude session; regulars never), glasses (30%)
    ├─ legL / legR: pivot at hip (x±0.11): capsule r≈0.085, pants colour
    │  └─ foot: rounded ellipsoid shoe, forward offset
    └─ blob shadow (on the floor, under root)
