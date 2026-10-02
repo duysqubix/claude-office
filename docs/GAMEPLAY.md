@@ -48,6 +48,25 @@ Also in v0.5: off-screen arrows to anyone waiting, browser notifications + tab b
 the game is in the background, `N` = walk to the next person who needs you, `1`–`9` = jump
 to an employee, quick message from the roster.
 
+## Regulars: NPC coworkers (building now)
+
+The office should never feel empty, even with one session running. **Regulars** are NPC
+coworkers: they walk in, work at free desks, take coffee breaks, chat, and go home. They are
+not Claude sessions. When a real session needs a desk and the room is full, a random regular
+gives up their desk ("All yours!") and heads out.
+
+| Decision | Choice |
+| --- | --- |
+| Density | Settings: **Off / Some / Lively** (default Lively), saved per browser. Lively fills every desk but one; Some fills about half. Never more than 14 regulars (frame budget). |
+| Desks | Regulars only use existing desks; the office never grows for them. A session takes a truly free desk if there is one, else displaces a random regular. A returning session whose remembered desk has a regular on it displaces that regular. |
+| Churn | Shifts of 4–12 min. A coffee or water-cooler break every few minutes (walk over, sip, sometimes chat with another regular, walk back). Below target, one new regular walks in every 20–60 s. On page load about 70% of the target are already seated. |
+| Telling them apart | Claude sessions wear the orange staff lanyard; regulars never do. A regular's label is a small muted name pill (no status icon), shown only up close. Their nameplate says name and department (Sales, Design, Finance…), and their monitor shows ordinary office work (spreadsheets, email, slides), never a terminal. |
+| Interaction | `E` near a regular: they say a quip in a speech bubble (no panel). Bumping them works like bumping anyone. They never appear in the roster, HUD counts, toasts, the Team Room board, `Q`/go-to, or any server request. |
+| Night | After 9 pm the same crowd stays (the office is for working late), with yawns and night-owl quips. |
+| Testing | `?regulars=off\|some\|lively\|<n>` and `?seed=<n>` for repeatable screenshots. |
+
+Later: regulars as shop items (hire a barista, a cleaner, a DJ), and pets that follow them around.
+
 ## v1.1: the next round (queued)
 
 - **Blender models everywhere**: swap the remaining procedural furniture for the 232 catalog
