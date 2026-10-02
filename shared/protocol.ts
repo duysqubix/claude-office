@@ -108,6 +108,8 @@ export interface Employee {
   screen?: string[];
   /** Open question the manager can answer in-game (see Ask). Implies state 'needs-you'. */
   ask?: Ask;
+  /** External session the manager asked to bring into the office: it moves in once it exits its own terminal. */
+  adopting?: boolean;
 }
 
 /** Client → server over /ws. Tells the office someone is actually looking at it. */
@@ -226,10 +228,17 @@ export interface PastSession {
   live: boolean;
 }
 
+/** One line of a session's conversation, for the chat panel. */
 export interface ChatLine {
-  role: 'user' | 'assistant';
+  /** 'tool' = a step Claude took (text is a short label like "Editing auth.ts"). */
+  role: 'user' | 'assistant' | 'tool';
+  /** Full text for user/assistant (line breaks kept, ≤ 4000 chars). */
   text: string;
   ts?: string;
+  /** Increasing per session; GET …/chatter?after=<seq> returns only newer lines. */
+  seq: number;
+  /** role 'tool' only: the tool name. */
+  tool?: string;
 }
 
 export interface ApiResult {
@@ -249,6 +258,10 @@ export interface ApiResult {
 //   POST /api/fire   {sessionId}    -> ApiResult      (hosted only: ends the tmux session)
 //   POST /api/say    {sessionId, text} -> ApiResult   (hosted only: types text + Enter into their terminal)
 //   POST /api/answer AnswerRequest -> ApiResult      (answer an open Ask in-game; any session, via hooks)
+//   POST /api/interrupt {sessionId} -> ApiResult      (hosted only: press Esc in their terminal)
+//   POST /api/adopt {sessionId}     -> ApiResult      (external session: resume it in the office as soon as it
+//                                                      exits its own terminal; Employee.adopting until then)
+//   GET  /api/session/:id/chatter?after=<seq>&n=<count> -> ChatLine[]  (incremental chat feed, n ≤ 120)
 //   POST /api/hook   <Claude Code hook stdin JSON>    (from scripts/office-hook.mjs only; long-polls for the answer)
 //
 // Ask choices: permission → 'allow' | 'always' | 'deny' | 'terminal';  plan → 'approve' | 'revise' | 'terminal';

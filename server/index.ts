@@ -17,7 +17,7 @@ import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
 import { run } from './exec';
-import { assertDirectory, hire, initTmux, kill, newSessionId, rehire, say } from './tmux';
+import { assertDirectory, hire, initTmux, interrupt, kill, newSessionId, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -95,10 +95,11 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     if (path === '/api/archive') return sendJson(res, 200, await listPastSessions(new Set(roster.employees.map((e) => e.sessionId))));
     const chatter = path.match(/^\/api\/session\/([0-9a-f-]{36})\/chatter$/i);
     if (chatter) {
+      const n = Math.min(120, Math.max(1, Number(url.searchParams.get('n')) || 12));
+      const after = Number(url.searchParams.get('after'));
       const live = roster.tail(chatter[1]);
-      if (live) return sendJson(res, 200, live.chatter.slice(-12));
-      const past = await findPastSession(chatter[1]);
-      return sendJson(res, 200, past?.digest.chatter.slice(-12) ?? []);
+      const lines = live ? live.chatter : (await findPastSession(chatter[1]))?.digest.chatter ?? [];
+      return sendJson(res, 200, Number.isFinite(after) && url.searchParams.has('after') ? lines.filter((l) => l.seq > after).slice(-n) : lines.slice(-n));
     }
     throw new HttpError(404, 'Not found');
   }
@@ -159,6 +160,22 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       if (!tmuxName) throw new HttpError(400, 'Only people hired in the office can be let go from here');
       await kill(tmuxName);
       void roster.tick();
+      return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
+    }
+    case '/api/interrupt': {
+      const sessionId = uuidFrom(body.sessionId);
+      const tmuxName = roster.tmuxNameFor(sessionId);
+      if (!tmuxName) throw new HttpError(400, 'They work in your own terminal; interrupt them there');
+      await interrupt(tmuxName);
+      return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
+    }
+    case '/api/adopt': {
+      const sessionId = uuidFrom(body.sessionId);
+      try {
+        roster.requestAdoption(sessionId);
+      } catch (err) {
+        throw new HttpError(400, err instanceof Error ? err.message : 'Cannot adopt');
+      }
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/answer': {

@@ -108,7 +108,7 @@ export async function digest(path: string, mtimeMs: number): Promise<Digest> {
             const text = e.type === 'user' ? humanize(raw) : raw.trim();
             if (!text) continue;
             if (e.type === 'user') firstPrompt ??= text;
-            d.chatter.push({ role: e.type, text: clip(text, 400), ts: e.timestamp });
+            d.chatter.push({ role: e.type, text: clip(text, 400), ts: e.timestamp, seq: d.chatter.length + 1 });
           }
         }
       }

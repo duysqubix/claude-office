@@ -8,7 +8,7 @@ import { projectName } from './archive';
 import { activeInterns } from './interns';
 import { assignNames, pickName } from './names';
 import { claudeProcessCount, readRegistry, type RegistryEntry } from './registry';
-import { capture, kill, listHosted, readOfficeMeta, type HostedPane, type OfficeMeta } from './tmux';
+import { capture, kill, listHosted, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
 import { TranscriptTail } from './transcript';
 
 /** A hire we started that Claude hasn't registered yet. */
@@ -44,6 +44,8 @@ export class Roster extends EventEmitter {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private warnedUnreadable = false;
+  /** External sessions waiting to move into the office (resumed in tmux once they exit). */
+  private adoptions = new Map<string, { cwd: string; displayName: string; until: number }>();
 
   constructor(private readonly asks?: AskSource) {
     super();
@@ -95,6 +97,18 @@ export class Roster extends EventEmitter {
 
   nameForNewHire(sessionId: string): string {
     return pickName(sessionId, this.takenNames());
+  }
+
+  /**
+   * Bring an external session into the office: as soon as it exits its own terminal, resume
+   * it here (claude --resume in tmux), keeping its name. Expires after 10 minutes.
+   */
+  requestAdoption(sessionId: string): void {
+    const e = this.find(sessionId);
+    if (!e) throw new Error('Nobody by that id is in the office');
+    if (e.hosted) throw new Error('They already work in the office');
+    this.adoptions.set(sessionId, { cwd: e.cwd, displayName: e.displayName, until: Date.now() + 10 * 60_000 });
+    this.refresh();
   }
 
   /** Called right after tmux started a hire, so they can walk in before Claude registers. */
@@ -164,6 +178,23 @@ export class Roster extends EventEmitter {
       });
     }
 
+    // Adoptions: once the external process is gone, resume the session in the office.
+    for (const [id, a] of this.adoptions) {
+      if (now > a.until) {
+        this.adoptions.delete(id);
+        continue;
+      }
+      if (liveIds.has(id) || this.pending.has(id)) continue;
+      this.adoptions.delete(id);
+      try {
+        const { tmuxName } = await rehire({ sessionId: id, cwd: a.cwd, displayName: a.displayName });
+        this.pending.set(id, { sessionId: id, tmuxName, cwd: a.cwd, displayName: a.displayName, startedAt: now });
+        this.notice('info', `${a.displayName} is moving into the office`);
+      } catch (err) {
+        this.notice('warn', `Couldn't bring ${a.displayName} in: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
     this.hostedBySession = new Map();
     for (const e of reg) {
       const name = paneByPid.get(e.pid);
@@ -227,8 +258,9 @@ export class Roster extends EventEmitter {
   private publish(): void {
     this.employees = this.base.map((e) => {
       const ask = this.asks?.forSession(e.sessionId);
-      if (!ask) return e;
-      return { ...e, ask, state: 'needs-you', waitingFor: ask.title, stateSince: this.since(e.sessionId, 'needs-you', ask.createdAt) };
+      const adopting = this.adoptions.has(e.sessionId) ? { adopting: true } : {};
+      if (!ask) return { ...e, ...adopting };
+      return { ...e, ...adopting, ask, state: 'needs-you', waitingFor: ask.title, stateSince: this.since(e.sessionId, 'needs-you', ask.createdAt) };
     });
     const json = JSON.stringify(this.employees);
     if (json !== this.lastJson) {

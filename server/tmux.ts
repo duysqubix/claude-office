@@ -158,6 +158,12 @@ export async function say(tmuxName: string, text: string): Promise<void> {
   await tmux(['send-keys', '-t', `=${tmuxName}:`, 'Enter']);
 }
 
+/** Press Esc in the session (Claude Code's interrupt). */
+export async function interrupt(tmuxName: string): Promise<void> {
+  if (!isOfficeName(tmuxName)) throw new Error('Not an office session');
+  await tmux(['send-keys', '-t', `=${tmuxName}:`, 'Escape']);
+}
+
 /** Last lines of the visible screen, for the desk monitor. */
 export async function capture(tmuxName: string, maxLines = 18, maxCols = 80): Promise<string[]> {
   const r = await tmux(['capture-pane', '-p', '-t', `=${tmuxName}:`]);

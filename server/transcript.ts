@@ -9,7 +9,8 @@ import { PROJECTS_DIR } from './config';
 const INITIAL_TAIL_BYTES = 1024 * 1024;
 const MAX_READ_PER_POLL = 4 * 1024 * 1024;
 const HEAD_BYTES = 64 * 1024;
-const CHATTER_KEEP = 30;
+const CHATTER_KEEP = 120;
+const CHAT_TEXT_MAX = 4000;
 
 export function encodeCwd(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, '-');
@@ -83,6 +84,7 @@ export class TranscriptTail {
   private firstPrompt?: string;
   private pending = new Map<string, PendingTool>();
   chatter: ChatLine[] = [];
+  private chatSeq = 0;
   /** Background task ids (= subagent file ids) that reported completed/failed/killed. */
   readonly finishedTasks = new Set<string>();
   /** tool_use ids that got a tool_result. */
@@ -185,7 +187,10 @@ export class TranscriptTail {
             this.lastText = clip(b.text.trim(), 280);
             this.say('assistant', b.text, e.timestamp);
           } else if (b?.type === 'tool_use' && typeof b.id === 'string') {
-            this.pending.set(b.id, { name: String(b.name ?? 'tool'), input: (b.input ?? {}) as Record<string, unknown>, at });
+            const name = String(b.name ?? 'tool');
+            const input = (b.input ?? {}) as Record<string, unknown>;
+            this.pending.set(b.id, { name, input, at });
+            this.say('tool', describeTool(name, input).label, e.timestamp, name);
           }
         }
         break;
@@ -225,8 +230,9 @@ export class TranscriptTail {
     this.say('user', text, ts);
   }
 
-  private say(role: ChatLine['role'], text: string, ts?: string): void {
-    this.chatter.push({ role, text: clip(text.trim(), 400), ts });
+  private say(role: ChatLine['role'], text: string, ts?: string, tool?: string): void {
+    const t = text.trim();
+    this.chatter.push({ role, text: t.length > CHAT_TEXT_MAX ? t.slice(0, CHAT_TEXT_MAX - 1) + '…' : t, ts, seq: ++this.chatSeq, ...(tool && { tool }) });
     if (this.chatter.length > CHATTER_KEEP) this.chatter.splice(0, this.chatter.length - CHATTER_KEEP);
   }
 
