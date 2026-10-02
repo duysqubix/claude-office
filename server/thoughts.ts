@@ -3,7 +3,7 @@
 // user's own login with no tools, no settings, no MCP and nothing saved, in a sandbox folder
 // the roster ignores (so the call never walks into the office). It only thinks while someone
 // is watching with thoughts on, and stays well inside a small hourly budget.
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import type { Employee } from '../shared/protocol';
@@ -60,6 +60,7 @@ export class ThoughtService extends EventEmitter<{ thought: [Thought] }> {
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    inFlight?.kill('SIGKILL');
   }
 
   private async tick(): Promise<void> {
@@ -102,18 +103,27 @@ export class ThoughtService extends EventEmitter<{ thought: [Thought] }> {
 const signature = (e: Employee) => `${e.activity?.label ?? ''}|${e.title ?? ''}`;
 
 /** Visible text only: no control or bidi characters, one line. */
-const plain = (s: string) => s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]+/g, ' ').trim();
+const plain = (s: string) => s.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]+/g, ' ').trim();
+
+/**
+ * Session text going into the thinker's prompt. Claude Code attaches any file the prompt
+ * names with @ (even with no tools), and "ultrathink" raises effort, so neither survives.
+ */
+const fenced = (s: string) => plain(s).replace(/[@\uff20\ufe6b]/g, ' ').replace(/ultra\s*think/gi, 'think');
 
 function prompt(e: Employee): string {
   const lines = [
-    `Name: ${plain(e.displayName)}`,
-    `Project: ${plain(e.project)}`,
-    e.title && `Task: ${clip(plain(e.title), 120)}`,
-    e.activity && `Doing now: ${clip(plain(e.activity.label), 80)}`,
-    e.lastText && `Last thing they said: ${clip(plain(e.lastText), 240)}`,
+    `Name: ${fenced(e.displayName)}`,
+    `Project: ${fenced(e.project)}`,
+    e.title && `Task: ${clip(fenced(e.title), 120)}`,
+    e.activity && `Doing now: ${clip(fenced(e.activity.label), 80)}`,
+    e.lastText && `Last thing they said: ${clip(fenced(e.lastText), 240)}`,
   ];
   return lines.filter(Boolean).join('\n');
 }
+
+/** The call in flight, so a stopping server can take it down with it. */
+let inFlight: ChildProcess | null = null;
 
 function think(e: Employee): Promise<string | null> {
   const args = [
@@ -123,18 +133,27 @@ function think(e: Employee): Promise<string | null> {
     prompt(e),
   ];
   return new Promise((resolve, reject) => {
-    const child = spawn(claudePath(), args, { cwd: THINK_DIR, env: cleanEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
+    // No @-file attachments, whatever the text says (belt and braces with fenced()).
+    const env = { ...cleanEnv(), CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' };
+    const child = spawn(claudePath(), args, { cwd: THINK_DIR, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    inFlight = child;
     let out = '';
     let err = '';
-    const timer = setTimeout(() => child.kill('SIGTERM'), CALL_TIMEOUT_MS);
+    // SIGTERM first; anything that ignores it is killed 5 s later so `busy` can't stick.
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 5000).unref();
+    }, CALL_TIMEOUT_MS);
     child.stdout.on('data', (d: Buffer) => (out += d));
     child.stderr.on('data', (d: Buffer) => (err += d));
     child.on('error', (x) => {
       clearTimeout(timer);
+      if (inFlight === child) inFlight = null;
       reject(x);
     });
     child.on('close', (code) => {
       clearTimeout(timer);
+      if (inFlight === child) inFlight = null;
       if (code !== 0) return reject(new Error(clip(plain(err) || `claude exited ${code}`, 160)));
       resolve(tidy(out));
     });

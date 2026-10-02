@@ -177,7 +177,7 @@ export async function say(tmuxName: string, text: string): Promise<void> {
   if (!isOfficeName(tmuxName)) throw new Error('Not an office session');
   const clean = pasteSafe(text);
   if (!clean.trim()) throw new Error('Nothing to say');
-  const buffer = `office-say-${process.pid}`;
+  const buffer = `office-say-${process.pid}-${randomUUID()}`;
   const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: clean });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
   const paste = await tmux(['paste-buffer', '-p', '-d', '-b', buffer, '-t', `=${tmuxName}:`]);

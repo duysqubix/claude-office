@@ -13,7 +13,7 @@ import { HIRE_PERMISSION_MODES } from '../shared/protocol';
 import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, ServerMessage } from '../shared/protocol';
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
-import { HOME, HOST, IS_PROD, PORT, ROOT } from './config';
+import { HOME, HOST, IS_PROD, PORT, ROOT, THINK_DIR } from './config';
 import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
@@ -107,6 +107,9 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const n = Math.min(120, Math.max(1, Number(url.searchParams.get('n')) || (url.searchParams.has('after') ? 120 : 12)));
       const after = Number(url.searchParams.get('after'));
       const live = roster.tail(chatter[1]);
+      // In the office but not read yet (a hire or call-back starting): nothing, rather than the
+      // archive's copy, which is numbered differently and would show up twice once live.
+      if (!live && roster.find(chatter[1])) return sendJson(res, 200, []);
       const lines = live ? live.chatter : (await findPastSession(chatter[1]))?.digest.chatter ?? [];
       return sendJson(res, 200, Number.isFinite(after) && url.searchParams.has('after') ? lines.filter((l) => l.seq > after).slice(-n) : lines.slice(-n));
     }
@@ -140,6 +143,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       await assertDirectory(cwd).catch((e: Error) => {
         throw new HttpError(400, e.message);
       });
+      // The roster ignores the thinker's folder, so a hire there would never walk in.
+      if (cwd === THINK_DIR || cwd.startsWith(THINK_DIR + '/')) throw new HttpError(400, 'That folder is reserved for the office');
       const prompt = typeof body.prompt === 'string' ? body.prompt.slice(0, MAX_TEXT) : undefined;
       const requested = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
       if (requested && !NAME_OK.test(requested)) throw new HttpError(400, 'Names can use letters, numbers, spaces and . \' - (max 32)');
@@ -303,7 +308,7 @@ rosterSockets.on('connection', (ws) => {
     }
     if (msg?.type === 'presence') {
       asks.setPresence(ws, Boolean(msg.visible), Number(msg.lastInputAt), msg.canAnswer === true);
-      viewers.set(ws, { visible: Boolean(msg.visible), lastInputAt: Number(msg.lastInputAt) || 0, thoughts: msg.thoughts === true });
+      viewers.set(ws, { visible: Boolean(msg.visible), lastInputAt: Math.min(Number(msg.lastInputAt) || 0, Date.now()), thoughts: msg.thoughts === true });
     }
   });
   ws.on('close', () => {
@@ -368,6 +373,8 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
   const id = url.searchParams.get('id') ?? '';
   const tmuxName = UUID.test(id) ? roster.tmuxNameFor(id.toLowerCase()) : undefined;
   termSockets.handleUpgrade(req, socket, head, (ws) => {
+    // First thing: a malformed frame must close this socket, never crash the office.
+    ws.on('error', () => ws.terminate());
     if (!tmuxName) {
       ws.close(1008, 'Not an office session');
       return;
@@ -439,6 +446,7 @@ async function main(): Promise<void> {
 
 function shutdown(): void {
   asks.releaseAll();
+  thoughts.stop();
   roster.stop();
   clearInterval(heartbeat);
   clearInterval(statsTimer);

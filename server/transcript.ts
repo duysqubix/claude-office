@@ -91,6 +91,8 @@ export class TranscriptTail {
    */
   private lineAt = 0;
   private lineSay = 0;
+  /** Added to every seq after a rewrite (see update()). */
+  private seqBase = 0;
   /** Background task ids (= subagent file ids) that reported completed/failed/killed. */
   readonly finishedTasks = new Set<string>();
   /** tool_use ids that got a tool_result. */
@@ -120,7 +122,10 @@ export class TranscriptTail {
       return false;
     }
     if (size < this.offset) {
-      // Rewritten from scratch: start over.
+      // Rewritten from scratch: start over, numbering above every line already handed out so
+      // chat feeds polling with ?after= keep moving.
+      this.seqBase = (this.chatter.at(-1)?.seq ?? -1) + 1;
+      this.chatter = [];
       this.offset = 0;
       this.leftover = Buffer.alloc(0);
     }
@@ -248,7 +253,7 @@ export class TranscriptTail {
 
   private say(role: ChatLine['role'], text: string, ts?: string, tool?: string): void {
     const t = text.trim();
-    this.chatter.push({ role, text: t.length > CHAT_TEXT_MAX ? cut(t, CHAT_TEXT_MAX - 1) + '…' : t, ts, seq: this.lineAt * 64 + Math.min(63, this.lineSay++), ...(tool && { tool }) });
+    this.chatter.push({ role, text: t.length > CHAT_TEXT_MAX ? cut(t, CHAT_TEXT_MAX - 1) + '…' : t, ts, seq: this.seqBase + this.lineAt * 64 + Math.min(63, this.lineSay++), ...(tool && { tool }) });
     if (this.chatter.length > CHATTER_KEEP) this.chatter.splice(0, this.chatter.length - CHATTER_KEEP);
   }
 

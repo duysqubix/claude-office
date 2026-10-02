@@ -198,6 +198,15 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+// This tab is a real manager for answering, but it must not make the office think (Haiku
+// calls about every live session on the machine): thought bubbles off before the page loads.
+await page.evaluateOnNewDocument(() => {
+  try {
+    localStorage.setItem('claude-office:thoughts', '0');
+  } catch {
+    // no storage: the server only thinks while a client asks for it anyway
+  }
+});
 
 // Freeze this tab against hot reloads from other people's edits. A reload closes the tab's
 // socket, the office then (correctly) sees no manager and sends a pending question straight

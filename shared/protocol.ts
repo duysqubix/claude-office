@@ -287,6 +287,6 @@ export type TermClientMessage = { t: 'in'; d: string } | { t: 'resize'; cols: nu
 export const SLEEP_AFTER_MS = 15 * 60 * 1000;
 export const DEFAULT_PORT = 4777;
 
-/** Permission modes a hire may start in (`claude --permission-mode`). Never one that skips prompts. */
+/** Permission modes a hire may start in (`claude --permission-mode`). Never bypass or dontAsk: commands always still ask. */
 export const HIRE_PERMISSION_MODES = ['manual', 'plan', 'acceptEdits'] as const;
 export type HirePermissionMode = (typeof HIRE_PERMISSION_MODES)[number];

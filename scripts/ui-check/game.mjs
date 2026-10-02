@@ -525,7 +525,7 @@ try {
     check('the thought fades after about 6 s', c1b && (!c1b.shown || c1b.text !== 'Come on server, time to think out loud.'), JSON.stringify(c1b));
 
     // Hostile text stays text.
-    await tp.evaluate((id) => window.officeThink(id, '<img src=x onerror="window.__xss=9"> **not bold** ‮evil'), thinker.id);
+    await tp.evaluate((id) => window.officeThink(id, '<img src=x onerror="window.__xss=9"> **not bold** \u202eevil'), thinker.id);
     await wait(500);
     const c2 = await cloudOf(thinker.name);
     const xss = await tp.evaluate(() => window.__xss ?? null);

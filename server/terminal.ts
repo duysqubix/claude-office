@@ -13,6 +13,7 @@ const clampDim = (n: unknown, lo: number, hi: number, dflt: number) => {
 };
 
 export function attachTerminal(ws: WebSocket, tmuxName: string, cols: number, rows: number): void {
+  ws.on('error', () => ws.terminate());
   if (!isOfficeName(tmuxName)) {
     ws.close(1008, 'not an office session');
     return;
@@ -40,7 +41,6 @@ export function attachTerminal(ws: WebSocket, tmuxName: string, cols: number, ro
     if (ws.readyState === ws.OPEN) ws.close(1000, 'detached');
   });
 
-  ws.on('error', () => ws.terminate());
   ws.on('message', (raw) => {
     let msg: TermClientMessage;
     try {
