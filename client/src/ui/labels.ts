@@ -31,6 +31,18 @@ const REGULAR_BUBBLE_RANGE = 10;
 const MAX_REGULAR_BUBBLES = 3;
 const _p = new THREE.Vector3();
 const _cam = new THREE.Vector3();
+const _ndc = new THREE.Vector3();
+/** Bubbles keep this far inside the window, the HUD and an open panel. */
+const MARGIN = 12;
+/** Bubble sizes are re-measured this often (frames); text changes are rare. */
+const MEASURE_EVERY = 6;
+
+interface Box {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
 /** A thought stays up this long (then fades over 400 ms). */
 const THOUGHT_MS = 6000;
 /** Regulars daydream every 20–40 s, one at a time. */
@@ -226,7 +238,7 @@ class Tag {
    * `pillFade` 0–1 (0 hides it); `bubbleAllowed`: one of the nearest few; `inReach`: within the
    * pill range, where a needs-you bubble shows (beyond it, just the "!" and the pill).
    */
-  update(camDist: number, mgrDist: number, pillFade: number, bubbleAllowed: boolean, inReach: boolean): void {
+  update(camDist: number, mgrDist: number, pillFade: number, bubbleAllowed: boolean, inReach: boolean, onScreen = true): void {
     const e = this.e;
     const d = e.data;
     const st = d.state;
@@ -259,18 +271,19 @@ class Tag {
     let code = '';
     const now = performance.now();
     // A thought takes the place of their chatter; what they say out loud and needing you win.
-    const quip = e.quipping && camDist < 24;
-    const thinkAloud = this.thoughtOk && !needs && !quip && this.cloud.has(now);
+    // A head off the screen shows no bubble at all (needs-you has its edge face instead).
+    const quip = e.quipping && camDist < 24 && onScreen;
+    const thinkAloud = this.thoughtOk && onScreen && !needs && !quip && this.cloud.has(now);
     this.cloud.sync(thinkAloud, now);
     if (quip) {
       kind = 'say';
       text = e.quipText;
     } else if (needs && !walking) {
-      if (inReach) {
+      if (inReach && onScreen) {
         kind = 'needs';
         ({ line1, line2, code } = this.needsLines());
       }
-    } else if (!thinkAloud && bubbleAllowed && mgrDist < BUBBLE_RANGE && st !== 'sleeping') {
+    } else if (!thinkAloud && onScreen && bubbleAllowed && mgrDist < BUBBLE_RANGE && st !== 'sleeping') {
       kind = 'say';
       if (e.phase === 'entering') text = new Date().getHours() < 12 ? 'Morning!' : 'Hi!';
       else if (e.phase === 'leaving') text = 'Bye!';
@@ -448,6 +461,13 @@ export class LabelLayer {
   private vh = window.innerHeight;
   /** When the next regular may daydream. */
   private nextDaydream = performance.now() + 6000 + Math.random() * 10_000;
+  /** Where bubbles may not go: the HUD's corners and an open panel (measured twice a second). */
+  private zones: Box[] = [];
+  private zonesAt = 0;
+  private frame = 0;
+  private measured = new WeakMap<HTMLElement, { w: number; h: number; top: number; rootH: number; at: number }>();
+  /** The last shift written per bubble, so unchanged ones aren't touched. */
+  private shifts = new WeakMap<HTMLElement, string>();
   /** Reused every frame. */
   private order: Tag[] = [];
   private targets: EdgeTarget[] = [];
@@ -560,7 +580,7 @@ export class LabelLayer {
       if (fade > 0 && !t.e.handUp) pills++;
       const chatty = !t.e.handUp && !t.thoughtOk && bubbles < MAX_BUBBLES && d < BUBBLE_RANGE;
       if (chatty) bubbles++;
-      t.update(camDist, d, fade, chatty, d <= reach);
+      t.update(camDist, d, fade, chatty, d <= reach, this.onScreen(_p, camera));
 
       const e = t.e;
       if (e.handUp && e.phase !== 'leaving' && e.phase !== 'gone') {
@@ -584,14 +604,18 @@ export class LabelLayer {
       .sort((a, b) => a.d - b.d);
     let regularPills = 0;
     let regularBubbles = 0;
+    const inView = new Set<RegularTag>();
     for (const { t, d } of regulars) {
       const fade = regularPills < MAX_REGULAR_PILLS ? THREE.MathUtils.clamp((REGULAR_PILL_RANGE - d) / 1.5, 0, 1) : 0;
       if (fade > 0) regularPills++;
       const r = t.r;
-      const heard = r.quipping && regularBubbles < MAX_REGULAR_BUBBLES && (d < REGULAR_BUBBLE_RANGE || (r.quipLoud && d < 24));
+      r.labelAnchor.getWorldPosition(_p);
+      const seen = this.onScreen(_p, camera);
+      if (seen) inView.add(t);
+      const heard = seen && r.quipping && regularBubbles < MAX_REGULAR_BUBBLES && (d < REGULAR_BUBBLE_RANGE || (r.quipLoud && d < 24));
       if (heard) regularBubbles++;
       // A daydream shows close up, and steps aside for anything they say.
-      const dreaming = !heard && !r.quipping && d < REGULAR_BUBBLE_RANGE && t.cloud.has(now) && regularBubbles < MAX_REGULAR_BUBBLES;
+      const dreaming = seen && !heard && !r.quipping && d < REGULAR_BUBBLE_RANGE && t.cloud.has(now) && regularBubbles < MAX_REGULAR_BUBBLES;
       if (dreaming) regularBubbles++;
       t.cloud.sync(dreaming, now);
       t.update(fade, heard ? r.quipText : '');
@@ -601,7 +625,7 @@ export class LabelLayer {
       // Nobody close enough to see it: look again in a few seconds, not a whole interval later.
       this.nextDaydream = now + 3000;
       if (thoughtsOn() && !regulars.some(({ t }) => t.cloud.has(now))) {
-        const pool = regulars.filter(({ t, d }) => d < REGULAR_BUBBLE_RANGE && !t.r.quipping && (t.r.phase === 'seated' || t.r.hanging));
+        const pool = regulars.filter(({ t, d }) => inView.has(t) && d < REGULAR_BUBBLE_RANGE && !t.r.quipping && (t.r.phase === 'seated' || t.r.hanging));
         const one = pool[Math.floor(Math.random() * pool.length)];
         if (one) {
           one.t.cloud.think(daydream(one.t.r), now);
@@ -615,9 +639,114 @@ export class LabelLayer {
       this.insetAt = now;
       this.measureInset();
     }
+    // Every bubble stays whole on screen, clear of the HUD and the panel (tails still point home).
+    if (this.visible) this.clampBubbles(camera, now);
     // A bottom sheet (narrow windows) leaves no free edge for faces; the panel has the floor.
     const room = this.visible && this.inset?.bottom === undefined;
     this.edges.updateEdgeIndicators(camera, { width: this.vw, height: this.vh, inset: this.inset }, room ? targets : []);
+  }
+
+  /** Is this head on the screen? (Projects with the camera's current matrices.) */
+  private onScreen(world: THREE.Vector3, camera: THREE.Camera): boolean {
+    _ndc.copy(world).project(camera);
+    return _ndc.z < 1 && _ndc.x >= -1 && _ndc.x <= 1 && _ndc.y >= -1 && _ndc.y <= 1;
+  }
+
+  /**
+   * Slide each visible bubble (speech, needs-you and its "!", thought, the thinking dots) so its box sits
+   * MARGIN inside the window and clear of the HUD and an open panel. The shift goes to
+   * `translate` (the bubbles' own animations use `transform`) and to --shift, which keeps the
+   * tail or the puffs pointing at the head.
+   */
+  private clampBubbles(camera: THREE.Camera, now: number): void {
+    this.frame++;
+    if (now - this.zonesAt > 500) {
+      this.zonesAt = now;
+      this.zones = [];
+      for (const z of document.querySelectorAll<HTMLElement>('.co-hud__badge, .co-hud__needs > *, .co-hud__row, .co-hud__right, .co-hud__banner')) {
+        if (z.hidden) continue;
+        const r = z.getBoundingClientRect();
+        // The buttons' key caps hang below them.
+        const hang = z.classList.contains('co-hud__right') ? 10 : 0;
+        if (r.width > 0 && r.height > 0) this.zones.push({ l: r.left, t: r.top, r: r.right, b: r.bottom + hang });
+      }
+      const p = this.panelEl;
+      if (p?.isConnected && !p.classList.contains('is-out')) {
+        const r = p.getBoundingClientRect();
+        this.zones.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
+      }
+    }
+    camera.updateMatrixWorld();
+    const stacks: { root: HTMLElement; anchor: THREE.Object3D }[] = [];
+    for (const t of this.order) if (t.cloud.el.parentElement) stacks.push({ root: t.cloud.el.parentElement, anchor: t.e.labelAnchor });
+    for (const t of this.regularTags.values()) if (t.obj.visible && t.cloud.el.parentElement) stacks.push({ root: t.cloud.el.parentElement, anchor: t.r.labelAnchor });
+    for (const { root, anchor } of stacks) {
+      const items = [...root.children].filter(
+        (c): c is HTMLElement => c instanceof HTMLElement && !c.hidden && (c.classList.contains('co-bubble') || c.classList.contains('co-thought') || c.classList.contains('co-bang')),
+      );
+      if (!items.length) continue;
+      anchor.getWorldPosition(_p);
+      _ndc.copy(_p).project(camera);
+      const ax = ((_ndc.x + 1) / 2) * this.vw;
+      const ay = ((1 - _ndc.y) / 2) * this.vh;
+      this.clampStack(items, root, ax, ay);
+    }
+  }
+
+  /**
+   * One label's bubbles move together up and down (so the "!", the cloud and the bubble never
+   * overlap), and each slides sideways on its own (so each stays centred over the head if it can).
+   */
+  private clampStack(items: HTMLElement[], root: HTMLElement, ax: number, ay: number): void {
+    const shifts: { el: HTMLElement; dx: number; dy: number }[] = [];
+    for (const el of items) {
+      let m = this.measured.get(el);
+      if (!m || this.frame - m.at >= MEASURE_EVERY) {
+        m = { w: el.offsetWidth, h: el.offsetHeight, top: el.offsetTop, rootH: root.offsetHeight, at: this.frame };
+        this.measured.set(el, m);
+      }
+      // Where it sits unshifted: centred over the head, at its place in the stack above it.
+      const box = { l: ax - m.w / 2, t: ay - m.rootH + m.top, r: ax + m.w / 2, b: ay - m.rootH + m.top + m.h };
+      shifts.push({ el, ...this.fit(box) });
+    }
+    // Down together by the most any of them needs (or up, if one would hang off the bottom).
+    const down = Math.max(0, ...shifts.map((s) => s.dy));
+    const dy = down > 0 ? down : Math.min(0, ...shifts.map((s) => s.dy));
+    for (const s of shifts) {
+      const key = `${Math.round(s.dx)},${Math.round(dy)}`;
+      if (this.shifts.get(s.el) === key) continue;
+      this.shifts.set(s.el, key);
+      s.el.style.translate = key === '0,0' ? '' : `${Math.round(s.dx)}px ${Math.round(dy)}px`;
+      s.el.style.setProperty('--shift', `${Math.round(s.dx)}px`);
+    }
+  }
+
+  /** The smallest shift that puts `box` MARGIN inside the window and off the HUD and the panel. */
+  private fit(box: Box): { dx: number; dy: number } {
+    let dx = 0;
+    let dy = 0;
+    const fitWindow = () => {
+      if (box.l + dx < MARGIN) dx = MARGIN - box.l;
+      else if (box.r + dx > this.vw - MARGIN) dx = this.vw - MARGIN - box.r;
+      if (box.t + dy < MARGIN) dy = MARGIN - box.t;
+      else if (box.b + dy > this.vh - MARGIN) dy = this.vh - MARGIN - box.b;
+    };
+    fitWindow();
+    // Off the HUD and the panel, by the smallest move: down below it, or sideways away from it.
+    for (const z of this.zones) {
+      const l = box.l + dx;
+      const t = box.t + dy;
+      const r = box.r + dx;
+      const b = box.b + dy;
+      if (r <= z.l - MARGIN || l >= z.r + MARGIN || b <= z.t - MARGIN || t >= z.b + MARGIN) continue;
+      const left = (z.l + z.r) / 2 < this.vw / 2;
+      const down = z.b + MARGIN - t;
+      const side = left ? z.r + MARGIN - l : z.l - MARGIN - r;
+      if (Math.abs(side) < Math.abs(down)) dx += side;
+      else dy += down;
+    }
+    fitWindow();
+    return { dx, dy };
   }
 
   render(scene: THREE.Scene, camera: THREE.Camera): void {

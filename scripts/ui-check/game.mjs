@@ -493,9 +493,17 @@ try {
     const o = await open(`${BASE}/?demo=1&quiet=1&debug=1&regulars=lively`);
     const tp = o.page;
     // Someone near the manager who doesn't need you.
+    // Someone on screen (an off-screen head shows no bubble) and close, who doesn't need you.
     const thinker = await tp.evaluate(() => {
       const of = window.office;
-      const e = of.director.list().filter((x) => !x.handUp && x.phase === 'seated').sort((a, b) => a.position.distanceTo(of.manager.position) - b.position.distanceTo(of.manager.position))[0];
+      const onScreen = (x) => {
+        const v = x.labelAnchor.getWorldPosition(x.position.clone()).project(of.engine.camera);
+        return v.z < 1 && Math.abs(v.x) < 0.8 && v.y > -0.8 && v.y < 0.5;
+      };
+      const e = of.director
+        .list()
+        .filter((x) => !x.handUp && x.phase === 'seated' && onScreen(x))
+        .sort((a, b) => a.position.distanceTo(of.manager.position) - b.position.distanceTo(of.manager.position))[0];
       return { id: e.data.sessionId, name: e.data.displayName };
     });
     const cloudOf = (name) =>
@@ -513,7 +521,8 @@ try {
     await shot(tp, 'thought-session');
     await wait(6200);
     const c1b = await cloudOf(thinker.name);
-    check('the thought fades after about 6 s', c1b && !c1b.shown, JSON.stringify(c1b));
+    // (The demo's own pretend thoughts may land on them meanwhile: that's a new thought, not this one.)
+    check('the thought fades after about 6 s', c1b && (!c1b.shown || c1b.text !== 'Come on server, time to think out loud.'), JSON.stringify(c1b));
 
     // Hostile text stays text.
     await tp.evaluate((id) => window.officeThink(id, '<img src=x onerror="window.__xss=9"> **not bold** ‮evil'), thinker.id);
@@ -538,11 +547,15 @@ try {
       check('needs-you beats a thought (no cloud over a raised hand)', (!c3 || !c3.shown) && needs, JSON.stringify({ c3, needs }));
     } else check('needs-you beats a thought (no one needs you in this demo run)', false);
 
-    // Regulars daydream on their own (first one within ~16 s).
+    // Regulars daydream on their own (first one within ~16 s), where you can see them: stand
+    // the manager by one and look at them.
     await tp.evaluate(() => {
       const of = window.office;
       const r = of.regulars.list().find((x) => x.phase === 'seated');
-      if (r) of.manager.teleport(r.position.clone().add(r.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-2.2)).setY(0), of.manager.yaw);
+      if (!r) return;
+      of.manager.teleport(r.position.clone().add(r.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-2.2)).setY(0), of.manager.yaw);
+      const head = r.labelAnchor.getWorldPosition(r.position.clone());
+      of.camera.snapShot({ position: head.clone().add(head.clone().set(0, 1.6, 4)), look: head });
     });
     let dream = null;
     for (let i = 0; i < 24 && !dream; i++) {
@@ -554,6 +567,7 @@ try {
     }
     check('a regular daydreams now and then', !!dream, String(dream));
     if (dream) await shot(tp, 'thought-daydream');
+    await tp.evaluate(() => window.office.camera.setShot(null));
 
     // Help → Thought bubbles off: nothing shows (and the switch is saved).
     await tp.evaluate(() => window.office.panels.open('help'));
@@ -570,6 +584,104 @@ try {
     await tp.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
     check('no page errors (thoughts)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
     await tp.close();
+  }
+
+  // Bubbles stay whole on screen: a head at each edge of the window still has its whole bubble
+  // inside (12 px margin), clear of the HUD's corners, with the tail or puffs toward the head.
+  {
+    const o = await open(`${BASE}/?demo=1&quiet=1&debug=1`);
+    const bp = o.page;
+    const who = await bp.evaluate(() => {
+      const of = window.office;
+      const e = of.director.list().find((x) => !x.handUp && x.phase === 'seated');
+      of.manager.teleport(e.position.clone().add(e.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-1.6)).setY(0), of.manager.yaw);
+      return e.data.sessionId;
+    });
+    // Aim a fixed camera so their head lands at (tx, ty) on screen (a few bisection steps).
+    const aim = (tx, ty) =>
+      bp.evaluate(
+        async (id, tx, ty) => {
+          const of = window.office;
+          const cam = of.engine.camera;
+          const e = of.director.list().find((x) => x.data.sessionId === id);
+          const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const head = e.labelAnchor.getWorldPosition(e.position.clone());
+          const pos = head.clone().add(head.clone().set(0, 1.4, 3.6));
+          const dir = head.clone().sub(pos).normalize();
+          const right = dir.clone().cross(head.clone().set(0, 1, 0)).normalize();
+          const up = right.clone().cross(dir).normalize();
+          const screen = async (kx, ky) => {
+            of.camera.snapShot({ position: pos, look: head.clone().addScaledVector(right, kx).addScaledVector(up, ky) });
+            await frame();
+            const v = e.labelAnchor.getWorldPosition(head.clone()).project(cam);
+            return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+          };
+          let kx = 0;
+          let ky = 0;
+          for (let round = 0; round < 3; round++) {
+            let lo = -6, hi = 6;
+            for (let i = 0; i < 14; i++) {
+              kx = (lo + hi) / 2;
+              const s = await screen(kx, ky);
+              if (s.x > tx) lo = kx;
+              else hi = kx;
+            }
+            lo = -6;
+            hi = 6;
+            for (let i = 0; i < 14; i++) {
+              ky = (lo + hi) / 2;
+              const s = await screen(kx, ky);
+              if (s.y < ty) lo = ky;
+              else hi = ky;
+            }
+          }
+          return screen(kx, ky);
+        },
+        who,
+        tx,
+        ty,
+      );
+    const vw = 1440;
+    const vh = 900;
+    const spots = { left: [26, 470], right: [vw - 26, 470], top: [vw / 2, 70], bottom: [vw / 2, vh - 30], 'top-left (under the HUD)': [150, 210], 'top-right (under the buttons)': [vw - 120, 110] };
+    const bad = [];
+    const seen = [];
+    for (const [edge, [tx, ty]] of Object.entries(spots)) {
+      const head = await aim(tx, ty);
+      await bp.evaluate((id) => window.officeThink(id, 'A long thought about the integration test, right at the edge of the screen.'), who);
+      await wait(700);
+      const r = await bp.evaluate((hx) => {
+        const vw = innerWidth;
+        const vh = innerHeight;
+        const zones = [...document.querySelectorAll('.co-hud__badge, .co-hud__needs > *, .co-hud__row, .co-hud__right')].map((z) => z.getBoundingClientRect()).filter((z) => z.width > 0);
+        const boxes = [...document.querySelectorAll('.co-bubble:not([hidden]), .co-thought:not([hidden])')].filter((b) => b.getBoundingClientRect().width > 0).map((b) => {
+          const r = b.getBoundingClientRect();
+          const inside = r.left >= 10.5 && r.right <= vw - 10.5 && r.top >= 10.5 && r.bottom <= vh - 10.5;
+          const clearHud = zones.every((z) => r.right <= z.left || r.left >= z.right || r.bottom <= z.top || r.top >= z.bottom);
+          return { cls: b.className.split(' ')[0], l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom), inside, clearHud };
+        });
+        const cloud = [...document.querySelectorAll('.co-thought:not([hidden])')].find((c) => c.textContent.includes('right at the edge'));
+        const puff = cloud?.querySelector('.co-thought__puff')?.getBoundingClientRect();
+        const cr = cloud?.getBoundingClientRect();
+        // Slid sideways to stay on screen, the puffs still lean from the cloud's middle toward the head.
+        const mid = cr ? (cr.left + cr.right) / 2 : hx;
+        const toward = !cloud || !puff || Math.abs(mid - hx) < 24 || Math.abs(puff.left - hx) < Math.abs(mid - hx);
+        return { boxes, shown: !!cloud, toward };
+      }, head.x);
+      seen.push(`${edge}:${r.shown ? 'shown' : 'none'}`);
+      for (const b of r.boxes) if (!b.inside || !b.clearHud) bad.push({ edge, head, ...b });
+      if (!r.shown || !r.toward) bad.push({ edge, head, shown: r.shown, toward: r.toward });
+      if (edge === 'right') await shot(bp, 'thought-edge-right');
+    }
+    check('a head at each edge keeps its whole bubble on screen, clear of the HUD, puffs toward the head', bad.length === 0, JSON.stringify(bad.length ? bad : seen));
+    // A head off the screen: no thought (it would only show as a sliver).
+    await aim(-80, 470);
+    await bp.evaluate((id) => window.officeThink(id, 'Nobody can see me think this.'), who);
+    await wait(600);
+    const offscreen = await bp.evaluate(() => [...document.querySelectorAll('.co-thought:not([hidden])')].some((c) => c.textContent.includes('Nobody can see')));
+    check('a head off the screen shows no thought', !offscreen);
+    await bp.evaluate(() => window.office.camera.setShot(null));
+    await bp.close();
   }
 
   // Thought bubbles off tells the office to stop thinking (presence thoughts:false). Live page,

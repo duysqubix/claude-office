@@ -95,6 +95,9 @@ Contextual: the `[E]` prompt, bubbles, toasts, coach cards. On demand: panels, t
   (one line about their real work); regulars daydream from a written pool (by task, night, Monday/Friday) every 20–40
   s, one at a time. Thoughts take a chatter slot first (within the pill reach, nearest 3); needs-you and speech win.
   Help "Thought bubbles" (on by default) turns them off and sends presence `thoughts: false`.
+- **On screen, always whole**: every bubble, cloud and "!" stays 12 px inside the window, clear of the HUD's corners
+  and an open panel (the label's pieces move down together, each slides sideways; tails and puffs still point at the
+  head). A head off the screen shows no speech or thought; needs-you has its edge face.
 - **"!" marker** (needs-you, above the bubble): 52 px amber disc, 4 px ink border, ink "!" 34/700; bobs 6 px every 900
   with a squash at the bottom; pops out when answered.
 - **Off-screen faces**: needs-you people whose head projects outside the safe rect (inset 24, top 184, bottom 120, right
