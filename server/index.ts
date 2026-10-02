@@ -7,7 +7,7 @@ import { createReadStream, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { readdir, stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, resolve, sep } from 'node:path';
-import { WebSocketServer, type WebSocket } from 'ws';
+import { WebSocketServer, type RawData, type WebSocket } from 'ws';
 import type { ViteDevServer } from 'vite';
 import { HIRE_PERMISSION_MODES } from '../shared/protocol';
 import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, ServerMessage } from '../shared/protocol';
@@ -18,8 +18,9 @@ import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
 import { run } from './exec';
+import { ShellKeeper } from './shells';
 import { ThoughtService } from './thoughts';
-import { assertDirectory, hire, initTmux, interrupt, kill, newSessionId, pasteSafe, rehire, say } from './tmux';
+import { assertDirectory, ensureShell, hire, initTmux, interrupt, kill, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -65,6 +66,7 @@ const asks = new AskBroker();
 const roster = new Roster(asks);
 asks.on('change', () => roster.refresh());
 const stats = new StatsService();
+const shells = new ShellKeeper();
 const server = http.createServer((req, res) => {
   handle(req, res).catch((err: unknown) => {
     const status = err instanceof HttpError ? err.status : 500;
@@ -178,6 +180,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const tmuxName = roster.tmuxNameFor(sessionId);
       if (!tmuxName) throw new HttpError(400, 'Only people hired in the office can be let go from here');
       await kill(tmuxName);
+      void shells.close(sessionId);
       void roster.tick();
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
@@ -344,6 +347,15 @@ roster.on('change', () => void pushStats().catch(() => {}));
 roster.on('change', (employees) => broadcast({ type: 'roster', employees, now: Date.now() }));
 roster.on('notice', (notice: ServerMessage) => broadcast(notice));
 
+// Shells close once their employee has left (checked on every roster change and every 5 s,
+// starting once the first poll is in, so an empty roster at startup never closes anyone's).
+let rosterIn = false;
+roster.once('change', () => (rosterIn = true));
+roster.on('change', (employees: typeof roster.employees) => void shells.sweep(employees).catch(() => {}));
+const shellTimer = setInterval(() => {
+  if (rosterIn) void shells.sweep(roster.employees).catch(() => {});
+}, 5000);
+
 const heartbeat = setInterval(() => {
   for (const ws of rosterSockets.clients) {
     if (!alive.get(ws)) ws.terminate();
@@ -371,15 +383,46 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     return;
   }
   const id = url.searchParams.get('id') ?? '';
-  const tmuxName = UUID.test(id) ? roster.tmuxNameFor(id.toLowerCase()) : undefined;
+  const sessionId = UUID.test(id) ? id.toLowerCase() : '';
+  // Their Claude session (hosted only), or their shell (anyone in the office).
+  const kind = url.searchParams.get('kind') ?? 'claude';
+  const cols = Number(url.searchParams.get('cols'));
+  const rows = Number(url.searchParams.get('rows'));
   termSockets.handleUpgrade(req, socket, head, (ws) => {
     // First thing: a malformed frame must close this socket, never crash the office.
     ws.on('error', () => ws.terminate());
-    if (!tmuxName) {
-      ws.close(1008, 'Not an office session');
+    if (kind === 'claude') {
+      const tmuxName = sessionId ? roster.tmuxNameFor(sessionId) : undefined;
+      if (!tmuxName) ws.close(1008, 'Not an office session');
+      else attachTerminal(ws, tmuxName, cols, rows);
       return;
     }
-    attachTerminal(ws, tmuxName, Number(url.searchParams.get('cols')), Number(url.searchParams.get('rows')));
+    if (kind !== 'shell') {
+      ws.close(1008, 'Unknown terminal kind');
+      return;
+    }
+    const who = sessionId ? roster.find(sessionId) : undefined;
+    if (!who) {
+      ws.close(1008, 'Nobody by that id is in the office');
+      return;
+    }
+    // Starting their shell takes a moment: keep what the browser sends meanwhile.
+    const early: [RawData, boolean][] = [];
+    const hold = (data: RawData, binary: boolean) => early.push([data, binary]);
+    ws.on('message', hold);
+    ensureShell(who.sessionId, who.cwd).then(
+      (tmuxName) => {
+        ws.off('message', hold);
+        if (ws.readyState !== ws.OPEN) return;
+        attachTerminal(ws, tmuxName, cols, rows);
+        for (const [data, binary] of early) ws.emit('message', data, binary);
+      },
+      (err: unknown) => {
+        // Close reasons are capped at 123 bytes.
+        const why = `No shell: ${err instanceof Error ? err.message : String(err)}`;
+        ws.close(1008, Buffer.from(why).subarray(0, 120).toString());
+      },
+    );
   });
 });
 
@@ -440,8 +483,26 @@ async function main(): Promise<void> {
   server.listen(PORT, HOST, () => {
     const url = `http://${HOST}:${PORT}`;
     console.log(`\n  Claude Office is open → ${url}  (${IS_PROD ? 'production' : 'dev'})\n`);
-    if (process.argv.includes('--open')) void run(process.platform === 'darwin' ? 'open' : 'xdg-open', [url]);
+    if (process.argv.includes('--open')) void openBrowser(url);
   });
+}
+
+/** Open the office in the user's browser: macOS `open`, Windows' browser from WSL, else xdg-open. */
+function openBrowser(url: string): Promise<unknown> {
+  if (process.platform === 'darwin') return run('open', [url]);
+  // Inside WSL there's usually no Linux browser: hand the address to Windows. wslview ships with
+  // most WSL distros; explorer.exe (via interop) opens URLs too but always exits 1, so it's last.
+  const wsl = Boolean(process.env.WSL_DISTRO_NAME) || /microsoft/i.test(readVersion());
+  if (wsl) return run('wslview', [url]).then((r) => (r.code === 0 ? r : run('explorer.exe', [url])));
+  return run('xdg-open', [url]);
+}
+
+function readVersion(): string {
+  try {
+    return readFileSync('/proc/version', 'utf8');
+  } catch {
+    return '';
+  }
 }
 
 function shutdown(): void {
@@ -450,6 +511,7 @@ function shutdown(): void {
   roster.stop();
   clearInterval(heartbeat);
   clearInterval(statsTimer);
+  clearInterval(shellTimer);
   if (catalogTimer) clearInterval(catalogTimer);
   for (const ws of termSockets.clients) ws.close(1001, 'office closing');
   for (const ws of rosterSockets.clients) ws.close(1001, 'office closing');
