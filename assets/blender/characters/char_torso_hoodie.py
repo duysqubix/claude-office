@@ -41,40 +41,36 @@ def build():
     M = B.materials(shirt=COLOR)
     lower, chest = B.torso(M, emblem=False)
     up = [kit.sdf_mesh("Hood", hood, (-0.26, -0.15, 0.2), (0.26, 0.3, 0.45), M["shirt"],
-                       voxel=0.003, target=480, remesh="decimate")]
-    up.append(B.crew_collar(M))
+                       voxel=0.003, target=300, remesh="decimate")]
     cord = kit.flat("Cord", "#FFFDF7", rough=0.7)
     tip = kit.flat("Aglet", "#C8D0DC", rough=0.3, metal=0.4)
     for s in (1, -1):
         a = B.torso_surface(s * 0.045, 0.305)[0] + Vector((0, -0.012, 0))
         b = B.torso_surface(s * 0.05, 0.235)[0] + Vector((0, -0.012, 0))
         c = B.torso_surface(s * 0.056, 0.17)[0] + Vector((0, -0.014, 0))
-        up.append(kit.tube(f"String{s}", kit.catmull([a, b, c], 8), 0.0055, cord, ring=6,
+        up.append(kit.tube(f"String{s}", kit.catmull([a, b, c], 6), 0.0055, cord, ring=5,
                            cap_rings=1))
         up.append(lib.cyl(f"Aglet{s}", 0.0075, 0.02, tuple(c + Vector((0, 0, -0.008))), tip,
                           r=0.002, seg=1, verts=10))
     for ob in up:
         lib.node(ob, "Chest", pivot=(0, 0, B.CHEST_Y))
-    # Ribbed hem over the waistband (stays with the hips).
-    prof = B._profile()
-    hem_y = B.BELT_Y + 0.006
-    r = kit.torso_radius_at(hem_y) + B.PANTS_OFF + 0.012
-    pts = [Vector((r * math.cos(a), B.Z * r * math.sin(a), hem_y))
-           for a in np.linspace(0, 2 * math.pi, 28, endpoint=False)]
-    kit.ring_tube("Hem", pts, 0.018, M["shirt"], ring=6)
-    # Kangaroo pocket: a raised panel on the belly with darker slits at the sides.
-    for i, (x, w) in enumerate([(0.0, 0.2)]):
-        p, n = B.torso_surface(x, 0.075)
-        pk = lib.rbox("Pocket", (w, 0.012, 0.085), tuple(p + n * 0.004), M["shirt"], r=0.012,
-                      seg=2)
-        pk.rotation_euler = n.to_track_quat("-Y", "Z").to_euler()
+    # Ribbed hem: a snug band over the pants' waistband (stays with the hips).
+    y0, y1 = B.BELT_Y - 0.03, B.BELT_Y + 0.03
+    rb = float(B.torso_r(np.array([B.BELT_Y]))[0]) + B.PANTS_OFF + 0.006
+    rs = float(B.torso_r(np.array([y1 + 0.012]))[0])
+    band = [(rb - 0.006, y0), (rb, y0 + 0.008), (rb + 0.002, (y0 + y1) / 2), (rb, y1 - 0.006),
+            (rb - 0.004, y1), (rs - 0.002, y1 + 0.012)]
+    B.lathe_part("Hem", band, M["shirt"], verts=24)
+    # Kangaroo pocket: a panel curving with the belly, open at both sides.
+    B.surface_patch("Pocket", M["shirt"], 0.105, 0.03, 0.115, out=0.008, thick=0.012,
+                    rnd=0.026, target=220)
     slit = kit.flat("PocketShadow", "#2B2D42", rough=0.9)
     for s in (1, -1):
-        p, n = B.torso_surface(s * 0.098, 0.075)
-        sl = lib.rbox(f"Slit{s}", (0.008, 0.01, 0.06), tuple(p + n * 0.007), slit, r=0.003,
+        p, n = B.torso_surface(s * 0.092, 0.075)
+        sl = lib.rbox(f"Slit{s}", (0.007, 0.012, 0.055), tuple(p + n * 0.01), slit, r=0.003,
                       seg=1)
         sl.rotation_euler = n.to_track_quat("-Y", "Z").to_euler()
 
 
 def finalize(name):
-    return kit.finalize(name, META, mount="torso", mq_torso=False, ao_distance=0.06)
+    return kit.finalize(name, META, mount="torso", mq_torso=False, ao=False)

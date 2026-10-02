@@ -48,6 +48,16 @@ def part(module, at, keep=1.0, recolor=None, tag=None):
         mod_d = root.modifiers.new("Decimate", "DECIMATE")
         mod_d.ratio = keep
     root.matrix_basis = at @ root.matrix_basis
+    # Park it outside the part's collection: building the same part again (the other arm)
+    # re-runs lib.begin() on that collection, which empties it (and begin() also empties
+    # "_"-prefixed helper collections, hence no underscore here).
+    hold = bpy.data.collections.get("PresetParts")
+    if hold is None:
+        hold = bpy.data.collections.new("PresetParts")
+        bpy.context.scene.collection.children.link(hold)
+    for c in list(root.users_collection):
+        c.objects.unlink(root)
+    hold.objects.link(root)
     return root
 
 
@@ -71,7 +81,7 @@ def joints(girth=1.0, splay=None, elbow=8.0, arms=None):
         J[("hand", s)] = Matrix.Translation(wrist) @ Rf
         centre = wrist + (Rf @ Vector((0, 0, -L["hand"]["offset"], 1))).to_3d()
         J[("handCentre", s)] = centre
-        J[("grip", s)] = centre + kit.bl(*kit.GRIP_FROM_HAND)
+        J[("grip", s)] = centre + (Rf @ kit.bl(*kit.GRIP_FROM_HAND).to_4d()).to_3d()
         hip = P + Vector((s * L["hip"]["x"], 0, 0))
         J[("thigh", s)] = Matrix.Translation(hip)
         knee = hip - Vector((0, 0, L["thigh"]["len"]))
@@ -96,14 +106,14 @@ def assemble(name, spec):
         parts.append(part(mod, J["pelvis"], keep=keep))
     for s in (1, -1):
         sleeve = {"Skin": shirt} if long else None
-        parts.append(part("char_upper_arm", J[("upper", s)], keep=0.7, recolor=sleeve,
+        parts.append(part("char_upper_arm", J[("upper", s)], keep=0.5, recolor=sleeve,
                           tag="upper%d" % s))
-        parts.append(part("char_forearm", J[("fore", s)], keep=0.75, recolor=sleeve,
+        parts.append(part("char_forearm", J[("fore", s)], keep=0.6, recolor=sleeve,
                           tag="fore%d" % s))
-        parts.append(part("char_hand_mitten", J[("hand", s)], keep=0.6, tag="hand%d" % s))
-        parts.append(part("char_thigh", J[("thigh", s)], keep=0.75, tag="thigh%d" % s))
-        parts.append(part("char_shin", J[("shin", s)], keep=0.75, tag="shin%d" % s))
-        parts.append(part(spec.get("shoe", "char_shoe_sneaker"), J[("foot", s)], keep=0.45,
+        parts.append(part("char_hand_mitten", J[("hand", s)], keep=0.5, tag="hand%d" % s))
+        parts.append(part("char_thigh", J[("thigh", s)], keep=0.6, tag="thigh%d" % s))
+        parts.append(part("char_shin", J[("shin", s)], keep=0.6, tag="shin%d" % s))
+        parts.append(part(spec.get("shoe", "char_shoe_sneaker"), J[("foot", s)], keep=0.72,
                           tag="shoe%d" % s))
     for s, (mod, keep) in spec.get("held", {}).items():
         at = spec.get("held_at", {}).get(s)

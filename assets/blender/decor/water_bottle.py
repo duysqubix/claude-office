@@ -53,7 +53,8 @@ def cap(M):
 
 def prints(M):
     r = R + 0.0005
-    t = D.text("Print_H2O", "H2O", 0.022, M["white"], loc=(0, -r, 0.153), depth=0, res=2)
+    # Small enough to stay within about ±23° of the front (no letter past the silhouette).
+    t = D.text("Print_H2O", "H2O", 0.0165, M["white"], loc=(0, -r, 0.153), depth=0, res=2)
     F.wrap_decal(t, r, 0.153, max_edge=0.003)
     for i, (w, z) in enumerate(((0.016, 0.068), (0.011, 0.054), (0.016, 0.04), (0.011, 0.026))):
         tick = D.face(f"Print_Tick{i}", D.rrect_pts(w, 0.0034, 0.0017, steps=2), M["white"],

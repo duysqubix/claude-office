@@ -20,13 +20,9 @@ GLASS = [(0.0, 0.112), (0.034, 0.112), (0.04, 0.13), (0.0455, 0.165), (0.046, 0.
 
 
 def materials():
-    glass = lib.mat("Glass", "#E9A6FF", rough=0.12, emit="#C96BFF", strength=0.55)
-    b = lib.principled(glass)
-    b.inputs["Alpha"].default_value = 0.42
-    glass.surface_render_method = "BLENDED"
     return dict(
         shell=D.mat("Accent", "purple", rough=0.35, metal=0.15),
-        glass=glass,
+        glass=lib.mat("Glass", "#E9A6FF", rough=0.12, emit="#C96BFF", strength=0.55, alpha=0.42),
         wax=lib.mat("Wax", "#FF8A3D", rough=0.4, emit="#FF7A2E", strength=1.6),
         trim=D.mat("Trim", "gold", rough=0.3, metal=0.35),
     )

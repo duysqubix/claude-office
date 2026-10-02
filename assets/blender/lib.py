@@ -601,6 +601,7 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=None, ground="floo
             nt.nodes.remove(n)
         t = nt.nodes.new("ShaderNodeTexImage")
         t.image = img
+        t.extension = "EXTEND"   # exported as CLAMP_TO_EDGE: no bleed across atlas edges
         t["ao"] = True
         t.location = (-700, 300)
         nt.nodes.active = t

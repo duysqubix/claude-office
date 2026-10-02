@@ -1,0 +1,29 @@
+{
+  "id": "preset_intern",
+  "name": "Preset: intern",
+  "category": "preset",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Mini intern: backwards cap, orange tee, tiny laptop held out",
+  "tags": [
+    "preset",
+    "intern",
+    "character"
+  ],
+  "tintable": [
+    "Skin",
+    "Shirt",
+    "Pants",
+    "Shoes",
+    "Hair",
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.931,
+      0
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "hair_bun",
+  "name": "Bun",
+  "category": "character-hair",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Hair swept up into a big round top bun wound with a spiral, over a coloured scrunchie",
+  "tags": [
+    "hair",
+    "bun",
+    "updo"
+  ],
+  "tintable": [
+    "Hair",
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4385,
+      -0.1952
+    ],
+    "bun": [
+      0.0,
+      0.349,
+      -0.1554
+    ]
+  }
+}

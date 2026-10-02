@@ -1,0 +1,29 @@
+{
+  "id": "preset_manager",
+  "name": "Preset: manager",
+  "category": "preset",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "The manager: white shirt, red tie, slick hair, okayest-manager mug",
+  "tags": [
+    "preset",
+    "manager",
+    "character"
+  ],
+  "tintable": [
+    "Skin",
+    "Shirt",
+    "Pants",
+    "Shoes",
+    "Hair",
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      1.404,
+      0
+    ]
+  }
+}

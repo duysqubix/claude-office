@@ -1,0 +1,35 @@
+{
+  "id": "pet_cat",
+  "name": "Office cat",
+  "category": "pet",
+  "artist": "Claude Lorrain",
+  "priority": "P2",
+  "status": "done",
+  "description": "Chunky ginger office cat with a collar and bell; nodes Head (look around) and Tail (wag)",
+  "tags": [
+    "pet",
+    "cat",
+    "animal",
+    "office"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "head": [
+      0.0,
+      0.335,
+      0.175
+    ],
+    "collar": [
+      0.0,
+      0.22,
+      0.19
+    ]
+  },
+  "nodes": {
+    "Head": "look around: rotate about Y (three.js) at its origin (the neck)",
+    "Tail": "wag: rotate about Y (three.js) at its origin (the tail root)"
+  },
+  "notes": "Fur, FurLight and FurDark can be recoloured by name for other coats."
+}

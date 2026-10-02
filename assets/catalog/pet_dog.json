@@ -1,0 +1,36 @@
+{
+  "id": "pet_dog",
+  "name": "Office dog",
+  "category": "pet",
+  "artist": "Claude Lorrain",
+  "priority": "P2",
+  "status": "done",
+  "description": "Chunky golden office puppy with floppy ears and a tag on its collar; nodes Head and Tail",
+  "tags": [
+    "pet",
+    "dog",
+    "puppy",
+    "animal",
+    "office"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "head": [
+      0.0,
+      0.39,
+      0.2
+    ],
+    "collar": [
+      0.0,
+      0.255,
+      0.215
+    ]
+  },
+  "nodes": {
+    "Head": "look around: rotate about Y (three.js) at its origin (the neck)",
+    "Tail": "wag: rotate about Y (three.js) at its origin (the tail root)"
+  },
+  "notes": "Fur, FurLight and FurDark can be recoloured by name for other coats."
+}

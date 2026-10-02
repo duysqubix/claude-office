@@ -23,7 +23,7 @@ HEAD_C = kit.HEAD_Y  # head centre above the pelvis
 
 
 def _profile(girth=1.0):
-    return kit.torso_profile(girth, samples=22)
+    return kit.torso_profile(girth, samples=16)
 
 
 def _slice(prof, y0, y1):
@@ -51,7 +51,7 @@ def _deriv(prof, y, eps=0.003):
     return (at(y + eps) - at(y - eps)) / (2 * eps)
 
 
-def lathe_part(name, prof, material, verts=28, at=Vector((0, 0, 0)), normals_from=None):
+def lathe_part(name, prof, material, verts=24, at=Vector((0, 0, 0)), normals_from=None):
     """Lathe a (radius, height) profile, squashed front-to-back by TORSO_Z, with the true
     surface normals of `normals_from` (a full profile) as custom normals: two parts cut
     from one surface then shade as one, with no crease at the cut."""
@@ -93,7 +93,70 @@ def lathe_part(name, prof, material, verts=28, at=Vector((0, 0, 0)), normals_fro
     return ob
 
 
-def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True):
+def shell_part(name, prof, material, opening=None, verts=24, grow=0.0, normals_from=None,
+               return_edges=False):
+    """Like lathe_part, but the surface can leave a clean opening at the front: `opening(y)`
+    gives its half-angle in radians at height y (0 = closed). Vertices fan around the back
+    from one edge of the opening to the other, so the edge follows the curve exactly.
+    `grow` pushes the surface out (a garment over the shirt)."""
+    ref = normals_from or prof
+    front = -math.pi / 2
+    bm = bmesh.new()
+    rows = []
+    for r, y in prof:
+        o = opening(y) if opening else 0.0
+        rr = r + grow if r > 0 else 0.0
+        if o <= 1e-4:
+            angs = [front + 2 * math.pi * i / verts for i in range(verts)]
+            closed = True
+        else:
+            angs = [front + o + (2 * math.pi - 2 * o) * i / verts for i in range(verts + 1)]
+            closed = False
+        rows.append(([bm.verts.new((rr * math.cos(a), Z * rr * math.sin(a), y)) for a in angs],
+                     closed))
+    for (ra, ca), (rb, cb) in zip(rows, rows[1:]):
+        n = min(len(ra), len(rb))
+        last = n if (ca and cb) else n - 1
+        for i in range(last):
+            j = (i + 1) % n
+            bm.faces.new((ra[i], rb[i], rb[j], ra[j]))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-6)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.normal_update()
+    if sum((f.calc_center_median().x * f.normal.x + f.calc_center_median().y * f.normal.y)
+           for f in bm.faces) < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    nrm = []
+    for v in me.vertices:
+        x, yy, h = v.co
+        r = math.hypot(x, yy / Z)
+        if r < 1e-5:
+            nrm.append((0.0, 0.0, 1.0 if h > 0 else -1.0))
+            continue
+        nrm.append(tuple(Vector((Z * x / r, (yy / Z) / r, -Z * _deriv(ref, h))).normalized()))
+    me.shade_smooth()
+    me.normals_split_custom_set_from_vertices(nrm)
+    if material:
+        me.materials.append(material)
+    ob = bpy.data.objects.new(name, me)
+    lib.coll().objects.link(ob)
+    if not return_edges:
+        return ob
+    edges = {1: [], -1: []}
+    for r, y in prof:
+        o = opening(y) if opening else 0.0
+        if o > 1e-4:
+            rr = r + grow
+            for s in (1, -1):
+                a = front + s * o
+                edges[s].append(Vector((rr * math.cos(a), Z * rr * math.sin(a), y)))
+    return ob, edges
+
+
+def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True, verts=24):
     """Shirt bean over pants, split at the chest joint: the upper shirt is node `Chest`
     (pivot at chestPivotY) and the lower part ends in a dome so bending never opens a
     hole. Returns (lower parts, chest parts)."""
@@ -103,18 +166,18 @@ def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True):
     low = _slice(prof, BELT_Y - 0.035, CHEST_Y)
     r_top = low[-1][0]
     cap = [(r_top * math.cos(a), CHEST_Y + 0.05 * math.sin(a))
-           for a in np.linspace(0.3, math.pi / 2, 4)]
-    lower.append(lathe_part("ShirtLow", low, M["shirt"], normals_from=prof))
-    lower.append(lathe_part("ShirtCap", [low[-1]] + cap, M["shirt"]))
+           for a in np.linspace(0.6, math.pi / 2, 2)]
+    lower.append(lathe_part("ShirtLow", low, M["shirt"], normals_from=prof, verts=verts))
+    lower.append(lathe_part("ShirtCap", [low[-1]] + cap, M["shirt"], verts=verts))
     # Pants: the bottom of the bean, proud of the shirt, with a soft waistband lip.
     pants = _slice(prof, prof[0][1], BELT_Y)
     rb = pants[-1][0] + PANTS_OFF
     pants = [(r + PANTS_OFF if r > 0 else 0.0, y - 0.004) for r, y in pants]
     pants += [(rb + 0.004, BELT_Y + 0.004), (rb + 0.002, BELT_Y + 0.012),
               (rb - 0.012, BELT_Y + 0.014)]
-    lower.append(lathe_part("Pants", pants, M["pants"]))
+    lower.append(lathe_part("Pants", pants, M["pants"], verts=min(20, verts)))
     up = _slice(prof, CHEST_Y, prof[-1][1])
-    chest = [lathe_part("ShirtUp", up, M["shirt"], normals_from=prof)]
+    chest = [lathe_part("ShirtUp", up, M["shirt"], normals_from=prof, verts=verts)]
     if emblem and "accent" in M:
         # A little round print on the left chest, like Wobbly Life's tops.
         p, n = torso_surface(0.085 * girth, 0.2, girth)
@@ -124,6 +187,75 @@ def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True):
         for ob in chest:
             lib.node(ob, "Chest", pivot=(0, 0, CHEST_Y))
     return lower, chest
+
+
+_PROF_CACHE = {}
+
+
+def torso_r(y, girth=1.0):
+    """Vectorised shirt-bean radius at heights y (numpy array, pelvis space)."""
+    key = round(girth, 3)
+    if key not in _PROF_CACHE:
+        prof = kit.torso_profile(girth, samples=200)
+        _PROF_CACHE[key] = (np.array([p[1] for p in prof]), np.array([p[0] for p in prof]))
+    ys, rs = _PROF_CACHE[key]
+    return np.interp(y, ys, rs)
+
+
+def surface_patch(name, material, x_half, y0, y1, out=0.007, thick=0.011, rnd=0.025,
+                  x_c=0.0, girth=1.0, target=320, carve=None, radius_fn=None):
+    """A rounded-rectangle panel (pocket, apron bib, vest panel) lying on the front of the
+    shirt bean, `out` metres proud of it, following its curve. `carve(P)` may cut it."""
+    def fn(P):
+        x, y = P[:, 0], P[:, 2]
+        qx = np.abs(x - x_c) - (x_half - rnd)
+        qy = np.abs(y - (y0 + y1) / 2) - ((y1 - y0) / 2 - rnd)
+        d2 = (np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) +
+              np.minimum(np.maximum(qx, qy), 0) - rnd)
+        r = (radius_fn(y) if radius_fn else torso_r(np.clip(y, -0.15, 0.4), girth))
+        surf = -Z * np.sqrt(np.maximum(r * r - x * x, 0.0)) - out
+        d = kit.smax(d2, np.abs(P[:, 1] - surf) - thick / 2, 0.004)
+        return kit.smax(d, carve(P), 0.003) if carve else d
+    lo = (x_c - x_half - 0.02, -0.34, y0 - 0.02)
+    hi = (x_c + x_half + 0.02, -0.05, y1 + 0.02)
+    return kit.sdf_mesh(name, fn, lo, hi, material, voxel=0.0025, target=target,
+                        remesh="decimate")
+
+
+def band(name, y0, y1, radius, material, verts=24, bulge=0.004):
+    """A smooth rolled band (hem) of the given radius between heights y0 and y1."""
+    ym = (y0 + y1) / 2
+    prof = [(radius - 0.005, y0), (radius, y0 + 0.006), (radius + bulge, ym),
+            (radius, y1 - 0.006), (radius - 0.005, y1)]
+    return lathe_part(name, prof, material, verts=verts)
+
+
+def ribbed_band(name, y0, y1, radius_fn, material, n=40, amp=0.0035, rows=4):
+    """A knitted band (hem, cuff): a short tube whose radius ripples round in n ribs.
+    radius_fn(y) gives the base radius; the ends roll in a little."""
+    bm = bmesh.new()
+    rings = []
+    for k in range(rows + 1):
+        t = k / rows
+        y = y0 + (y1 - y0) * t
+        roll = math.sin(math.pi * t) ** 0.5
+        base = radius_fn(y) - 0.006 * (1 - roll)
+        ring = []
+        for i in range(n):
+            a = 2 * math.pi * i / n
+            r = base + amp * (1 if i % 2 == 0 else -1) * roll
+            ring.append(bm.verts.new((r * math.cos(a), Z * r * math.sin(a), y)))
+        rings.append(ring)
+    for ra, rb in zip(rings, rings[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new((ra[i], ra[j], rb[j], rb[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.normal_update()
+    if sum(f.calc_center_median().x * f.normal.x + f.calc_center_median().y * f.normal.y
+           for f in bm.faces) < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    return lib._link(name, bm, material)
 
 
 def torso_surface(x, y, girth=1.0, back=False):
@@ -165,9 +297,9 @@ def neck_ring(girth=1.0, n=28, out=0.004):
     return pts
 
 
-def crew_collar(M, girth=1.0):
+def crew_collar(M, girth=1.0, n=24, ring=6):
     """A rolled crew neckline where the head meets the shirt."""
-    return kit.ring_tube("Collar", neck_ring(girth, n=24, out=0.004), 0.013, M["shirt"], ring=6)
+    return kit.ring_tube("Collar", neck_ring(girth, n=n, out=0.004), 0.013, M["shirt"], ring=ring)
 
 
 # ---------------------------------------------------------------- limbs (joint space)
@@ -275,9 +407,9 @@ def sneaker(M, side=1, laces=True, stripe=True):
     c, (rx, ry, rz) = shoe_frame()
     lo = tuple(c - Vector((rx + 0.03, ry + 0.03, rz + 0.02)))
     hi = tuple(c + Vector((rx + 0.03, ry + 0.03, rz + 0.03)))
-    parts = [kit.sdf_mesh("Upper", sneaker_upper, lo, hi, M["shoes"], voxel=0.003, target=900,
+    parts = [kit.sdf_mesh("Upper", sneaker_upper, lo, hi, M["shoes"], voxel=0.003, target=820,
                           remesh="decimate"),
-             kit.sdf_mesh("Sole", sneaker_sole, lo, hi, M["sole"], voxel=0.003, target=500,
+             kit.sdf_mesh("Sole", sneaker_sole, lo, hi, M["sole"], voxel=0.003, target=420,
                           remesh="decimate")]
     if laces:
         for i in range(3):
@@ -297,7 +429,7 @@ def sneaker(M, side=1, laces=True, stripe=True):
                 p = kit.surface_point(sneaker_upper, Vector((s, (yy - c.y) / rx, (zz - c.z) / rx)),
                                       centre=c)
                 pts.append(p + Vector((s * 0.002, 0, 0)))
-            parts.append(kit.tube(f"Stripe{s}", kit.catmull(pts, 10), 0.007, M["accent"], ring=6,
+            parts.append(kit.tube(f"Stripe{s}", kit.catmull(pts, 8), 0.007, M["accent"], ring=5,
                                   cap_rings=2))
     return parts
 

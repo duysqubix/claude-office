@@ -623,6 +623,13 @@ def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=Fals
     tris = lib.tri_count(ob)
 
     lib.bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
+    # The unwrap scales islands to the atlas bounds; with the default REPEAT wrap, texels on
+    # the border filter in the opposite edge (a thin dark seam). Clamp instead.
+    for o in objs:
+        for m in o.data.materials:
+            for n in m.node_tree.nodes:
+                if n.get("ao") and n.type == "TEX_IMAGE":
+                    n.extension = "EXTEND"
     if planar:
         for o in objs:
             planar_uvs(o, set(planar))

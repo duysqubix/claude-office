@@ -1,0 +1,29 @@
+{
+  "id": "preset_employee_b",
+  "name": "Preset: employee B",
+  "category": "preset",
+  "artist": "Claude Rodin",
+  "priority": "P0",
+  "status": "done",
+  "description": "Side part, headphones, hoodie, grinning at a phone",
+  "tags": [
+    "preset",
+    "employee",
+    "character"
+  ],
+  "tintable": [
+    "Skin",
+    "Shirt",
+    "Pants",
+    "Shoes",
+    "Hair",
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      1.33,
+      0
+    ]
+  }
+}

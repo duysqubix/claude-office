@@ -1,0 +1,25 @@
+{
+  "id": "hair_mohawk",
+  "name": "Mohawk",
+  "category": "character-hair",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "A bold crest of fat swept-back fin spikes on a bald head",
+  "tags": [
+    "hair",
+    "mohawk",
+    "punk",
+    "spiky"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4108,
+      -0.0185
+    ]
+  }
+}

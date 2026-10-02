@@ -46,6 +46,7 @@ def build():
                              (0.002, -0.014, 0.004)], 0.003, M["cheese"], verts=6, smooth=3,
            caps="round", radii=[1.0, 0.75, 1.0])
     D.place(D.since(before), loc=(0, -0.1, 0))
+    D.ground()  # the drooping cheese string must not dip below the plate
 
 
 def finalize(id):

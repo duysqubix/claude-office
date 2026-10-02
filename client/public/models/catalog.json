@@ -1,15 +1,15 @@
 {
-  "generated": "2026-10-01T23:54:12.619Z",
+  "generated": "2026-10-02T00:59:44.976Z",
   "totals": {
     "all": 232,
-    "done": 214,
-    "planned": 18
+    "done": 229,
+    "planned": 3
   },
   "byArtist": {
     "Claude Cézanne": 51,
-    "Claude Lorrain": 38,
+    "Claude Lorrain": 46,
     "Claude Monet": 93,
-    "Claude Rodin": 50
+    "Claude Rodin": 42
   },
   "items": [
     {
@@ -84,7 +84,7 @@
         "cardboard_box"
       ],
       "textures": 1,
-      "bytes": 302844
+      "bytes": 303516
     },
     {
       "id": "clipboard",
@@ -144,7 +144,7 @@
         "clipboard"
       ],
       "textures": 1,
-      "bytes": 102276
+      "bytes": 102260
     },
     {
       "id": "coffee_cup",
@@ -206,7 +206,7 @@
         "coffee_cup"
       ],
       "textures": 1,
-      "bytes": 70116
+      "bytes": 70144
     },
     {
       "id": "laptop",
@@ -275,7 +275,7 @@
         "laptop"
       ],
       "textures": 1,
-      "bytes": 147888
+      "bytes": 147916
     },
     {
       "id": "mug",
@@ -336,7 +336,7 @@
         "mug"
       ],
       "textures": 1,
-      "bytes": 60872
+      "bytes": 60900
     },
     {
       "id": "mug_manager",
@@ -396,7 +396,7 @@
         "mug_manager"
       ],
       "textures": 1,
-      "bytes": 117828
+      "bytes": 117456
     },
     {
       "id": "nameplate",
@@ -456,7 +456,7 @@
         "nameplate"
       ],
       "textures": 1,
-      "bytes": 20868
+      "bytes": 20896
     },
     {
       "id": "paper_stack",
@@ -516,7 +516,7 @@
         "paper_stack"
       ],
       "textures": 1,
-      "bytes": 101332
+      "bytes": 101360
     },
     {
       "id": "pen_cup",
@@ -571,7 +571,7 @@
         "pen_cup"
       ],
       "textures": 1,
-      "bytes": 125264
+      "bytes": 125292
     },
     {
       "id": "rubber_duck",
@@ -626,7 +626,7 @@
         "rubber_duck"
       ],
       "textures": 1,
-      "bytes": 104168
+      "bytes": 103692
     },
     {
       "id": "service_bell",
@@ -681,7 +681,7 @@
         "service_bell"
       ],
       "textures": 1,
-      "bytes": 59904
+      "bytes": 59932
     },
     {
       "id": "sticky_notes",
@@ -738,7 +738,7 @@
         "sticky_notes"
       ],
       "textures": 1,
-      "bytes": 73856
+      "bytes": 73884
     },
     {
       "id": "award_plaque",
@@ -793,7 +793,7 @@
         "award_plaque"
       ],
       "textures": 1,
-      "bytes": 102700
+      "bytes": 102728
     },
     {
       "id": "binder",
@@ -853,7 +853,7 @@
         "binder"
       ],
       "textures": 1,
-      "bytes": 63816
+      "bytes": 63844
     },
     {
       "id": "books_stack",
@@ -912,7 +912,7 @@
         "books_stack"
       ],
       "textures": 1,
-      "bytes": 81208
+      "bytes": 81236
     },
     {
       "id": "cactus",
@@ -969,7 +969,7 @@
         "cactus"
       ],
       "textures": 1,
-      "bytes": 92452
+      "bytes": 92480
     },
     {
       "id": "calculator",
@@ -1030,7 +1030,7 @@
         "calculator"
       ],
       "textures": 1,
-      "bytes": 114124
+      "bytes": 114152
     },
     {
       "id": "calendar_wall",
@@ -1091,7 +1091,7 @@
         "calendar_wall"
       ],
       "textures": 1,
-      "bytes": 187692
+      "bytes": 187720
     },
     {
       "id": "cookie_jar",
@@ -1149,7 +1149,7 @@
         "cookie_jar"
       ],
       "textures": 1,
-      "bytes": 152296
+      "bytes": 152324
     },
     {
       "id": "cork_board",
@@ -1217,7 +1217,7 @@
         "cork_board"
       ],
       "textures": 1,
-      "bytes": 145528
+      "bytes": 145644
     },
     {
       "id": "desk_fan",
@@ -1275,7 +1275,7 @@
         "Blades"
       ],
       "textures": 1,
-      "bytes": 177076
+      "bytes": 177108
     },
     {
       "id": "desk_phone",
@@ -1334,7 +1334,7 @@
         "desk_phone"
       ],
       "textures": 1,
-      "bytes": 174044
+      "bytes": 174092
     },
     {
       "id": "donut_box",
@@ -1395,7 +1395,7 @@
         "donut_box"
       ],
       "textures": 1,
-      "bytes": 173812
+      "bytes": 173840
     },
     {
       "id": "energy_drink",
@@ -1458,7 +1458,7 @@
         "energy_drink"
       ],
       "textures": 1,
-      "bytes": 82872
+      "bytes": 82900
     },
     {
       "id": "exit_sign",
@@ -1512,7 +1512,7 @@
         "exit_sign"
       ],
       "textures": 1,
-      "bytes": 66732
+      "bytes": 66760
     },
     {
       "id": "fire_extinguisher",
@@ -1569,7 +1569,7 @@
         "fire_extinguisher"
       ],
       "textures": 1,
-      "bytes": 114760
+      "bytes": 114788
     },
     {
       "id": "folder",
@@ -1624,7 +1624,7 @@
         "folder"
       ],
       "textures": 1,
-      "bytes": 65504
+      "bytes": 65532
     },
     {
       "id": "fruit_bowl",
@@ -1679,7 +1679,7 @@
         "fruit_bowl"
       ],
       "textures": 1,
-      "bytes": 168480
+      "bytes": 168452
     },
     {
       "id": "globe",
@@ -1736,7 +1736,7 @@
         "Globe"
       ],
       "textures": 1,
-      "bytes": 111576
+      "bytes": 111896
     },
     {
       "id": "headphones_stand",
@@ -1792,7 +1792,7 @@
         "headphones_stand"
       ],
       "textures": 1,
-      "bytes": 131344
+      "bytes": 131372
     },
     {
       "id": "lava_lamp",
@@ -1849,7 +1849,7 @@
         "lava_lamp"
       ],
       "textures": 1,
-      "bytes": 95900
+      "bytes": 95928
     },
     {
       "id": "photo_frame",
@@ -1905,7 +1905,7 @@
         "photo_frame"
       ],
       "textures": 1,
-      "bytes": 35944
+      "bytes": 35972
     },
     {
       "id": "pizza_box",
@@ -1967,7 +1967,7 @@
         "pizza_box"
       ],
       "textures": 1,
-      "bytes": 211960
+      "bytes": 211876
     },
     {
       "id": "poster_compact",
@@ -2026,7 +2026,7 @@
         "poster_compact"
       ],
       "textures": 1,
-      "bytes": 219608
+      "bytes": 219636
     },
     {
       "id": "poster_ship_it",
@@ -2087,7 +2087,7 @@
         "poster_ship_it"
       ],
       "textures": 1,
-      "bytes": 220096
+      "bytes": 220124
     },
     {
       "id": "poster_tokens",
@@ -2146,7 +2146,7 @@
         "poster_tokens"
       ],
       "textures": 1,
-      "bytes": 266104
+      "bytes": 266132
     },
     {
       "id": "rug_rect",
@@ -2203,7 +2203,7 @@
         "rug_rect"
       ],
       "textures": 1,
-      "bytes": 136480
+      "bytes": 136508
     },
     {
       "id": "rug_round",
@@ -2260,7 +2260,7 @@
         "rug_round"
       ],
       "textures": 1,
-      "bytes": 84380
+      "bytes": 84408
     },
     {
       "id": "smartphone",
@@ -2317,7 +2317,7 @@
         "smartphone"
       ],
       "textures": 1,
-      "bytes": 30080
+      "bytes": 30108
     },
     {
       "id": "snack_bag",
@@ -2374,7 +2374,7 @@
         "snack_bag"
       ],
       "textures": 1,
-      "bytes": 101136
+      "bytes": 101164
     },
     {
       "id": "stapler",
@@ -2429,7 +2429,7 @@
         "stapler"
       ],
       "textures": 1,
-      "bytes": 60132
+      "bytes": 60160
     },
     {
       "id": "succulent",
@@ -2486,7 +2486,7 @@
         "succulent"
       ],
       "textures": 1,
-      "bytes": 125756
+      "bytes": 125784
     },
     {
       "id": "tissue_box",
@@ -2541,7 +2541,7 @@
         "tissue_box"
       ],
       "textures": 1,
-      "bytes": 67472
+      "bytes": 67500
     },
     {
       "id": "trophy",
@@ -2595,7 +2595,7 @@
         "trophy"
       ],
       "textures": 1,
-      "bytes": 105500
+      "bytes": 105528
     },
     {
       "id": "wall_shelf",
@@ -2659,7 +2659,7 @@
         "wall_shelf"
       ],
       "textures": 1,
-      "bytes": 136500
+      "bytes": 136560
     },
     {
       "id": "water_bottle",
@@ -2710,7 +2710,7 @@
           0.037
         ]
       },
-      "tris": 2658,
+      "tris": 2622,
       "materials": [
         "Accent",
         "White",
@@ -2720,7 +2720,7 @@
         "water_bottle"
       ],
       "textures": 1,
-      "bytes": 106688
+      "bytes": 105572
     },
     {
       "id": "wet_floor_sign",
@@ -2776,7 +2776,7 @@
         "wet_floor_sign"
       ],
       "textures": 1,
-      "bytes": 168008
+      "bytes": 168004
     },
     {
       "id": "balloon_cluster",
@@ -2834,7 +2834,7 @@
         "balloon_cluster"
       ],
       "textures": 1,
-      "bytes": 197736
+      "bytes": 197764
     },
     {
       "id": "gift_box",
@@ -2889,7 +2889,7 @@
         "gift_box"
       ],
       "textures": 1,
-      "bytes": 100876
+      "bytes": 100904
     },
     {
       "id": "party_banner",
@@ -2954,7 +2954,7 @@
         "party_banner"
       ],
       "textures": 1,
-      "bytes": 109976
+      "bytes": 110004
     },
     {
       "id": "pizza_slice",
@@ -2988,12 +2988,12 @@
       "bbox": {
         "min": [
           -0.089,
-          -0.003,
+          0,
           -0.09
         ],
         "max": [
           0.089,
-          0.022,
+          0.025,
           0.117
         ]
       },
@@ -3009,7 +3009,7 @@
         "pizza_slice"
       ],
       "textures": 1,
-      "bytes": 58132
+      "bytes": 59952
     },
     {
       "id": "bush_round",
@@ -4148,6 +4148,294 @@
       "bytes": 39132
     },
     {
+      "id": "hair_bun",
+      "name": "Bun",
+      "category": "character-hair",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Hair swept up into a big round top bun wound with a spiral, over a coloured scrunchie",
+      "tags": [
+        "hair",
+        "bun",
+        "updo"
+      ],
+      "tintable": [
+        "Hair",
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4385,
+          -0.1952
+        ],
+        "bun": [
+          0,
+          0.349,
+          -0.1554
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_bun.glb",
+      "thumb": "models/thumbs/hair_bun.jpg",
+      "dims": {
+        "w": 0.573,
+        "h": 0.553,
+        "d": 0.516
+      },
+      "bbox": {
+        "min": [
+          -0.286,
+          -0.105,
+          -0.298
+        ],
+        "max": [
+          0.286,
+          0.448,
+          0.218
+        ]
+      },
+      "tris": 1819,
+      "materials": [
+        "Hair",
+        "Accent"
+      ],
+      "nodes": [
+        "hair_bun"
+      ],
+      "textures": 1,
+      "bytes": 83812
+    },
+    {
+      "id": "hair_buzz",
+      "name": "Buzz cut",
+      "category": "character-hair",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Short buzz cut hugging the scalp, with neat temples, sideburns and nape",
+      "tags": [
+        "hair",
+        "short",
+        "buzz"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.29,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_buzz.glb",
+      "thumb": "models/thumbs/hair_buzz.jpg",
+      "dims": {
+        "w": 0.554,
+        "h": 0.403,
+        "d": 0.5
+      },
+      "bbox": {
+        "min": [
+          -0.277,
+          -0.115,
+          -0.277
+        ],
+        "max": [
+          0.277,
+          0.288,
+          0.222
+        ]
+      },
+      "tris": 1100,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_buzz"
+      ],
+      "textures": 1,
+      "bytes": 44912
+    },
+    {
+      "id": "hair_long",
+      "name": "Long",
+      "category": "character-hair",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Long straight hair with a middle parting, to the shoulder blades, chunky rounded tips",
+      "tags": [
+        "hair",
+        "long",
+        "straight"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.305,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_long.glb",
+      "thumb": "models/thumbs/hair_long.jpg",
+      "dims": {
+        "w": 0.629,
+        "h": 0.763,
+        "d": 0.576
+      },
+      "bbox": {
+        "min": [
+          -0.315,
+          -0.445,
+          -0.35
+        ],
+        "max": [
+          0.314,
+          0.318,
+          0.226
+        ]
+      },
+      "tris": 2200,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_long"
+      ],
+      "textures": 1,
+      "bytes": 84332
+    },
+    {
+      "id": "hair_mohawk",
+      "name": "Mohawk",
+      "category": "character-hair",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P1",
+      "description": "A bold crest of fat swept-back fin spikes on a bald head",
+      "tags": [
+        "hair",
+        "mohawk",
+        "punk",
+        "spiky"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4108,
+          -0.0185
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_mohawk.glb",
+      "thumb": "models/thumbs/hair_mohawk.jpg",
+      "dims": {
+        "w": 0.07,
+        "h": 0.617,
+        "d": 0.645
+      },
+      "bbox": {
+        "min": [
+          -0.035,
+          -0.191,
+          -0.425
+        ],
+        "max": [
+          0.035,
+          0.426,
+          0.22
+        ]
+      },
+      "tris": 1499,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_mohawk"
+      ],
+      "textures": 1,
+      "bytes": 58664
+    },
+    {
+      "id": "hair_pigtails",
+      "name": "Pigtails",
+      "category": "character-hair",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Two bouncy pigtails with coloured scrunchies and a scalloped fringe; nodes PigtailL/R",
+      "tags": [
+        "hair",
+        "pigtails",
+        "bunches",
+        "swing"
+      ],
+      "tintable": [
+        "Hair",
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.3,
+          0
+        ],
+        "tieL": [
+          0.2886,
+          0.0524,
+          -0.072
+        ],
+        "tieR": [
+          -0.2886,
+          0.0524,
+          -0.072
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_pigtails.glb",
+      "thumb": "models/thumbs/hair_pigtails.jpg",
+      "dims": {
+        "w": 0.98,
+        "h": 0.48,
+        "d": 0.556
+      },
+      "bbox": {
+        "min": [
+          -0.49,
+          -0.171,
+          -0.3
+        ],
+        "max": [
+          0.49,
+          0.309,
+          0.256
+        ]
+      },
+      "tris": 2126,
+      "materials": [
+        "Hair",
+        "Accent"
+      ],
+      "nodes": [
+        "hair_pigtails",
+        "PigtailL",
+        "PigtailR"
+      ],
+      "textures": 1,
+      "bytes": 96768
+    },
+    {
       "id": "hair_ponytail",
       "name": "Ponytail",
       "category": "character-hair",
@@ -4197,7 +4485,7 @@
           0.218
         ]
       },
-      "tris": 2250,
+      "tris": 2020,
       "materials": [
         "Hair",
         "Accent"
@@ -4207,7 +4495,61 @@
         "Ponytail"
       ],
       "textures": 1,
-      "bytes": 87316
+      "bytes": 89644
+    },
+    {
+      "id": "hair_spiky",
+      "name": "Spiky",
+      "category": "character-hair",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Gravity-defying anime spikes with flicked bangs",
+      "tags": [
+        "hair",
+        "spiky",
+        "anime",
+        "volume"
+      ],
+      "tintable": [
+        "Hair"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.4149,
+          -0.1636
+        ]
+      },
+      "status": "done",
+      "file": "models/hair_spiky.glb",
+      "thumb": "models/thumbs/hair_spiky.jpg",
+      "dims": {
+        "w": 0.76,
+        "h": 0.539,
+        "d": 0.752
+      },
+      "bbox": {
+        "min": [
+          -0.38,
+          -0.108,
+          -0.411
+        ],
+        "max": [
+          0.38,
+          0.431,
+          0.341
+        ]
+      },
+      "tris": 1950,
+      "materials": [
+        "Hair"
+      ],
+      "nodes": [
+        "hair_spiky"
+      ],
+      "textures": 1,
+      "bytes": 79316
     },
     {
       "id": "hedge",
@@ -5076,6 +5418,148 @@
       "bytes": 173796
     },
     {
+      "id": "pet_cat",
+      "name": "Office cat",
+      "category": "pet",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P2",
+      "description": "Chunky ginger office cat with a collar and bell; nodes Head (look around) and Tail (wag)",
+      "tags": [
+        "pet",
+        "cat",
+        "animal",
+        "office"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "head": [
+          0,
+          0.335,
+          0.175
+        ],
+        "collar": [
+          0,
+          0.22,
+          0.19
+        ]
+      },
+      "status": "done",
+      "file": "models/pet_cat.glb",
+      "thumb": "models/thumbs/pet_cat.jpg",
+      "dims": {
+        "w": 0.301,
+        "h": 0.526,
+        "d": 0.671
+      },
+      "bbox": {
+        "min": [
+          -0.151,
+          -0.001,
+          -0.356
+        ],
+        "max": [
+          0.151,
+          0.525,
+          0.315
+        ]
+      },
+      "tris": 6688,
+      "materials": [
+        "Fur",
+        "Eye",
+        "EyeShine",
+        "InnerEar",
+        "FurLight",
+        "Whisker",
+        "CatNose",
+        "Mouth",
+        "FurDark",
+        "Accent",
+        "Gold"
+      ],
+      "nodes": [
+        "pet_cat",
+        "Head",
+        "Tail"
+      ],
+      "textures": 1,
+      "bytes": 277020
+    },
+    {
+      "id": "pet_dog",
+      "name": "Office dog",
+      "category": "pet",
+      "artist": "Claude Lorrain",
+      "group": "characters",
+      "priority": "P2",
+      "description": "Chunky golden office puppy with floppy ears and a tag on its collar; nodes Head and Tail",
+      "tags": [
+        "pet",
+        "dog",
+        "puppy",
+        "animal",
+        "office"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "head": [
+          0,
+          0.39,
+          0.2
+        ],
+        "collar": [
+          0,
+          0.255,
+          0.215
+        ]
+      },
+      "status": "done",
+      "file": "models/pet_dog.glb",
+      "thumb": "models/thumbs/pet_dog.jpg",
+      "dims": {
+        "w": 0.404,
+        "h": 0.53,
+        "d": 0.744
+      },
+      "bbox": {
+        "min": [
+          -0.202,
+          -0.001,
+          -0.324
+        ],
+        "max": [
+          0.202,
+          0.529,
+          0.42
+        ]
+      },
+      "tris": 6278,
+      "materials": [
+        "Fur",
+        "FurDark",
+        "Eye",
+        "EyeShine",
+        "FurLight",
+        "Nose",
+        "Mouth",
+        "Tongue",
+        "Accent",
+        "Gold"
+      ],
+      "nodes": [
+        "pet_dog",
+        "Head",
+        "Tail"
+      ],
+      "textures": 1,
+      "bytes": 253428
+    },
+    {
       "id": "pond",
       "name": "Pond",
       "category": "outdoor",
@@ -5200,7 +5684,7 @@
         "coffee_machine"
       ],
       "textures": 1,
-      "bytes": 227092
+      "bytes": 227496
     },
     {
       "id": "computer_mouse",
@@ -5254,7 +5738,7 @@
         "computer_mouse"
       ],
       "textures": 1,
-      "bytes": 19456
+      "bytes": 19484
     },
     {
       "id": "conference_chair",
@@ -5309,7 +5793,7 @@
         "conference_chair"
       ],
       "textures": 1,
-      "bytes": 79184
+      "bytes": 79212
     },
     {
       "id": "conference_table",
@@ -5406,7 +5890,7 @@
         "conference_table"
       ],
       "textures": 1,
-      "bytes": 117784
+      "bytes": 117812
     },
     {
       "id": "couch",
@@ -5470,7 +5954,7 @@
         "couch"
       ],
       "textures": 1,
-      "bytes": 146284
+      "bytes": 146312
     },
     {
       "id": "desk",
@@ -5549,7 +6033,7 @@
         "desk"
       ],
       "textures": 1,
-      "bytes": 106180
+      "bytes": 106208
     },
     {
       "id": "desk_divider",
@@ -5596,7 +6080,7 @@
         "desk_divider"
       ],
       "textures": 1,
-      "bytes": 51008
+      "bytes": 51036
     },
     {
       "id": "desk_setup",
@@ -5671,7 +6155,7 @@
         "desk_setup"
       ],
       "textures": 1,
-      "bytes": 300740
+      "bytes": 302340
     },
     {
       "id": "filing_cabinet",
@@ -5730,7 +6214,7 @@
         "Drawer3"
       ],
       "textures": 1,
-      "bytes": 138828
+      "bytes": 138856
     },
     {
       "id": "flipchart",
@@ -5794,7 +6278,7 @@
         "flipchart"
       ],
       "textures": 1,
-      "bytes": 53160
+      "bytes": 53192
     },
     {
       "id": "fridge",
@@ -5849,7 +6333,7 @@
         "Door"
       ],
       "textures": 1,
-      "bytes": 71468
+      "bytes": 71496
     },
     {
       "id": "glass_partition",
@@ -5899,7 +6383,7 @@
         "glass_partition"
       ],
       "textures": 1,
-      "bytes": 30644
+      "bytes": 30672
     },
     {
       "id": "glasses_round",
@@ -5953,7 +6437,7 @@
         "glasses_round"
       ],
       "textures": 1,
-      "bytes": 66956
+      "bytes": 66984
     },
     {
       "id": "glasses_square",
@@ -6007,7 +6491,7 @@
         "glasses_square"
       ],
       "textures": 1,
-      "bytes": 61084
+      "bytes": 61112
     },
     {
       "id": "intern_bench",
@@ -6089,7 +6573,7 @@
         "intern_bench"
       ],
       "textures": 1,
-      "bytes": 96268
+      "bytes": 96296
     },
     {
       "id": "intern_sign",
@@ -6139,7 +6623,7 @@
         "intern_sign"
       ],
       "textures": 1,
-      "bytes": 57412
+      "bytes": 57440
     },
     {
       "id": "intern_station",
@@ -6202,7 +6686,7 @@
         "intern_station"
       ],
       "textures": 1,
-      "bytes": 85444
+      "bytes": 85472
     },
     {
       "id": "intern_stool",
@@ -6256,7 +6740,7 @@
         "intern_stool"
       ],
       "textures": 1,
-      "bytes": 38824
+      "bytes": 38852
     },
     {
       "id": "keyboard",
@@ -6308,7 +6792,7 @@
         "keyboard"
       ],
       "textures": 1,
-      "bytes": 115452
+      "bytes": 115480
     },
     {
       "id": "kitchen_counter",
@@ -6371,7 +6855,7 @@
         "kitchen_counter"
       ],
       "textures": 1,
-      "bytes": 120912
+      "bytes": 120772
     },
     {
       "id": "lanyard_badge",
@@ -6429,7 +6913,7 @@
         "lanyard_badge"
       ],
       "textures": 1,
-      "bytes": 59144
+      "bytes": 59172
     },
     {
       "id": "manager_chair",
@@ -6484,7 +6968,7 @@
         "manager_chair"
       ],
       "textures": 1,
-      "bytes": 255064
+      "bytes": 255092
     },
     {
       "id": "manager_desk",
@@ -6558,7 +7042,7 @@
         "manager_desk"
       ],
       "textures": 1,
-      "bytes": 147240
+      "bytes": 147332
     },
     {
       "id": "monitor",
@@ -6612,7 +7096,7 @@
         "monitor"
       ],
       "textures": 1,
-      "bytes": 45288
+      "bytes": 45316
     },
     {
       "id": "now_hiring_sign",
@@ -6660,7 +7144,7 @@
         "now_hiring_sign"
       ],
       "textures": 1,
-      "bytes": 240424
+      "bytes": 240464
     },
     {
       "id": "office_chair",
@@ -6715,7 +7199,7 @@
         "office_chair"
       ],
       "textures": 1,
-      "bytes": 241636
+      "bytes": 241664
     },
     {
       "id": "plant_pot",
@@ -6766,7 +7250,7 @@
         "plant_pot"
       ],
       "textures": 1,
-      "bytes": 203880
+      "bytes": 203892
     },
     {
       "id": "reception_desk",
@@ -6835,7 +7319,7 @@
         "reception_desk"
       ],
       "textures": 1,
-      "bytes": 222060
+      "bytes": 222088
     },
     {
       "id": "sticky_wall",
@@ -6895,7 +7379,7 @@
         "sticky_wall"
       ],
       "textures": 1,
-      "bytes": 177104
+      "bytes": 177132
     },
     {
       "id": "sunglasses",
@@ -6949,7 +7433,7 @@
         "sunglasses"
       ],
       "textures": 1,
-      "bytes": 67408
+      "bytes": 67436
     },
     {
       "id": "wall_clock",
@@ -7005,7 +7489,7 @@
         "MinuteHand"
       ],
       "textures": 1,
-      "bytes": 104268
+      "bytes": 104520
     },
     {
       "id": "wall_screen",
@@ -7063,7 +7547,7 @@
         "wall_screen"
       ],
       "textures": 1,
-      "bytes": 62828
+      "bytes": 62856
     },
     {
       "id": "water_cooler",
@@ -7123,7 +7607,7 @@
         "water_cooler"
       ],
       "textures": 1,
-      "bytes": 110852
+      "bytes": 110864
     },
     {
       "id": "whiteboard",
@@ -7184,7 +7668,7 @@
         "whiteboard"
       ],
       "textures": 1,
-      "bytes": 101600
+      "bytes": 101628
     },
     {
       "id": "apron",
@@ -7239,7 +7723,7 @@
         "apron"
       ],
       "textures": 1,
-      "bytes": 99668
+      "bytes": 99696
     },
     {
       "id": "aquarium",
@@ -7306,7 +7790,7 @@
         "Fish3"
       ],
       "textures": 1,
-      "bytes": 148276
+      "bytes": 148372
     },
     {
       "id": "armchair",
@@ -7360,7 +7844,7 @@
         "armchair"
       ],
       "textures": 1,
-      "bytes": 105620
+      "bytes": 105648
     },
     {
       "id": "backpack",
@@ -7416,7 +7900,7 @@
         "backpack"
       ],
       "textures": 1,
-      "bytes": 83340
+      "bytes": 83368
     },
     {
       "id": "basketball_hoop",
@@ -7473,7 +7957,7 @@
         "basketball_hoop"
       ],
       "textures": 1,
-      "bytes": 95380
+      "bytes": 95408
     },
     {
       "id": "beanbag",
@@ -7527,7 +8011,7 @@
         "beanbag"
       ],
       "textures": 1,
-      "bytes": 53320
+      "bytes": 53348
     },
     {
       "id": "beard_full",
@@ -7580,7 +8064,7 @@
         "beard_full"
       ],
       "textures": 1,
-      "bytes": 76696
+      "bytes": 76724
     },
     {
       "id": "bookshelf",
@@ -7635,7 +8119,7 @@
         "bookshelf"
       ],
       "textures": 1,
-      "bytes": 210476
+      "bytes": 210504
     },
     {
       "id": "bow_tie",
@@ -7688,7 +8172,7 @@
         "bow_tie"
       ],
       "textures": 1,
-      "bytes": 29544
+      "bytes": 29572
     },
     {
       "id": "coat_rack",
@@ -7735,7 +8219,7 @@
         "coat_rack"
       ],
       "textures": 1,
-      "bytes": 89708
+      "bytes": 90312
     },
     {
       "id": "coffee_bar",
@@ -7812,7 +8296,7 @@
         "coffee_bar"
       ],
       "textures": 1,
-      "bytes": 256732
+      "bytes": 256760
     },
     {
       "id": "coffee_table",
@@ -7864,7 +8348,7 @@
         "coffee_table"
       ],
       "textures": 1,
-      "bytes": 53792
+      "bytes": 53820
     },
     {
       "id": "dartboard",
@@ -7921,7 +8405,7 @@
         "dartboard"
       ],
       "textures": 1,
-      "bytes": 174892
+      "bytes": 174920
     },
     {
       "id": "desk_lamp",
@@ -7975,7 +8459,7 @@
         "desk_lamp"
       ],
       "textures": 1,
-      "bytes": 61720
+      "bytes": 61748
     },
     {
       "id": "dj_booth",
@@ -8079,7 +8563,7 @@
         "PlatterR"
       ],
       "textures": 1,
-      "bytes": 392880
+      "bytes": 392908
     },
     {
       "id": "employee_of_month",
@@ -8137,7 +8621,7 @@
         "employee_of_month"
       ],
       "textures": 1,
-      "bytes": 72448
+      "bytes": 72476
     },
     {
       "id": "floor_lamp",
@@ -8189,7 +8673,7 @@
         "floor_lamp"
       ],
       "textures": 1,
-      "bytes": 42128
+      "bytes": 42156
     },
     {
       "id": "focus_pod",
@@ -8255,7 +8739,7 @@
         "Door"
       ],
       "textures": 1,
-      "bytes": 107032
+      "bytes": 107060
     },
     {
       "id": "hat_beret",
@@ -8308,7 +8792,7 @@
         "hat_beret"
       ],
       "textures": 1,
-      "bytes": 52260
+      "bytes": 52288
     },
     {
       "id": "hat_bucket",
@@ -8362,7 +8846,7 @@
         "hat_bucket"
       ],
       "textures": 1,
-      "bytes": 91056
+      "bytes": 91084
     },
     {
       "id": "hat_chef",
@@ -8414,7 +8898,7 @@
         "hat_chef"
       ],
       "textures": 1,
-      "bytes": 73288
+      "bytes": 73316
     },
     {
       "id": "hat_cowboy",
@@ -8468,7 +8952,7 @@
         "hat_cowboy"
       ],
       "textures": 1,
-      "bytes": 109568
+      "bytes": 109596
     },
     {
       "id": "hat_crown",
@@ -8523,7 +9007,7 @@
         "hat_crown"
       ],
       "textures": 1,
-      "bytes": 88808
+      "bytes": 88844
     },
     {
       "id": "hat_hard",
@@ -8577,7 +9061,7 @@
         "hat_hard"
       ],
       "textures": 1,
-      "bytes": 98928
+      "bytes": 98956
     },
     {
       "id": "hat_party",
@@ -8597,8 +9081,8 @@
       ],
       "anchors": {
         "headTop": [
-          0.1672,
-          0.5814,
+          0.1078,
+          0.5898,
           0
         ]
       },
@@ -8632,7 +9116,7 @@
         "hat_party"
       ],
       "textures": 1,
-      "bytes": 55312
+      "bytes": 55340
     },
     {
       "id": "hat_propeller",
@@ -8690,7 +9174,7 @@
         "Propeller"
       ],
       "textures": 1,
-      "bytes": 76052
+      "bytes": 76148
     },
     {
       "id": "headband",
@@ -8745,7 +9229,7 @@
         "headband"
       ],
       "textures": 1,
-      "bytes": 82900
+      "bytes": 82928
     },
     {
       "id": "jukebox",
@@ -8817,7 +9301,7 @@
         "jukebox"
       ],
       "textures": 1,
-      "bytes": 156040
+      "bytes": 156068
     },
     {
       "id": "locker",
@@ -8868,7 +9352,7 @@
         "locker"
       ],
       "textures": 1,
-      "bytes": 92084
+      "bytes": 92112
     },
     {
       "id": "meeting_chair",
@@ -8921,7 +9405,7 @@
         "meeting_chair"
       ],
       "textures": 1,
-      "bytes": 41988
+      "bytes": 42016
     },
     {
       "id": "meeting_table",
@@ -9015,7 +9499,7 @@
         "meeting_table"
       ],
       "textures": 1,
-      "bytes": 103640
+      "bytes": 103668
     },
     {
       "id": "microwave",
@@ -9064,7 +9548,7 @@
         "microwave"
       ],
       "textures": 1,
-      "bytes": 64444
+      "bytes": 64472
     },
     {
       "id": "mustache",
@@ -9117,7 +9601,7 @@
         "mustache"
       ],
       "textures": 1,
-      "bytes": 36924
+      "bytes": 36952
     },
     {
       "id": "plant_wall",
@@ -9177,7 +9661,7 @@
         "plant_wall"
       ],
       "textures": 1,
-      "bytes": 261544
+      "bytes": 261448
     },
     {
       "id": "printer_copier",
@@ -9211,15 +9695,15 @@
       "file": "models/printer_copier.glb",
       "thumb": "models/thumbs/printer_copier.jpg",
       "dims": {
-        "w": 0.931,
+        "w": 0.932,
         "h": 0.98,
-        "d": 0.687
+        "d": 0.688
       },
       "bbox": {
         "min": [
-          -0.362,
+          -0.363,
           0,
-          -0.302
+          -0.303
         ],
         "max": [
           0.569,
@@ -9227,7 +9711,7 @@
           0.385
         ]
       },
-      "tris": 1484,
+      "tris": 1596,
       "materials": [
         "Body",
         "Dark",
@@ -9240,7 +9724,7 @@
         "printer_copier"
       ],
       "textures": 1,
-      "bytes": 105792
+      "bytes": 110528
     },
     {
       "id": "recycling_bin",
@@ -9284,7 +9768,7 @@
           0.195
         ]
       },
-      "tris": 660,
+      "tris": 836,
       "materials": [
         "Accent",
         "Lid",
@@ -9295,7 +9779,7 @@
         "recycling_bin"
       ],
       "textures": 1,
-      "bytes": 43380
+      "bytes": 50052
     },
     {
       "id": "scarf",
@@ -9343,7 +9827,7 @@
         "scarf"
       ],
       "textures": 1,
-      "bytes": 109856
+      "bytes": 109884
     },
     {
       "id": "server_rack",
@@ -9399,7 +9883,7 @@
         "server_rack"
       ],
       "textures": 1,
-      "bytes": 172748
+      "bytes": 172732
     },
     {
       "id": "standing_desk",
@@ -9469,7 +9953,7 @@
         "standing_desk"
       ],
       "textures": 1,
-      "bytes": 74496
+      "bytes": 74524
     },
     {
       "id": "stool",
@@ -9523,7 +10007,7 @@
         "stool"
       ],
       "textures": 1,
-      "bytes": 66696
+      "bytes": 66724
     },
     {
       "id": "trash_bin",
@@ -9577,7 +10061,7 @@
         "trash_bin"
       ],
       "textures": 1,
-      "bytes": 56636
+      "bytes": 56664
     },
     {
       "id": "trophy_bronze",
@@ -9631,7 +10115,7 @@
         "trophy_bronze"
       ],
       "textures": 1,
-      "bytes": 57616
+      "bytes": 57644
     },
     {
       "id": "trophy_gold",
@@ -9685,7 +10169,7 @@
         "trophy_gold"
       ],
       "textures": 1,
-      "bytes": 66896
+      "bytes": 66924
     },
     {
       "id": "trophy_silver",
@@ -9739,7 +10223,7 @@
         "trophy_silver"
       ],
       "textures": 1,
-      "bytes": 59076
+      "bytes": 59104
     },
     {
       "id": "tv_stand",
@@ -9798,7 +10282,7 @@
         "tv_stand"
       ],
       "textures": 1,
-      "bytes": 101368
+      "bytes": 101396
     },
     {
       "id": "vending_machine",
@@ -9868,7 +10352,7 @@
         "vending_machine"
       ],
       "textures": 1,
-      "bytes": 276212
+      "bytes": 276240
     },
     {
       "id": "arcade_cabinet",
@@ -9936,7 +10420,7 @@
         "arcade_cabinet"
       ],
       "textures": 1,
-      "bytes": 160448
+      "bytes": 160480
     },
     {
       "id": "birthday_cake",
@@ -9999,7 +10483,7 @@
         "birthday_cake"
       ],
       "textures": 1,
-      "bytes": 225820
+      "bytes": 225876
     },
     {
       "id": "cape_hero",
@@ -10050,7 +10534,7 @@
         "cape_hero"
       ],
       "textures": 1,
-      "bytes": 116956
+      "bytes": 116984
     },
     {
       "id": "christmas_tree",
@@ -10114,7 +10598,7 @@
         "christmas_tree"
       ],
       "textures": 1,
-      "bytes": 362912
+      "bytes": 362940
     },
     {
       "id": "foosball_table",
@@ -10178,7 +10662,7 @@
         "foosball_table"
       ],
       "textures": 1,
-      "bytes": 250232
+      "bytes": 254540
     },
     {
       "id": "hat_santa",
@@ -10238,7 +10722,7 @@
         "hat_santa"
       ],
       "textures": 1,
-      "bytes": 92116
+      "bytes": 92144
     },
     {
       "id": "hat_witch",
@@ -10294,7 +10778,7 @@
         "hat_witch"
       ],
       "textures": 1,
-      "bytes": 109212
+      "bytes": 109240
     },
     {
       "id": "massage_chair",
@@ -10350,7 +10834,7 @@
         "massage_chair"
       ],
       "textures": 1,
-      "bytes": 122600
+      "bytes": 122628
     },
     {
       "id": "nap_pod",
@@ -10411,7 +10895,7 @@
         "nap_pod"
       ],
       "textures": 1,
-      "bytes": 108548
+      "bytes": 108576
     },
     {
       "id": "paper_plane",
@@ -10465,7 +10949,7 @@
         "paper_plane"
       ],
       "textures": 1,
-      "bytes": 15068
+      "bytes": 15096
     },
     {
       "id": "ping_pong_table",
@@ -10533,7 +11017,7 @@
         "ping_pong_table"
       ],
       "textures": 1,
-      "bytes": 136956
+      "bytes": 136984
     },
     {
       "id": "popcorn_machine",
@@ -10591,7 +11075,7 @@
         "popcorn_machine"
       ],
       "textures": 1,
-      "bytes": 244420
+      "bytes": 244296
     },
     {
       "id": "stationary_bike",
@@ -10660,7 +11144,7 @@
         "stationary_bike"
       ],
       "textures": 1,
-      "bytes": 114956
+      "bytes": 114984
     },
     {
       "id": "char_brow",
@@ -11250,7 +11734,7 @@
       "file": "models/char_shoe_sneaker.glb",
       "thumb": "models/thumbs/char_shoe_sneaker.jpg",
       "dims": {
-        "w": 0.207,
+        "w": 0.208,
         "h": 0.154,
         "d": 0.273
       },
@@ -11266,7 +11750,7 @@
           0.189
         ]
       },
-      "tris": 2010,
+      "tris": 1750,
       "materials": [
         "Shoes",
         "Sole",
@@ -11277,7 +11761,7 @@
         "char_shoe_sneaker"
       ],
       "textures": 1,
-      "bytes": 79116
+      "bytes": 71576
     },
     {
       "id": "char_thigh",
@@ -11366,23 +11850,23 @@
       "file": "models/char_torso_hoodie.glb",
       "thumb": "models/thumbs/char_torso_hoodie.jpg",
       "dims": {
-        "w": 0.573,
+        "w": 0.528,
         "h": 0.569,
-        "d": 0.492
+        "d": 0.449
       },
       "bbox": {
         "min": [
-          -0.286,
+          -0.264,
           -0.159,
-          -0.246
+          -0.224
         ],
         "max": [
-          0.286,
+          0.264,
           0.41,
-          0.246
+          0.224
         ]
       },
-      "tris": 3424,
+      "tris": 2364,
       "materials": [
         "Shirt",
         "Cord",
@@ -11394,8 +11878,8 @@
         "char_torso_hoodie",
         "Chest"
       ],
-      "textures": 1,
-      "bytes": 135036
+      "textures": 0,
+      "bytes": 52772
     },
     {
       "id": "char_torso_shirt_tie",
@@ -11438,9 +11922,9 @@
       "file": "models/char_torso_shirt_tie.glb",
       "thumb": "models/thumbs/char_torso_shirt_tie.jpg",
       "dims": {
-        "w": 0.519,
+        "w": 0.518,
         "h": 0.569,
-        "d": 0.446
+        "d": 0.445
       },
       "bbox": {
         "min": [
@@ -11451,10 +11935,10 @@
         "max": [
           0.259,
           0.41,
-          0.225
+          0.226
         ]
       },
-      "tris": 2968,
+      "tris": 1900,
       "materials": [
         "Shirt",
         "Accent",
@@ -11465,8 +11949,8 @@
         "char_torso_shirt_tie",
         "Chest"
       ],
-      "textures": 1,
-      "bytes": 111836
+      "textures": 0,
+      "bytes": 41708
     },
     {
       "id": "char_torso_tee",
@@ -11508,9 +11992,9 @@
       "file": "models/char_torso_tee.glb",
       "thumb": "models/thumbs/char_torso_tee.jpg",
       "dims": {
-        "w": 0.519,
+        "w": 0.518,
         "h": 0.569,
-        "d": 0.441
+        "d": 0.44
       },
       "bbox": {
         "min": [
@@ -11524,7 +12008,7 @@
           0.22
         ]
       },
-      "tris": 2136,
+      "tris": 1432,
       "materials": [
         "Shirt",
         "Accent",
@@ -11535,7 +12019,7 @@
         "Chest"
       ],
       "textures": 0,
-      "bytes": 45080
+      "bytes": 32116
     },
     {
       "id": "char_upper_arm",
@@ -12591,202 +13075,547 @@
     },
     {
       "id": "preset_employee_a",
-      "name": "Preset employee a",
-      "category": null,
+      "name": "Preset: employee A",
+      "category": "preset",
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "assembled full characters, for previews and the catalog",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Bob, round glasses, green tee, lanyard and a clipboard",
+      "tags": [
+        "preset",
+        "employee",
+        "character"
+      ],
+      "tintable": [
+        "Skin",
+        "Shirt",
+        "Pants",
+        "Shoes",
+        "Hair",
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          1.29,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/preset_employee_a.glb",
+      "thumb": "models/thumbs/preset_employee_a.jpg",
+      "dims": {
+        "w": 0.76,
+        "h": 1.287,
+        "d": 0.642
+      },
+      "bbox": {
+        "min": [
+          -0.393,
+          0.001,
+          -0.317
+        ],
+        "max": [
+          0.367,
+          1.288,
+          0.324
+        ]
+      },
+      "tris": 14826,
+      "materials": [
+        "Skin",
+        "Cheek@char_head",
+        "Eye@char_eye",
+        "EyeShine@char_eye",
+        "Hair",
+        "Mouth@char_mouth_smile",
+        "Accent@glasses_round",
+        "Lens@glasses_round",
+        "Shirt",
+        "Pants",
+        "Accent@char_torso_tee",
+        "Accent@lanyard_badge",
+        "Clip@lanyard_badge",
+        "Holder@lanyard_badge",
+        "Label@lanyard_badge",
+        "Shoes",
+        "Sole@shoe1",
+        "Laces@shoe1",
+        "Accent@shoe1",
+        "Sole@shoe-1",
+        "Laces@shoe-1",
+        "Accent@shoe-1",
+        "Masonite@held1",
+        "Paper@held1",
+        "Ink@held1",
+        "Tick@held1",
+        "Chrome@held1",
+        "Accent@held1",
+        "PenCap@held1"
+      ],
+      "nodes": [
+        "preset_employee_a"
+      ],
+      "textures": 1,
+      "bytes": 586804
     },
     {
       "id": "preset_employee_b",
-      "name": "Preset employee b",
-      "category": null,
+      "name": "Preset: employee B",
+      "category": "preset",
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "assembled full characters, for previews and the catalog",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Side part, headphones, hoodie, grinning at a phone",
+      "tags": [
+        "preset",
+        "employee",
+        "character"
+      ],
+      "tintable": [
+        "Skin",
+        "Shirt",
+        "Pants",
+        "Shoes",
+        "Hair",
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          1.33,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/preset_employee_b.glb",
+      "thumb": "models/thumbs/preset_employee_b.jpg",
+      "dims": {
+        "w": 0.749,
+        "h": 1.33,
+        "d": 0.597
+      },
+      "bbox": {
+        "min": [
+          -0.393,
+          0.001,
+          -0.306
+        ],
+        "max": [
+          0.356,
+          1.331,
+          0.291
+        ]
+      },
+      "tris": 14685,
+      "materials": [
+        "Skin",
+        "Cheek@char_head",
+        "Eye@char_eye",
+        "EyeShine@char_eye",
+        "Hair",
+        "Mouth@char_mouth_grin",
+        "Teeth@char_mouth_grin",
+        "Tongue@char_mouth_grin",
+        "Accent@headphones",
+        "Cushion@headphones",
+        "Plate@headphones",
+        "Shirt",
+        "Pants",
+        "Cord@char_torso_hoodie",
+        "Aglet@char_torso_hoodie",
+        "PocketShadow@char_torso_hoodie",
+        "Skin@upper1",
+        "Skin@fore1",
+        "Shoes",
+        "Sole@shoe1",
+        "Laces@shoe1",
+        "Accent@shoe1",
+        "Skin@upper-1",
+        "Skin@fore-1",
+        "Sole@shoe-1",
+        "Laces@shoe-1",
+        "Accent@shoe-1",
+        "Accent@held1",
+        "Bezel@held1",
+        "Screen@held1",
+        "Lens@held1",
+        "LensRing@held1"
+      ],
+      "nodes": [
+        "preset_employee_b"
+      ],
+      "textures": 1,
+      "bytes": 572480
     },
     {
       "id": "preset_intern",
-      "name": "Preset intern",
-      "category": null,
+      "name": "Preset: intern",
+      "category": "preset",
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "assembled full characters, for previews and the catalog",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Mini intern: backwards cap, orange tee, tiny laptop held out",
+      "tags": [
+        "preset",
+        "intern",
+        "character"
+      ],
+      "tintable": [
+        "Skin",
+        "Shirt",
+        "Pants",
+        "Shoes",
+        "Hair",
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          0.931,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/preset_intern.glb",
+      "thumb": "models/thumbs/preset_intern.jpg",
+      "dims": {
+        "w": 0.453,
+        "h": 0.918,
+        "d": 0.647
+      },
+      "bbox": {
+        "min": [
+          -0.226,
+          0.001,
+          -0.343
+        ],
+        "max": [
+          0.226,
+          0.919,
+          0.303
+        ]
+      },
+      "tris": 13825,
+      "materials": [
+        "Skin",
+        "Cheek@char_head",
+        "Eye@char_eye",
+        "EyeShine@char_eye",
+        "Hair",
+        "Mouth@char_mouth_o",
+        "Tongue@char_mouth_o",
+        "Accent@hat_cap_backwards",
+        "Strap@hat_cap_backwards",
+        "Shirt",
+        "Pants",
+        "Accent@char_torso_tee",
+        "Shoes",
+        "Sole@shoe1",
+        "Laces@shoe1",
+        "Accent@shoe1",
+        "Sole@shoe-1",
+        "Laces@shoe-1",
+        "Accent@shoe-1",
+        "Accent@held1",
+        "Deck@held1",
+        "Keys@held1",
+        "Trackpad@held1",
+        "Screen@held1",
+        "Logo@held1",
+        "StickerPink@held1",
+        "StickerYellow@held1",
+        "StickerMint@held1"
+      ],
+      "nodes": [
+        "preset_intern"
+      ],
+      "textures": 1,
+      "bytes": 560220
     },
     {
       "id": "preset_manager",
-      "name": "Preset manager",
-      "category": null,
+      "name": "Preset: manager",
+      "category": "preset",
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "assembled full characters, for previews and the catalog",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "The manager: white shirt, red tie, slick hair, okayest-manager mug",
+      "tags": [
+        "preset",
+        "manager",
+        "character"
+      ],
+      "tintable": [
+        "Skin",
+        "Shirt",
+        "Pants",
+        "Shoes",
+        "Hair",
+        "Accent"
+      ],
+      "anchors": {
+        "headTop": [
+          0,
+          1.404,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/preset_manager.glb",
+      "thumb": "models/thumbs/preset_manager.jpg",
+      "dims": {
+        "w": 0.766,
+        "h": 1.388,
+        "d": 0.765
+      },
+      "bbox": {
+        "min": [
+          -0.341,
+          0.001,
+          -0.333
+        ],
+        "max": [
+          0.425,
+          1.389,
+          0.432
+        ]
+      },
+      "tris": 14415,
+      "materials": [
+        "Skin",
+        "Cheek@char_head",
+        "Eye@char_eye",
+        "EyeShine@char_eye",
+        "Hair",
+        "Mouth@char_mouth_smile",
+        "Shirt",
+        "Pants",
+        "Accent@char_torso_shirt_tie",
+        "PenBlue@char_torso_shirt_tie",
+        "Skin@upper1",
+        "Skin@fore1",
+        "Shoes",
+        "Sole@shoe1",
+        "Laces@shoe1",
+        "Accent@shoe1",
+        "Skin@upper-1",
+        "Skin@fore-1",
+        "Sole@shoe-1",
+        "Laces@shoe-1",
+        "Accent@shoe-1",
+        "Glaze@held-1",
+        "GlazeInside@held-1",
+        "Coffee@held-1",
+        "Print@held-1",
+        "Gold@held-1"
+      ],
+      "nodes": [
+        "preset_manager"
+      ],
+      "textures": 1,
+      "bytes": 555756
+    },
+    {
+      "id": "char_torso_labcoat",
+      "name": "Torso: labcoat",
+      "category": "character-body",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Open white lab coat with lapels, hip pockets and pens; node Chest",
+      "tags": [
+        "body",
+        "torso",
+        "labcoat",
+        "science"
+      ],
+      "tintable": [
+        "Shirt",
+        "Pants",
+        "Accent"
+      ],
+      "anchors": {
+        "chestJoint": [
+          0,
+          0.12,
+          0
+        ],
+        "neck": [
+          0,
+          0.34,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/char_torso_labcoat.glb",
+      "thumb": "models/thumbs/char_torso_labcoat.jpg",
+      "dims": {
+        "w": 0.644,
+        "h": 0.569,
+        "d": 0.544
+      },
+      "bbox": {
+        "min": [
+          -0.322,
+          -0.159,
+          -0.271
+        ],
+        "max": [
+          0.322,
+          0.41,
+          0.273
+        ]
+      },
+      "tris": 2666,
+      "materials": [
+        "Shirt",
+        "Accent",
+        "Pen0",
+        "Pen1",
+        "Pen2",
+        "Pants"
+      ],
+      "nodes": [
+        "char_torso_labcoat",
+        "Chest"
+      ],
+      "textures": 0,
+      "bytes": 56924
+    },
+    {
+      "id": "char_torso_sweater",
+      "name": "Torso: sweater",
+      "category": "character-body",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Cosy knit sweater with a ribbed hem, crew collar and chest stripes; node Chest",
+      "tags": [
+        "body",
+        "torso",
+        "sweater",
+        "knit",
+        "cosy"
+      ],
+      "tintable": [
+        "Shirt",
+        "Pants",
+        "Accent"
+      ],
+      "anchors": {
+        "chestJoint": [
+          0,
+          0.12,
+          0
+        ],
+        "neck": [
+          0,
+          0.34,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/char_torso_sweater.glb",
+      "thumb": "models/thumbs/char_torso_sweater.jpg",
+      "dims": {
+        "w": 0.539,
+        "h": 0.569,
+        "d": 0.458
+      },
+      "bbox": {
+        "min": [
+          -0.27,
+          -0.159,
+          -0.229
+        ],
+        "max": [
+          0.27,
+          0.41,
+          0.229
+        ]
+      },
+      "tris": 1644,
+      "materials": [
+        "Shirt",
+        "Accent",
+        "Pants"
+      ],
+      "nodes": [
+        "char_torso_sweater",
+        "Chest"
+      ],
+      "textures": 0,
+      "bytes": 36292
+    },
+    {
+      "id": "char_torso_vest",
+      "name": "Torso: vest",
+      "category": "character-body",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Sweater-vest with a deep V over a collared shirt, buttons and rolled edges; node Chest",
+      "tags": [
+        "body",
+        "torso",
+        "vest",
+        "smart"
+      ],
+      "tintable": [
+        "Shirt",
+        "Pants",
+        "Accent"
+      ],
+      "anchors": {
+        "chestJoint": [
+          0,
+          0.12,
+          0
+        ],
+        "neck": [
+          0,
+          0.34,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/char_torso_vest.glb",
+      "thumb": "models/thumbs/char_torso_vest.jpg",
+      "dims": {
+        "w": 0.518,
+        "h": 0.569,
+        "d": 0.453
+      },
+      "bbox": {
+        "min": [
+          -0.259,
+          -0.159,
+          -0.218
+        ],
+        "max": [
+          0.259,
+          0.41,
+          0.235
+        ]
+      },
+      "tris": 2214,
+      "materials": [
+        "Shirt",
+        "Accent",
+        "Pants",
+        "Buttons"
+      ],
+      "nodes": [
+        "char_torso_vest",
+        "Chest"
+      ],
+      "textures": 0,
+      "bytes": 47732
     },
     {
       "id": "char_shoe_boot",
       "name": "Char shoe boot",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_torso_labcoat",
-      "name": "Char torso labcoat",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_torso_sweater",
-      "name": "Char torso sweater",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "char_torso_vest",
-      "name": "Char torso vest",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_bun",
-      "name": "Hair bun",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_buzz",
-      "name": "Hair buzz",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_long",
-      "name": "Hair long",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_mohawk",
-      "name": "Hair mohawk",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_pigtails",
-      "name": "Hair pigtails",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "hair_spiky",
-      "name": "Hair spiky",
       "category": null,
       "artist": "Claude Rodin",
       "group": "characters",
@@ -12822,36 +13651,6 @@
       "group": "characters",
       "priority": "P1",
       "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "pet_cat",
-      "name": "Pet cat",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P2",
-      "description": "office pets, same chunky style",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
-    },
-    {
-      "id": "pet_dog",
-      "name": "Pet dog",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P2",
-      "description": "office pets, same chunky style",
       "tags": [],
       "tintable": [],
       "anchors": {},

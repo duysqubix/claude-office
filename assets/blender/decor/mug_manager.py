@@ -1,6 +1,8 @@
 """Mug, manager edition: the desk mug a size up in cream, "WORLD'S OKAYEST MANAGER" printed
 in red around the front, a gold band under the lip. 0.11 m tall; origin at the
 desk-contact centre. Not tintable."""
+import math
+
 import lib
 from decor import _decor as D
 from decor import mug
@@ -29,15 +31,19 @@ def materials():
 
 
 def lettering(M):
-    # Flat print floating 0.5 mm off the glaze, following the wall's gentle taper.
+    # Flat print floating 0.5 mm off the glaze, following the wall's gentle taper. The block
+    # spans about ±33° and sits 6° round towards the handle, so from a 3/4 view no letter
+    # wraps past the silhouette (from straight ahead it still reads as centred).
     def radius(z):
         return mug.outer_r(z / S) * S + 0.0005
 
+    parts = D.snapshot()
     for i, word in enumerate(("WORLD'S", "OKAYEST", "MANAGER")):
-        z = (0.077 - i * 0.0185) * S
-        t = D.text(f"Print_{word}", word, 0.0155 * S, M["ink"], loc=(0, -radius(z), z),
+        z = (0.0717 - i * 0.0132) * S
+        t = D.text(f"Print_{word}", word, 0.0105 * S, M["ink"], loc=(0, -radius(z), z),
                    depth=0, res=2)
         D.wrap_cylinder(t, radius, base=radius(z))
+    D.place(D.since(parts), rot=(0, 0, math.radians(6)))
 
 
 def rim(M):

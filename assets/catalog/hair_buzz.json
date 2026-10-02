@@ -1,0 +1,24 @@
+{
+  "id": "hair_buzz",
+  "name": "Buzz cut",
+  "category": "character-hair",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Short buzz cut hugging the scalp, with neat temples, sideburns and nape",
+  "tags": [
+    "hair",
+    "short",
+    "buzz"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.29,
+      0
+    ]
+  }
+}

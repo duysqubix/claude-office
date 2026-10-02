@@ -1,0 +1,25 @@
+{
+  "id": "hair_spiky",
+  "name": "Spiky",
+  "category": "character-hair",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Gravity-defying anime spikes with flicked bangs",
+  "tags": [
+    "hair",
+    "spiky",
+    "anime",
+    "volume"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0.0,
+      0.4149,
+      -0.1636
+    ]
+  }
+}

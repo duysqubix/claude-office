@@ -73,6 +73,14 @@ Load models with `client/src/models` (`model`, `swapIn`, `findMaterial`, `findNo
 - Held items (`held_*`) pivot at the hand-grip point. Torso-worn items pivot at the torso origin.
 - Tintable: `Skin`, `Shirt`, `Pants`, `Shoes`, `Hair`, `Accent`.
 
+- Hair by Lorrain (hair_bun, hair_buzz, hair_long, hair_mohawk, hair_pigtails, hair_ponytail,
+  hair_spiky): pivot at the head centre, tint `Hair` (+ `Accent` scrunchies on bun/ponytail/pigtails).
+  hair_ponytail node `Ponytail` (pivot at the tie, anchor `tie`); hair_pigtails nodes `PigtailL` /
+  `PigtailR` (anchors tieL / tieR): spring them for bounce. hair_long stops at the jaw at the sides.
+- Pets (pet_cat, pet_dog): origin on the floor under the body, facing +Z, ≈0.53 m tall. Node `Head`
+  pivots at the neck (rotate about Y to look around), `Tail` at its root (rotate about Y to wag).
+  Recolour coats via `Fur` / `FurLight` / `FurDark`; collar `Accent`.
+
 ## Open follow-ups
 
 - ~15 GLBs exceed 250 KB (geometry-bound heroes: company_sign 526 KB, coffee_truck 483 KB,

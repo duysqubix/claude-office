@@ -1,0 +1,36 @@
+{
+  "id": "char_torso_sweater",
+  "name": "Torso: sweater",
+  "category": "character-body",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Cosy knit sweater with a ribbed hem, crew collar and chest stripes; node Chest",
+  "tags": [
+    "body",
+    "torso",
+    "sweater",
+    "knit",
+    "cosy"
+  ],
+  "tintable": [
+    "Shirt",
+    "Pants",
+    "Accent"
+  ],
+  "anchors": {
+    "chestJoint": [
+      0,
+      0.12,
+      0
+    ],
+    "neck": [
+      0,
+      0.34,
+      0
+    ]
+  },
+  "nodes": {
+    "Chest": "bends at the chest joint"
+  }
+}

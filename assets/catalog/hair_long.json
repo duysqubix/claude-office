@@ -1,0 +1,24 @@
+{
+  "id": "hair_long",
+  "name": "Long",
+  "category": "character-hair",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Long straight hair with a middle parting, to the shoulder blades, chunky rounded tips",
+  "tags": [
+    "hair",
+    "long",
+    "straight"
+  ],
+  "tintable": [
+    "Hair"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.305,
+      0
+    ]
+  }
+}

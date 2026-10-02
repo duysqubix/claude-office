@@ -1,0 +1,40 @@
+{
+  "id": "hair_pigtails",
+  "name": "Pigtails",
+  "category": "character-hair",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Two bouncy pigtails with coloured scrunchies and a scalloped fringe; nodes PigtailL/R",
+  "tags": [
+    "hair",
+    "pigtails",
+    "bunches",
+    "swing"
+  ],
+  "tintable": [
+    "Hair",
+    "Accent"
+  ],
+  "anchors": {
+    "headTop": [
+      0,
+      0.3,
+      0
+    ],
+    "tieL": [
+      0.2886,
+      0.0524,
+      -0.072
+    ],
+    "tieR": [
+      -0.2886,
+      0.0524,
+      -0.072
+    ]
+  },
+  "nodes": {
+    "PigtailL": "bounce: rotate about its origin (the character-left tie)",
+    "PigtailR": "bounce: rotate about its origin (the character-right tie)"
+  }
+}
