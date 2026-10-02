@@ -3,7 +3,7 @@
 // right; the world keeps running behind them.
 import type { ApiResult, Employee, EmployeeState, PastSession, ProjectInfo } from '../../../shared/protocol';
 import { employeeLooks } from '../chars/looks';
-import { REGULARS_PRESETS, readRegularsDensity, setRegularsDensity, type RegularsPreset } from '../chars/regulars-setting';
+import { REGULARS_PRESETS, readReceptionist, readRegularsDensity, setReceptionist, setRegularsDensity, type RegularsPreset } from '../chars/regulars-setting';
 import type { Backend, RosterStore } from '../net';
 import { renderAsk, type AskView } from './askpanel';
 import { bus } from './bus';
@@ -17,6 +17,8 @@ import { icon, stateBadge, STATE_WORD, type IconName } from './icons';
 import type { Sfx } from './sfx';
 import type { Panel, PanelId } from './shell';
 import { enhanceMarkdown, plainText, renderMarkdown } from './markdown';
+import { markNoteSeen, noteSeen } from './notes';
+import { isOffline, needsServer } from './offline';
 import { HIGH_CONTEXT, renderTeamStats } from './teamstats';
 import { TerminalView } from './terminal';
 import type { Toasts } from './toasts';
@@ -354,11 +356,31 @@ export class PanelHost {
       }
     };
 
+    let needsKey = '';
     const renderNeeds = (e: Employee) => {
-      const show = e.state === 'needs-you' && !e.ask;
+      // Sessions in their own terminal: "Got it" puts the note away until they need you again.
+      const show = e.state === 'needs-you' && !e.ask && !(!e.hosted && noteSeen(e));
+      const key = show ? `${e.hosted}|${e.waitingFor ?? ''}|${e.stateSince}|${e.project}|${e.pid}` : '';
+      if (key === needsKey) return;
+      needsKey = key;
       needsNote.hidden = !show;
-      if (!show) return;
+      if (!show) {
+        needsNote.replaceChildren();
+        return;
+      }
       const [said, fact] = waitingLines(e);
+      const gotIt = e.hosted
+        ? null
+        : button('Got it', {
+            small: true,
+            onClick: () => {
+              const now = store.get(id);
+              if (now) markNoteSeen(now);
+              const hadFocus = needsNote.contains(document.activeElement);
+              if (now) renderNeeds(now);
+              if (hadFocus) (eButton ?? shell.title).focus({ preventScroll: true });
+            },
+          });
       needsNote.replaceChildren(
         el('span', { class: 'co-needsnote__bang', attrs: { 'aria-hidden': 'true' } }, '!'),
         el(
@@ -369,6 +391,7 @@ export class PanelHost {
           e.hosted ? null : el('span', { class: 'co-muted' }, `They're in your own terminal (${e.project}, pid ${e.pid}). Answer them there.`),
         ),
       );
+      if (gotIt) needsNote.append(gotIt);
     };
 
     const renderInfo = (e: Employee) => {
@@ -464,6 +487,7 @@ export class PanelHost {
         keep.dataset.action = 'keep';
         const go = labelled('danger', 'Let go');
         go.btn.dataset.action = 'fire';
+        needsServer(go.btn);
         go.btn.addEventListener('click', () => void fire(go));
         foot.append(
           el(
@@ -496,6 +520,7 @@ export class PanelHost {
       });
       letGo.classList.add('co-push');
       letGo.dataset.action = 'letgo';
+      needsServer(letGo);
       const sit = button(needsSit ? 'Sit down and answer' : 'Sit at their computer', {
         kind: needsSit ? 'primary' : 'secondary',
         icon: 'terminal',
@@ -503,6 +528,7 @@ export class PanelHost {
         onClick: () => actions.sitAt(id),
       });
       sit.dataset.action = 'sit';
+      needsServer(sit);
       foot.append(letGo, needsSit ? talk : sit, needsSit ? sit : talk);
       eButton = needsSit ? sit : e.ask ? null : talk;
     };
@@ -691,6 +717,7 @@ export class PanelHost {
       el('label', { class: 'co-field' }, el('span', { class: 'co-label' }, 'Name ', el('span', { class: 'co-muted' }, '(optional)')), name),
       error,
     );
+    needsServer(go.btn);
     shell.foot.append(go.btn);
     shell.el.append(shell.foot);
 
@@ -785,7 +812,7 @@ export class PanelHost {
     go.btn.addEventListener('click', () => void hire());
 
     const hire = async () => {
-      if (!chosen || busy) return;
+      if (!chosen || busy || isOffline()) return;
       busy = true;
       error.hidden = true;
       go.btn.setAttribute('aria-disabled', 'true');
@@ -896,7 +923,7 @@ export class PanelHost {
               b.set('Calling…', true);
             }
             b.btn.addEventListener('click', () => void callBack(s));
-            side = b.btn;
+            side = needsServer(b.btn);
           }
           side.dataset.session = s.sessionId;
           const title = s.title ?? (s.lastPrompt ? truncate(s.lastPrompt, 60) : 'Untitled session');
@@ -1052,6 +1079,10 @@ export class PanelHost {
         return el('label', { class: 'co-choice' }, input, el('span', null, presets[p][0], el('small', null, presets[p][1])));
       }),
     );
+    // The receptionist has her own switch: Off above sends the crowd home, not her.
+    const frontDesk = el('input', { attrs: { type: 'checkbox' } });
+    frontDesk.checked = readReceptionist();
+    frontDesk.addEventListener('change', () => setReceptionist(frontDesk.checked));
     shell.body.append(
       el('dl', { class: 'co-rows co-keys' }, ...keys.map(([ks, what]) => el('div', { class: 'co-row' }, el('dt', null, ...ks.map((k) => keyCap(k))), el('dd', null, what)))),
       el('h3', { class: 'co-section' }, 'Reading the room'),
@@ -1064,6 +1095,7 @@ export class PanelHost {
       el('h3', { class: 'co-section' }, 'Office regulars'),
       el('p', { class: 'co-muted' }, 'Coworkers who aren’t Claude sessions fill the free desks, and give one up whenever a session needs it.'),
       regulars,
+      el('label', { class: 'co-choice co-choice--toggle' }, frontDesk, el('span', null, 'Mabel on the front desk', el('small', null, 'Waves everyone in and out, takes calls. Stays when the regulars are off.'))),
       el('p', { class: 'co-muted' }, 'Everyone with the orange lanyard is a live Claude Code session on this machine. Sessions you hire here run in tmux, so you can sit at their computer.'),
     );
     return { id: 'help', el: shell.el };

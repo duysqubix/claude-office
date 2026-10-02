@@ -4,6 +4,7 @@
 import type { Employee, EmployeeState, TeamStats } from '../../../shared/protocol';
 import type { RosterStore } from '../net';
 import type { OfficeStats } from '../world/types';
+import { bus } from './bus';
 import { hudButton, internChip, keyCap, needsChip, stateChip } from './components';
 import { waitingLines } from './dom';
 import { el } from './el';
@@ -171,6 +172,8 @@ export class Hud {
     this.retryAt = retryAt;
     window.clearTimeout(this.backTimer);
     document.body.classList.toggle('co-offline', offline);
+    // Server buttons everywhere follow this (offline.ts).
+    if (offline !== was) bus.emit('offline', { offline, retryAt });
     if (!offline && was) {
       // A quick green "Back online", then out of the way.
       this.showBanner('back', 'Back online');

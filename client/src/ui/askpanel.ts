@@ -7,6 +7,7 @@ import type { AnswerRequest, ApiResult, Ask, AskOption } from '../../../shared/p
 import { el, fmtClock } from './el';
 import { icon } from './icons';
 import { enhanceMarkdown, renderMarkdown, visibleText } from './markdown';
+import { needsServer } from './offline';
 import './theme.css';
 
 /** What the card reports: an AnswerRequest without the sessionId, which the caller adds. */
@@ -157,6 +158,7 @@ export function renderAsk(
     );
     if (opt.hint) hintOf.set(b, b.querySelector('.co-ask__hint') as HTMLElement);
     b.addEventListener('click', () => void choose(opt, b, label));
+    needsServer(b);
     buttons.push(b);
     if (!ghost) numbered.push(b);
   }

@@ -2332,6 +2332,22 @@ body.seated .co-edges {
 .co-needsnote .co-muted {
   color: var(--ink);
 }
+.co-needsnote > .co-btn {
+  flex: none;
+  align-self: center;
+  margin-left: auto;
+}
+/* Offline (offline.ts): server buttons look and act disabled until the office is back. */
+.co-btn[data-offline='true'] {
+  opacity: 0.45;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+.co-chat__hint.is-offline {
+  color: var(--danger);
+  font-weight: 600;
+}
 /* Let go: the confirm takes the footer's first row. */
 .co-confirm {
   flex: 1 1 100%;

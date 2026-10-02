@@ -7,6 +7,7 @@
 //   store.onChange(() => view.update(store.get(id)!));   …   view.close();
 import type { AnswerRequest, ApiResult, ChatLine, Employee } from '../../../shared/protocol';
 import { renderAsk, type AskView } from './askpanel';
+import { bus } from './bus';
 import type { TermStatus, TerminalView, TerminalViewOptions } from './terminal';
 import { button, panelShell } from './components';
 import { el, fmtTime, fmtWait } from './el';
@@ -14,6 +15,8 @@ import { faceSvg } from './faces';
 import { employeeLooks } from '../chars/looks';
 import { icon, stateGlyph, STATE_WORD, type IconName } from './icons';
 import { enhanceMarkdown, renderMarkdown } from './markdown';
+import { markNoteSeen, noteSeen } from './notes';
+import { isOffline, needsServer } from './offline';
 import './theme.css';
 
 export interface ChatApi {
@@ -166,8 +169,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
 
   const stateChip = el('span', { class: 'co-chip co-chip--fill co-chat__state' });
   const where = el('span', { class: 'co-chat__where' });
-  const interruptBtn = button('Interrupt', { small: true, icon: 'stop', onClick: () => void interrupt() });
-  const sitBtn = button('Sit at their computer', { small: true, icon: 'terminal', onClick: () => api.sit(id) });
+  const interruptBtn = needsServer(button('Interrupt', { small: true, icon: 'stop', onClick: () => void interrupt() }));
+  const sitBtn = needsServer(button('Sit at their computer', { small: true, icon: 'terminal', onClick: () => api.sit(id) }));
   // Chat ⇄ Terminal (T): the same person, their conversation or their live terminal.
   const segChat = el('button', { class: 'co-seg__btn', attrs: { type: 'button', 'aria-pressed': 'true' } }, el('span', { html: icon('chat', 18) }), 'Chat');
   const segTerm = el(
@@ -213,7 +216,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   termRetry.hidden = true;
   // Esc here leaves the quick look (unlike sitting down, where Esc goes to Claude), so stopping
   // them has its own button right by the terminal.
-  const termInterrupt = button('Interrupt', { small: true, icon: 'stop', onClick: () => void interrupt() });
+  const termInterrupt = needsServer(button('Interrupt', { small: true, icon: 'stop', onClick: () => void interrupt() }));
   const termSlot = el('div', { class: 'co-chat__termslot' });
   const termBar = el(
     'div',
@@ -232,10 +235,10 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     class: 'co-input co-chat__input',
     attrs: { rows: 1, maxlength: 8000, 'aria-label': `Message ${e.displayName}`, placeholder: `Message ${e.displayName}…`, spellcheck: 'true' },
   });
-  const sendBtn = el('button', { class: 'co-btn co-btn--primary co-chat__send', attrs: { type: 'button', 'aria-label': 'Send', disabled: true }, html: icon('send', 22) });
+  const sendBtn = needsServer(el('button', { class: 'co-btn co-btn--primary co-chat__send', attrs: { type: 'button', 'aria-label': 'Send', disabled: true }, html: icon('send', 22) }));
   const hint = el('p', { class: 'co-chat__hint' });
   const composer = el('div', { class: 'co-chat__composer' }, el('div', { class: 'co-chat__row' }, input, sendBtn), hint);
-  const adoptBtn = button('Bring into the office', { kind: 'primary', onClick: () => void adopt() });
+  const adoptBtn = needsServer(button('Bring into the office', { kind: 'primary', onClick: () => void adopt() }));
   const adoptText = el('p', { class: 'co-chat__adopt-text' });
   const adoptCard = el('div', { class: 'co-chat__adopt' }, adoptText, adoptBtn);
   shell.foot.append(composer, adoptCard);
@@ -501,7 +504,11 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
                 ` (pid ${e.pid}), so there's no screen to show here. Bring them into the office and you can look in any time.`,
               )
             : el('p', null, "Their terminal can't be shown here."),
-        !e.hosted && !ended ? (e.adopting ? el('p', { class: 'co-muted' }, 'Waiting for them to type /exit in their terminal…') : button('Bring into the office', { kind: 'primary', onClick: () => void adopt() })) : null,
+        !e.hosted && !ended
+          ? e.adopting
+            ? el('p', { class: 'co-muted' }, 'Waiting for them to type /exit in their terminal…')
+            : needsServer(button('Bring into the office', { kind: 'primary', onClick: () => void adopt() }))
+          : null,
       ),
     );
   }
@@ -534,7 +541,9 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   function syncComposer(): void {
     const empty = !input.value.trim();
     sendBtn.disabled = empty || blocked();
-    if (e.state === 'needs-you') hint.textContent = e.ask ? 'Answer their question above first.' : 'They need you in their terminal first. Sit at their computer to answer.';
+    hint.classList.toggle('is-offline', isOffline());
+    if (isOffline()) hint.textContent = "Offline: the office server isn't reachable. Your draft waits here.";
+    else if (e.state === 'needs-you') hint.textContent = e.ask ? 'Answer their question above first.' : 'They need you in their terminal first. Sit at their computer to answer.';
     else if (e.state === 'working') hint.textContent = "They'll read it after this step. Enter sends, Shift+Enter adds a line.";
     else hint.textContent = 'Enter sends, Shift+Enter adds a line. Slash commands work too.';
     hint.classList.toggle('is-blocked', e.state === 'needs-you');
@@ -570,7 +579,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
 
   async function send(retry?: Pending): Promise<void> {
     const text = retry ? retry.text : input.value.trim();
-    if (!text || blocked()) return;
+    if (!text || blocked() || isOffline()) return;
     let p = retry;
     if (!p) {
       emptyNote?.remove();
@@ -697,14 +706,30 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       askView = null;
       askId = null;
     }
-    const waitingInTerminal = e.state === 'needs-you' && !e.ask && !ended;
-    waitNote.hidden = !waitingInTerminal;
-    if (waitingInTerminal) {
-      waitNote.replaceChildren(
-        el('span', { html: icon('terminal', 22) }),
-        el('span', null, e.hosted ? `${e.displayName} is waiting in their terminal.` : `${e.displayName} is waiting in your own terminal (pid ${e.pid}). Answer them there.`),
-      );
-      if (e.hosted) waitNote.append(button('Sit at their computer', { small: true, kind: 'primary', onClick: () => api.sit(id) }));
+    // Waiting in a terminal: hosted, sit down to answer; their own terminal, "Got it" (same as their panel).
+    const waitingInTerminal = e.state === 'needs-you' && !e.ask && !ended && !(!e.hosted && noteSeen(e));
+    const waitKey = waitingInTerminal ? `${e.hosted}|${e.stateSince}|${e.pid}` : '';
+    if (waitKey !== waitNote.dataset.key) {
+      waitNote.dataset.key = waitKey;
+      waitNote.hidden = !waitingInTerminal;
+      waitNote.replaceChildren();
+      if (waitingInTerminal) {
+        waitNote.append(
+          el('span', { html: icon('terminal', 22) }),
+          el('span', null, e.hosted ? `${e.displayName} is waiting in their terminal.` : `${e.displayName} is waiting in your own terminal (pid ${e.pid}). Answer them there.`),
+        );
+        if (e.hosted) waitNote.append(needsServer(button('Sit at their computer', { small: true, kind: 'primary', onClick: () => api.sit(id) })));
+        else
+          waitNote.append(
+            button('Got it', {
+              small: true,
+              onClick: () => {
+                markNoteSeen(e);
+                render();
+              },
+            }),
+          );
+      }
     }
 
     // Footer: the composer for hosted sessions, the adopt card for the rest.
@@ -742,6 +767,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   container.append(panel);
   void load();
   if (opts.mode === 'terminal') setMode('terminal');
+  // The composer's hint says when the office server is away (offline.ts disables the buttons).
+  const unsubOffline = bus.on('offline', () => syncComposer());
 
   const view: ChatView = {
     el: panel,
@@ -781,6 +808,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     close() {
       if (closed) return;
       closed = true;
+      unsubOffline();
       window.clearTimeout(pollTimer);
       termView?.dispose();
       termView = null;

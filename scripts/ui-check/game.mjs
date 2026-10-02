@@ -85,11 +85,27 @@ try {
 
   // Edge faces: turn the camera away from whoever needs you
   let edges = [];
-  const yaw0 = await page.evaluate(() => window.office.camera.yaw);
-  for (let k = 1; k < 8 && !edges.length; k++) {
-    await page.evaluate((y) => (window.office.camera.yaw = y), yaw0 + (k * Math.PI) / 4);
-    await wait(900);
-    edges = await page.evaluate(() => [...document.querySelectorAll('.co-edge')].map((b) => b.getAttribute('aria-label')));
+  const sweep = async () => {
+    const yaw0 = await page.evaluate(() => window.office.camera.yaw);
+    for (let k = 0; k < 8 && !edges.length; k++) {
+      await page.evaluate((y) => (window.office.camera.yaw = y), yaw0 + (k * Math.PI) / 4);
+      await wait(900);
+      edges = await page.evaluate(() => [...document.querySelectorAll('.co-edge')].map((b) => b.getAttribute('aria-label')));
+    }
+  };
+  await sweep();
+  if (!edges.length) {
+    // Whoever needs you may be standing right by the manager: step well away and look again.
+    await page.evaluate(() => {
+      const o = window.office;
+      const who = o.director.list().find((e) => e.handUp);
+      if (!who) return;
+      const away = o.manager.position.clone().sub(who.position).setY(0);
+      if (away.lengthSq() < 0.01) away.set(1, 0, 0);
+      o.manager.teleport(who.position.clone().add(away.normalize().multiplyScalar(9)).setY(0), o.manager.yaw);
+    });
+    await wait(600);
+    await sweep();
   }
   check('needs-you people off screen get edge faces', edges.length > 0 && edges.every((l) => /^Go to /.test(l)), edges.join(' | '));
   await shot(page, '2b-edges');
@@ -235,7 +251,9 @@ try {
   await wait(400);
   const typed = await page.evaluate((p0) => ({
     open: window.office.panels.openId,
-    moved: window.office.manager.position.distanceTo(new window.office.manager.position.constructor(...p0)) > 0.01,
+    // A key reaching the game would walk the manager a metre or more (and close the panel);
+    // a passing regular can still nudge them a little.
+    moved: window.office.manager.position.distanceTo(new window.office.manager.position.constructor(...p0)) > 0.5,
     rows: document.querySelector('.co-chat__term .xterm-rows')?.textContent ?? '',
   }), pos0);
   check('game keys go to the terminal, not the game', typed.open === 'chat' && !typed.moved && /weq/.test(typed.rows.replace(/\s+/g, '')), JSON.stringify({ open: typed.open, moved: typed.moved }));
@@ -365,6 +383,101 @@ try {
 
   check('no page errors in the demo office', !logs.some((l) => l.startsWith('[pageerror]') || l.startsWith('[error]')), logs.filter((l) => /error/i.test(l)).slice(0, 5).join(' | '));
   await page.close();
+
+  // ------------------------------------------------------------------ offline + "Got it" (fresh office)
+  {
+    const o = await open(`${BASE}/?demo=1&quiet=1&debug=1`);
+    const op = o.page;
+    const ppl = await roster(op);
+    const host = ppl.find((p) => p.hosted && p.state !== 'needs-you');
+    const asker2 = ppl.find((p) => !p.hosted && p.ask === 'permission');
+    const state = (sel) => op.evaluate((s) => [...document.querySelectorAll(s)].map((b) => ({ text: b.textContent.trim(), off: b.dataset.offline === 'true', aria: b.getAttribute('aria-disabled'), tip: b.getAttribute('data-co-tip') })), sel);
+
+    // Their panel: Let go and Sit disable with the reason; a click does nothing.
+    await op.evaluate((id) => window.office.panels.openEmployee(id), host.id);
+    await wait(400);
+    await op.evaluate(() => window.officeOffline(true));
+    await wait(100);
+    const foot = await state('.co-panel--person .co-panel__foot .co-btn');
+    const letGo = foot.find((b) => b.text === 'Let go');
+    const sitB = foot.find((b) => b.text.startsWith('Sit at'));
+    const talkB = foot.find((b) => b.text.startsWith('Talk'));
+    check('offline: Let go and Sit disable and say why; Talk still works', letGo?.off && letGo.aria === 'true' && /Offline/.test(letGo.tip ?? '') && sitB?.off && !talkB?.off, JSON.stringify(foot));
+    await op.evaluate(() => [...document.querySelectorAll('.co-panel--person .co-panel__foot .co-btn')].find((b) => b.textContent.trim() === 'Let go')?.click());
+    await wait(200);
+    check('offline: clicking Let go does nothing', await op.evaluate(() => !document.querySelector('.co-confirm')));
+
+    // Chat: Send disables, Enter keeps the draft, the hint says why.
+    await op.evaluate((id) => window.office.panels.openChat(id), host.id);
+    await wait(900);
+    await op.focus('.co-chat__input');
+    await op.keyboard.type('are you there?');
+    await op.keyboard.press('Enter');
+    await wait(400);
+    const chatOff = await op.evaluate(() => ({
+      send: document.querySelector('.co-chat__send')?.dataset.offline,
+      draft: document.querySelector('.co-chat__input')?.value,
+      pending: document.querySelectorAll('.co-msg.is-pending').length,
+      hint: document.querySelector('.co-chat__hint')?.textContent,
+    }));
+    check('offline: chat Send disables, Enter keeps the draft, the hint says why', chatOff.send === 'true' && chatOff.draft === 'are you there?' && chatOff.pending === 0 && /Offline/.test(chatOff.hint ?? ''), JSON.stringify(chatOff));
+
+    // Hire: picking still works, hiring doesn't.
+    await op.evaluate(() => window.office.panels.open('hire'));
+    await wait(500);
+    await op.keyboard.type('~/somewhere/offline-test');
+    await op.keyboard.press('Enter');
+    await op.keyboard.type('x');
+    await op.keyboard.press('Enter');
+    await wait(500);
+    const hireOff = await op.evaluate(() => ({
+      open: window.office.panels.openId,
+      btn: document.querySelector('.co-panel--hire .co-panel__foot .co-btn')?.dataset.offline,
+      toasts: [...document.querySelectorAll('.co-toast')].map((t) => t.textContent).join(' | '),
+    }));
+    check('offline: Hire disables and Enter does not hire', hireOff.open === 'hire' && hireOff.btn === 'true' && !/Interview went great/.test(hireOff.toasts), JSON.stringify(hireOff));
+
+    // Personnel files and the ask card.
+    await op.evaluate(() => window.office.panels.open('archive'));
+    await wait(800);
+    const files = await state('.co-panel--files .co-file .co-btn');
+    check('offline: Call back in disables', files.filter((b) => b.text === 'Call back in').every((b) => b.off) && files.some((b) => b.text === 'Call back in'), `${files.length} rows`);
+    await op.evaluate((id) => window.office.panels.openAsk(id), asker2.id);
+    await wait(500);
+    await op.keyboard.press('Digit1');
+    await wait(500);
+    const askOff = await op.evaluate(() => ({
+      off: [...document.querySelectorAll('.co-ask__opt')].every((b) => b.dataset.offline === 'true'),
+      folded: !!document.querySelector('.co-panel--person .co-ask.is-folded'),
+    }));
+    check('offline: ask answers disable; 1 answers nothing', askOff.off && !askOff.folded, JSON.stringify(askOff));
+
+    // Back online: everything comes back.
+    await op.evaluate(() => window.officeOffline(false));
+    await wait(100);
+    const askOn = await op.evaluate(() => [...document.querySelectorAll('.co-ask__opt')].map((b) => ({ off: b.dataset.offline, aria: b.getAttribute('aria-disabled'), tip: b.getAttribute('data-co-tip') })));
+    check('online again: the ask buttons come back', askOn.length > 0 && askOn.every((b) => !b.off && b.aria === null && !/Offline/.test(b.tip ?? '')), JSON.stringify(askOn));
+
+    // Got it: their own terminal, no question in the office (the ask went back to their terminal).
+    await op.evaluate(() => [...document.querySelectorAll('.co-ask__opt')].find((b) => b.dataset.choice === 'terminal')?.click());
+    await wait(1200);
+    const note = await op.evaluate(() => ({
+      text: document.querySelector('.co-panel--person .co-needsnote')?.textContent ?? '',
+      gotIt: !!document.querySelector('.co-panel--person .co-needsnote .co-btn'),
+    }));
+    check('their own terminal: the needs-you note offers "Got it"', /your own terminal/.test(note.text) && note.gotIt, JSON.stringify(note));
+    await op.evaluate(() => document.querySelector('.co-panel--person .co-needsnote .co-btn')?.click());
+    await wait(200);
+    const afterGot = await op.evaluate(() => document.querySelector('.co-panel--person .co-needsnote')?.hidden);
+    await op.evaluate(() => window.office.panels.close());
+    await wait(250);
+    await op.evaluate((id) => window.office.panels.openEmployee(id), asker2.id);
+    await wait(400);
+    const reopened = await op.evaluate(() => document.querySelector('.co-panel--person .co-needsnote')?.hidden);
+    check('"Got it" puts the note away, and it stays away for this wait', afterGot === true && reopened === true, JSON.stringify({ afterGot, reopened }));
+    check('no page errors (offline and Got it)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
+    await op.close();
+  }
 
   // Sitting at a computer (demo terminal)
   const t = await open(`${BASE}/?demo=1&quiet=1&debug=1&term=1`);
