@@ -19,6 +19,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PALETTE } from '../style/palette';
+import { dressRig } from './kit';
 import type { HairStyle, Looks } from './looks';
 import RD from './rig-dimensions.json';
 
@@ -826,6 +827,9 @@ export class Rig {
     this.mouths = this.buildMouths(ctx, mouthMat);
     this.setMouth('smile');
     this.assignFadeOrder();
+    // Swap in the modelled character kit when it's switched on (chars/kit; ?kit=1). It only
+    // touches the rig once its parts have loaded, so this stays procedural until then.
+    dressRig(this);
   }
 
   /**

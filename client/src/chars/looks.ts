@@ -75,7 +75,7 @@ export function regularLooks(id: string): Looks {
   return { ...employeeLooks(id, false), lanyard: false, mug: true };
 }
 
-/** Mabel on the front desk: always the same warm face. Sunny cardigan, red specs, headset on. */
+/** Mabel on the front desk: always the same warm face. Sunny cardigan, round specs, headset on. */
 export function receptionistLooks(): Looks {
   return {
     role: 'employee',
@@ -87,7 +87,7 @@ export function receptionistLooks(): Looks {
     hairStyle: 'headphones',
     hatColor: '#3D7CFF',
     glasses: true,
-    glassesColor: '#E63946',
+    glassesColor: PALETTE.ink,
     sleeves: 'long',
     lanyard: false,
     tie: false,

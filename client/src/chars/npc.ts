@@ -76,7 +76,7 @@ const _to = new THREE.Vector3();
 const _head = new THREE.Vector3();
 
 /** 0 → 1 → 0 across [a, b], smooth at both ends. */
-const pulse = (t: number, a: number, b: number): number => (t <= a || t >= b ? 0 : Math.sin(((t - a) / (b - a)) * Math.PI));
+export const pulse = (t: number, a: number, b: number): number => (t <= a || t >= b ? 0 : Math.sin(((t - a) / (b - a)) * Math.PI));
 
 /** The roster-shaped record EmployeeChar animates from. Never sent anywhere. */
 function deskRecord(p: RegularProfile): Employee {
@@ -363,16 +363,19 @@ export class RegularChar extends EmployeeChar {
       T.elbowR += 0.95;
     }
     if (this.waveAtT >= 0) {
-      // A wave from the elbow, eyes on whoever it's for (EmployeeChar's wave looks at the boss).
+      // A big wave from the elbow, eyes on whoever it's for (EmployeeChar's wave looks at the
+      // boss). Seated, they pop up off the seat a little to be seen over the desk.
       this.waveAtT += dt;
       const k = Math.sin(clamp(this.waveAtT / this.waveFor, 0, 1) * Math.PI);
       const O = this.body.over;
-      T.armRRoll += 2.0 * k;
-      T.armRPitch += 0.25 * k;
-      T.elbowR += 0.35 * k;
+      T.armRRoll += 2.25 * k;
+      T.armRPitch += 0.3 * k;
+      T.armRStretch += 0.18 * k;
+      T.elbowR += 0.3 * k;
       O.elbowR += Math.sin(t * 11) * 0.42 * k;
       O.armRRoll += Math.sin(t * 11 + 0.6) * 0.1 * k;
       T.brow += 0.3 * k;
+      if (this.seated) T.crouch += 0.08 * k;
       if (this.waveTarget) this.body.lookAt(_head.copy(this.waveTarget).setY(this.waveTarget.y + 0.95), 1.1 * k);
       if (this.waveAtT >= this.waveFor) {
         this.waveAtT = -1;

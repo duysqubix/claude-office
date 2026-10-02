@@ -3,13 +3,16 @@
 // HUD, toasts, Q/go-to, the Team Room board or any server request. This crew decides how many
 // there are (Off / Some / Lively), who walks in and when, shifts, coffee breaks and who chats
 // with whom, and hands a desk back when a session needs it ("All yours!"). The people
-// themselves are RegularChar (chars/npc.ts).
+// themselves are RegularChar (chars/npc.ts). It also runs Mabel on the front desk
+// (chars/receptionist.ts), who has her own switch and is never part of the crowd.
 import * as THREE from 'three';
 import { hash32 } from '../style/palette';
 import type { DeskSlot, OfficeApp, World } from '../world/types';
 import type { DeskSharers, Director } from './director';
+import { Chair } from './employee';
 import { RegularChar, type BreakSpot, type RegularProfile } from './npc';
-import { onRegularsDensity, readRegularsDensity, type RegularsDensity } from './regulars-setting';
+import { ReceptionistChar } from './receptionist';
+import { onReceptionist, onRegularsDensity, readReceptionist, readRegularsDensity, type RegularsDensity } from './regulars-setting';
 
 /** Never more than this many (frame budget). */
 export const MAX_REGULARS = 14;
@@ -122,6 +125,38 @@ const CHAT = [
 /** Half a phone call. */
 const PHONE = ['Mm-hm… yep…', "Sorry, you're on mute!", "Let's circle back on that.", 'No, the OTHER spreadsheet.', 'Can you hear me now?', 'Totally, totally.'];
 
+// The front desk (Mabel).
+/** E near her. */
+const DESK_QUIPS = [
+  'Welcome back, boss!',
+  "Your 3 o'clock is here… just kidding, it's another Claude.",
+  'Shall I hold your calls?',
+  'Front desk, how can I help?',
+  "Mail's on your desk. Mostly pizza menus.",
+  'Another Claude just walked in. They grow up so fast.',
+  "Nobody's waiting. Unless you count the Claudes.",
+  "I've memorised everyone's coffee order.",
+  'The phones have been ringing off the hook!',
+  'I told the printer you were busy.',
+  "Sign the visitor book! Kidding, we don't have one.",
+  'Want me to book the Team Room?',
+  "Smile! You're on the guest list.",
+  "The plant's been watered. Twice, actually.",
+  "If anyone asks, you're in a meeting.",
+  "Big day? I'll keep the coffee coming.",
+];
+/** Waving people in and out of the front door. */
+const DESK_HELLO = ['Welcome!', 'Morning!', 'Hi there!', 'Welcome in!', 'Hello!'];
+const DESK_HELLO_NIGHT = ['Evening!', 'Welcome!', 'Hi there!', 'Working late?'];
+const DESK_BYE = ['Bye!', 'See you!', 'Take care!', 'Bye bye!'];
+/** The boss walks up to the desk. */
+const DESK_GREET = ['Hi, boss!', 'Welcome back, boss!', 'Need anything, boss?', 'Hello, boss!'];
+/** Hiring at the front desk. */
+const DESK_HIRE = ['Ooh, who are we hiring?', "I'll get a desk ready!", 'Another one? Love it.', 'Fresh hire, coming up!'];
+/** Half a headset call. */
+const DESK_CALLS = ['Claude Office, how can I help?', 'Please hold!', 'One moment, putting you through.', 'Can I take a message?', "They're in a meeting. With themselves."];
+const DESK_OFF = ['Off home early! Bye!', 'Phones are all yours, boss!'];
+
 // ---------------------------------------------------------------------------------------
 
 interface Member {
@@ -161,6 +196,8 @@ export interface RegularsOptions {
   density?: RegularsDensity;
   /** Same seed, same people at the same desks (screenshots). */
   seed?: number;
+  /** Mabel on the front desk. Default: her saved switch (`?receptionist` overrides it). */
+  receptionist?: boolean;
   hooks?: RegularsHooks;
 }
 
@@ -189,7 +226,17 @@ export class Regulars implements DeskSharers {
   private deck: string[] = [];
   private night = false;
   private nightAt = -1;
-  private unsubscribe: () => void;
+  private unsubscribers: (() => void)[];
+  // The front desk: Mabel, her switch, her spot, and whom she's already waved at.
+  private receptionist: ReceptionistChar | null = null;
+  private receptionOn: boolean;
+  private receptionSpot: { slot: DeskSlot; chair: Chair } | null;
+  private wavedIn = new WeakSet<object>();
+  private wavedOut = new WeakSet<object>();
+  private bossAway = true;
+  private bossGreetedAt = -1e9;
+  private deskDeck: string[] = [];
+  private deskCall = -1;
 
   constructor(
     private world: World,
@@ -201,12 +248,39 @@ export class Regulars implements DeskSharers {
     this.rand = mulberry32(opts.seed ?? Math.floor(Math.random() * 2 ** 32));
     this.hooks = opts.hooks ?? {};
     ({ fills: this.fills, hangs: this.hangs } = breakSpots(world));
-    this.unsubscribe = onRegularsDensity((d) => this.setDensity(d));
+    this.receptionSpot = receptionSpot(world);
+    this.receptionOn = opts.receptionist ?? readReceptionist();
+    // She's at her desk from the moment the page loads.
+    if (this.receptionOn && this.receptionSpot) this.receptionist = this.hireReceptionist(true);
+    this.unsubscribers = [onRegularsDensity((d) => this.setDensity(d)), onReceptionist((on) => (this.receptionOn = on))];
   }
 
-  /** Everyone here right now (walking in and heading home included). */
+  /** Everyone here right now (walking in and heading home included), the receptionist too. */
   list(): RegularChar[] {
+    const out: RegularChar[] = this.members.map((m) => m.r);
+    if (this.receptionist) out.push(this.receptionist);
+    return out;
+  }
+
+  /** The crowd only (what Off / Some / Lively counts): never the receptionist. */
+  crew(): RegularChar[] {
     return this.members.map((m) => m.r);
+  }
+
+  /** Mabel, if she's in. */
+  get frontDesk(): ReceptionistChar | null {
+    return this.receptionist;
+  }
+
+  /**
+   * E at the front desk opens Now hiring, and Mabel has a word: mostly her front-desk lines (the
+   * counter is between you, so this is how you chat with her), sometimes about the hire.
+   */
+  atReception(): void {
+    const rc = this.receptionist;
+    if (!rc?.seated) return;
+    if (this.rand() < 0.3) rc.chatWith(pick(DESK_HIRE, this.rand));
+    else this.chat(rc);
   }
 
   /** The manager can bump into any of them. */
@@ -232,6 +306,11 @@ export class Regulars implements DeskSharers {
 
   /** E near a regular: a line from the shuffled deck. Never a panel, never the server. */
   chat(r: RegularChar): void {
+    if (r === this.receptionist) {
+      if (!this.deskDeck.length) this.deskDeck = shuffle([...DESK_QUIPS], this.rand);
+      r.chatWith(this.deskDeck.pop()!);
+      return;
+    }
     if (this.isNight() && this.rand() < 0.4) {
       r.chatWith(pick(NIGHT_QUIPS, this.rand));
       return;
@@ -242,6 +321,7 @@ export class Regulars implements DeskSharers {
 
   update(dt: number, t: number, manager: THREE.Vector3, managerHead: THREE.Vector3): void {
     this.clock += dt;
+    this.frontDeskUpdate(dt, t, manager, managerHead);
     if (!this.started) {
       // Wait for the first roster, so nobody sits at a desk a session is about to come back
       // to; an office whose server is down still fills up after a few seconds.
@@ -275,12 +355,13 @@ export class Regulars implements DeskSharers {
   }
 
   dispose(): void {
-    this.unsubscribe();
-    for (const m of this.members) {
-      this.hooks.removed?.(m.r);
-      m.r.dispose();
+    for (const off of this.unsubscribers) off();
+    for (const r of this.list()) {
+      this.hooks.removed?.(r);
+      r.dispose();
     }
     this.members = [];
+    this.receptionist = null;
   }
 
   // -------------------------------------------------------------------------------------
@@ -310,11 +391,82 @@ export class Regulars implements DeskSharers {
   }
 
   near(p: THREE.Vector3, radius: number): boolean {
-    for (const m of this.members) if (Math.hypot(m.r.position.x - p.x, m.r.position.z - p.z) < radius) return true;
+    for (const r of this.list()) if (Math.hypot(r.position.x - p.x, r.position.z - p.z) < radius) return true;
     return false;
   }
 
   // -------------------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------------------
+  // The front desk
+
+  private hireReceptionist(seated: boolean): ReceptionistChar {
+    const { slot, chair } = this.receptionSpot!;
+    const rc = new ReceptionistChar(slot, chair, this.world, this.scene, seated, mulberry32(Math.floor(this.rand() * 2 ** 32)));
+    rc.hooks.onBump = () => this.hooks.bumped?.(rc);
+    // Back in with a cup of tea.
+    if (!seated) rc.mugInHand = true;
+    this.hooks.added?.(rc);
+    return rc;
+  }
+
+  /** Mabel's day: her switch, waving at the front door, hellos for the boss, half a call. */
+  private frontDeskUpdate(dt: number, t: number, manager: THREE.Vector3, managerHead: THREE.Vector3): void {
+    let rc = this.receptionist;
+    // Off sends her home; on brings her in (or turns her round if she's on her way out).
+    if (this.receptionOn) {
+      if (!rc && this.receptionSpot) rc = this.receptionist = this.hireReceptionist(false);
+      else if (rc?.phase === 'leaving') rc.comeBack();
+    } else if (rc?.holdsDesk) {
+      rc.goHome(pick(DESK_OFF, this.rand));
+    }
+    if (!rc) return;
+    rc.night = this.isNight();
+    rc.boss = managerHead;
+    rc.update(dt, t, manager, managerHead);
+    if (rc.phase === 'gone') {
+      this.hooks.removed?.(rc);
+      rc.dispose();
+      this.receptionist = null;
+      return;
+    }
+    if (!rc.seated) return;
+    this.watchDoor(rc);
+    const near = Math.hypot(manager.x - rc.position.x, manager.z - rc.position.z);
+    // The boss walks up: a hello (once per visit, not every time they pass).
+    if (near > 7) this.bossAway = true;
+    else if (near < 3.5 && this.bossAway && this.clock - this.bossGreetedAt > 25) {
+      this.bossAway = false;
+      this.bossGreetedAt = this.clock;
+      if (!rc.quipping) rc.say(pick(DESK_GREET, this.rand), 2.4);
+      if (!rc.wavingAt && this.rand() < 0.5) rc.waveAt(manager, 1.1);
+    }
+    if (rc.task === 'phone' && this.deskCall !== rc.taskSerial && near < 6 && rc.taskProgress > 0.2 && !rc.quipping) {
+      this.deskCall = rc.taskSerial;
+      rc.say(pick(DESK_CALLS, this.rand), 2.6);
+    }
+  }
+
+  /** She waves at whoever walks in or out of the front door, sessions and regulars alike. */
+  private watchDoor(rc: ReceptionistChar): void {
+    if (rc.wavingAt) return;
+    const door = this.director.doorPosition;
+    const atDoor = (p: THREE.Vector3) => Math.hypot(p.x - door.x, p.z - door.z) < 3.2;
+    const passing: { who: object; at: THREE.Vector3; out: boolean }[] = [];
+    for (const e of this.director.list()) if ((e.phase === 'entering' || e.phase === 'leaving') && atDoor(e.position)) passing.push({ who: e, at: e.position, out: e.phase === 'leaving' });
+    for (const { r } of this.members) {
+      // Walking in for the day (not back from the coffee machine), or off home.
+      if (((r.phase === 'entering' && !r.onBreak) || r.phase === 'leaving') && atDoor(r.position)) passing.push({ who: r, at: r.position, out: r.phase === 'leaving' });
+    }
+    for (const p of passing) {
+      const seen = p.out ? this.wavedOut : this.wavedIn;
+      if (seen.has(p.who)) continue;
+      seen.add(p.who);
+      rc.waveAt(p.at, 1.5);
+      if (!rc.quipping && this.rand() < 0.65) rc.say(pick(p.out ? DESK_BYE : this.isNight() ? DESK_HELLO_NIGHT : DESK_HELLO, this.rand), 2);
+      return;
+    }
+  }
 
   private holderOf(deskIndex: number): RegularChar | undefined {
     return this.members.find((m) => m.r.holdsDesk && m.r.desk.index === deskIndex)?.r;
@@ -561,6 +713,32 @@ function breakSpots(world: World): { fills: Spot[]; hangs: Spot[] } {
     taken.push(a.at, b.at);
   }
   return { fills, hangs };
+}
+
+/**
+ * The front desk as a desk Mabel can sit at (world.reception is a seat on a stool, not one of
+ * the office desks: no sessions there, ever). The stool stays put; this stand-in chair only
+ * gives her a direction to push back in when she gets up, and her monitor is the world's own.
+ */
+function receptionSpot(world: World): { slot: DeskSlot; chair: Chair } | null {
+  const r = world.reception as World['reception'] | undefined;
+  if (!r) return null;
+  const chair = new THREE.Object3D();
+  chair.position.copy(r.seat).setY(0);
+  chair.rotation.y = r.yaw + Math.PI;
+  const slot: DeskSlot = {
+    index: -1,
+    seat: r.seat,
+    yaw: r.yaw,
+    approach: r.approach,
+    internSpots: [],
+    chair,
+    screen: new THREE.Object3D(),
+    setScreen() {},
+    setNameplate() {},
+    accent: '#5CC8FF',
+  };
+  return { slot, chair: new Chair(slot) };
 }
 
 /** The title bar of their app (world/screens.ts paints the rest), and for mail the subjects. */

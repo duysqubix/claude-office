@@ -1,5 +1,6 @@
 // The Regulars switch (docs/GAMEPLAY.md "Regulars"): Off / Some / Lively, saved per browser,
 // default Lively. `?regulars=off|some|lively|<n>` overrides it for one visit (screenshots, tests).
+// The receptionist has a switch of her own (on by default, `?receptionist=0|1`).
 // No three.js here, so the Help panel can import it without pulling in the crew.
 
 export type RegularsPreset = 'off' | 'some' | 'lively';
@@ -42,4 +43,33 @@ export function setRegularsDensity(d: RegularsPreset): void {
 export function onRegularsDensity(fn: (d: RegularsDensity) => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+// The receptionist has her own switch (default on): Off above sends the crowd home, not her.
+const DESK_KEY = 'claude-office:receptionist';
+const deskListeners = new Set<(on: boolean) => void>();
+
+/** `?receptionist=0|1` for this visit, else the saved choice, else on. */
+export function readReceptionist(search = location.search): boolean {
+  const fromUrl = new URLSearchParams(search).get('receptionist');
+  if (fromUrl === '0' || fromUrl === '1') return fromUrl === '1';
+  try {
+    return localStorage.getItem(DESK_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+export function setReceptionist(on: boolean): void {
+  try {
+    localStorage.setItem(DESK_KEY, on ? '1' : '0');
+  } catch {
+    // storage unavailable: this visit only
+  }
+  for (const fn of deskListeners) fn(on);
+}
+
+export function onReceptionist(fn: (on: boolean) => void): () => void {
+  deskListeners.add(fn);
+  return () => deskListeners.delete(fn);
 }

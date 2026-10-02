@@ -88,6 +88,8 @@ export class EmployeeChar implements Bumpable {
   private exitPush = 0;
   /** Seconds since the manager answered their question (−1 = not recently). */
   private thankT = -1;
+  /** The ask that answer was for: only that one stays hidden while the roster catches up. */
+  private answeredAskId: string | undefined;
   /** A short line they say out loud (shown as their bubble), and until when. */
   quipText = '';
   quipUntil = 0;
@@ -216,6 +218,7 @@ export class EmployeeChar implements Bumpable {
   /** The manager answered their question in-game: hand down, happy hop, squint, "Thanks!". */
   answered(): void {
     this.thankT = 0;
+    this.answeredAskId = this.data.ask?.id;
     this.quip('Thanks!', 2.4);
   }
 
@@ -224,9 +227,15 @@ export class EmployeeChar implements Bumpable {
     return this.poseState === 'needs-you';
   }
 
-  /** Body-language state: right after an answer they're back to work, whatever the roster says. */
+  /**
+   * Body-language state: right after an answer they're back to work while the roster
+   * catches up. A NEW question in that moment (a follow-up permission, say) raises the hand
+   * again at once.
+   */
   private get poseState(): EmployeeState {
-    return this.thankT >= 0 && this.thankT < 2.5 && this.data.state === 'needs-you' ? 'working' : this.data.state;
+    const ask = this.data.ask;
+    const catchingUp = this.thankT >= 0 && this.thankT < 2.5 && this.data.state === 'needs-you' && (!ask || ask.id === this.answeredAskId);
+    return catchingUp ? 'working' : this.data.state;
   }
 
   // -------------------------------------------------------------------------------------
