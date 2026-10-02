@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-02T22:11:12.541Z",
+  "generated": "2026-10-02T23:09:27.879Z",
   "totals": {
     "all": 232,
     "done": 232
@@ -47,22 +47,22 @@
       "thumb": "models/thumbs/cardboard_box.jpg",
       "dims": {
         "w": 0.66,
-        "h": 6.368,
-        "d": 0.769
+        "h": 0.478,
+        "d": 0.563
       },
       "bbox": {
         "min": [
           -0.327,
-          -5.895,
-          -0.501
+          0,
+          -0.295
         ],
         "max": [
           0.333,
-          0.473,
+          0.478,
           0.269
         ]
       },
-      "tris": 11383,
+      "tris": 8635,
       "materials": [
         "Cardboard",
         "Brown",
@@ -87,7 +87,7 @@
         "cardboard_box"
       ],
       "textures": 1,
-      "bytes": 542316
+      "bytes": 451684
     },
     {
       "id": "clipboard",
@@ -12725,7 +12725,7 @@
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P0",
-      "description": "Open cardboard box with a plant, photo and rubber duck; carried in both hands",
+      "description": "Open cardboard box packed full of desk stuff: plant, photo, rubber duck, mug of pencils, books, stapler and a cardigan sleeve over the edge; carried in both hands",
       "tags": [
         "held",
         "box",
@@ -12760,7 +12760,7 @@
       "thumb": "models/thumbs/held_box.jpg",
       "dims": {
         "w": 0.646,
-        "h": 0.366,
+        "h": 0.36,
         "d": 0.518
       },
       "bbox": {
@@ -12771,31 +12771,36 @@
         ],
         "max": [
           0.319,
-          0.224,
+          0.218,
           0.253
         ]
       },
-      "tris": 2084,
+      "tris": 2526,
       "materials": [
         "Kraft",
         "KraftDark",
         "Tape",
+        "Paper",
+        "Blue",
+        "Purple",
+        "Pink",
         "Pot",
         "Soil",
         "Leaf",
-        "Frame",
+        "Manila",
+        "Yellow",
         "PhotoSky",
-        "PhotoGrass",
-        "PhotoSun",
-        "Duck",
-        "Beak",
-        "DuckEye"
+        "Ink",
+        "Red",
+        "Teal",
+        "Orange",
+        "Knit"
       ],
       "nodes": [
         "held_box"
       ],
       "textures": 1,
-      "bytes": 114144
+      "bytes": 192804
     },
     {
       "id": "held_clipboard",

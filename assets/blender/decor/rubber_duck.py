@@ -49,7 +49,7 @@ def body(M, detail=1.0):
                    rot=(math.radians(-22), 0, s * math.radians(-6)))
 
 
-def head(M, detail=1.0):
+def head(M, detail=1.0, features=True):
     q = lambda k: _n(k, detail)  # noqa: E731
     lib.sphere("Head", HEAD_R, tuple(HEAD), M["duck"], u=q(24), v=q(12))
     lib.sphere("Bill_Upper", 0.0125, tuple(HEAD + Vector((0, -0.024, -0.004))), M["bill"],
@@ -62,6 +62,8 @@ def head(M, detail=1.0):
         yaw = math.atan2(n.x, -n.y)
         lib.sphere(f"Eye{s}", 0.0052, tuple(e), M["eye"], scale=(0.85, 0.55, 1.15), u=q(12),
                    v=q(8), rot=(-math.asin(n.z) * 0.8, 0, yaw))
+        if not features:
+            continue
         # Flat catchlight up and to the viewer's left, lying on the eye's surface.
         lib.sphere(f"Shine{s}", 0.0016, tuple(e + n * 0.0022 + Vector((-0.0011, 0, 0.002))),
                    M["shine"], scale=(1, 0.45, 1), u=q(10), v=6,
@@ -72,10 +74,11 @@ def head(M, detail=1.0):
                    rot=(0, 0, math.atan2(c.x, -c.y)))
 
 
-def make(M, detail=1.0):
-    """The duck at the origin (shared with cardboard_box, which uses a lighter detail)."""
+def make(M, detail=1.0, features=True):
+    """The duck at the origin (shared with cardboard_box, which uses a lighter detail and
+    drops the catchlights and cheeks it's too small to show)."""
     body(M, detail)
-    head(M, detail)
+    head(M, detail, features)
 
 
 def build():

@@ -328,9 +328,11 @@ def catmull(ctrl, samples=24):
     return out
 
 
-def tube(name, pts, radius, material, ring=12, caps=True, cap_rings=4):
+def tube(name, pts, radius, material, ring=12, caps=True, cap_rings=4, squash=1.0):
     """Sweep a circle along `pts` (Blender coords). `radius` is a number, a list (one per
-    point) or a function of t in 0..1. Rounded (hemispherical) end caps."""
+    point) or a function of t in 0..1. Rounded (hemispherical) end caps. `squash` < 1
+    flattens the section along the frame's first axis (world up at the start, carried
+    along the curve: the outside of a bend), for cloth or straps lying on a surface."""
     pts = [Vector(p) for p in pts]
     n = len(pts)
     if callable(radius):
@@ -353,7 +355,7 @@ def tube(name, pts, radius, material, ring=12, caps=True, cap_rings=4):
     rings = []
 
     def ring_at(c, a, b, r):
-        return [bm.verts.new(c + (a * math.cos(2 * math.pi * j / ring) +
+        return [bm.verts.new(c + (a * (squash * math.cos(2 * math.pi * j / ring)) +
                                   b * math.sin(2 * math.pi * j / ring)) * r)
                 for j in range(ring)]
 

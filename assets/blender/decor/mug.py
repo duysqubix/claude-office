@@ -44,14 +44,14 @@ def materials():
     )
 
 
-def make(M, s=1.0, heart=True):
-    """Build the mug scaled by s (shared with mug_manager)."""
+def make(M, s=1.0, heart=True, verts=32, handle_verts=12):
+    """Build the mug scaled by s (shared with mug_manager, and lighter in cardboard_box)."""
     prof = [(r * s, z * s) for r, z in OUTER + INNER + [(0.0, COFFEE_Z)]]
-    body = D.lathe("Mug_Body", prof, M["glaze"], verts=32, sharp=50)
+    body = D.lathe("Mug_Body", prof, M["glaze"], verts=verts, sharp=50)
     D.paint(body, M["inside"], lambda c, n: c.z > 0.05 * s and math.hypot(c.x, c.y) < INNER_R * s)
     D.paint(body, M["coffee"], lambda c, n: abs(c.z - COFFEE_Z * s) < 0.0004 * s and n.z > 0.9)
     D.tube("Mug_Handle", [tuple(v * s for v in p) for p in HANDLE], 0.0088 * s, M["glaze"],
-           verts=12, smooth=5, caps=None)
+           verts=handle_verts, smooth=5 if handle_verts >= 12 else 3, caps=None)
     if heart:
         D.prism("Mug_Heart", D.heart_pts(0.028 * s, 32), 0.001 * s, M["foam"],
                 loc=(0, -0.002 * s, (COFFEE_Z - 0.0003) * s), back=False)

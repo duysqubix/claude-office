@@ -272,6 +272,72 @@ def ground(objs=None, z=0.0):
     return objs
 
 
+def bundle(name, parts, origin=(0, 0, 0)):
+    """Join a sub-assembly into one object (modifiers applied, origin at `origin`) so it can
+    move as one piece, e.g. a rigid body in settle()."""
+    ob = lib._join(parts, name, Vector(origin))
+    for p in parts:
+        bpy.data.objects.remove(p, do_unlink=True)
+    return ob
+
+
+def settle(bodies, colliders, frames=120, substeps=20, iters=50):
+    """Drop rigid bodies onto passive colliders with Bullet and bake where they come to rest,
+    so packed things touch whatever holds them up (nothing floats).
+    bodies: [(ob, shape, mass)]; colliders: [(ob, shape)]. Children follow their parent."""
+    scene = bpy.context.scene
+
+    def rb_add(ob, kind, shape, mass=1.0):
+        with bpy.context.temp_override(object=ob, active_object=ob, selected_objects=[ob],
+                                       selected_editable_objects=[ob]):
+            bpy.ops.rigidbody.object_add(type=kind)
+        rb = ob.rigid_body
+        rb.collision_shape = shape
+        rb.friction = 0.9
+        rb.restitution = 0.0
+        rb.use_margin = True
+        rb.collision_margin = 0.0008
+        if kind == "ACTIVE":
+            rb.mass = mass
+            rb.linear_damping = 0.3
+            rb.angular_damping = 0.6
+
+    bpy.ops.rigidbody.world_add()
+    world = scene.rigidbody_world
+    world.substeps_per_frame = substeps
+    world.solver_iterations = iters
+    world.point_cache.frame_start = 1
+    world.point_cache.frame_end = frames
+    for ob, shape in colliders:
+        rb_add(ob, "PASSIVE", shape)
+    for ob, shape, mass in bodies:
+        rb_add(ob, "ACTIVE", shape, mass)
+    for f in range(1, frames + 1):
+        scene.frame_set(f)
+    dg = bpy.context.evaluated_depsgraph_get()
+    rest = {ob.name: ob.evaluated_get(dg).matrix_world.copy() for ob, _, _ in bodies}
+    if os.environ.get("DECOR_SETTLE_REPORT"):
+        for ob, _, _ in bodies:
+            m = ob.matrix_world
+            print("[settle] %-12s start %s  rest %s  rot %s" % (
+                ob.name, tuple(round(c, 3) for c in m.translation),
+                tuple(round(c, 3) for c in rest[ob.name].translation),
+                tuple(round(math.degrees(r)) for r in rest[ob.name].to_euler())))
+    for ob in [b[0] for b in bodies] + [c[0] for c in colliders]:
+        with bpy.context.temp_override(object=ob, active_object=ob, selected_objects=[ob],
+                                       selected_editable_objects=[ob]):
+            bpy.ops.rigidbody.object_remove()
+    bpy.ops.rigidbody.world_remove()
+    rbc = bpy.data.collections.get("RigidBodyWorld")
+    if rbc is not None:
+        bpy.data.collections.remove(rbc)
+    scene.frame_set(1)
+    for ob, _, _ in bodies:
+        ob.matrix_world = rest[ob.name]
+    bpy.context.view_layer.update()
+    return rest
+
+
 def paint(ob, material, pred):
     """Give faces where pred(centre, normal) is true (object space) a second material."""
     me = ob.data
