@@ -58,6 +58,8 @@ function runOffice(): void {
   const input = new Input();
   const manager = new Manager(world, scene);
   const camera = new CameraRig(engine.camera, canvas);
+  camera.blockers = world.cameraBlockers;
+  camera.ceiling = (p) => (world.isInside(p) ? world.interior.ceilingY : null);
   const terminal = new TerminalOverlay(uiRoot, backend);
   manager.onStep = (k) => sfx.step(k);
 

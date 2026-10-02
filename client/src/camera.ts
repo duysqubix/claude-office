@@ -12,6 +12,11 @@ export interface CameraShot {
 
 const _pos = new THREE.Vector3();
 const _look = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _ray = new THREE.Raycaster();
+/** How far the camera stays off a wall it was pulled in front of, and under the ceiling. */
+const WALL_GAP = 0.3;
+const CEILING_GAP = 0.25;
 
 export class CameraRig {
   /** Azimuth: the camera sits at focus + (sin yaw, ·, cos yaw). 0 = south of the target. */
@@ -24,10 +29,16 @@ export class CameraRig {
   maxDist = 18;
   /** Ignore mouse orbit/zoom (e.g. while a modal is up). */
   locked = false;
+  /** Walls, ceiling and roof the camera never passes through: it pulls in in front of them. */
+  blockers: THREE.Object3D[] = [];
+  /** Highest the camera may go when following from `focus` (the ceiling indoors), or null outdoors. */
+  ceiling: ((focus: THREE.Vector3) => number | null) | null = null;
 
   private sYaw = 0;
   private sPitch = 45 * DEG;
   private sDist = 10;
+  /** Smoothed fraction of the follow distance left after pulling in for walls: snaps in, eases out. */
+  private sReach = 1;
   private focus = new THREE.Vector3();
   private focusReady = false;
   private shot: CameraShot | null = null;
@@ -111,6 +122,7 @@ export class CameraRig {
 
     const cp = Math.cos(this.sPitch);
     _pos.set(Math.sin(this.sYaw) * cp, Math.sin(this.sPitch), Math.cos(this.sYaw) * cp).multiplyScalar(this.sDist).add(this.focus);
+    this.keepClear(dt);
     _look.copy(this.focus);
 
     this.blend = clamp(this.blend + (this.shot ? dt : -dt) / 0.9, 0, 1);
@@ -122,5 +134,25 @@ export class CameraRig {
     }
     this.camera.position.copy(_pos);
     this.camera.lookAt(_look);
+  }
+
+  /** Keep the follow position (`_pos`) under the ceiling indoors and on the focus's side of every blocker. */
+  private keepClear(dt: number): void {
+    const top = this.ceiling?.(this.focus);
+    if (top != null) _pos.y = Math.min(_pos.y, top - CEILING_GAP);
+
+    _dir.subVectors(_pos, this.focus);
+    const len = _dir.length();
+    if (len < 1e-3) return;
+    _dir.divideScalar(len);
+    let reach = 1;
+    if (this.blockers.length) {
+      _ray.set(this.focus, _dir);
+      _ray.far = len;
+      const hit = _ray.intersectObjects(this.blockers, false)[0];
+      if (hit) reach = clamp((hit.distance - WALL_GAP) / len, 0, 1);
+    }
+    this.sReach = reach < this.sReach ? reach : this.sReach + (reach - this.sReach) * damp(6, dt);
+    _pos.copy(this.focus).addScaledVector(_dir, len * this.sReach);
   }
 }
