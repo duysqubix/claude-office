@@ -35,7 +35,7 @@ import lib
 RIG_JSON = os.path.join(lib.ROOT, "client", "src", "chars", "rig-dimensions.json")
 DIM = dict(pelvisY=0.42, hipX=0.105, shoulderX=0.215, shoulderY=0.25, neckY=0.34,
            headR=0.27, headUp=0.21, armLen=0.29, legLen=0.345)
-# Head shape (three.js metres): "sphere" (rig.ts today) or "roundedBox" (ART-REFERENCE §1.1:
+# Head shape (three.js metres): "sphere" (rig.ts today) or "roundedBox" (ART-DIRECTION §1.1:
 # 0.58 w × 0.54 h × 0.50 d, corner radius 0.19, jaw 6 % narrower).
 HEAD = dict(shape="sphere", size=[0.54, 0.54, 0.54], radius=0.27, jaw=0.0)
 RIG = {}
@@ -48,7 +48,7 @@ if os.path.exists(RIG_JSON):
     elif "headR" in RIG:
         HEAD.update(shape="sphere", size=[2 * RIG["headR"]] * 3, radius=RIG["headR"])
 
-if os.environ.get("RODIN_HEAD") == "box":  # what-if previews of the ART-REFERENCE head
+if os.environ.get("RODIN_HEAD") == "box":  # what-if previews of the ART-DIRECTION head
     HEAD.update(shape="roundedBox", size=[0.58, 0.54, 0.50], radius=0.19, jaw=0.06)
 
 # Everything else the rig file pins down (three.js metres; see rig-dimensions.json).

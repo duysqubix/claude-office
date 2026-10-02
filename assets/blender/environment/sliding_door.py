@@ -77,7 +77,7 @@ def panel(M, node, sx):
     gw, gh = w - 2 * RAIL + 0.02, h - RAIL * 2.7 + 0.02
     lib.rbox(f"{node}_Glass", (gw, 0.02, gh), (cx, 0, RAIL * 1.7 + gh / 2 - 0.01), M["glass"],
              r=0.006, seg=1)
-    # Frosted safety dots at a Wobbly's eye level, on both faces.
+    # Frosted safety dots at a character's eye level, on both faces.
     for i in range(4):
         x = cx + (i - 1.5) * 0.26
         for s in (-1, 1):

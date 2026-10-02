@@ -29,7 +29,7 @@ aside. A move key or `Esc` cancels; `Q` retargets; no path: "Can't reach Claudet
 
 | Event | Feedback | Sound | P |
 | --- | --- | --- | --- |
-| Run footfall; jump | puff of 3 paper-white spheres (r 0.06→0.16 m, rise 0.12 m, fade 320); jump per ART-REFERENCE §2.6 (crouch squash 0.9, stretch 1.08, land 0.85) + ring of 6 puffs | `step`; `boing` `thud` | P0 |
+| Run footfall; jump | puff of 3 paper-white spheres (r 0.06→0.16 m, rise 0.12 m, fade 320); jump per ART-DIRECTION §2.6 (crouch squash 0.9, stretch 1.08, land 0.85) + ring of 6 puffs | `step`; `boing` `thud` | P0 |
 | Bump someone | lean kick + ink "!" pop 400 (never amber); running into them adds 1.5 s of dizzy stars; P1 a line: "Oof!", "Hey, boss!", "I'm in the zone!" | `boop` | P0 |
 | Manager within 4 m | heads turn; free ones wave (90 s cooldown), working ones nod, needs-you ones wave faster | | P0 |
 | Session starts | door slides, they walk in, wave, sit, chair scoots in; toast "Clyde clocked in for blendscope" | `chime-in` `whoosh` | P0 |
@@ -84,7 +84,7 @@ Contextual: the `[E]` prompt, bubbles, toasts, coach cards. On demand: panels, t
   glyph); none on the manager; click = go to. Shown for needs-you and hovered people, others within R = max(10, camera
   distance + 2) m of the manager, fading over the last 3 m; max 10, needs-you first. Nearer pills draw on top; a farther
   one overlapping by > 30 % drops to 0.3 (projected anchors × cached widths, no per-frame layout reads).
-- **Bubble** (above the pill): WL dialogue glass (gradient rgba(244,247,246,.92) → rgba(138,176,189,.88), 3 px #4396CA
+- **Bubble** (above the pill): glassy dialogue bubble (gradient rgba(244,247,246,.92) → rgba(138,176,189,.88), 3 px #4396CA
   border, radius 16, 12 px tail), ≤ 240 wide, 2 lines then ellipsis, ink 15/400; within 7 m, nearest 3 not needing you.
   Working → `activity.label` or "Thinking…"; free → "Done!" 3 s after a turn, then `lastText` if any; starting →
   "Getting settled…"; arriving → "Morning!" (before noon) or "Hi!"; leaving → "Bye!"; asleep → Z z z (14/18/22 px,
@@ -219,8 +219,8 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   accent from deskAccents; shadow #2E9FDB): primary buttons, selection. `--danger` #C92A3A (shadow #8E1C28).
 - Text on any fill is ink (fills 4.3–9.8:1, states ≥ 4.9:1), except paper on danger (5.3:1), on the ink banner, on dark
   wells (bezel chin, ask detail) and outlined titles. Buttons are primary, secondary (paper), danger or text.
-- **Our palette, WL's energy (ART-REFERENCE §5):** panels stay paper, not WL amber, because amber means needs-you here.
-  From WL we take the construction: inner bevel, outlined titles, sticker icons, pops and slams, blue-glass speech.
+- **Our palette, toy-box energy (ART-DIRECTION §5):** panels stay paper, not amber, because amber means needs-you here.
+  The construction: inner bevel, outlined titles, sticker icons, pops and slams, blue-glass speech.
 
 ### 4.2 Type, space, shape
 
@@ -231,7 +231,7 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
 - **Space** 4, 8, 12, 16, 20, 24, 32, 48 (HUD inset 16, panel padding 20, list gap 8). **Radius**: panel 20, bezel 28,
   toast/bubble/HUD box 16, input/row/well 12, key cap 7, pills 999. **Border** (ink): 4 panels and bezel; 3 buttons,
   chips, toasts, bubbles, HUD; 2 inputs, pills, key caps, rows.
-- **Shadow**, solid, never blurred: panel `inset 0 0 0 3px var(--paper-2), 0 6px 0 var(--shade)` (WL's bevel band), HUD
+- **Shadow**, solid, never blurred: panel `inset 0 0 0 3px var(--paper-2), 0 6px 0 var(--shade)` (the bevel band), HUD
   and toast `0 4px 0`, button `0 4px 0 <its shadow>`; hover lifts 2, press drops 3. **Focus**: `0 0 0 3px var(--paper),
   0 0 0 6px var(--ink)` on every control, never removed.
 
@@ -239,10 +239,10 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
 
 - **Panel**: right dock, width min(400, 100vw − 32) (560 for plan asks), top 88, max-height calc(100vh − 112), body
   scrolls, sticky action footer; 64 px band (employee: their shirt; hire #FFC94A; files #F6B76E; roster #8FE0C8;
-  interns, help #7DB8F0); WL title 26/700, paper fill, 5 px ink outline (`-webkit-text-stroke`, `paint-order: stroke
+  interns, help #7DB8F0); Outlined title 26/700, paper fill, 5 px ink outline (`-webkit-text-stroke`, `paint-order: stroke
   fill`), `0 3px 0` shade drop; 40 px close ×. One at a time; under 900 wide a bottom sheet (max 70vh). The terminal is
   the only modal.
-- **Face**: `faceSvg(looks, size)` from `employeeLooks()` mirrors the 3D head (ART-REFERENCE §1: head shape, skin, eyes,
+- **Face**: `faceSvg(looks, size)` from `employeeLooks()` mirrors the 3D head (ART-DIRECTION §1: head shape, skin, eyes,
   hair or hat silhouette, glasses) on a disc of their shirt colour; 24/32/40/56. Favicon and logo too.
 - **Button**: pill, 44 tall (40 small), padding 0 20, 16/600, optional key cap right; primary, secondary, danger or
   text. Disabled: 45 % opacity, no shadow, a tooltip saying why. **Chip** 30 tall, glyph 18 + 15/600. **Key cap** min
@@ -251,7 +251,7 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   600), optional small action. **Tooltip**: ink, paper 14/600, radius 10, after 400. **Banner**: top-centre pill, 44
   tall, 16/600: ink with paper text (offline), working green with ink text (back).
 - **Icons**: inline SVG in `ui/icons.ts`, no icon fonts or emoji; 24 viewBox, filled shapes, 2 px ink stroke, round
-  joins (WL stickers). State glyphs: bolt, "!", check, "z", three dots (§5); plus clipboard, bell, folder, speaker…
+  joins (sticker style). State glyphs: bolt, "!", check, "z", three dots (§5); plus clipboard, bell, folder, speaker…
 
 ### 4.4 Motion (springs sampled from `chars/spring.ts`, so panels wobble like bodies)
 
@@ -262,7 +262,7 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
 --ease-in: cubic-bezier(.5, 0, .75, 0);  --ease-out: cubic-bezier(.2, .8, .2, 1);
 ```
 
-- **Panel** in: scale .85 → rest (peaks 1.04, WL's pop), y +12, rotate 1.5°, 300 pop (opacity over the first 100); out:
+- **Panel** in: scale .85 → rest (peaks 1.04, a springy pop), y +12, rotate 1.5°, 300 pop (opacity over the first 100); out:
   scale .92 + fade, 160 ease-in. **Toast** in: y −28, scale .9 → rest, 420 soft; out: y −12 + fade, 200 ease-in.
   **Prompt, bubble, edge face, ask card** in: scale .7 → 1, 300 pop; card fold to one line 300 soft. **Count**: 1.3 → 1,
   300 bump. **Button**: press y +3 (60 linear), release 300 bump, hover y −2 (120 ease-out). **Bezel**: FLIP 420 soft;

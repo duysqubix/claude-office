@@ -2,7 +2,7 @@
   "name": "claude-office",
   "version": "0.1.0",
   "private": true,
-  "description": "A wobbly little 3D office where your live Claude Code sessions are the employees and you're the manager.",
+  "description": "A cosy little 3D office where your live Claude Code sessions are the employees and you're the manager.",
   "type": "module",
   "engines": {
     "node": ">=20"

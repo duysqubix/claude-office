@@ -3,7 +3,7 @@
 - finalize(): lib's join (lib.node tags) → AO bake → WebP export → preview → sidecar, plus
   the knobs lib.finalize lacks: AO strength, baking with no ground plane (sky things, wall
   openings) and lifting sky things off the preview floor.
-- Faceted nature (ART-REFERENCE: smooth people against faceted nature): low-poly icosphere
+- Faceted nature (ART-DIRECTION: smooth people against faceted nature): low-poly icosphere
   puffs, pine tiers, clipped blocks, mottled facets. Man-made things stay bevelled and soft.
 - Plants: trunks, tubes, leaf blades, monstera/pothos fan leaves, pinnate fronds, flowers.
 - Text: Arial Rounded Bold as a mesh, with an outline offset for two-tone sign letters.
@@ -30,7 +30,7 @@ P = dict(
     grassDark="#5FBF45",
     path="#F2E3C6",
     treeTrunk="#9C6B43",
-    cloud="#E6F4FC",  # WL clouds are faintly blue (ART-REFERENCE §3.1)
+    cloud="#E6F4FC",  # Clouds are faintly blue (ART-DIRECTION §3.1)
     wallAccent="#8FE0C8",
     glass="#BFE9FF",
     doorFrame="#3F4A5C",
@@ -66,7 +66,7 @@ def glow(name, hex_str, strength=2.0):
 
 def icoblob(name, r, loc=(0, 0, 0), material=None, scale=(1, 1, 1), subdiv=2, rot=(0, 0, 0),
             lump=0.0, seed=0, flat=None):
-    """Faceted low-poly puff (Wobbly Life nature): an icosphere with lumpy noise, flat shaded.
+    """Faceted low-poly puff (our faceted nature): an icosphere with lumpy noise, flat shaded.
     `flat` squashes everything below that local z (fraction of r) so a puff can sit on the
     ground. Records the radius safely inside it for cull_hidden()."""
     bm = bmesh.new()

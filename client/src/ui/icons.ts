@@ -1,6 +1,6 @@
 // Inline SVG icons (UX.md §4.3): no icon fonts, no emoji.
 // - State glyphs are solid ink shapes that sit inside a state-coloured disc (the colour-blind contract).
-// - UI icons are WL-style stickers: flat palette fills with a 2 px ink outline and round joins.
+// - UI icons are stickers: flat palette fills with a 2 px ink outline and round joins.
 import type { EmployeeState } from '../../../shared/protocol';
 import { esc, markup, type Markup } from './el';
 

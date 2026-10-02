@@ -1,5 +1,5 @@
 """Round tree: a chunky, gently leaning trunk whose foot swells into soft buttress roots, two
-limbs, and a wide canopy of faceted low-poly puffs (Wobbly Life nature), darker green
+limbs, and a wide canopy of faceted low-poly puffs (our faceted nature), darker green
 underneath and lighter on top (PALETTE.treeLeaf). About 4 m tall, 3.2 m across. Origin at
 the trunk foot."""
 import math

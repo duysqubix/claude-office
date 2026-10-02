@@ -3119,7 +3119,7 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 4.7 m long; faintly blue white (#E6F4FC) like WL's",
+      "description": "Long lazy cumulus: one soft merged surface with a flat belly, about 4.7 m long; faintly blue white (#E6F4FC)",
       "tags": [
         "cloud",
         "sky",
@@ -3164,7 +3164,7 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Tall bumpy cumulus dome on a flat belly, about 3.1 m wide; faintly blue white (#E6F4FC) like WL's",
+      "description": "Tall bumpy cumulus dome on a flat belly, about 3.1 m wide; faintly blue white (#E6F4FC)",
       "tags": [
         "cloud",
         "sky",
@@ -3209,7 +3209,7 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P0",
-      "description": "Small three-bump wisp, about 2.3 m long; faintly blue white (#E6F4FC) like WL's",
+      "description": "Small three-bump wisp, about 2.3 m long; faintly blue white (#E6F4FC)",
       "tags": [
         "cloud",
         "sky",
@@ -6694,7 +6694,7 @@
       "artist": "Claude Monet",
       "group": "Team Room, shop items, game room",
       "priority": "P0",
-      "description": "Little wobbly stool for interns",
+      "description": "Little round stool for interns",
       "tags": [
         "interns",
         "seating"

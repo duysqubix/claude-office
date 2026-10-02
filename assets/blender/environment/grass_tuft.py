@@ -42,7 +42,7 @@ META = dict(
     tags=["grass", "lawn", "scatter", "faceted"],
     tintable=[],
     anchors={},
-    notes="About 400 tris: scatter along paths, walls and fence lines (ART-REFERENCE §3.4).",
+    notes="About 400 tris: scatter along paths, walls and fence lines (ART-DIRECTION §3.4).",
 )
 
 

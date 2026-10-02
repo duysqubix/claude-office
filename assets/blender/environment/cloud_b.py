@@ -32,7 +32,7 @@ META = dict(
     category="outdoor",
     priority="P0",
     description=("Tall bumpy cumulus dome on a flat belly, about 3.1 m wide; faintly blue white "
-                 "(#E6F4FC) like WL's"),
+                 "(#E6F4FC)"),
     tags=["cloud", "sky", "decor"],
     tintable=[],
     anchors={},

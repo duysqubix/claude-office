@@ -1,4 +1,4 @@
-"""Pond: a little garden pond. A wobbly oval of glossy water, deep blue in the middle and
+"""Pond: a little garden pond. A lumpy oval of glossy water, deep blue in the middle and
 shallow at the edges, ringed by faceted stones, with lily pads and a pink lily, reeds with
 cattails at one end, and a duck paddling about. About 3.1 × 2.0 m. Origin at the ground
 centre; the water sits just above the lawn."""
@@ -19,7 +19,7 @@ WATER_Z = 0.03
 
 
 def rim(t):
-    """Wobbly pond outline at angle t (radians), as (x, y)."""
+    """Lumpy pond outline at angle t (radians), as (x, y)."""
     k = 1 + 0.1 * math.cos(2 * t + 0.4) + 0.06 * math.sin(3 * t + 1.0)
     return RX * k * math.cos(t), RY * k * math.sin(t)
 

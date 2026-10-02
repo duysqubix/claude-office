@@ -741,7 +741,7 @@ function drawBoard(c: CanvasRenderingContext2D, w: number, h: number, s: BoardSt
   c.textAlign = 'center';
   c.fillText('ship it!', 885, 146);
 
-  // A wobbly chart that only goes up.
+  // A squiggly chart that only goes up.
   c.strokeStyle = '#2EC4B6';
   c.lineWidth = 6;
   c.beginPath();

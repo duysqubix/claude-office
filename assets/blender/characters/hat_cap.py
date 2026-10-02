@@ -1,6 +1,6 @@
 """Baseball cap: an oversized six-panel crown (seams carved in, a button on top, a snapback
 strap at the back) with a chunky curved bill, worn a little high at the front. `Accent`.
-Sized like Wobbly Life hats, about 1.15× the head, so short hair hides under it. Pivot at
+Oversized like all our hats, about 1.15× the head, so short hair hides under it. Pivot at
 the head centre. hat_cap_backwards reuses cap()."""
 import numpy as np
 

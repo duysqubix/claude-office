@@ -1,5 +1,5 @@
 // One palette for the whole office so the world and the characters read as one toy box.
-// Wobbly-Life-ish: sunny, saturated, soft. No pure black, no pure white surfaces.
+// Toy-box: sunny, saturated, soft. No pure black, no pure white surfaces.
 
 export const PALETTE = {
   // Outdoors
@@ -11,7 +11,7 @@ export const PALETTE = {
   treeLeaf: ['#5CCB5F', '#46B35A', '#7BD66B'],
   treeTrunk: '#9C6B43',
   cloud: '#FFFFFF',
-  // Day sky from the art brief (docs/ART-REFERENCE.md §3.5): almost flat, saturated azure.
+  // Day sky from the art brief (docs/ART-DIRECTION.md §3.5): almost flat, saturated azure.
   skyDayTop: '#2AABFF',
   skyDayHorizon: '#6CC8FF',
   cloudTint: '#E6F4FC',

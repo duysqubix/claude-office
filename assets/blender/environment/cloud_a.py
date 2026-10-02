@@ -36,7 +36,7 @@ META = dict(
     category="outdoor",
     priority="P0",
     description=("Long lazy cumulus: one soft merged surface with a flat belly, about 4.7 m long; "
-                 "faintly blue white (#E6F4FC) like WL's"),
+                 "faintly blue white (#E6F4FC)"),
     tags=["cloud", "sky", "decor"],
     tintable=[],
     anchors={},

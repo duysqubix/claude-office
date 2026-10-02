@@ -2,7 +2,7 @@
 
 Head items pivot at the head centre (Blender origin = head centre, front -Y, character-left
 +X); torso items pivot at the torso origin (the pelvis), see _kit.MOUNTS. Hats are mostly
-lathed (smooth, cheap, easy to read) and tilted a touch back like Wobbly Life hats."""
+lathed (smooth, cheap, easy to read) and tilted a touch back, cartoon style."""
 import math
 
 from characters import _kit as kit

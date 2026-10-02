@@ -10,7 +10,7 @@ AO_RES = 256
 H = 0.38
 META = dict(
     name="Intern stool", category="furniture", priority="P0",
-    description="Little wobbly stool for interns",
+    description="Little round stool for interns",
     tags=["interns", "seating"], tintable=["Seat"], anchors_bl={"seat": (0, 0, H + 0.03)},
 )
 

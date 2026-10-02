@@ -136,7 +136,7 @@ Entry points: `client/src/engine/index.ts` exports `createEngine(canvas): Engine
 
 ## 6. Art direction
 
-Reference: **Wobbly Life**. Toy-box world: chunky rounded shapes, saturated sunny
+Toy-box world: chunky rounded shapes, saturated sunny
 colours, smooth soft shading, soft shadows, no outlines, no hard edges anywhere.
 Everything should look like it's made of soft plastic or jelly. Use `PALETTE`.
 
@@ -265,7 +265,7 @@ State machine per employee: `entering → sitting-down → seated → standing-u
   mouse-look, manager's body hidden with the coffee mug in view, crosshair targeting.
 - Door: keep open while anyone is within 2.5 m.
 
-### 6.8 UI (HTML overlay, Wobbly Life energy)
+### 6.8 UI (HTML overlay, toy-box energy)
 
 - Font: Fredoka (`@fontsource/fredoka`, weights 400/600/700).
 - Panels: `PALETTE.paper` background, 4 px `PALETTE.ink` border, 20 px radius, chunky

@@ -2,7 +2,7 @@
 
 # Claude Office
 
-**Your Claude Code sessions, as a wobbly little 3D office. You're the manager.**
+**Your Claude Code sessions, as a cosy little 3D office. You're the manager.**
 
 [![Node 20+](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![macOS | Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-555)](#quick-start)
@@ -65,8 +65,8 @@ office only **reads** Claude Code's own files and changes nothing in your Claude
   </tr>
 </table>
 
-Art direction: chunky, sunny, toy-like, wobbly. Think *Wobbly Life*: round heads,
-stubby limbs, springy physics-y movement, bright colours, soft shadows.
+Art direction: chunky, sunny and toy-like. Round heads, stubby limbs, springy movement
+that trails a beat behind the controls, bright colours, soft shadows.
 
 ## Features
 

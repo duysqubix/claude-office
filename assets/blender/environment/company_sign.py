@@ -1,6 +1,6 @@
 """Company sign: a lawn monument. A chunky Claude-orange panel with a cream inset border,
-raised two-tone "CLAUDE OFFICE" letters (cream faces over fat terracotta outlines, like
-Wobbly Life's shop signs) and a sparkle, on a two-step stone plinth with a row of flowering
+raised two-tone "CLAUDE OFFICE" letters (cream faces over fat terracotta outlines, like a
+toy-town shop sign) and a sparkle, on a two-step stone plinth with a row of flowering
 bushes in front. 3.1 m wide, 1.5 m tall. Origin at the ground centre; reads from -Y."""
 import math
 

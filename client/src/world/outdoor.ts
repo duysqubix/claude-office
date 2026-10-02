@@ -1,5 +1,5 @@
 // Outside: a mown lawn, paved apron and path to the door, doormat, the company sign, faceted
-// low-poly trees and bushes (smooth people against faceted nature, as in Wobbly Life), grass
+// low-poly trees and bushes (smooth people against faceted nature), grass
 // tufts along the edges, a bench, a ping-pong table, a hedge around the garden and rolling
 // hills fading into the haze.
 import * as THREE from 'three';

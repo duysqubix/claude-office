@@ -179,7 +179,7 @@ def torso(M, girth=1.0, chest_node=True, tuck=True, emblem=True, verts=24):
     up = _slice(prof, CHEST_Y, prof[-1][1])
     chest = [lathe_part("ShirtUp", up, M["shirt"], normals_from=prof, verts=verts)]
     if emblem and "accent" in M:
-        # A little round print on the left chest, like Wobbly Life's tops.
+        # A little round print on the left chest, like a cartoon tee.
         p, n = torso_surface(0.085 * girth, 0.2, girth)
         chest.append(lib.cyl("Emblem", 0.026, 0.006, tuple(p + n * 0.001), M["accent"],
                              r=0.002, seg=1, verts=18, rot=align_z(n)))

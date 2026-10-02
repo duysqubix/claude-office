@@ -3,7 +3,7 @@
 // there: lagging, overshooting once, settling. Root motion is watched too, so starting,
 // stopping, turning and landing push the body around without anyone scripting it.
 // Controls stay snappy (the root moves at once); only the body trails. Numbers follow
-// docs/ART-REFERENCE.md §2.
+// docs/ART-DIRECTION.md §2.
 import * as THREE from 'three';
 import { AngleSpring, Spring, angleDelta, clamp, damp } from './spring';
 import { DIM, HEAD_Y, type MouthShape, type Rig } from './rig';
@@ -245,7 +245,7 @@ export class Body {
   // Behaviour helpers
 
   /**
-   * Walk/run cycle (ART-REFERENCE §2.5): WL's quick short steps, knees lifting the swing
+   * Walk/run cycle (ART-DIRECTION §2.5): quick short steps, knees lifting the swing
    * foot, a waddle bob and a sway toward the stance foot, straight-ish arms swinging
    * against the legs at a walk and pumping with bent elbows at a run (never up).
    * `speed` m/s along the facing direction; `run` 0..1; `scale` shrinks steps for interns.

@@ -1,5 +1,5 @@
 // The intern desk: a scrappy bench of plywood on sawhorses, with little hand-me-down monitors
-// and wobbly stools, where every subagent works. It is built from 1.6 m modules placed back to
+// and little round stools, where every subagent works. It is built from 1.6 m modules placed back to
 // back (2 stations a side each), grows one module pair at a time, and when the indoor spot is
 // full a second bench appears on the lawn. Catalog models (intern_bench, intern_station,
 // intern_stool, intern_sign) replace the procedural pieces when they are available.
@@ -415,7 +415,7 @@ export function buildInternStation(b: Batch, d = ST): void {
   b.box(0.2, 0.006, 0.06, '#C9C1AE', { at: [0, 0.019, 0.15], r: 0.003, cast: false });
 }
 
-/** A round wobbly stool sized for a 0.7-scale intern. */
+/** A little round stool sized for a 0.7-scale intern. */
 export function buildInternStool(b: Batch, d = SL): void {
   b.puck(d.r, 0.06, STOOL_SEAT, { at: [0, d.seatH - 0.03, 0], finish: 'plastic' });
   for (let i = 0; i < 3; i++) {

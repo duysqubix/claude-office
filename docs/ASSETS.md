@@ -6,7 +6,7 @@ themselves (`npm run catalog`).
 
 Priorities: **P0** the game uses now (replaces procedural geometry) · **P1** richer office ·
 **P2** fun extras for future gameplay. Work P0 → P1 → P2. Read `docs/BLENDER.md` (pipeline)
-and `docs/ART-REFERENCE.md` (Wobbly Life look) first.
+and `docs/ART-DIRECTION.md` (the look) first.
 
 ## How it fits together
 

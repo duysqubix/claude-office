@@ -1,6 +1,6 @@
 """Head: a soft egg of a sphere (r = headR 0.27; the jaw a touch fuller, the face band on the
 true sphere so rig.ts features still sit right), `Skin`, with two translucent blush cheeks
-(`Cheek`, alpha-blended). No ears or nose: Wobbly-style. Pivot at the head centre."""
+(`Cheek`, alpha-blended). No ears or nose: toy style. Pivot at the head centre."""
 from characters import _kit as kit
 
 import lib

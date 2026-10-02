@@ -620,7 +620,7 @@
   pointer-events: auto;
   animation: co-panel-in 300ms var(--spring-pop) both, co-fade-in 100ms linear both;
 }
-/* WL's inner bevel band: a soft light line just inside the ink border, over the band too. */
+/* Inner bevel band: a soft light line just inside the ink border, over the band too. */
 .co-panel::after {
   content: '';
   position: absolute;

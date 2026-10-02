@@ -223,7 +223,7 @@ root.append(
   section(
     'tokens',
     'Colour and type',
-    'Ink text on every fill, except paper on danger and on the dark wells. Amber belongs to needs-you alone. Panels stay paper (our palette, Wobbly Life energy).',
+    'Ink text on every fill, except paper on danger and on the dark wells. Amber belongs to needs-you alone. Panels stay paper (our palette, toy-box energy).',
     el(
       'div',
       { class: 'kit-swatches' },
@@ -409,7 +409,7 @@ root.append(
   section(
     'labels',
     'Labels over people',
-    'Name pills fade with distance; chatter bubbles are Wobbly Life dialogue glass; needs-you bubbles are solid amber with the bouncing "!" above. Every state has a glyph as well as a colour.',
+    'Name pills fade with distance; chatter bubbles are glassy dialogue bubbles; needs-you bubbles are solid amber with the bouncing "!" above. Every state has a glyph as well as a colour.',
     stage,
   );
 }
@@ -591,7 +591,7 @@ root.append(
   section(
     'panels',
     'Panels',
-    'Docked right, one at a time. A coloured band with an outlined Wobbly Life title; a person panel puts their face across the band edge. Confirms happen in place. The ask card sits at the top when they have one.',
+    'Docked right, one at a time. A coloured band with a chunky outlined title; a person panel puts their face across the band edge. Confirms happen in place. The ask card sits at the top when they have one.',
     el(
       'div',
       { class: 'kit-cols' },
