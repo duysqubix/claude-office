@@ -48,6 +48,11 @@ import type { Interactable } from './world/types';
 const params = new URLSearchParams(location.search);
 /** Deep-link debug params (panel, term, focus, near, pose, debug): dev builds only. */
 const devParam = (name: string): string | null => (import.meta.env.DEV ? params.get(name) : null);
+/** A number from the URL, or null if it's missing or not a number (a NaN would break the camera). */
+const numParam = (name: string): number | null => {
+  const n = Number(params.get(name) || NaN);
+  return Number.isFinite(n) ? n : null;
+};
 const DEG = Math.PI / 180;
 // ?seed=<n>: every Math.random() in the page is seeded, so screenshots repeat (who sits where).
 const seedParam = Number(params.get('seed') ?? NaN);
@@ -537,9 +542,12 @@ function runOffice(): void {
     camera.pitch = camera.indoorDefaults.pitch;
     camera.dist = camera.indoorDefaults.dist;
   }
-  if (params.has('yaw')) camera.yaw = Number(params.get('yaw')) * DEG;
-  if (params.has('pitch')) camera.pitch = Number(params.get('pitch')) * DEG;
-  if (params.has('dist')) camera.dist = Number(params.get('dist'));
+  const yaw = numParam('yaw');
+  if (yaw !== null) camera.yaw = yaw * DEG;
+  const pitch = numParam('pitch');
+  if (pitch !== null) camera.pitch = pitch * DEG;
+  const dist = numParam('dist');
+  if (dist !== null) camera.dist = dist;
   const view = params.get('view');
   if (view === 'first' || view === 'third') camera.setMode(view);
   const near = devParam('near');
@@ -737,9 +745,9 @@ function runLineup(): void {
   const centre = new THREE.Vector3(0, 0, 0.5);
   const lineup = createLineup(scene, centre, 0, pose);
   const cam = engine.camera;
-  const dist = Number(params.get('dist') ?? 6.5);
-  const lx = Number(params.get('lx') ?? 0);
-  const ly = Number(params.get('ly') ?? 0.75);
+  const dist = numParam('dist') ?? 6.5;
+  const lx = numParam('lx') ?? 0;
+  const ly = numParam('ly') ?? 0.75;
   cam.position.set(lx, ly + 0.6, centre.z + dist);
   cam.lookAt(lx, ly, centre.z);
   const timer = new THREE.Timer();

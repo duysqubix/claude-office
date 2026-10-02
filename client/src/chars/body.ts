@@ -618,7 +618,7 @@ export class Body {
 
     // A held mug stays upright whatever the arm is doing (unless we're sipping).
     if (rig.mug) {
-      root.updateMatrixWorld(true);
+      // getWorldQuaternion brings the hand's chain up to date itself.
       rig.mug.parent!.getWorldQuaternion(_q);
       _q2.setFromAxisAngle(_up, yawNow);
       rig.mug.quaternion.copy(_q.invert().multiply(_q2));
