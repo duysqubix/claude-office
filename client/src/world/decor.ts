@@ -48,10 +48,10 @@ function buildOddsAndEnds(ctx: WorldCtx): void {
   void swapModel(ctx, floor('fire-extinguisher', 1.95, OFFICE.halfD - 0.25, 0.3, 0.3, (b) => buildExtinguisher(b)), 'fire_extinguisher', { yaw: Math.PI });
   void swapModel(ctx, floor('trash-bin', -8.8, -OFFICE.halfD + 0.3, 0.36, 0.36, (b) => buildBin(b, '#5CC8FF', 0.34)), 'trash_bin', { tint: { Accent: '#5CC8FF' } });
   void swapModel(ctx, floor('recycling-bin', OFFICE.halfW - 0.3, -0.9, 0.4, 0.4, (b) => buildBin(b, '#4CB860', 0.62)), 'recycling_bin', { yaw: -Math.PI / 2 });
-  // The receptionist: a very good dog behind the counter (already walled in by its colliders).
+  // The receptionist's very good dog, behind the counter and out of the stool's way.
   const dogSpot = new THREE.Group();
   dogSpot.name = 'reception-dog';
-  dogSpot.position.set(6.95, 0, 8.95);
+  dogSpot.position.set(7.55, 0, 9.3);
   ctx.root.add(dogSpot);
   void addModel(dogSpot, 'pet_dog', { yaw: (-3 * Math.PI) / 4 }).then((dog) => wag(ctx, dog, 0.9));
 }

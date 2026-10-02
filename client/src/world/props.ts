@@ -6,12 +6,13 @@
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
 import type { OfficeStats } from './types';
-import { Batch, CanvasTex, fitText, font, G, rng, shade, type Vec3 } from './kit';
+import { Batch, CanvasTex, ellipsize, fitText, font, G, rng, shade, type Vec3 } from './kit';
 import { aabb, footprint, type WallSide, type WorldCtx } from './ctx';
 import { wallFacingYaw } from './building';
 import { OFFICE } from './layout';
 import D from './dimensions.json';
-import { sparkle } from './screens';
+import { inView, sparkle, type ScreenView } from './screens';
+import { buildMonitor } from './desks';
 import { couch } from './decor';
 import { catalogItem, findNode } from '../models';
 import { addModel, anchorOf, ownCanvas, swapModel, type SwapOptions } from './modelkit';
@@ -22,10 +23,19 @@ const BOARD_X = -5.6;
 
 export interface Props {
   setStats(stats: OfficeStats): void;
+  reception: Reception;
+}
+
+/** The front desk: the receptionist's spot and the welcome display on the counter. */
+export interface Reception {
+  seat: THREE.Vector3;
+  yaw: number;
+  approach: THREE.Vector3;
+  display: ReceptionDisplay;
 }
 
 export function buildProps(ctx: WorldCtx): Props {
-  buildReception(ctx);
+  const reception = buildReception(ctx);
   buildManagerCorner(ctx);
   buildBreakArea(ctx);
   buildLounge(ctx);
@@ -33,7 +43,7 @@ export function buildProps(ctx: WorldCtx): Props {
   buildPosters(ctx);
   buildClock(ctx);
   buildPlants(ctx);
-  return { setStats: board.setStats };
+  return { setStats: board.setStats, reception };
 }
 
 export interface PropPlacement {
@@ -106,23 +116,56 @@ export function sway(ctx: WorldCtx, obj: THREE.Object3D, amp: number, phase: num
 
 const RECEPTION_YAW = (-3 * Math.PI) / 4; // the visitor side faces the door and the boulevard
 
-function buildReception(ctx: WorldCtx): void {
+function buildReception(ctx: WorldCtx): Reception {
   const R = D.reception;
+  const RD = D.receptionDesk;
   // Arc centre in the room; the builder's pivot is the middle of the counter's footprint.
   const arcX = 6.7;
   const arcZ = 8.7;
   const mid = (R.innerR + R.outerR) / 2;
   const px = arcX + Math.sin(RECEPTION_YAW) * mid;
   const pz = arcZ + Math.cos(RECEPTION_YAW) * mid;
+  const frame = new THREE.Matrix4().makeRotationY(RECEPTION_YAW).setPosition(px, 0, pz);
+  /** A point in the desk's own frame (front +Z = the visitors' side), in world space. */
+  const onDesk = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyMatrix4(frame);
+
   const desk = staticProp(ctx, 'reception-desk', (b) => buildReceptionDesk(b), { at: [px, pz], yaw: RECEPTION_YAW });
+  // The welcome display stands on the counter's door-side end, turned out toward the visitors.
+  const display = new ReceptionDisplay();
+  const monitor = new THREE.Group();
+  monitor.name = 'reception-monitor';
+  frame
+    .clone()
+    .multiply(new THREE.Matrix4().makeRotationY(RD.monitorTurn).setPosition(RD.monitor[0], R.h, RD.monitor[1]))
+    .decompose(monitor.position, monitor.quaternion, monitor.scale);
+  ctx.root.add(monitor);
+  const screen = buildReceptionMonitor(monitor, display);
   void swapModel(ctx, desk, 'reception_desk', { tint: { Accent: '#5CC8FF' } }).then(async (m) => {
     if (!m) return;
-    // The model's counter: the bell at its anchor, and a cactus at the far end.
+    // The model's counter is a little higher: the bell at its anchor, a cactus at the far end.
+    monitor.position.y = RD.counterH;
     const bell = await anchorOf('reception_desk', 'bell');
     if (!bell) return;
     void addModel(desk, 'service_bell', { at: [bell.x, bell.y, bell.z], tint: { Accent: '#FF5A5F' } });
     void addModel(desk, 'cactus', { at: [-0.85, bell.y, -0.12], yaw: 0.6, fit: { h: 0.22, uniform: true }, tint: { Accent: '#FF9DCB' } });
   });
+  void swapModel(ctx, monitor, 'monitor', { scale: RD.monitorScale, hide: ['Screen'] }).then((m) => {
+    // Our canvas goes onto the model's own (hidden) screen.
+    const glass = m && findMesh(m, 'Screen');
+    if (!glass) return;
+    monitor.updateMatrixWorld(true);
+    if (!glass.geometry.boundingBox) glass.geometry.computeBoundingBox();
+    const box = glass.geometry.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().copy(monitor.matrixWorld).invert().multiply(glass.matrixWorld));
+    const size = box.getSize(new THREE.Vector3());
+    screen.position.set((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, box.max.z + 0.002);
+    screen.scale.set(size.x, size.y, 1);
+  });
+
+  // The receptionist's stool behind the counter, facing the visitors.
+  const stoolAt = onDesk(RD.stool[0], 0, RD.stool[1]);
+  const stool = staticProp(ctx, 'reception-stool', (b) => buildReceptionStool(b), { at: [stoolAt.x, stoolAt.z], yaw: RECEPTION_YAW });
+  void anchorOf('stool', 'seat').then((seat) => swapModel(ctx, stool, 'stool', { scale: seat ? RD.stoolSeatH / seat.y : 1, tint: { Seat: '#FFC94A' } }));
+  ctx.blobs.add(stoolAt.x, stoolAt.z, 0.5, 0.5, { shape: 'round' });
   ctx.colliders.push(aabb(5.1, 5.8, 7.75, 9.2), aabb(5.7, 7.2, 7.1, 7.8), aabb(5.3, 6.1, 7.3, 8.1));
   ctx.blobs.add(5.8, 8.1, 2.4, 2.4, { shape: 'round' });
 
@@ -138,11 +181,12 @@ function buildReception(ctx: WorldCtx): void {
     face.rotation.set(-0.26, side > 0 ? 0 : Math.PI, 0, 'YXZ');
     return face;
   });
-  const sx = 3.6;
-  const sz = 8.9;
-  const board = tallProp(ctx, 'hiring-sign', (b) => buildSandwichBoard(b), { extra: faces, at: [sx, sz], yaw: Math.atan2(-sx, OFFICE.halfD + 1 - sz) });
+  // Turned so both printed faces read: the front toward the door, the back toward the room.
+  const sx = 3.2;
+  const sz = 8.8;
+  const board = tallProp(ctx, 'hiring-sign', (b) => buildSandwichBoard(b), { extra: faces, at: [sx, sz], yaw: -0.35 });
   void swapModel(ctx, board, 'now_hiring_sign');
-  ctx.colliders.push(footprint(sx, sz, 0.75, 0.75));
+  ctx.colliders.push(footprint(sx, sz, 0.75, 0.6));
   ctx.blobs.add(sx, sz, 0.8, 0.7);
 
   ctx.interactables.push({
@@ -152,6 +196,192 @@ function buildReception(ctx: WorldCtx): void {
     radius: 1.7,
     label: 'Hire someone',
   });
+
+  return {
+    seat: new THREE.Vector3(stoolAt.x, RD.stoolSeatH, stoolAt.z),
+    yaw: RECEPTION_YAW,
+    approach: onDesk(RD.approach[0], 0, RD.approach[1]),
+    display,
+  };
+}
+
+/** The first mesh drawn with material `name` (e.g. a model's Screen). */
+function findMesh(root: THREE.Object3D, name: string): THREE.Mesh | null {
+  let found: THREE.Mesh | null = null;
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!found && mesh.isMesh && !Array.isArray(mesh.material) && mesh.material.name === name) found = mesh;
+  });
+  return found;
+}
+
+/**
+ * The welcome display's procedural monitor (bigger than a desk monitor) and its screen plane, a
+ * unit plane scaled to the screen. Origin on the counter top.
+ */
+function buildReceptionMonitor(group: THREE.Group, display: ReceptionDisplay): THREE.Mesh {
+  const k = D.receptionDesk.monitorScale;
+  const body = new Batch();
+  body.place(0, 0, 0, 0, () => buildMonitor(body, '#5CC8FF'));
+  const built = body.build({ name: 'reception-monitor-body' });
+  built.scale.setScalar(k);
+  group.add(built);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), display.material);
+  screen.name = 'reception-screen';
+  screen.userData.keep = true;
+  screen.position.set(0, (D.monitor.centerY - D.desk.h) * k, (D.monitor.d / 2 + 0.002) * k);
+  screen.scale.set(D.monitor.screenW * k, D.monitor.screenH * k, 1);
+  group.add(screen);
+  display.attach(screen);
+  return screen;
+}
+
+/** Counter-height stool for the receptionist: four legs, a footrest ring, a round seat. Faces +Z. */
+export function buildReceptionStool(b: Batch, d = D.receptionDesk): void {
+  const h = d.stoolSeatH;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    b.cyl(0.018, 0.022, h - 0.04, PALETTE.wood, { at: [Math.sin(a) * 0.13, (h - 0.04) / 2, Math.cos(a) * 0.13], rot: [Math.cos(a) * -0.1, 0, Math.sin(a) * 0.1], seg: 8, finish: 'wood' });
+  }
+  b.torus(0.15, 0.012, PALETTE.wood, { at: [0, h * 0.4, 0], rot: [Math.PI / 2, 0, 0] });
+  b.puck(0.19, 0.06, '#FFC94A', { at: [0, h - 0.03, 0], finish: 'cloth' });
+}
+
+/**
+ * The reception's welcome display: a clock and the date, this month's calendar, and today's
+ * visitors with the names on the desks. Repaints once a minute (or when the names change),
+ * and only while the camera can see it.
+ */
+export class ReceptionDisplay {
+  readonly material: THREE.MeshBasicMaterial;
+  private readonly tex: CanvasTex;
+  private mesh: THREE.Mesh | null = null;
+  private visitors = 0;
+  private names: string[] = [];
+  private shown = '';
+
+  constructor() {
+    this.tex = new CanvasTex(480, 316, (c, w, h) => this.draw(c, w, h));
+    // Light theme, so only a touch over 1: the screen glows a little without blooming out.
+    this.material = new THREE.MeshBasicMaterial({ map: this.tex.tex, color: new THREE.Color(1.06, 1.06, 1.06) });
+  }
+
+  attach(mesh: THREE.Mesh): void {
+    this.mesh = mesh;
+    mesh.geometry.computeBoundingSphere();
+  }
+
+  /** Today's visitor count (sessions started today). */
+  setVisitors(n: number): void {
+    this.visitors = n;
+  }
+
+  /** Per frame: `names` lists who is at a desk right now. */
+  update(names: string[], view?: ScreenView): void {
+    this.names = names;
+    const now = new Date();
+    const key = `${now.getHours()}:${now.getMinutes()}|${this.visitors}|${names.slice(0, 4).join(',')}`;
+    if (key === this.shown) return;
+    if (view && this.mesh && !inView(this.mesh, view, 14)) return;
+    this.shown = key;
+    this.tex.redraw();
+  }
+
+  private draw(c: CanvasRenderingContext2D, w: number, h: number): void {
+    const now = new Date();
+    const bg = c.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#FFF8EC');
+    bg.addColorStop(1, '#FCEBD5');
+    c.fillStyle = bg;
+    c.fillRect(0, 0, w, h);
+    // Header.
+    c.fillStyle = PALETTE.claude;
+    c.beginPath();
+    c.roundRect(10, 10, w - 20, 50, 16);
+    c.fill();
+    sparkle(c, 38, 35, 15, '#FFFDF7', 0.2);
+    c.fillStyle = '#FFFDF7';
+    c.textAlign = 'left';
+    c.textBaseline = 'middle';
+    fitText(c, 'Welcome to Claude Office', 700, 26, w - 90);
+    c.fillText('Welcome to Claude Office', 62, 36);
+
+    // Clock and date.
+    c.fillStyle = PALETTE.ink;
+    c.font = font(700, 64);
+    c.fillText(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`, 22, 112);
+    c.fillStyle = '#6B7280';
+    c.font = font(600, 18);
+    c.fillText(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }), 24, 160);
+
+    // This month's calendar, today ringed.
+    const cx = 268;
+    const cy = 74;
+    const cw = 194;
+    c.fillStyle = '#FFFFFF';
+    c.beginPath();
+    c.roundRect(cx, cy, cw, 118, 12);
+    c.fill();
+    c.strokeStyle = '#F2C9A4';
+    c.lineWidth = 2;
+    c.stroke();
+    c.fillStyle = '#5CC8FF';
+    c.beginPath();
+    c.roundRect(cx, cy, cw, 24, [12, 12, 0, 0]);
+    c.fill();
+    c.fillStyle = '#FFFFFF';
+    c.font = font(700, 14);
+    c.textAlign = 'center';
+    c.fillText(now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }), cx + cw / 2, cy + 13);
+    const first = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+    const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const step = cw / 7;
+    c.font = font(600, 11);
+    for (let d = 1; d <= days; d++) {
+      const cell = first + d - 1;
+      const x = cx + step * ((cell % 7) + 0.5);
+      const y = cy + 34 + Math.floor(cell / 7) * 16;
+      if (d === now.getDate()) {
+        c.fillStyle = PALETTE.claude;
+        c.beginPath();
+        c.arc(x, y, 8, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#FFFDF7';
+      } else {
+        c.fillStyle = (cell % 7) % 6 === 0 ? '#9CA3AF' : '#374151';
+      }
+      c.fillText(String(d), x, y + 0.5);
+    }
+
+    // Today's visitors: the count, and the names at their desks.
+    c.textAlign = 'left';
+    c.fillStyle = PALETTE.ink;
+    c.font = font(700, 18);
+    c.fillText(`Visitors today: ${this.visitors || this.names.length}`, 22, 206);
+    const chips = this.names.slice(0, 4);
+    if (chips.length === 0) {
+      c.fillStyle = '#9CA3AF';
+      c.font = font(600, 16);
+      c.fillText('Nobody signed in yet', 22, 240);
+    }
+    chips.forEach((name, i) => {
+      const x = 22 + (i % 2) * 222;
+      const y = 236 + Math.floor(i / 2) * 40;
+      const col = PALETTE.deskAccents[i % PALETTE.deskAccents.length];
+      c.fillStyle = col;
+      c.beginPath();
+      c.arc(x + 14, y, 14, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#FFFDF7';
+      c.font = font(700, 14);
+      c.textAlign = 'center';
+      c.fillText(name.slice(0, 1).toUpperCase(), x + 14, y + 1);
+      c.textAlign = 'left';
+      c.fillStyle = PALETTE.ink;
+      c.font = font(600, 16);
+      c.fillText(ellipsize(c, name, 170), x + 36, y + 1);
+    });
+  }
 }
 
 /** The sandwich board's printed face: NOW HIRING with a star. */

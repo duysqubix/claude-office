@@ -120,6 +120,12 @@ export interface World {
   interior: { minX: number; maxX: number; minZ: number; maxZ: number; ceilingY: number };
   /** True if a point is inside the building (used to keep the camera on the manager's side of the walls). */
   isInside(p: THREE.Vector3): boolean;
+  /**
+   * The front desk's receptionist spot (a permanent NPC): `seat` is the pelvis point on the
+   * stool behind the counter, `yaw` faces the visitors, `approach` is the walkable floor point
+   * just behind the stool to walk to before sitting.
+   */
+  reception: { seat: THREE.Vector3; yaw: number; approach: THREE.Vector3 };
   /** A* over the walkable floor. Returns smoothed floor points (y = 0) from `from` to `to`, or null if unreachable. */
   findPath(from: THREE.Vector3, to: THREE.Vector3): THREE.Vector3[] | null;
   /** Per-frame animation (door, screens, clock, plants swaying…). */

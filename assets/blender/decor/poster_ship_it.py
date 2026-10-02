@@ -6,7 +6,7 @@ import math
 
 import lib
 from decor import _decor as D
-from decor import _wall as Wl
+from decor import _wall as wallkit
 
 NAME = "poster_ship_it"
 AO_RES = 512
@@ -91,7 +91,7 @@ def lettering(M, face):
 def build():
     lib.begin(NAME)
     M = materials()
-    face = Wl.framed("Poster", W, H, M["board"], M["frame"])
+    face = wallkit.framed("Poster", W, H, M["board"], M["frame"])
     sky(M, face)
     rocket(M, face)
     lettering(M, face)

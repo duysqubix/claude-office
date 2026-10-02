@@ -133,6 +133,11 @@ export class DeskSystem {
     this.queueSwap();
   }
 
+  /** Names on the desks right now, in desk order. */
+  names(): string[] {
+    return this.runtimes.map((d) => d.plate.name).filter((n) => n.length > 0);
+  }
+
   update(dt: number, elapsed: number, view?: ScreenView): void {
     for (const d of this.runtimes) d.screen.update(dt, elapsed, view);
     // Gameplay slides the chair wrappers; the instanced chairs follow them.
@@ -506,7 +511,7 @@ export function buildDeskClutter(b: Batch, r: () => number, side: number, kind =
 class Nameplate {
   readonly material: THREE.MeshStandardMaterial;
   private readonly tex: CanvasTex;
-  private name = '';
+  name = '';
   private subtitle = '';
 
   constructor(

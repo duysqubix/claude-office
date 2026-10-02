@@ -6,7 +6,7 @@ import math
 
 import lib
 from decor import _decor as D
-from decor import _wall as Wl
+from decor import _wall as wallkit
 
 NAME = "cork_board"
 AO_RES = 512
@@ -58,7 +58,7 @@ def note(name, M, key, w, h, x, z, spin, face, pin, extras=None, s=1.3):
 def build():
     lib.begin(NAME)
     M = materials()
-    face = Wl.framed("Board", W, H, M["cork"], M["frame"], tube=0.024)
+    face = wallkit.framed("Board", W, H, M["cork"], M["frame"], tube=0.024)
 
     def todo(y):
         D.text("Todo_Txt", "TODO", 0.02, M["ink"], loc=(0, y - 0.0003, 0.028), depth=0, res=2)

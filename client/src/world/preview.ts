@@ -89,6 +89,14 @@ const controls = new OrbitControls(engine.camera, canvas);
 controls.target.set(...view.look);
 controls.enableDamping = true;
 controls.update();
+// For scripted camera moves (filmstrips): window.__view.move([x, y, z], [lx, ly, lz]).
+(window as unknown as { __view: { move(pos: number[], look: number[]): void } }).__view = {
+  move(pos, look) {
+    engine.camera.position.set(pos[0], pos[1], pos[2]);
+    controls.target.set(look[0], look[1], look[2]);
+    controls.update();
+  },
+};
 
 // ---- Demo content ------------------------------------------------------------------------------
 const names = ['Claudette', 'Claudius', 'Clyde', 'Claudia', 'Klaus', 'Claudine', 'Clod', 'Claudio', 'Clawdia', 'Claudson', 'Clancy'];
@@ -149,6 +157,7 @@ function selfCheck(): CheckResult {
     ['entrance.inside', world.entrance.inside],
     ['entrance.outside', world.entrance.outside],
   ];
+  pts.push(['reception.approach', world.reception.approach]);
   for (const d of world.desks) pts.push([`desk${d.index}.approach`, d.approach]);
   for (const s of world.internSlots) pts.push([`intern${s.index}.approach`, s.approach]);
   const bad: string[] = [];
@@ -187,6 +196,16 @@ function selfCheck(): CheckResult {
       const to = screen.getWorldPosition(new THREE.Vector3()).sub(s.seat).setY(0).normalize();
       if (to.x * Math.sin(s.yaw) + to.z * Math.cos(s.yaw) < 0.95) bad.push(`intern${s.index}: yaw does not face the screen`);
     }
+  }
+  {
+    const r = world.reception;
+    const stool = world.root.getObjectByName('reception-stool');
+    ray.set(new THREE.Vector3(r.seat.x, 1.0, r.seat.z), new THREE.Vector3(0, -1, 0));
+    const hit = stool && ray.intersectObject(stool, true)[0];
+    if (!hit || Math.abs(hit.point.y - r.seat.y) > 0.02) bad.push(`reception: seat.y ${r.seat.y} vs stool ${hit?.point.y.toFixed(3) ?? 'none'}`);
+    const counter = world.root.getObjectByName('reception-monitor');
+    const to = counter ? counter.getWorldPosition(new THREE.Vector3()).sub(r.seat).setY(0).normalize() : null;
+    if (!to || to.x * Math.sin(r.yaw) + to.z * Math.cos(r.yaw) < 0.3) bad.push('reception: yaw does not face the counter');
   }
   for (const d of world.desks) {
     ray.set(new THREE.Vector3(d.seat.x, 2, d.seat.z), new THREE.Vector3(0, -1, 0));

@@ -136,6 +136,16 @@
     "h": 0.87,
     "centerY": 1.85
   },
+  "receptionDesk": {
+    "_doc": "The catalog reception desk in its own frame (front +Z = visitors): the receptionist's tall stool (seat high enough that a seated adult reads chest-up over the 1.0-1.07 m counter, and far enough back that their knees clear the inner shelf, top 0.76 m, inner edge z -0.58), the welcome monitor on the counter, and the approach behind the stool.",
+    "counterH": 1.07,
+    "stool": [0, -0.95],
+    "stoolSeatH": 0.68,
+    "approach": [0, -1.55],
+    "monitor": [0.77, -0.17],
+    "monitorTurn": 0.62,
+    "monitorScale": 1.2
+  },
   "hiringBoard": {
     "w": 0.64,
     "h": 0.93,

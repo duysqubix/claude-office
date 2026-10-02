@@ -116,6 +116,7 @@ export function createWorld(engine: Engine): World {
       deskSystem.update(step, elapsed, view);
       interns.update(step, elapsed, view);
       teamRoom.update(view);
+      props.reception.display.update(deskSystem.names(), view);
     },
     updateOcclusion(camera, target) {
       lastCamera = camera;
@@ -130,6 +131,7 @@ export function createWorld(engine: Engine): World {
     },
     setTeamBoard(stats) {
       teamRoom.setStats(stats);
+      props.reception.display.setVisitors(stats.team.sessionsToday);
     },
     internSlots,
     ensureInternSlots(n) {
@@ -144,6 +146,7 @@ export function createWorld(engine: Engine): World {
       return internSlots.length;
     },
     cameraBlockers: ctx.cameraBlockers,
+    reception: { seat: props.reception.seat, yaw: props.reception.yaw, approach: props.reception.approach },
     interior: building.interior,
     isInside(p) {
       const r = building.interior;
