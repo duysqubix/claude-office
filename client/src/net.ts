@@ -1,6 +1,7 @@
 // Talking to the office server: the /ws roster feed (with reconnect + backoff), REST
 // helpers for every endpoint, and the /term bridge. demo.ts implements the same Backend.
 import type {
+  AnswerRequest,
   ApiResult,
   ChatLine,
   ClientMessage,
@@ -17,7 +18,8 @@ export interface TermLink {
   close(): void;
   onOpen: (() => void) | null;
   onData: ((data: string | Uint8Array) => void) | null;
-  onClose: ((reason: string) => void) | null;
+  /** 1000 'detached' = the session ended or was let go; 1008 = not an office session; anything else = dropped. */
+  onClose: ((code: number, reason: string) => void) | null;
 }
 
 export interface Backend {
@@ -39,6 +41,8 @@ export interface Backend {
   rehire(sessionId: string): Promise<ApiResult>;
   fire(sessionId: string): Promise<ApiResult>;
   say(sessionId: string, text: string): Promise<ApiResult>;
+  /** Answer an open Ask in-game. */
+  answer(req: AnswerRequest): Promise<ApiResult>;
   terminal(sessionId: string, cols: number, rows: number): TermLink;
 }
 
@@ -107,6 +111,7 @@ export function createBackend(): Backend {
     rehire: (sessionId) => postApi('/api/rehire', { sessionId }),
     fire: (sessionId) => postApi('/api/fire', { sessionId }),
     say: (sessionId, text) => postApi('/api/say', { sessionId, text }),
+    answer: (req) => postApi('/api/answer', req),
     terminal(sessionId, cols, rows) {
       const q = new URLSearchParams({ id: sessionId, cols: String(cols), rows: String(rows) });
       const sock = new WebSocket(`${wsBase()}/term?${q}`);
@@ -124,7 +129,7 @@ export function createBackend(): Backend {
       };
       sock.onopen = () => link.onOpen?.();
       sock.onmessage = (ev) => link.onData?.(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data as ArrayBuffer));
-      sock.onclose = (ev) => link.onClose?.(ev.reason || (ev.code === 1000 ? 'Session closed.' : `Connection lost (${ev.code}).`));
+      sock.onclose = (ev) => link.onClose?.(ev.code, ev.reason);
       return link;
     },
   };
@@ -170,8 +175,10 @@ export function createBackend(): Backend {
 }
 
 // Presence: lets the office know someone is actually looking (tab visible, recent input).
-let lastInputAt = Date.now();
-const presence = (): ClientMessage => ({ type: 'presence', visible: document.visibilityState === 'visible', lastInputAt });
+// 0 until a real key/pointer/wheel event: a page that was just opened (or a headless
+// screenshot) must not count as a manager, or real sessions' prompts would wait on it.
+let lastInputAt = 0;
+const presence = (): ClientMessage => ({ type: 'presence', visible: document.visibilityState === 'visible', lastInputAt, canAnswer: true });
 
 function watchPresence(current: () => WebSocket | null, send: (msg: ClientMessage) => void): void {
   let lastSent = 0;
@@ -180,12 +187,10 @@ function watchPresence(current: () => WebSocket | null, send: (msg: ClientMessag
     send(presence());
   };
   const onInput = () => {
-    const wasIdle = Date.now() - lastInputAt > 30_000;
     lastInputAt = Date.now();
-    // Input after a quiet spell is news; otherwise a heartbeat every 15 s is plenty.
-    if (wasIdle || Date.now() - lastSent > 15_000) push();
+    if (Date.now() - lastSent > 5_000) push();
   };
-  for (const ev of ['keydown', 'pointerdown', 'wheel'] as const) window.addEventListener(ev, onInput, { capture: true, passive: true });
+  for (const ev of ['keydown', 'pointerdown', 'pointermove', 'wheel'] as const) window.addEventListener(ev, onInput, { capture: true, passive: true });
   document.addEventListener('visibilitychange', push);
   window.setInterval(() => {
     if (current()?.readyState === WebSocket.OPEN) push();
@@ -195,6 +200,8 @@ function watchPresence(current: () => WebSocket | null, send: (msg: ClientMessag
 /** The latest roster, for anything in the UI that wants to read or watch it. */
 export class RosterStore {
   employees: Employee[] = [];
+  /** Latest Team Room numbers (null until the server sends some). */
+  stats: TeamStats | null = null;
   /** Absolute home dir from the server's hello (for "~/…" paths). */
   home = '';
   /** serverNow − Date.now(), so uptimes use the server's clock. */
@@ -205,6 +212,11 @@ export class RosterStore {
   set(list: Employee[], serverNow: number): void {
     this.employees = list;
     this.skew = serverNow - Date.now();
+    for (const fn of this.subs) fn();
+  }
+
+  setStats(stats: TeamStats): void {
+    this.stats = stats;
     for (const fn of this.subs) fn();
   }
 

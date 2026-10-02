@@ -43,6 +43,15 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  // Never report presence: a headless tab must not make the office hold real sessions'
+  // permission prompts for an in-game answer nobody will give.
+  await page.evaluateOnNewDocument(() => {
+    const send = WebSocket.prototype.send;
+    WebSocket.prototype.send = function (d) {
+      if (typeof d === 'string' && d.includes('"presence"')) return;
+      return send.call(this, d);
+    };
+  });
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   await new Promise((r) => setTimeout(r, Number(warmArg)));
 
