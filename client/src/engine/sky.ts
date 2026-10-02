@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
+import { model } from '../models';
 
 /** Gradient sky dome plus a handful of puffy clouds drifting slowly across it. */
 export interface Sky {
@@ -12,8 +13,14 @@ interface Cloud {
   y: number;
   z: number;
   speed: number;
+  /** Rough width in metres (the catalog cloud is scaled to it). */
+  size: number;
+  yaw: number;
   puffs: { x: number; y: number; z: number; sx: number; sy: number; sz: number }[];
 }
+
+/** Catalog clouds (smooth, white): each cluster becomes one of them, sized to the cluster. */
+const CLOUD_IDS = ['cloud_a', 'cloud_b', 'cloud_c'];
 
 const DRIFT_SPAN = 520;
 
@@ -87,6 +94,8 @@ export function createSky(): Sky {
       y: 48 + rand() * 40,
       z: Math.sin(ang) * dist,
       speed: 1.2 + rand() * 1.6,
+      size: size * 3.2,
+      yaw: rand() * Math.PI * 2,
       puffs,
     });
   }
@@ -111,12 +120,29 @@ export function createSky(): Sky {
   const q = new THREE.Quaternion();
   const p = new THREE.Vector3();
   const s = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  /** The catalog clouds, once loaded: one instanced mesh per cloud shape. */
+  let shapes: { mesh: THREE.InstancedMesh; clouds: Cloud[]; width: number }[] | null = null;
+
+  /** Drift along +X and wrap, so the sky slowly changes without ever emptying. */
+  const driftX = (c: Cloud, time: number) => ((((c.x + time * c.speed + DRIFT_SPAN / 2) % DRIFT_SPAN) + DRIFT_SPAN) % DRIFT_SPAN) - DRIFT_SPAN / 2;
 
   function layoutClouds(time: number): void {
+    if (shapes) {
+      for (const shape of shapes) {
+        shape.clouds.forEach((c, i) => {
+          const k = c.size / shape.width;
+          m.compose(p.set(driftX(c, time), c.y, c.z), q.setFromAxisAngle(up, c.yaw), s.set(k, k, k));
+          shape.mesh.setMatrixAt(i, m);
+        });
+        shape.mesh.instanceMatrix.needsUpdate = true;
+      }
+      return;
+    }
     let k = 0;
+    q.identity();
     for (const c of clouds) {
-      // Drift along +X and wrap, so the sky slowly changes without ever emptying.
-      const x = ((((c.x + time * c.speed + DRIFT_SPAN / 2) % DRIFT_SPAN) + DRIFT_SPAN) % DRIFT_SPAN) - DRIFT_SPAN / 2;
+      const x = driftX(c, time);
       for (const puff of c.puffs) {
         p.set(x + puff.x, c.y + puff.y, c.z + puff.z);
         s.set(puff.sx, puff.sy, puff.sz);
@@ -127,6 +153,30 @@ export function createSky(): Sky {
     cloudMesh.instanceMatrix.needsUpdate = true;
   }
   layoutClouds(0);
+
+  // Swap the puff clusters for the catalog clouds (same glowing white material, no fog).
+  void Promise.all(CLOUD_IDS.map((id) => model(id, { shadows: false }))).then((roots) => {
+    const geos = roots.map((root) => {
+      let geo: THREE.BufferGeometry | null = null;
+      root?.traverse((o) => {
+        if (!geo && (o as THREE.Mesh).isMesh) geo = (o as THREE.Mesh).geometry;
+      });
+      return geo as THREE.BufferGeometry | null;
+    });
+    if (geos.some((g) => !g)) return;
+    shapes = geos.map((geo, i) => {
+      const own = clouds.filter((_, k) => k % CLOUD_IDS.length === i);
+      geo!.computeBoundingBox();
+      const mesh = new THREE.InstancedMesh(geo!, cloudMesh.material, own.length);
+      mesh.name = `clouds:${CLOUD_IDS[i]}`;
+      mesh.frustumCulled = false;
+      group.add(mesh);
+      return { mesh, clouds: own, width: geo!.boundingBox!.max.x - geo!.boundingBox!.min.x };
+    });
+    group.remove(cloudMesh);
+    cloudMesh.geometry.dispose();
+    cloudMesh.dispose();
+  });
 
   return {
     group,

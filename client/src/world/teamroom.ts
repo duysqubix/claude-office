@@ -13,8 +13,8 @@ import { aabb, footprint, type WorldCtx } from './ctx';
 import { glassMaterial } from './building';
 import { inView, sparkle, type ScreenView } from './screens';
 import type { FadeItem } from './fader';
-import { disposeGroup, instancedModel, placement } from './modelkit';
-import { paint, swapIn } from '../models';
+import { disposeGroup, instancedModel, placement, swapModel } from './modelkit';
+import { tallProp } from './props';
 
 const WS = D.wallScreen;
 const CT = D.conferenceTable;
@@ -53,13 +53,8 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   screen.add(face);
   board.attach(face);
   ctx.root.add(screen);
-  void swapIn(screen, 'wall_screen').then((m) => {
-    // Our live canvas sits on top; hide the model's own blank screen.
-    m?.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (mesh.isMesh && (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).some((mat) => mat.name === 'Screen')) mesh.visible = false;
-    });
-  });
+  // Our live canvas sits on top; the model's own blank screen is hidden.
+  void swapModel(ctx, screen, 'wall_screen', { hide: ['Screen'] });
 
   // ---- Conference table and chairs -----------------------------------------------------------
   const tableYaw = Math.PI / 2; // long side runs toward the screen
@@ -71,7 +66,7 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   buildConferenceTable(tb);
   table.add(tb.build({ name: 'conference-table-body' }));
   ctx.root.add(table);
-  void swapIn(table, 'conference_table', { tint: { Accent: '#3FB8AF' } });
+  void swapModel(ctx, table, 'conference_table', { tint: { Accent: '#3FB8AF' } });
   ctx.colliders.push(footprint(rx, tableZ, CT.w, CT.d, 1));
   ctx.blobs.add(rx, tableZ, CT.d + 0.5, CT.w + 0.5);
 
@@ -126,12 +121,11 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   flip.add(padFace);
   ctx.root.add(flip);
   let flipFade = ctx.fader.add('flipchart', [flip]);
-  void swapIn(flip, 'flipchart').then((m) => {
+  // glTF UVs run left→right and TOP→bottom (V = 0 at the top), so the canvas must not be flipped
+  // vertically and must not be mirrored: paint() sets flipY = false. (The padFace fallback goes
+  // with the swap, so changing pad.tex here affects only the model.)
+  void swapModel(ctx, flip, 'flipchart', { paint: { Board: padMat } }).then((m) => {
     if (!m) return;
-    // glTF UVs run left→right and TOP→bottom (V = 0 at the top), so the canvas must not be
-    // flipped vertically and must not be mirrored: paint() sets flipY = false. (The padFace
-    // fallback was removed by swapIn, so changing pad.tex here affects only the model.)
-    paint(m, 'Board', padMat);
     ctx.fader.remove(flipFade);
     flipFade = ctx.fader.add('flipchart', [flip]);
   });
@@ -159,7 +153,7 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
       groups.push(g);
     }
     let item: FadeItem = ctx.fader.add(`partition-${side}`, groups);
-    void Promise.all(groups.map((g) => swapIn(g, 'glass_partition', { tint: { Accent: '#3FB8AF' } }))).then((ms) => {
+    void Promise.all(groups.map((g) => swapModel(ctx, g, 'glass_partition', { tint: { Accent: '#3FB8AF' }, materials: { Glass: glassMaterial() } }))).then((ms) => {
       if (ms.every((m) => !m)) return;
       ctx.fader.remove(item);
       item = ctx.fader.add(`partition-${side}`, groups);
@@ -183,14 +177,11 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   buildStickyWall(swb);
   sticky.add(swb.build({ name: 'sticky-wall-body' }));
   ctx.root.add(sticky);
-  void swapIn(sticky, 'sticky_wall');
+  void swapModel(ctx, sticky, 'sticky_wall');
 
   // A little snake plant in the corner by the screen.
-  const plant = new Batch();
-  plant.place(rx + 1.85, 0, WALL_Z + 0.45, 0, () => buildSnakePlant(plant));
-  const plantGroup = plant.build({ name: 'snake-plant' });
-  ctx.root.add(plantGroup);
-  ctx.fader.add('snake-plant', [plantGroup]);
+  const plant = tallProp(ctx, 'snake-plant', (pb) => buildSnakePlant(pb), { at: [rx + 1.85, WALL_Z + 0.45] });
+  void swapModel(ctx, plant, 'plant_snake', { fit: { h: 0.95, uniform: true }, tint: { Accent: '#FF7A6B' } });
   ctx.colliders.push(footprint(rx + 1.85, WALL_Z + 0.45, 0.4, 0.4));
 
   ctx.interactables.push({

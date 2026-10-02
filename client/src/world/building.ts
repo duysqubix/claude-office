@@ -12,6 +12,8 @@ import { Batch, CanvasTex, fitText, pickR, rng, shade, type Vec3 } from './kit';
 import { OFFICE } from './layout';
 import { aabb, type WallSide, type WorldCtx } from './ctx';
 import { sparkle } from './screens';
+import { findNode } from '../models';
+import { disposeGroup, disposeInstanced, instancedModel, placement, swapModel } from './modelkit';
 
 const B = D.building;
 const T = B.wallT;
@@ -118,9 +120,22 @@ interface BayWindows {
   high?: [number, number];
 }
 
+/** One window opening, for the catalog window models. */
+interface WindowSpot {
+  side: WallSide;
+  /** Centre along the wall, and the opening's width. */
+  u: number;
+  width: number;
+  sill: number;
+  high: boolean;
+}
+
 export function buildBuilding(ctx: WorldCtx): Building {
   const b = ctx.statics;
   const glass: THREE.BufferGeometry[] = [];
+  // Window trims are their own batch: the catalog window models replace them.
+  const trims = new Batch();
+  const windows: WindowSpot[] = [];
 
   // ---- Floor -------------------------------------------------------------------------------
   const floorTex = plankTexture();
@@ -136,11 +151,11 @@ export function buildBuilding(ctx: WorldCtx): Building {
   function bay(side: WallSide, u0: number, u1: number, win: BayWindows = {}): void {
     const outer = side === 'north' || side === 'south' ? HW + T : HD;
     const grow = (u: number, dir: number) => (Math.abs(u) < outer - 1e-3 ? u + dir * SEAM : u);
-    const add = (ua: number, ub: number, y0: number, y1: number, thick: number, color: string, r = 0.03, finish: 'matte' | 'soft' = 'matte') => {
+    const add = (ua: number, ub: number, y0: number, y1: number, thick: number, color: string, r = 0.03, finish: 'matte' | 'soft' = 'matte', into = b) => {
       if (ua === u0) ua = grow(ua, -1);
       if (ub === u1) ub = grow(ub, 1);
       const [w, h, d] = dims(side, ub - ua, y1 - y0, thick);
-      b.box(w, h, d, color, { at: wallPoint(side, (ua + ub) / 2, (y0 + y1) / 2), r, finish });
+      into.box(w, h, d, color, { at: wallPoint(side, (ua + ub) / 2, (y0 + y1) / 2), r, finish });
     };
     const pane = (a: number, c: number, y0: number, y1: number) => {
       const [gw, gh, gd] = dims(side, c - a, y1 - y0, 0.02);
@@ -149,14 +164,15 @@ export function buildBuilding(ctx: WorldCtx): Building {
       glass.push(g);
     };
     const frame = (a: number, c: number, y0: number, y1: number, crossY: number | null) => {
-      add(a - 0.08, c + 0.08, y1 - 0.02, y1 + 0.09, T + 0.08, TRIM, 0.04, 'soft');
-      add(a - 0.08, a + 0.02, y0, y1, T + 0.08, TRIM, 0.035, 'soft');
-      add(c - 0.02, c + 0.08, y0, y1, T + 0.08, TRIM, 0.035, 'soft');
-      add(a - 0.1, c + 0.1, y0 - 0.05, y0 + 0.06, T + 0.2, TRIM, 0.045, 'soft');
+      add(a - 0.08, c + 0.08, y1 - 0.02, y1 + 0.09, T + 0.08, TRIM, 0.04, 'soft', trims);
+      add(a - 0.08, a + 0.02, y0, y1, T + 0.08, TRIM, 0.035, 'soft', trims);
+      add(c - 0.02, c + 0.08, y0, y1, T + 0.08, TRIM, 0.035, 'soft', trims);
+      add(a - 0.1, c + 0.1, y0 - 0.05, y0 + 0.06, T + 0.2, TRIM, 0.045, 'soft', trims);
       const mid = (a + c) / 2;
-      add(mid - 0.035, mid + 0.035, y0, y1, 0.09, TRIM, 0.03, 'soft');
-      if (crossY !== null) add(a, c, crossY - 0.03, crossY + 0.03, 0.09, TRIM, 0.025, 'soft');
+      add(mid - 0.035, mid + 0.035, y0, y1, 0.09, TRIM, 0.03, 'soft', trims);
+      if (crossY !== null) add(a, c, crossY - 0.03, crossY + 0.03, 0.09, TRIM, 0.025, 'soft', trims);
       pane(a, c, y0, y1);
+      windows.push({ side, u: mid, width: c - a, sill: y0, high: crossY === null });
     };
 
     const span = win.main ?? win.high;
@@ -244,6 +260,9 @@ export function buildBuilding(ctx: WorldCtx): Building {
   const glassMesh = new THREE.Mesh(mergeAll(glass), glassMaterial());
   glassMesh.name = 'window-glass';
   ctx.root.add(glassMesh);
+  const trimGroup = trims.build({ name: 'window-trims' });
+  ctx.root.add(trimGroup);
+  void swapWindows(ctx, windows, trimGroup);
 
   // ---- Camera blockers ---------------------------------------------------------------------
   const blockerMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -274,6 +293,29 @@ export function buildBuilding(ctx: WorldCtx): Building {
   };
 }
 
+/**
+ * The catalog windows (office_window, clerestory_window: origin at the sill line, centred in the
+ * wall), stretched in X to each opening. Our own glare glass stays; both must load or the
+ * procedural trims stay.
+ */
+async function swapWindows(ctx: WorldCtx, windows: WindowSpot[], trims: THREE.Object3D): Promise<void> {
+  const place = (w: WindowSpot) => {
+    const [x, y, z] = wallPoint(w.side, w.u, w.sill);
+    const yaw = w.side === 'north' || w.side === 'south' ? 0 : -Math.PI / 2;
+    return placement(x, y, z, yaw).multiply(new THREE.Matrix4().makeScale(w.width / D.window.w, 1, 1));
+  };
+  const [main, high] = await Promise.all([
+    instancedModel('office_window', windows.filter((w) => !w.high).map(place), { hide: ['Glass'] }),
+    instancedModel('clerestory_window', windows.filter((w) => w.high).map(place), { hide: ['Glass'] }),
+  ]);
+  if (!main || !high) {
+    for (const m of [main, high]) if (m) disposeInstanced(m.group);
+    return;
+  }
+  ctx.root.add(main.group, high.group);
+  disposeGroup(trims);
+}
+
 function mergeAll(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const pos: number[] = [];
   const nor: number[] = [];
@@ -300,14 +342,22 @@ function buildDoor(ctx: WorldCtx, half: number) {
   // Wall above the door up to the ceiling, with the same band and cornice as its neighbours.
   frame.box(half * 2, H - DH, T, PALETTE.wall, { at: [0, (H + DH) / 2, zc], r: 0.03, finish: 'matte' });
   frame.box(half * 2, 0.12, T + 0.08, TRIM, { at: [0, H - 0.06, zc], r: 0.04 });
-  // Chunky dark frame: two posts and a header, and a threshold strip on the floor.
-  for (const s of [-1, 1]) frame.box(D.door.frameW, DH + 0.12, T + 0.14, dark, { at: [s * (OFFICE.doorHalf + 0.04), (DH + 0.12) / 2, zc], r: 0.05 });
-  frame.box(half * 2 + 0.12, 0.16, T + 0.14, dark, { at: [0, DH + 0.06, zc], r: 0.05 });
-  frame.box(OFFICE.doorHalf * 2, 0.02, T + 0.1, shade(dark, 0.25), { at: [0, 0.008, zc], r: 0.008, cast: false });
+  // Chunky dark frame: two posts and a header, and a threshold strip on the floor. Frame and
+  // panels share a group centred in the doorway, like the catalog sliding_door that replaces them.
+  const door = new THREE.Group();
+  door.name = 'door';
+  door.position.set(0, 0, zc);
+  ctx.root.add(door);
+  const df = new Batch();
+  for (const s of [-1, 1]) df.box(D.door.frameW, DH + 0.12, T + 0.14, dark, { at: [s * (OFFICE.doorHalf + 0.04), (DH + 0.12) / 2, 0], r: 0.05 });
+  df.box(half * 2 + 0.12, 0.16, T + 0.14, dark, { at: [0, DH + 0.06, 0], r: 0.05 });
+  df.box(OFFICE.doorHalf * 2, 0.02, T + 0.1, shade(dark, 0.25), { at: [0, 0.008, 0], r: 0.008, cast: false });
+  door.add(df.build({ name: 'door-frame' }));
 
   const panelW = OFFICE.doorHalf + 0.03;
   const panelH = DH - 0.02;
-  const panels: THREE.Group[] = [];
+  let panels: THREE.Object3D[] = [];
+  let rest = [-panelW / 2, panelW / 2];
   for (const s of [-1, 1]) {
     const p = new Batch();
     const rail = 0.07;
@@ -320,10 +370,20 @@ function buildDoor(ctx: WorldCtx, half: number) {
     const pane = new THREE.Mesh(new THREE.BoxGeometry(panelW - rail * 2, panelH - rail * 2.6, 0.02), glassMaterial());
     pane.position.set(0, panelH / 2 + rail * 0.3, 0);
     g.add(pane);
-    g.position.set(s * (panelW / 2), 0, zc + s * 0.03);
-    ctx.root.add(g);
+    g.position.set(s * (panelW / 2), 0, s * 0.03);
+    door.add(g);
     panels.push(g);
   }
+  // The catalog door's panels are nodes DoorL / DoorR (pivot at each panel's bottom centre).
+  void swapModel(ctx, door, 'sliding_door', { materials: { Glass: glassMaterial() } }).then((m) => {
+    const l = m && findNode(m, 'DoorL');
+    const r = m && findNode(m, 'DoorR');
+    if (!l || !r) return;
+    panels = [l, r];
+    rest = [l.position.x, r.position.x];
+    l.position.x = rest[0] - ease(open) * D.door.travel;
+    r.position.x = rest[1] + ease(open) * D.door.travel;
+  });
 
   // A rounded canopy over the entrance, in the company orange, with a soft underside light.
   const cp = D.canopy;
@@ -334,14 +394,14 @@ function buildDoor(ctx: WorldCtx, half: number) {
 
   let open = 0;
   let goal = 0;
+  const ease = (t: number) => t * t * (3 - 2 * t);
   ctx.tickers.push((dt) => {
     if (open === goal) return;
     open += (goal - open) * (1 - Math.exp(-dt * 7));
     if (Math.abs(goal - open) < 0.002) open = goal;
-    const e = open * open * (3 - 2 * open);
+    const e = ease(open);
     panels.forEach((g, i) => {
-      const s = i === 0 ? -1 : 1;
-      g.position.x = s * (panelW / 2 + e * D.door.travel);
+      g.position.x = rest[i] + (i === 0 ? -1 : 1) * e * D.door.travel;
     });
   });
   return {

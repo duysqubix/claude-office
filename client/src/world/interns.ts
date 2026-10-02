@@ -11,8 +11,7 @@ import { Batch, CanvasTex, ellipsize, fitText, font, G, rng, shade } from './kit
 import { INITIAL_BENCH_PAIRS, INTERN_BENCHES, type BenchSlot } from './layout';
 import { Screen, type ScreenView } from './screens';
 import { tallProp } from './props';
-import { disposeGroup, disposeInstanced, instancedModel, placement } from './modelkit';
-import { model } from '../models';
+import { addModel, disposeGroup, disposeInstanced, instancedModel, placement } from './modelkit';
 import type { WorldCtx } from './ctx';
 
 const M = D.internBench;
@@ -41,7 +40,10 @@ interface Bench {
   /** Procedural parts, replaced one by one when the catalog models arrive. */
   parts: { benches: THREE.Group | null; stations: THREE.Group | null; stools: THREE.Group | null };
   models: THREE.Object3D[];
+  /** Snacks and energy drinks, until their catalog models replace them. */
   decor: THREE.Group | null;
+  /** The sad little plants (procedural only). */
+  sad: THREE.Group | null;
   collider: AABB;
   stations: Station[];
   /** Module pairs that already have a floor blob shadow. */
@@ -117,6 +119,7 @@ export class InternSystem {
       parts: { benches: null, stations: null, stools: null },
       models: [],
       decor: null,
+      sad: null,
       collider: { minX: spot.x0, maxX: spot.x0, minZ: spot.z - M.d, maxZ: spot.z + M.d },
       stations: [],
       blobbed: 0,
@@ -151,6 +154,8 @@ export class InternSystem {
     for (const m of bench.models) disposeInstanced(m);
     bench.models = [];
     if (bench.decor) disposeGroup(bench.decor);
+    if (bench.sad) disposeGroup(bench.sad);
+    bench.decor = bench.sad = null;
     bench.generation++;
     bench.pairs = pairs;
 
@@ -159,6 +164,7 @@ export class InternSystem {
     const stationB = new Batch();
     const stoolB = new Batch();
     const decorB = new Batch();
+    const sadB = new Batch();
     const stationFrames: THREE.Matrix4[] = [];
     const stoolFrames: THREE.Matrix4[] = [];
     const _pos = new THREE.Vector3();
@@ -168,7 +174,8 @@ export class InternSystem {
       m.decompose(_pos, _quat, _scale);
       const yaw = yawOf(m);
       benchB.place(_pos.x, 0, _pos.z, yaw, () => buildInternModule(benchB));
-      decorB.place(_pos.x, 0, _pos.z, yaw, () => buildBenchClutter(decorB, rng(900 + mi + spot.x0 * 10), mi));
+      const odds = mi % 3 === 2 ? sadB : decorB;
+      odds.place(_pos.x, 0, _pos.z, yaw, () => buildBenchClutter(odds, rng(900 + mi + spot.x0 * 10), mi));
       for (const sx of [-M.stationX, M.stationX]) {
         const frame = m.clone().multiply(new THREE.Matrix4().makeTranslation(sx, M.h, M.stationZ));
         stationFrames.push(frame);
@@ -184,7 +191,8 @@ export class InternSystem {
     bench.parts.stations = stationB.build({ name: 'intern-stations' });
     bench.parts.stools = stoolB.build({ name: 'intern-stools' });
     bench.decor = decorB.build({ name: 'intern-clutter' });
-    ctx.root.add(bench.parts.benches, bench.parts.stations, bench.parts.stools, bench.decor);
+    bench.sad = sadB.build({ name: 'intern-sad-plants' });
+    ctx.root.add(bench.parts.benches, bench.parts.stations, bench.parts.stools, bench.decor, bench.sad);
 
     // Stations (slots) for any new positions; existing ones stay put as the bench grows east.
     for (let i = bench.stations.length; i < stationFrames.length; i++) {
@@ -289,23 +297,45 @@ export class InternSystem {
     const sign = signB.build({ name: 'intern-sign' });
     this.ctx.root.add(sign);
     this.ctx.colliders.push({ minX: sx - 0.25, maxX: sx + 0.25, minZ: spot.z - 0.25, maxZ: spot.z + 0.25 });
-    void model('intern_sign').then((m) => {
-      if (!m) return;
-      m.position.set(sx, 0, spot.z);
-      m.rotation.y = signYaw;
-      disposeGroup(sign);
-      this.ctx.root.add(m);
+    const holder = new THREE.Group();
+    holder.position.set(sx, 0, spot.z);
+    holder.rotation.y = signYaw;
+    this.ctx.root.add(holder);
+    void addModel(holder, 'intern_sign').then((m) => {
+      if (m) disposeGroup(sign);
     });
   }
 
   private async swapInModels(bench: Bench, modules: THREE.Matrix4[], stations: THREE.Matrix4[], stools: THREE.Matrix4[]): Promise<void> {
     const gen = bench.generation;
-    const [benchM, stationM, stoolM] = await Promise.all([
+    // Snacks on every third module, energy drinks on the next (the sad plants stay ours).
+    const at = (m: THREE.Matrix4, x: number, y: number, z: number, rot = new THREE.Euler()) => m.clone().multiply(new THREE.Matrix4().makeRotationFromEuler(rot).setPosition(x, y, z));
+    const snacks = modules.flatMap((m, i) => (i % 3 === 0 ? [at(m, -0.04, M.h, -0.12, new THREE.Euler(0, 0.3, 0)), at(m, 0.1, M.h + 0.03, -0.1, new THREE.Euler(-1.45, 0.9, 0))] : []));
+    const drinks = modules.flatMap((m, i) =>
+      i % 3 === 1 ? [at(m, -0.07, M.h, -0.14), at(m, 0, M.h, -0.09), at(m, 0.07, M.h, -0.14), at(m, 0.14, M.h + 0.034, -0.05, new THREE.Euler(0, 0.5, Math.PI / 2))] : [],
+    );
+    const [benchM, stationM, stoolM, snackM, drinkM] = await Promise.all([
       instancedModel('intern_bench', modules, { tint: { Accent: BENCH_ACCENT } }),
       instancedModel('intern_station', stations, { hide: ['Screen'] }),
       instancedModel('intern_stool', stools, { tint: { Seat: STOOL_SEAT } }),
+      instancedModel('snack_bag', snacks, { fit: { h: 0.16, uniform: true } }),
+      instancedModel('energy_drink', drinks),
     ]);
-    if (gen !== bench.generation) return;
+    if (gen !== bench.generation) {
+      for (const m of [benchM, stationM, stoolM, snackM, drinkM]) if (m) disposeInstanced(m.group);
+      return;
+    }
+    if ((snackM || snacks.length === 0) && (drinkM || drinks.length === 0)) {
+      for (const m of [snackM, drinkM]) {
+        if (!m) continue;
+        this.ctx.root.add(m.group);
+        bench.models.push(m.group);
+      }
+      if (bench.decor) disposeGroup(bench.decor);
+      bench.decor = null;
+    } else {
+      for (const m of [snackM, drinkM]) if (m) disposeInstanced(m.group);
+    }
     const swap = (key: 'benches' | 'stations' | 'stools', m: { group: THREE.Group } | null) => {
       if (!m) return;
       const old = bench.parts[key];

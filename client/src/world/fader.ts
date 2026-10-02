@@ -42,10 +42,18 @@ export class Fader {
     return item;
   }
 
-  /** Stop fading an item (e.g. its procedural objects were replaced by a model). */
+  /** Stop fading an item (e.g. its procedural objects were replaced by a model) and free its material clones. */
   remove(item: FadeItem): void {
     const i = this.items.indexOf(item);
     if (i >= 0) this.items.splice(i, 1);
+    // A kept mesh is re-cloned from its current material by add(): hand it back un-faded.
+    for (const f of item.mats) {
+      f.mat.opacity = f.baseOpacity;
+      f.mat.transparent = f.baseTransparent;
+      f.mat.depthWrite = f.baseDepthWrite;
+      f.mat.dispose();
+    }
+    item.mats.length = 0;
   }
 
   /** Add more objects to an existing fade item (their materials are cloned too). */

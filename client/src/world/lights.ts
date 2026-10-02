@@ -7,6 +7,7 @@ import { Batch, G } from './kit';
 import { tallProp } from './props';
 import { POD_SLOTS } from './layout';
 import type { WorldCtx } from './ctx';
+import { swapModel } from './modelkit';
 
 const WARM_BULB = '#FFE7B0';
 
@@ -77,7 +78,7 @@ export function buildLights(ctx: WorldCtx): void {
     [13.42, 5.3, '#FF9DCB'],
     [13.45, -8.5, '#B48CFF'],
   ] as const) {
-    tallProp(ctx, 'floor-lamp', (b) => buildFloorLamp(b, color), { at: [x, z] });
+    void swapModel(ctx, tallProp(ctx, 'floor-lamp', (b) => buildFloorLamp(b, color), { at: [x, z] }), 'floor_lamp', { fit: { h: D.floorLamp.h, uniform: true }, glow: 0.45 });
     ctx.colliders.push({ minX: x - 0.22, maxX: x + 0.22, minZ: z - 0.22, maxZ: z + 0.22 });
     ctx.blobs.add(x, z, 0.6, 0.6, { shape: 'round' });
   }

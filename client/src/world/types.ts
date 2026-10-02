@@ -32,6 +32,9 @@ export interface AABB {
 /** What a desk monitor shows. */
 export type ScreenState = 'off' | 'idle' | 'working' | 'alert' | 'sleeping';
 
+/** Ordinary office work on a regular's monitor (chars/regulars.ts): never a terminal. */
+export type OfficeApp = 'sheet' | 'mail' | 'slides' | 'doc' | 'chart' | 'calendar';
+
 export interface DeskSlot {
   index: number;
   /** Seat point: where a seated character's pelvis goes (chair seat centre, y = seat height). */
@@ -46,8 +49,11 @@ export interface DeskSlot {
   chair: THREE.Object3D;
   /** The monitor's screen mesh (UI grows the terminal bezel out of it; camera frames it for the sit-down). */
   screen: THREE.Object3D;
-  /** Monitor content. `lines` = real terminal text (hosted sessions) to draw small on the screen. */
-  setScreen(state: ScreenState, lines?: string[]): void;
+  /**
+   * Monitor content. `lines` = real terminal text (hosted sessions) to draw small on the screen.
+   * `app` (regulars, 'working' only): paint that office app instead, `lines[0]` as its title.
+   */
+  setScreen(state: ScreenState, lines?: string[], app?: OfficeApp): void;
   /** Desk nameplate. Pass '' to show the desk as vacant. */
   setNameplate(name: string, subtitle?: string): void;
   /** Accent colour of this desk (hex string from PALETTE.deskAccents). */

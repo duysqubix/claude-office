@@ -21,6 +21,7 @@ if (params.get('hud') === '0') hud.classList.add('hidden');
 const engine = createEngine(canvas);
 const world = createWorld(engine);
 const debug = worldDebug(world)!;
+(window as unknown as { __debug: typeof debug }).__debug = debug;
 // For headless probes: window.__world.findPath(...)
 (window as unknown as { __world: typeof world; THREE: typeof THREE }).__world = world;
 (window as unknown as { THREE: typeof THREE }).THREE = THREE;

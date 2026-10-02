@@ -5,9 +5,12 @@ import { PALETTE } from '../style/palette';
 import type { AABB } from './types';
 import { Batch, CanvasTex, fitText, font, rng, shade } from './kit';
 import { footprint, type WorldCtx } from './ctx';
-import { hangPicture, pottedPlant } from './props';
+import { hangPicture, placeOnWall, pottedPlant, staticProp, swapCouch, tallProp } from './props';
+import { findNode } from '../models';
+import { addModel, disposeGroup, disposeModel, swapModel } from './modelkit';
 import { sparkle } from './screens';
 import { OFFICE, type PodSlot } from './layout';
+import D from './dimensions.json';
 
 export function buildDecor(ctx: WorldCtx): void {
   buildRunner(ctx);
@@ -15,6 +18,66 @@ export function buildDecor(ctx: WorldCtx): void {
   buildWallArt(ctx);
   buildOfficeCat(ctx);
   buildButterflies(ctx);
+  buildOddsAndEnds(ctx);
+}
+
+/**
+ * Catalog-only life: an exit sign over the door, a fire extinguisher, a calendar and a cork board,
+ * a hanging plant, bins, and the receptionist (a dog). Nothing here is needed, so a missing model
+ * just leaves the spot empty.
+ */
+function buildOddsAndEnds(ctx: WorldCtx): void {
+  const onWall = (name: string, side: 'north' | 'south' | 'east' | 'west', u: number, y: number) => {
+    const g = new THREE.Group();
+    g.name = name;
+    placeOnWall(g, side, u, y, 0);
+    ctx.root.add(g);
+    return g;
+  };
+  void addModel(onWall('exit-sign', 'south', 0, 2.72), 'exit_sign', { fit: { w: 0.5, uniform: true }, glow: 0.6 });
+  void addModel(onWall('calendar', 'north', -8.5, 1.62), 'calendar_wall', { fit: { h: 0.72, uniform: true } });
+  void addModel(onWall('cork-board', 'east', 2.0, 1.6), 'cork_board', { fit: { w: 1.2, uniform: true }, tint: { Accent: '#C98F5A' } });
+  void addModel(onWall('hanging-plant', 'south', 5.4, 2.2), 'plant_hanging', { tint: { Accent: '#FF9DCB' } });
+
+  // Floor props with a collider get a simple procedural stand-in, so the collider is never invisible.
+  const floor = (name: string, x: number, z: number, w: number, d: number, fill: (b: Batch) => void) => {
+    ctx.colliders.push(footprint(x, z, w, d));
+    ctx.blobs.add(x, z, w + 0.2, d + 0.2, { shape: 'round' });
+    return staticProp(ctx, name, fill, { at: [x, z] });
+  };
+  void swapModel(ctx, floor('fire-extinguisher', 1.95, OFFICE.halfD - 0.25, 0.3, 0.3, (b) => buildExtinguisher(b)), 'fire_extinguisher', { yaw: Math.PI });
+  void swapModel(ctx, floor('trash-bin', -8.8, -OFFICE.halfD + 0.3, 0.36, 0.36, (b) => buildBin(b, '#5CC8FF', 0.34)), 'trash_bin', { tint: { Accent: '#5CC8FF' } });
+  void swapModel(ctx, floor('recycling-bin', OFFICE.halfW - 0.3, -0.9, 0.4, 0.4, (b) => buildBin(b, '#4CB860', 0.62)), 'recycling_bin', { yaw: -Math.PI / 2 });
+  // The receptionist: a very good dog behind the counter (already walled in by its colliders).
+  const dogSpot = new THREE.Group();
+  dogSpot.name = 'reception-dog';
+  dogSpot.position.set(6.95, 0, 8.95);
+  ctx.root.add(dogSpot);
+  void addModel(dogSpot, 'pet_dog', { yaw: (-3 * Math.PI) / 4 }).then((dog) => wag(ctx, dog, 0.9));
+}
+
+/** Fire extinguisher stand-in: red cylinder, black hose and handle. */
+export function buildExtinguisher(b: Batch): void {
+  b.cyl(0.075, 0.075, 0.42, '#E63946', { at: [0, 0.21, 0], seg: 16, finish: 'gloss' });
+  b.cyl(0.03, 0.04, 0.08, '#2B2D42', { at: [0, 0.46, 0], seg: 10, finish: 'plastic' });
+  b.capsule(0.012, 0.18, '#2B2D42', { at: [0.07, 0.35, 0.04], rot: [0, 0, 0.4] });
+}
+
+/** Round bin stand-in of height h. */
+export function buildBin(b: Batch, color: string, h: number): void {
+  b.cyl(0.17, 0.14, h, color, { at: [0, h / 2, 0], seg: 20, finish: 'plastic' });
+  b.torus(0.165, 0.012, shade(color, -0.1), { at: [0, h, 0], rot: [Math.PI / 2, 0, 0] });
+}
+
+/** Pets: the tail wags and the head looks around now and then. */
+function wag(ctx: WorldCtx, pet: THREE.Object3D | null, phase: number): void {
+  const tail = pet && findNode(pet, 'Tail');
+  const head = pet && findNode(pet, 'Head');
+  if (!tail || !head) return;
+  ctx.tickers.push((_dt, t) => {
+    tail.rotation.y = Math.sin(t * 5 + phase) * 0.45;
+    head.rotation.y = Math.sin(t * 0.37 + phase) * 0.5 + Math.sin(t * 0.91 + phase * 2) * 0.15;
+  });
 }
 
 /** A ginger cat asleep on the break-room couch, breathing slowly. */
@@ -35,12 +98,21 @@ function buildOfficeCat(ctx: WorldCtx): void {
   // Tail curled around the front.
   b.torus(0.17, 0.032, fur, { at: [0, 0.05, 0], rot: [Math.PI / 2, 0, 0.6], arc: 2.4 });
   const cat = b.build({ name: 'office-cat' });
-  cat.position.set(-OFFICE.halfW + 0.58, 0.53, -6.1);
+  cat.position.set(-OFFICE.halfW + 0.58, D.couch.seatH, -6.1);
   cat.rotation.y = 0.4;
   ctx.root.add(cat);
+  let breathing = true;
   ctx.tickers.push((_dt, t) => {
+    if (!breathing) return;
     const breath = Math.sin(t * 1.7);
     cat.scale.set(1 + breath * 0.015, 1 + breath * 0.045, 1 + breath * 0.02);
+  });
+  // The catalog cat stands on the couch instead, looking around and swishing its tail.
+  void swapModel(ctx, cat, 'pet_cat', { fit: { h: 0.42, uniform: true }, yaw: 1.2 }).then((m) => {
+    if (!m) return;
+    breathing = false;
+    cat.scale.set(1, 1, 1);
+    wag(ctx, m, 0);
   });
 }
 
@@ -121,22 +193,29 @@ export function couch(b: Batch, parent: THREE.Matrix4, length: number, color: st
 }
 
 function buildWaitingCorner(ctx: WorldCtx): void {
-  const b = ctx.statics;
   const x = OFFICE.halfW - 0.48;
   const z = 7.0;
-  const m = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)), new THREE.Vector3(1, 1, 1));
-  couch(b, m, 2.0, '#2EC4B6', ['#FFC94A', '#FF9DCB']);
+  const sofa = staticProp(ctx, 'waiting-couch', (b) => couch(b, new THREE.Matrix4(), 2.0, '#2EC4B6', ['#FFC94A', '#FF9DCB']), { at: [x, z], yaw: -Math.PI / 2 });
+  void swapCouch(ctx, sofa, 2.0, '#2EC4B6');
   ctx.colliders.push(footprint(x, z, 2.1, 0.95, 1));
   ctx.blobs.add(x, z, 1.3, 2.4);
-  // Low round table with magazines and a tiny plant.
+  // Low table with magazines and a tiny plant.
   const tx = x - 1.15;
-  b.puck(0.42, 0.06, PALETTE.wood, { at: [tx, 0.38, z] });
-  b.cyl(0.06, 0.09, 0.34, shade(PALETTE.wood, -0.1), { at: [tx, 0.18, z] });
-  b.puck(0.2, 0.035, shade(PALETTE.wood, -0.1), { at: [tx, 0.018, z] });
-  b.box(0.22, 0.015, 0.3, '#5CC8FF', { at: [tx - 0.08, 0.42, z + 0.05], rot: [0, 0.3, 0], r: 0.006 });
-  b.box(0.22, 0.015, 0.3, '#FF7A6B', { at: [tx - 0.05, 0.435, z - 0.02], rot: [0, -0.2, 0], r: 0.006 });
-  b.cyl(0.06, 0.05, 0.08, PALETTE.plantPot, { at: [tx + 0.18, 0.45, z - 0.12] });
-  b.ball([0.07, 0.09, 0.07], PALETTE.plantLeaf, { at: [tx + 0.18, 0.55, z - 0.12] });
+  const table = staticProp(ctx, 'waiting-table', (b) => {
+    b.puck(0.42, 0.06, PALETTE.wood, { at: [0, 0.38, 0] });
+    b.cyl(0.06, 0.09, 0.34, shade(PALETTE.wood, -0.1), { at: [0, 0.18, 0] });
+    b.puck(0.2, 0.035, shade(PALETTE.wood, -0.1), { at: [0, 0.018, 0] });
+    b.box(0.22, 0.015, 0.3, '#5CC8FF', { at: [-0.08, 0.42, 0.05], rot: [0, 0.3, 0], r: 0.006 });
+    b.box(0.22, 0.015, 0.3, '#FF7A6B', { at: [-0.05, 0.435, -0.02], rot: [0, -0.2, 0], r: 0.006 });
+    b.cyl(0.06, 0.05, 0.08, PALETTE.plantPot, { at: [0.18, 0.45, -0.12] });
+    b.ball([0.07, 0.09, 0.07], PALETTE.plantLeaf, { at: [0.18, 0.55, -0.12] });
+  }, { at: [tx, z] });
+  void swapModel(ctx, table, 'coffee_table', { fit: { w: 0.86, uniform: true }, yaw: Math.PI / 2 }).then((m) => {
+    if (!m) return;
+    const top = 0.42 * m.scale.y;
+    void addModel(table, 'succulent', { at: [0.05, top, -0.22], fit: { h: 0.14, uniform: true }, tint: { Accent: '#FF9A7A' } });
+    void addModel(table, 'coffee_cup', { at: [-0.06, top, 0.12], tint: { Accent: '#5CC8FF' } });
+  });
   ctx.colliders.push(footprint(tx, z, 0.86, 0.86));
   ctx.blobs.add(tx, z, 1.0, 1.0, { shape: 'round' });
 }
@@ -253,7 +332,7 @@ function buildWallArt(ctx: WorldCtx): void {
   });
 
   // Employee of the month (west wall) and the org chart (east wall), between the windows.
-  hangPicture(ctx, {
+  const star = hangPicture(ctx, {
     side: 'west',
     u: -2.0,
     y: 1.62,
@@ -289,6 +368,27 @@ function buildWallArt(ctx: WorldCtx): void {
       c.fillText('OF THE MONTH', w / 2, 425);
     },
   });
+  // The catalog frame prints its own title; its Label gets the portrait.
+  const portrait = new CanvasTex(256, 304, (c, w, h) => {
+    c.fillStyle = '#FFF4D6';
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = '#FFE08A';
+    c.beginPath();
+    c.arc(w / 2, h / 2, 104, 0, Math.PI * 2);
+    c.fill();
+    sparkle(c, w / 2, h / 2, 86, PALETTE.claude, 0.1);
+    c.fillStyle = PALETTE.ink;
+    c.beginPath();
+    c.arc(w / 2 - 20, h / 2 - 8, 8, 0, Math.PI * 2);
+    c.arc(w / 2 + 20, h / 2 - 8, 8, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = PALETTE.ink;
+    c.lineWidth = 6;
+    c.beginPath();
+    c.arc(w / 2, h / 2 + 6, 16, 0.15 * Math.PI, 0.85 * Math.PI);
+    c.stroke();
+  });
+  void swapModel(ctx, star, 'employee_of_month', { fit: { h: 1.12, uniform: true }, paint: { Label: new THREE.MeshStandardMaterial({ map: portrait.tex, roughness: 0.6 }) } });
   hangPicture(ctx, {
     side: 'east',
     u: -2.0,
@@ -364,13 +464,19 @@ export function buildReservedSpot(ctx: WorldCtx, slot: PodSlot, seed: number): D
     [-0.5, 0.5, 0.12, 0.52, 0.4, 0.44, -0.2],
     [0.2, 0, -0.42, 0.58, 0.42, 0.5, 0.45],
   ];
-  for (const [bx, by, bz, w, h, d, yaw] of boxes) {
-    const shadeAmt = (r() - 0.5) * 0.06;
-    b.box(w, h, d, shade(card, shadeAmt), { at: [x + bx, by + h / 2, z + bz], rot: [0, yaw, 0], r: 0.03, finish: 'matte' });
-    b.box(w + 0.004, 0.012, 0.12, '#F3D19C', { at: [x + bx, by + h + 0.002, z + bz], rot: [0, yaw, 0], r: 0.005, cast: false, finish: 'matte' });
-  }
+  // The moving boxes and the plant are their own groups: catalog models replace them.
+  const crates = staticProp(ctx, 'moving-boxes', (cb) => {
+    for (const [bx, by, bz, w, h, d, yaw] of boxes) {
+      const shadeAmt = (r() - 0.5) * 0.06;
+      cb.box(w, h, d, shade(card, shadeAmt), { at: [bx, by + h / 2, bz], rot: [0, yaw, 0], r: 0.03, finish: 'matte' });
+      cb.box(w + 0.004, 0.012, 0.12, '#F3D19C', { at: [bx, by + h + 0.002, bz], rot: [0, yaw, 0], r: 0.005, cast: false, finish: 'matte' });
+    }
+  }, { at: [x, z] });
+  // The catalog box is open on top, so the second one sits beside the first rather than on it.
+  void swapModel(ctx, crates, 'cardboard_box', { copies: [{ at: [-0.55, 0, 0.1], yaw: 0.15 }, { at: [-0.62, 0, 0.72], yaw: -0.5 }, { at: [0.2, 0, -0.42], yaw: 0.45 }] });
   const pr = rng(seed + 1);
-  pottedPlant(b, x + 1.05, z + 0.8, 0.85, pr);
+  const plant = tallProp(ctx, 'reserved-plant', (pb) => pottedPlant(pb, 0, 0, 0.85, pr), { at: [x + 1.05, z + 0.8] });
+  void swapModel(ctx, plant, 'plant_pot', { fit: { h: 1.1, uniform: true } });
 
   // Sandwich-board sign facing the boulevard side of the room.
   const signTex = new CanvasTex(320, 400, (c, w, h) => {
@@ -414,10 +520,20 @@ export function buildReservedSpot(ctx: WorldCtx, slot: PodSlot, seed: number): D
   const colliders = [footprint(x - 0.2, z - 0.1, 1.6, 1.3), footprint(x + 1.05, z + 0.8, 0.55, 0.55), footprint(sx, sz, 0.66, 0.45)];
   ctx.colliders.push(...colliders);
   return {
-    objects: [group, faceGroup],
+    objects: [group, faceGroup, crates, plant],
     colliders,
     dispose() {
       group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      for (const g of [crates, plant]) {
+        // A model still loading for this spot is dropped when it arrives (see swapModel).
+        g.userData.disposed = true;
+        if (g.userData.fade) ctx.fader.remove(g.userData.fade);
+        delete g.userData.fade;
+        for (const child of [...g.children]) {
+          if (child.userData.modelId) disposeModel(child);
+          else disposeGroup(child);
+        }
+      }
       face.geometry.dispose();
       (face.material as THREE.MeshStandardMaterial).dispose();
       signTex.dispose();

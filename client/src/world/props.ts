@@ -6,13 +6,15 @@
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
 import type { OfficeStats } from './types';
-import { Batch, CanvasTex, fitText, font, G, rng, shade } from './kit';
+import { Batch, CanvasTex, fitText, font, G, rng, shade, type Vec3 } from './kit';
 import { aabb, footprint, type WallSide, type WorldCtx } from './ctx';
 import { wallFacingYaw } from './building';
 import { OFFICE } from './layout';
 import D from './dimensions.json';
 import { sparkle } from './screens';
 import { couch } from './decor';
+import { catalogItem, findNode } from '../models';
+import { addModel, anchorOf, ownCanvas, swapModel, type SwapOptions } from './modelkit';
 
 const WALL_FACE = OFFICE.halfD; // |z| or |x| of the inside face of the walls
 /** The whiteboard hangs left of the Team Room. */
@@ -51,7 +53,20 @@ export function tallProp(ctx: WorldCtx, name: string, fill: (b: Batch) => void, 
   if (place.at) g.position.set(place.at[0], 0, place.at[1]);
   if (place.yaw) g.rotation.y = place.yaw;
   ctx.root.add(g);
-  ctx.fader.add(name, [g]);
+  // swapModel() moves the fade registration over to the model when one replaces this prop.
+  g.userData.fade = ctx.fader.add(name, [g]);
+  return g;
+}
+
+/** A prop that doesn't fade (low furniture) in its own group, so a catalog model can replace it. */
+export function staticProp(ctx: WorldCtx, name: string, fill: (b: Batch) => void, place: PropPlacement = {}): THREE.Group {
+  const b = new Batch();
+  fill(b);
+  const g = b.build({ name });
+  for (const e of place.extra ?? []) g.add(e);
+  if (place.at) g.position.set(place.at[0], 0, place.at[1]);
+  if (place.yaw) g.rotation.y = place.yaw;
+  ctx.root.add(g);
   return g;
 }
 
@@ -99,42 +114,36 @@ function buildReception(ctx: WorldCtx): void {
   const mid = (R.innerR + R.outerR) / 2;
   const px = arcX + Math.sin(RECEPTION_YAW) * mid;
   const pz = arcZ + Math.cos(RECEPTION_YAW) * mid;
-  ctx.statics.place(px, 0, pz, RECEPTION_YAW, () => buildReceptionDesk(ctx.statics));
+  const desk = staticProp(ctx, 'reception-desk', (b) => buildReceptionDesk(b), { at: [px, pz], yaw: RECEPTION_YAW });
+  void swapModel(ctx, desk, 'reception_desk', { tint: { Accent: '#5CC8FF' } }).then(async (m) => {
+    if (!m) return;
+    // The model's counter: the bell at its anchor, and a cactus at the far end.
+    const bell = await anchorOf('reception_desk', 'bell');
+    if (!bell) return;
+    void addModel(desk, 'service_bell', { at: [bell.x, bell.y, bell.z], tint: { Accent: '#FF5A5F' } });
+    void addModel(desk, 'cactus', { at: [-0.85, bell.y, -0.12], yaw: 0.6, fit: { h: 0.22, uniform: true }, tint: { Accent: '#FF9DCB' } });
+  });
   ctx.colliders.push(aabb(5.1, 5.8, 7.75, 9.2), aabb(5.7, 7.2, 7.1, 7.8), aabb(5.3, 6.1, 7.3, 8.1));
   ctx.blobs.add(5.8, 8.1, 2.4, 2.4, { shape: 'round' });
 
-  // The "NOW HIRING!" sign on two posts behind the counter, angled toward the door.
-  const sign = new CanvasTex(512, 256, (c, w, h) => {
-    c.fillStyle = '#FFD23F';
-    c.beginPath();
-    c.roundRect(0, 0, w, h, 40);
-    c.fill();
-    c.strokeStyle = '#FF5A5F';
-    c.lineWidth = 14;
-    c.setLineDash([26, 16]);
-    c.beginPath();
-    c.roundRect(16, 16, w - 32, h - 32, 28);
-    c.stroke();
-    c.setLineDash([]);
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.fillStyle = '#E63946';
-    fitText(c, 'NOW HIRING!', 700, 104, w - 70);
-    c.fillText('NOW HIRING!', w / 2, h / 2 - 18);
-    c.fillStyle = PALETTE.ink;
-    c.font = font(600, 34);
-    c.fillText('ask at the desk ↓', w / 2, h / 2 + 62);
+  // The NOW HIRING sandwich board stands by the entrance, turned toward the door.
+  const sign = new CanvasTex(256, 320, drawHiringBoard);
+  const signMat = new THREE.MeshStandardMaterial({ map: sign.tex, emissive: '#FFFFFF', emissiveMap: sign.tex, emissiveIntensity: 0.35, roughness: 0.7 });
+  const HB = D.hiringBoard;
+  const faces = [1, -1].map((side) => {
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(HB.w - 0.1, HB.h - 0.22), signMat);
+    if (side > 0) ownCanvas(face, sign);
+    // Up the leaning board a little and just off its face (the boards lean 0.26 rad inward).
+    face.position.set(0, HB.h / 2 + 0.062, side * (HB.d / 4 + 0.004));
+    face.rotation.set(-0.26, side > 0 ? 0 : Math.PI, 0, 'YXZ');
+    return face;
   });
-  const sx = 7.35;
-  const sz = 9.2;
-  // A little emissive so the sign glows into the bloom pass.
-  const signFace = new THREE.Mesh(
-    new THREE.PlaneGeometry(D.hiringSign.w - 0.12, D.hiringSign.h - 0.12),
-    new THREE.MeshStandardMaterial({ map: sign.tex, emissive: '#FFFFFF', emissiveMap: sign.tex, emissiveIntensity: 0.55, roughness: 0.7 }),
-  );
-  signFace.position.set(0, D.hiringSign.centerY, 0.045);
-  tallProp(ctx, 'hiring-sign', (b) => buildHiringSignFrame(b), { extra: [signFace], at: [sx, sz], yaw: Math.atan2(-0.8, 0.6) });
-  ctx.colliders.push(footprint(sx, sz, 0.9, 0.9));
+  const sx = 3.6;
+  const sz = 8.9;
+  const board = tallProp(ctx, 'hiring-sign', (b) => buildSandwichBoard(b), { extra: faces, at: [sx, sz], yaw: Math.atan2(-sx, OFFICE.halfD + 1 - sz) });
+  void swapModel(ctx, board, 'now_hiring_sign');
+  ctx.colliders.push(footprint(sx, sz, 0.75, 0.75));
+  ctx.blobs.add(sx, sz, 0.8, 0.7);
 
   ctx.interactables.push({
     id: 'reception',
@@ -143,6 +152,20 @@ function buildReception(ctx: WorldCtx): void {
     radius: 1.7,
     label: 'Hire someone',
   });
+}
+
+/** The sandwich board's printed face: NOW HIRING with a star. */
+function drawHiringBoard(c: CanvasRenderingContext2D, w: number, h: number): void {
+  c.fillStyle = '#FFFDF7';
+  c.fillRect(0, 0, w, h);
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillStyle = '#E63946';
+  fitText(c, 'NOW', 700, 96, w - 40);
+  c.fillText('NOW', w / 2, h * 0.3);
+  fitText(c, 'HIRING!', 700, 80, w - 30);
+  c.fillText('HIRING!', w / 2, h * 0.52);
+  sparkle(c, w / 2, h * 0.8, 34, '#FFC94A', 0.2);
 }
 
 /** Annular sector (in the XZ plane, angles measured from +X toward +Z), extruded up by `h` with rounded edges. */
@@ -203,29 +226,26 @@ export function buildReceptionDesk(b: Batch, d = D.reception): void {
   }
 }
 
-/** The NOW HIRING board's frame and posts (the printed face is a separate textured plane). */
-export function buildHiringSignFrame(b: Batch, d = D.hiringSign): void {
-  b.box(d.w, d.h, 0.07, '#FF5A5F', { at: [0, d.centerY, 0], r: 0.06, finish: 'plastic' });
-  for (const k of [-1, 1]) b.cyl(0.04, 0.04, d.centerY - d.h / 2 + 0.03, '#3B4252', { at: [k * 0.62, (d.centerY - d.h / 2 + 0.03) / 2, -0.04], seg: 14, finish: 'plastic' });
-  for (const k of [-1, 1]) b.puck(0.16, 0.05, '#3B4252', { at: [k * 0.62, 0.025, -0.04], finish: 'plastic' });
+/** Wooden sandwich board: two boards leaning together at the top (printed faces are separate planes). Front +Z. */
+export function buildSandwichBoard(b: Batch, d = D.hiringBoard): void {
+  for (const side of [1, -1]) b.box(d.w, d.h, 0.03, PALETTE.wood, { at: [0, d.h / 2, side * d.d / 4], rot: [-side * 0.26, 0, 0], r: 0.015, finish: 'wood' });
 }
 
 // ---------------------------------------------------------------------------------------------
 // Manager's corner (north-east)
 
 function buildManagerCorner(ctx: WorldCtx): void {
-  const b = ctx.statics;
   const dx = 10.8;
   const dz = -7.4;
+  const MD = D.managerDesk;
   // Rug, then the desk with the boss's side (+Z in desk space) to the north, facing the room.
-  b.puck(2.2, 0.03, '#F49AC1', { at: [dx, 0.015, dz - 0.3], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
-  b.puck(1.9, 0.034, '#FFC1DA', { at: [dx, 0.017, dz - 0.3], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
-  b.place(dx, 0, dz, Math.PI, () => buildManagerDesk(b));
-  ctx.colliders.push(footprint(dx, dz, D.managerDesk.w, D.managerDesk.d));
-  ctx.blobs.add(dx, dz, 2.6, 1.4);
+  const rug = staticProp(ctx, 'manager-rug', (b) => {
+    b.puck(2.2, 0.03, '#F49AC1', { at: [0, 0.015, 0], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+    b.puck(1.9, 0.034, '#FFC1DA', { at: [0, 0.017, 0], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+  }, { at: [dx, dz - 0.3] });
+  void swapModel(ctx, rug, 'rug_round', { fit: { w: 4.4, d: 4.4, h: 0.02 }, tint: { Accent: '#F49AC1' } });
 
-  // "WORLD'S OKAYEST MANAGER" mug: printed sleeve on a separate mesh.
-  const top = D.managerDesk.h;
+  // "WORLD'S OKAYEST MANAGER" mug: a printed sleeve on the procedural desk.
   const mugTex = new CanvasTex(256, 96, (c, w, h) => {
     c.fillStyle = '#FFFDF8';
     c.fillRect(0, 0, w, h);
@@ -238,31 +258,79 @@ function buildManagerCorner(ctx: WorldCtx): void {
       c.fillText('MANAGER', x, h / 2 + 14);
     }
   });
-  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.12, 24, 1, true), new THREE.MeshStandardMaterial({ map: mugTex.tex, roughness: 0.45 }));
-  mug.position.set(dx + 0.45, top + 0.06, dz + 0.15);
-  mug.rotation.y = -Math.PI / 2;
-  mug.castShadow = true;
-  ctx.root.add(mug);
-  b.puck(0.05, 0.01, '#FFFDF8', { at: [dx + 0.45, top + 0.005, dz + 0.15], finish: 'plastic' });
-  b.cyl(0.048, 0.048, 0.005, PALETTE.coffee, { at: [dx + 0.45, top + 0.115, dz + 0.15], cast: false });
-  b.torus(0.032, 0.011, '#FFFDF8', { at: [dx + 0.51, top + 0.06, dz + 0.15], finish: 'plastic' });
+  const sleeve = ownCanvas(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.12, 24, 1, true), new THREE.MeshStandardMaterial({ map: mugTex.tex, roughness: 0.45 })), mugTex);
+  sleeve.position.set(-0.45, MD.h + 0.06, -0.15);
+  sleeve.rotation.y = Math.PI / 2;
+  sleeve.castShadow = true;
+  const desk = staticProp(ctx, 'manager-desk', (b) => {
+    buildManagerDesk(b);
+    b.place(-0.45, MD.h, -0.15, 0, () => buildManagerMug(b));
+  }, { extra: [sleeve], at: [dx, dz], yaw: Math.PI });
+  ctx.colliders.push(footprint(dx, dz, MD.w, MD.d));
+  ctx.blobs.add(dx, dz, 2.6, 1.4);
+  void (async () => {
+    // Per-axis fit: the footprint stays the collider, and the model's desk top lands at MD.h.
+    const info = await catalogItem('manager_desk');
+    const top = info?.anchors.top?.[1];
+    if (!info?.dims || !top) return;
+    const scale: Vec3 = [MD.w / info.dims.w, MD.h / top, MD.d / info.dims.d];
+    if (!(await swapModel(ctx, desk, 'manager_desk', { scale }))) return;
+    void addModel(desk, 'laptop', { at: [0.12, MD.h, 0.1], paint: { Screen: laptopScreen() } });
+    void addModel(desk, 'desk_lamp', { at: [-0.8, MD.h, -0.18], yaw: 1.1, tint: { Accent: '#FFC94A' } });
+    void addModel(desk, 'trophy_gold', { at: [0.8, MD.h, -0.24], yaw: Math.PI });
+    void addModel(desk, 'mug_manager', { at: [-0.45, MD.h, -0.15], yaw: Math.PI });
+  })();
 
-  // The boss chair, facing the desk.
-  const chair = new Batch();
-  buildBossChair(chair);
-  const chairGroup = chair.build({ name: 'boss-chair' });
-  chairGroup.position.set(dx, 0, dz - 0.95);
-  ctx.root.add(chairGroup);
+  // The boss chair, facing the desk, its seat at the procedural chair's height.
+  const chair = staticProp(ctx, 'boss-chair', (b) => buildBossChair(b), { at: [dx, dz - 0.95] });
+  void anchorOf('manager_chair', 'seat').then((seat) => swapModel(ctx, chair, 'manager_chair', { scale: seat ? D.bossChair.seatH / seat.y : 1 }));
 
-  // Bookshelf on the north wall.
+  // Bookshelf on the north wall: two catalog shelves side by side.
   const bx = 12.2;
   const r = rng(99);
-  tallProp(ctx, 'bookshelf', (s) => buildBookshelf(s, r), { at: [bx, -WALL_FACE + D.bookshelf.d / 2 + 0.02] });
+  const shelf = tallProp(ctx, 'bookshelf', (s) => buildBookshelf(s, r), { at: [bx, -WALL_FACE + D.bookshelf.d / 2 + 0.02] });
+  void swapModel(ctx, shelf, 'bookshelf', {
+    fit: { w: D.bookshelf.w / 2, uniform: true },
+    copies: [{ at: [-D.bookshelf.w / 4, 0, 0] }, { at: [D.bookshelf.w / 4, 0, 0] }],
+  });
   ctx.colliders.push(aabb(bx - D.bookshelf.w / 2, bx + D.bookshelf.w / 2, -WALL_FACE, -WALL_FACE + D.bookshelf.d + 0.02));
 
-  // Filing cabinet: the Personnel Files (call back old sessions).
+  // Filing cabinet: the Personnel Files (call back old sessions). The sign on top turns toward
+  // the middle of the room so it reads from the usual camera.
   const fx = OFFICE.halfW - 0.33;
   const fz = -5.9;
+  const signYaw = 0.6;
+  const sign = filesSign(signYaw);
+  sign.position.y = D.fileCabinet.h;
+  const cabinet = tallProp(ctx, 'filing-cabinet', (s) => buildFilingCabinet(s), { extra: [sign], at: [fx, fz], yaw: -Math.PI / 2 });
+  void swapModel(ctx, cabinet, 'filing_cabinet', { tint: { DrawerFront: '#7AA5FF', Body: '#5C8DFF' } }).then((m) => {
+    if (!m) return;
+    sign.position.y = new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3()).y;
+    // A drawer slides open while the manager is at the files.
+    const drawer = findNode(m, 'Drawer2');
+    if (!drawer) return;
+    const rest = drawer.position.z;
+    const files = new THREE.Vector3(fx - 1.0, 0, fz);
+    let open = 0;
+    ctx.tickers.push((dt) => {
+      const goal = ctx.focus.distanceTo(files) < 1.7 ? 1 : 0;
+      open += (goal - open) * (1 - Math.exp(-6 * dt));
+      drawer.position.z = rest + open * 0.3;
+    });
+  });
+  ctx.colliders.push(footprint(fx, fz, D.fileCabinet.w, D.fileCabinet.d + 0.04, 1));
+  ctx.blobs.add(fx - 0.05, fz, 1.0, 1.1);
+  ctx.interactables.push({
+    id: 'archive',
+    kind: 'archive',
+    position: new THREE.Vector3(fx - 1.0, 1.4, fz),
+    radius: 1.6,
+    label: 'Personnel Files',
+  });
+}
+
+/** The PERSONNEL FILES sign on its stand. Origin at the cabinet top; kept when the cabinet model swaps in. */
+function filesSign(signYaw: number): THREE.Group {
   const label = new CanvasTex(512, 160, (c, w, h) => {
     c.fillStyle = PALETTE.paper;
     c.beginPath();
@@ -278,21 +346,36 @@ function buildManagerCorner(ctx: WorldCtx): void {
     fitText(c, 'PERSONNEL FILES', 700, 62, w - 40);
     c.fillText('PERSONNEL FILES', w / 2, h / 2 + 18);
   });
-  // The sign on top turns toward the middle of the room so it reads from the usual camera.
-  const signYaw = 0.6;
-  const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.27), new THREE.MeshStandardMaterial({ map: label.tex, roughness: 0.6 }));
-  signMesh.position.set(Math.sin(signYaw) * 0.036, 1.56, Math.cos(signYaw) * 0.036);
-  signMesh.rotation.set(-0.1, signYaw, 0, 'YXZ');
-  tallProp(ctx, 'filing-cabinet', (s) => buildFilingCabinet(s, signYaw), { extra: [signMesh], at: [fx, fz], yaw: -Math.PI / 2 });
-  ctx.colliders.push(footprint(fx, fz, D.fileCabinet.w, D.fileCabinet.d + 0.04, 1));
-  ctx.blobs.add(fx - 0.05, fz, 1.0, 1.1);
-  ctx.interactables.push({
-    id: 'archive',
-    kind: 'archive',
-    position: new THREE.Vector3(fx - 1.0, 1.4, fz),
-    radius: 1.6,
-    label: 'Personnel Files',
+  const b = new Batch();
+  b.box(0.94, 0.35, 0.06, '#3B4252', { at: [0, 0.24, 0], rot: [-0.1, 0, 0], r: 0.035, parent: new THREE.Matrix4().makeRotationY(signYaw), finish: 'plastic' });
+  b.box(0.06, 0.12, 0.06, '#3B4252', { at: [0, 0.04, 0], r: 0.02 });
+  const sign = b.build({ name: 'files-sign' });
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.27), new THREE.MeshStandardMaterial({ map: label.tex, roughness: 0.6 }));
+  face.position.set(Math.sin(signYaw) * 0.036, 0.24, Math.cos(signYaw) * 0.036);
+  face.rotation.set(-0.1, signYaw, 0, 'YXZ');
+  sign.add(face);
+  sign.userData.keep = true;
+  return sign;
+}
+
+/** The boss's laptop screen: a tiny dashboard where every number is going up. */
+function laptopScreen(): THREE.MeshStandardMaterial {
+  const tex = new CanvasTex(256, 160, (c, w, h) => {
+    c.fillStyle = '#1C2546';
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = '#FFFDF7';
+    c.font = font(700, 18);
+    c.textBaseline = 'top';
+    c.fillText('Q4 vibes', 14, 12);
+    const bars = [0.35, 0.5, 0.45, 0.7, 0.9];
+    bars.forEach((v, i) => {
+      c.fillStyle = ['#5CC8FF', '#6EDC9A', '#FFC94A', '#FF9DCB', '#FF7A6B'][i];
+      c.beginPath();
+      c.roundRect(20 + i * 44, h - 18 - v * 100, 30, v * 100, 6);
+      c.fill();
+    });
   });
+  return new THREE.MeshStandardMaterial({ map: tex.tex, emissive: '#FFFFFF', emissiveMap: tex.tex, emissiveIntensity: 0.9, roughness: 0.4 });
 }
 
 /**
@@ -321,6 +404,13 @@ export function buildManagerDesk(b: Batch, d = D.managerDesk): void {
   b.puck(0.05, 0.02, '#E8B33C', { at: [0.75, top + 0.01, 0.25], finish: 'gloss' });
   b.cyl(0.012, 0.02, 0.08, '#E8B33C', { at: [0.75, top + 0.06, 0.25], finish: 'gloss' });
   b.add(G.hemisphere(), '#FFD34E', { at: [0.75, top + 0.16, 0.25], scale: [0.06, -0.07, 0.06], finish: 'gloss' });
+}
+
+/** The boss's mug (the printed sleeve is a separate mesh): base, coffee and handle. */
+export function buildManagerMug(b: Batch): void {
+  b.puck(0.05, 0.01, '#FFFDF8', { at: [0, 0.005, 0], finish: 'plastic' });
+  b.cyl(0.048, 0.048, 0.005, PALETTE.coffee, { at: [0, 0.115, 0], cast: false });
+  b.torus(0.032, 0.011, '#FFFDF8', { at: [-0.06, 0.06, 0], finish: 'plastic' });
 }
 
 /** The boss chair: tall, plush and red, with armrests. Faces +Z. */
@@ -365,8 +455,8 @@ export function buildBookshelf(b: Batch, r: () => number, d = D.bookshelf): void
   }
 }
 
-/** The Personnel Files: a blue four-drawer cabinet with a sign on top (printed face separate). Front +Z. */
-export function buildFilingCabinet(b: Batch, signYaw = 0, d = D.fileCabinet): void {
+/** The Personnel Files: a blue four-drawer cabinet with folders on top (the sign is separate). Front +Z. */
+export function buildFilingCabinet(b: Batch, d = D.fileCabinet): void {
   b.box(d.w, d.h, d.d, '#5C8DFF', { at: [0, d.h / 2, 0], r: 0.05, finish: 'plastic' });
   const step = (d.h - 0.08) / d.drawers;
   for (let i = 0; i < d.drawers; i++) {
@@ -375,8 +465,6 @@ export function buildFilingCabinet(b: Batch, signYaw = 0, d = D.fileCabinet): vo
     b.capsule(0.018, 0.16, '#E9EEF6', { at: [0, y + 0.05, d.d / 2 + 0.035], rot: [0, 0, Math.PI / 2], finish: 'gloss' });
     b.box(0.18, 0.07, 0.008, '#FFFDF7', { at: [0, y - 0.05, d.d / 2 + 0.023], r: 0.004, cast: false });
   }
-  b.box(0.94, 0.35, 0.06, '#3B4252', { at: [0, 1.56, 0], rot: [-0.1, 0, 0], r: 0.035, parent: new THREE.Matrix4().makeRotationY(signYaw), finish: 'plastic' });
-  b.box(0.06, 0.12, 0.06, '#3B4252', { at: [0, 1.36, 0], r: 0.02 });
   for (let i = 0; i < 4; i++) b.box(0.04, 0.2, 0.26, ['#FFC94A', '#FF7A6B', '#6EDC9A', '#FFFDF8'][i], { at: [-0.2 + i * 0.13, d.h - 0.07, 0.08], rot: [0, 0, (i - 1.5) * 0.12], r: 0.01, cast: false });
 }
 
@@ -384,12 +472,20 @@ export function buildFilingCabinet(b: Batch, signYaw = 0, d = D.fileCabinet): vo
 // Break area (north-west)
 
 function buildBreakArea(ctx: WorldCtx): void {
-  const b = ctx.statics;
   const wz = -WALL_FACE;
   const K = D.kitchen;
   const kx = -11.55;
   const kz = wz + K.d / 2 + 0.02;
-  b.place(kx, 0, kz, 0, () => buildKitchenCounter(b));
+  const counter = staticProp(ctx, 'kitchen-counter', (b) => buildKitchenCounter(b), { at: [kx, kz] });
+  void (async () => {
+    // Two catalog modules sized to the counter, the right one mirrored so the sinks sit together.
+    const info = await catalogItem('kitchen_counter');
+    const top = info?.anchors.top?.[1];
+    if (!info?.dims || !top) return;
+    const scale: Vec3 = [K.w / 2 / info.dims.w, K.h / top, K.d / info.dims.d];
+    if (!(await swapModel(ctx, counter, 'kitchen_counter', { scale, tint: { Accent: '#8FE0C8' }, copies: [{ at: [-K.w / 4, 0, 0] }, { at: [K.w / 4, 0, 0], mirror: true }] }))) return;
+    void addModel(counter, 'microwave', { at: [K.w / 2 - 0.45, K.h, -0.04], yaw: -0.15 });
+  })();
   ctx.colliders.push(aabb(kx - K.w / 2 - 0.05, kx + K.w / 2 + 0.05, wz, wz + K.d + 0.06));
   ctx.blobs.add(kx, kz + 0.05, K.w + 0.4, K.d + 0.4);
 
@@ -397,10 +493,15 @@ function buildBreakArea(ctx: WorldCtx): void {
   upper.place(kx, 0, wz, 0, () => buildUpperCupboards(upper));
   ctx.root.add(upper.build({ name: 'cupboards' }));
 
-  // Coffee machine (interactable) with steam.
-  const mx = -11.6;
+  // Coffee machine (interactable) on the left worktop, with steam.
+  const mx = kx - K.w / 2 + 0.45;
   const mz = wz + 0.3;
-  tallProp(ctx, 'coffee-machine', (s) => s.place(0, K.h, 0, 0, () => buildCoffeeMachine(s)), { at: [mx, mz] });
+  const steamAt = new THREE.Vector3(0, 0.16, 0.24);
+  const machine = tallProp(ctx, 'coffee-machine', (s) => s.place(0, K.h, 0, 0, () => buildCoffeeMachine(s)), { at: [mx, mz] });
+  void swapModel(ctx, machine, 'coffee_machine', { at: [0, K.h, 0] }).then(async (m) => {
+    const steam = m && (await anchorOf('coffee_machine', 'steam'));
+    if (steam) steamAt.copy(steam);
+  });
   const steamMat = new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0.5, depthWrite: false });
   const puffs: THREE.Mesh[] = [];
   const puffGeo = new THREE.SphereGeometry(1, 12, 8);
@@ -413,7 +514,7 @@ function buildBreakArea(ctx: WorldCtx): void {
   ctx.tickers.push((_dt, t) => {
     puffs.forEach((p, i) => {
       const k = (t * 0.45 + i / puffs.length) % 1;
-      p.position.set(mx + Math.sin(t * 2 + i) * 0.03 * k, K.h + 0.16 + k * 0.55, mz + 0.24 + Math.cos(t * 1.7 + i) * 0.02);
+      p.position.set(mx + steamAt.x + Math.sin(t * 2 + i) * 0.03 * k, K.h + steamAt.y + k * 0.55, mz + steamAt.z + Math.cos(t * 1.7 + i) * 0.02);
       p.scale.setScalar(0.025 + k * 0.05);
       (p.material as THREE.MeshBasicMaterial).opacity = Math.sin(k * Math.PI) * 0.55;
     });
@@ -431,7 +532,8 @@ function buildBreakArea(ctx: WorldCtx): void {
   const fx = -OFFICE.halfW + F.w / 2 + 0.01;
   const fz = wz + F.d / 2 + 0.03;
   const fr = rng(5);
-  tallProp(ctx, 'fridge', (s) => buildFridge(s, fr), { at: [fx, fz] });
+  const fridge = tallProp(ctx, 'fridge', (s) => buildFridge(s, fr), { at: [fx, fz] });
+  void swapModel(ctx, fridge, 'fridge', { fit: { w: F.w, h: F.h, d: F.d } });
   ctx.colliders.push(footprint(fx, fz, F.w + 0.02, F.d + 0.06));
   ctx.blobs.add(fx, fz, 1.1, 1.1);
 
@@ -442,23 +544,39 @@ function buildBreakArea(ctx: WorldCtx): void {
     new THREE.MeshStandardMaterial({ color: '#7FD3FF', roughness: 0.15, transparent: true, opacity: 0.7, depthWrite: false }),
   );
   jug.position.set(0, 1.2, 0);
-  tallProp(ctx, 'water-cooler', (s) => buildWaterCooler(s), { extra: [jug], at: [wcx, wcz] });
+  const cooler = tallProp(ctx, 'water-cooler', (s) => buildWaterCooler(s), { extra: [jug], at: [wcx, wcz] });
+  void swapModel(ctx, cooler, 'water_cooler');
   ctx.colliders.push(footprint(wcx, wcz, D.waterCooler.w + 0.04, D.waterCooler.d + 0.04));
   ctx.blobs.add(wcx, wcz, 0.7, 0.7, { shape: 'round' });
 
   // Couch (seat facing east), coffee table and a round rug by the west windows.
   const rx = -12.0;
   const rz = -6.6;
-  b.puck(1.75, 0.03, '#FFD27F', { at: [rx, 0.015, rz], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
-  b.puck(1.5, 0.034, '#FFE3A8', { at: [rx, 0.017, rz], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+  const rug = staticProp(ctx, 'break-rug', (b) => {
+    b.puck(1.75, 0.03, '#FFD27F', { at: [0, 0.015, 0], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+    b.puck(1.5, 0.034, '#FFE3A8', { at: [0, 0.017, 0], cast: false, finish: 'matte', seg: 48, tex: 'carpet' });
+  }, { at: [rx, rz] });
+  void swapModel(ctx, rug, 'rug_round', { fit: { w: 3.5, d: 3.5, h: 0.02 }, tint: { Accent: '#FFC94A' } });
   const cx = -OFFICE.halfW + D.couch.d / 2 + 0.03;
-  couch(b, new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(cx, 0, rz), D.couch.w, '#FF7A6B', ['#FFD93D', '#5CC8FF']);
+  const sofa = staticProp(ctx, 'break-couch', (b) => couch(b, new THREE.Matrix4(), D.couch.w, '#FF7A6B', ['#FFD93D', '#5CC8FF']), { at: [cx, rz], yaw: Math.PI / 2 });
+  void swapCouch(ctx, sofa, D.couch.w, '#FF7A6B');
   ctx.colliders.push(aabb(-OFFICE.halfW, cx + D.couch.d / 2 + 0.02, rz - D.couch.w / 2 - 0.05, rz + D.couch.w / 2 + 0.05));
   ctx.blobs.add(cx, rz, 1.3, 2.7);
   const tx = -12.15;
-  b.place(tx, 0, rz, 0, () => buildCoffeeTable(b));
+  const table = staticProp(ctx, 'coffee-table', (b) => buildCoffeeTable(b), { at: [tx, rz] });
+  void swapModel(ctx, table, 'coffee_table', { yaw: Math.PI / 2 }).then((m) => {
+    if (m) void addModel(table, 'donut_box', { at: [0.05, 0.42, 0.12], yaw: 0.4, tint: { Accent: '#FF9DCB' } });
+  });
   ctx.colliders.push(footprint(tx, rz, D.coffeeTable.r * 2, D.coffeeTable.r * 2));
   ctx.blobs.add(tx, rz, 1.2, 1.2, { shape: 'round' });
+}
+
+/** Swap the catalog couch into a procedural couch's group: its footprint, and the seat at the couch's seat height. */
+export async function swapCouch(ctx: WorldCtx, group: THREE.Group, length: number, color: string): Promise<void> {
+  const info = await catalogItem('couch');
+  const seat = info?.anchors.seat1?.[1];
+  if (!info?.dims || !seat) return;
+  await swapModel(ctx, group, 'couch', { fit: { w: length, d: D.couch.d, h: (info.dims.h * D.couch.seatH) / seat }, tint: { Seat: color } });
 }
 
 /** Kitchen counter: mint cupboards under a wooden top. Front +Z. */
@@ -527,34 +645,38 @@ export function buildCoffeeTable(b: Batch, d = D.coffeeTable): void {
 // Lounge bits: bean bags by the break rug, the vending machine, a coat rack and a printer
 
 function buildLounge(ctx: WorldCtx): void {
-  const b = ctx.statics;
-  for (const [x, z, c] of [
-    [-10.55, -5.95, '#B48CFF'],
-    [-10.75, -7.45, '#FFC94A'],
+  for (const [x, z, c, yaw] of [
+    [-10.55, -5.95, '#B48CFF', -2.2],
+    [-10.75, -7.45, '#FFC94A', -1.2],
   ] as const) {
-    b.place(x, 0, z, 0, () => buildBeanBag(b, c));
+    const bag = staticProp(ctx, 'bean-bag', (b) => buildBeanBag(b, c), { at: [x, z], yaw });
+    void swapModel(ctx, bag, 'beanbag', { fit: { w: 0.84, uniform: true }, tint: { Seat: c } });
     ctx.colliders.push(footprint(x, z, 0.8, 0.8));
     ctx.blobs.add(x, z, 1.1, 1.1, { shape: 'round' });
   }
 
-  const vx = -OFFICE.halfW + D.vending.d / 2 + 0.02;
+  const V = D.vending;
+  const vx = -OFFICE.halfW + V.d / 2 + 0.02;
   const vz = 6.0;
   const vr = rng(77);
-  tallProp(ctx, 'vending', (s) => buildVendingMachine(s, vr), { at: [vx, vz], yaw: Math.PI / 2 });
-  ctx.colliders.push(footprint(vx, vz, D.vending.w, D.vending.d + 0.04, 1));
+  const vending = tallProp(ctx, 'vending', (s) => buildVendingMachine(s, vr), { at: [vx, vz], yaw: Math.PI / 2 });
+  void swapModel(ctx, vending, 'vending_machine', { fit: { w: V.w, h: V.h, d: V.d } });
+  ctx.colliders.push(footprint(vx, vz, V.w, V.d + 0.04, 1));
   ctx.blobs.add(vx + 0.05, vz, 1.1, 1.2);
 
   // Coat rack just inside the door, west side (clear of the intern bench at its longest).
   const cx = -2.95;
   const cz = OFFICE.halfD - 0.5;
-  tallProp(ctx, 'coat-rack', (s) => buildCoatRack(s), { at: [cx, cz] });
+  const rack = tallProp(ctx, 'coat-rack', (s) => buildCoatRack(s), { at: [cx, cz] });
+  void swapModel(ctx, rack, 'coat_rack', { yaw: 0.5 });
   ctx.colliders.push(footprint(cx, cz, 0.5, 0.5));
   ctx.blobs.add(cx, cz, 0.7, 0.7, { shape: 'round' });
 
   // A big friendly printer against the east wall, between the windows.
   const px = OFFICE.halfW - 0.4;
   const pz = -2.0;
-  tallProp(ctx, 'printer', (s) => buildPrinter(s), { at: [px, pz], yaw: -Math.PI / 2 });
+  const printer = tallProp(ctx, 'printer', (s) => buildPrinter(s), { at: [px, pz], yaw: -Math.PI / 2 });
+  void swapModel(ctx, printer, 'printer_copier', { at: [-0.1, 0, 0], tint: { Accent: '#5CC8FF' } });
   ctx.colliders.push(footprint(px, pz, 0.95, 0.72, 1));
   ctx.blobs.add(px, pz, 1.0, 1.2);
 }
@@ -626,13 +748,14 @@ function buildWhiteboard(ctx: WorldCtx): { setStats(s: OfficeStats): void } {
   const stats: BoardState = { staff: 0, working: 0, needsYou: 0, idle: 0, interns: 0 };
   const W = D.whiteboard;
   const tex = new CanvasTex(1024, 466, (c, w, h) => drawBoard(c, w, h, stats));
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(W.w - 0.1, W.h - 0.1), new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.35 }));
-  placeOnWall(face, 'north', BOARD_X, W.centerY, 0.085);
+  const boardMat = new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.35 });
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(W.w - 0.1, W.h - 0.1), boardMat);
+  face.position.z = 0.085;
   face.receiveShadow = true;
-  ctx.root.add(face);
-  const frame = new Batch();
-  frame.place(BOARD_X, W.centerY, -WALL_FACE, 0, () => buildWhiteboardFrame(frame));
-  ctx.root.add(frame.build({ name: 'whiteboard-frame' }));
+  // Origin at the wall, board centre at y = 0, like the catalog whiteboard.
+  const board = staticProp(ctx, 'whiteboard', (b) => buildWhiteboardFrame(b), { extra: [face] });
+  placeOnWall(board, 'north', BOARD_X, W.centerY, 0);
+  void swapModel(ctx, board, 'whiteboard', { fit: { w: W.w, h: W.h, d: 0.13 }, paint: { Board: boardMat } });
 
   ctx.interactables.push({
     id: 'whiteboard',
@@ -883,7 +1006,11 @@ function buildPosters(ctx: WorldCtx): void {
       },
     },
   ];
-  for (const p of posters) hangPicture(ctx, { side: 'north', u: p.u, y: P.centerY - 0.1, w: P.w, h: P.h, px: [400, 700], draw: p.draw });
+  const ids = ['poster_ship_it', 'poster_compact', 'poster_tokens'];
+  posters.forEach((p, i) => {
+    const picture = hangPicture(ctx, { side: 'north', u: p.u, y: P.centerY - 0.1, w: P.w, h: P.h, px: [400, 700], draw: p.draw });
+    void swapModel(ctx, picture, ids[i], { fit: { h: P.h, uniform: true } });
+  });
 }
 
 export interface PictureSpec {
@@ -900,19 +1027,16 @@ export interface PictureSpec {
   border?: number;
 }
 
-/** Hang a framed canvas picture on the inside of a wall. */
-export function hangPicture(ctx: WorldCtx, p: PictureSpec): void {
+/** Hang a framed canvas picture on the inside of a wall. Returns its group (origin at the wall, picture centre). */
+export function hangPicture(ctx: WorldCtx, p: PictureSpec): THREE.Group {
   const tex = new CanvasTex(p.px[0], p.px[1], p.draw);
   const border = p.border ?? 0.04;
-  const frame = new Batch();
-  const pos = new THREE.Object3D();
-  placeOnWall(pos, p.side, p.u, p.y, 0);
-  frame.place(pos.position.x, p.y, pos.position.z, pos.rotation.y, () => buildPictureFrame(frame, p.w, p.h, border, p.frame ?? '#FFFDF7'));
-  ctx.root.add(frame.build({ name: 'picture-frame' }));
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.h), new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.75, metalness: 0 }));
-  placeOnWall(mesh, p.side, p.u, p.y, 0.065);
+  const mesh = ownCanvas(new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.h), new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.75, metalness: 0 })), tex);
+  mesh.position.z = 0.065;
   mesh.receiveShadow = true;
-  ctx.root.add(mesh);
+  const g = staticProp(ctx, 'picture', (b) => buildPictureFrame(b, p.w, p.h, border, p.frame ?? '#FFFDF7'), { extra: [mesh] });
+  placeOnWall(g, p.side, p.u, p.y, 0);
+  return g;
 }
 
 /** Picture frame (the picture is a separate plane). Origin at the wall, picture centre at y = 0. */
@@ -943,29 +1067,45 @@ function buildClock(ctx: WorldCtx): void {
     }
   });
   const group = new THREE.Group();
+  group.name = 'clock';
   placeOnWall(group, 'north', BOARD_X, D.clock.centerY, 0.06);
   const b = new Batch();
   buildClockRim(b);
   group.add(b.build({ name: 'clock-rim' }));
-  const face = new THREE.Mesh(new THREE.CircleGeometry(R, 48), new THREE.MeshStandardMaterial({ map: faceTex.tex, roughness: 0.5 }));
+  const face = ownCanvas(new THREE.Mesh(new THREE.CircleGeometry(R, 48), new THREE.MeshStandardMaterial({ map: faceTex.tex, roughness: 0.5 })), faceTex);
   face.position.z = 0.042;
   group.add(face);
   const hand = (len: number, w: number, color: string, z: number) => {
     const pivot = new THREE.Group();
     const m = new THREE.Mesh(G.rbox(w, len, 0.012, w / 2.2, 2), new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
+    m.userData.dispose = () => (m.material as THREE.Material).dispose();
     m.position.y = len / 2 - 0.03;
     pivot.add(m);
     pivot.position.z = z;
     group.add(pivot);
     return pivot;
   };
-  const hourHand = hand(R * 0.55, 0.035, '#2B2D42', 0.055);
-  const minuteHand = hand(R * 0.8, 0.026, '#2B2D42', 0.065);
+  let hourHand: THREE.Object3D = hand(R * 0.55, 0.035, '#2B2D42', 0.055);
+  let minuteHand: THREE.Object3D = hand(R * 0.8, 0.026, '#2B2D42', 0.065);
   const secondHand = hand(R * 0.85, 0.01, '#E63946', 0.075);
+  secondHand.userData.keep = true;
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 8), new THREE.MeshStandardMaterial({ color: '#E63946', roughness: 0.5 }));
+  cap.userData.dispose = () => (cap.material as THREE.Material).dispose();
   cap.position.z = 0.08;
   group.add(cap);
   ctx.root.add(group);
+  // The catalog clock (origin at the wall back) brings its own hour and minute hands; our red
+  // second hand stays, just in front of them.
+  const size = (R + 0.05) * 2;
+  void swapModel(ctx, group, 'wall_clock', { fit: { w: size, uniform: true }, at: [0, 0, -0.06] }).then(async (m) => {
+    const hour = m && findNode(m, 'HourHand');
+    const minute = m && findNode(m, 'MinuteHand');
+    const centre = await anchorOf('wall_clock', 'center');
+    if (!m || !hour || !minute || !centre) return;
+    hourHand = hour;
+    minuteHand = minute;
+    secondHand.position.z = centre.z * m.scale.z - 0.06 + 0.012;
+  });
   ctx.tickers.push(() => {
     const now = new Date();
     const s = now.getSeconds() + now.getMilliseconds() / 1000;
@@ -1003,11 +1143,19 @@ function buildPlants(ctx: WorldCtx): void {
   spots.forEach(([x, z, s, kind], i) => {
     const r = rng(300 + i);
     const plant = tallProp(ctx, `plant-${i}`, (b) => buildPlant(b, kind, s, r), { at: [x, z], yaw: r() * 6 });
+    void swapModel(ctx, plant, ...PLANT_MODELS[kind](s, i));
     sway(ctx, plant, kind === 'palm' ? 0.03 : 0.02, r());
     ctx.colliders.push(footprint(x, z, 0.62 * s, 0.62 * s));
     ctx.blobs.add(x, z, 0.9 * s, 0.9 * s, { shape: 'round' });
   });
 }
+
+/** The catalog plant for each kind, sized like the procedural one (s = 1: a 0.45 m pot). */
+const PLANT_MODELS: Record<PlantKind, (s: number, i: number) => [string, SwapOptions]> = {
+  leafy: (s, i) => (i % 2 ? ['plant_monstera', { fit: { h: 1.45 * s, uniform: true }, tint: { Accent: '#F4ECDC' } }] : ['plant_pot', { fit: { h: 1.3 * s, uniform: true } }]),
+  fern: (s) => ['plant_fern', { fit: { w: 0.9 * s, uniform: true } }],
+  palm: (s) => ['palm_indoor', { fit: { h: 1.45 * s, uniform: true } }],
+};
 
 export function buildPlant(b: Batch, kind: PlantKind, s: number, r: () => number): void {
   if (kind === 'fern') buildFern(b, s, r);

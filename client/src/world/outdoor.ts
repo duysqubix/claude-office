@@ -8,9 +8,32 @@ import { Batch, CanvasTex, FONT_FAMILY, fitText, pickR, rng, shade } from './kit
 import { NAV_BOUNDS, OFFICE } from './layout';
 import { aabb, footprint, type WorldCtx } from './ctx';
 import { sparkle } from './screens';
-import { sway, tallProp } from './props';
+import { staticProp, sway, tallProp } from './props';
+import { findNode } from '../models';
+import { disposeGroup, disposeInstanced, instancedModel, ownCanvas, placement, swapModel, type InstancedModel } from './modelkit';
 
 const OUT_Z = OFFICE.halfD + OFFICE.wallT;
+/** Garden trees cycle through the catalog's three kinds. */
+const TREE_IDS = ['tree_round', 'tree_pine', 'tree_round', 'tree_blossom', 'tree_round'];
+
+/** Placement for instanced scenery: position, turn and uniform size. */
+function scenery(x: number, z: number, yaw: number, s: number): THREE.Matrix4 {
+  return placement(x, 0, z, yaw).multiply(new THREE.Matrix4().makeScale(s, s, s));
+}
+
+/**
+ * Draw repeated scenery (bushes, tufts, hedge tiles, far trees) as instanced catalog models.
+ * The procedural `fallback` goes once every model has loaded; if any is missing it stays.
+ */
+async function swapScenery(ctx: WorldCtx, fallback: THREE.Object3D, sets: { id: string; at: THREE.Matrix4[]; shadows?: boolean }[]): Promise<void> {
+  const loaded = await Promise.all(sets.map((set) => instancedModel(set.id, set.at, { shadows: set.shadows })));
+  if (loaded.some((m, i) => !m && sets[i].at.length > 0)) {
+    for (const m of loaded) if (m) disposeInstanced(m.group);
+    return;
+  }
+  for (const m of loaded.filter((m): m is InstancedModel => m !== null)) ctx.root.add(m.group);
+  disposeGroup(fallback);
+}
 /** Lawn texture tile size in metres (one canvas repeat). */
 const LAWN_TILE = 12.8;
 /** Paver texture tile size in metres. */
@@ -56,11 +79,12 @@ export function buildOutdoor(ctx: WorldCtx): void {
     fitText(c, 'HELLO :)', 700, 110, w - 80);
     c.fillText('HELLO :)', w / 2, h / 2 + 6);
   });
-  const doormat = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.78), new THREE.MeshStandardMaterial({ map: mat.tex, roughness: 0.95 }));
+  const doormat = ownCanvas(new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.78), new THREE.MeshStandardMaterial({ map: mat.tex, roughness: 0.95 })), mat);
   doormat.rotation.x = -Math.PI / 2;
-  doormat.position.set(0, 0.006, OUT_Z + 0.75);
+  doormat.position.y = 0.006;
   doormat.receiveShadow = true;
-  ctx.root.add(doormat);
+  const matGroup = staticProp(ctx, 'doormat', () => {}, { extra: [doormat], at: [0, OUT_Z + 0.75] });
+  void swapModel(ctx, matGroup, 'doormat');
 
   // Company sign: a chunky monument by the path, angled toward people walking up.
   const signTex = new CanvasTex(1024, 300, (c, w, h) => {
@@ -83,9 +107,12 @@ export function buildOutdoor(ctx: WorldCtx): void {
     c.fillText('OFFICE', 274, h / 2 + 74);
   });
   const sign = new THREE.Group();
-  const signFace = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.3, 0.67),
-    new THREE.MeshStandardMaterial({ map: signTex.tex, emissive: '#FFFFFF', emissiveMap: signTex.tex, emissiveIntensity: 0.25, roughness: 0.6 }),
+  const signFace = ownCanvas(
+    new THREE.Mesh(
+      new THREE.PlaneGeometry(2.3, 0.67),
+      new THREE.MeshStandardMaterial({ map: signTex.tex, emissive: '#FFFFFF', emissiveMap: signTex.tex, emissiveIntensity: 0.25, roughness: 0.6 }),
+    ),
+    signTex,
   );
   signFace.position.set(0, 1.0, 0.075);
   signFace.rotation.x = -0.08;
@@ -102,7 +129,8 @@ export function buildOutdoor(ctx: WorldCtx): void {
   sign.position.set(3.35, 0, OUT_Z + 1.9);
   sign.rotation.y = -0.35;
   ctx.root.add(sign);
-  ctx.colliders.push(footprint(3.35, OUT_Z + 1.9, 2.8, 0.9));
+  void swapModel(ctx, sign, 'company_sign');
+  ctx.colliders.push(footprint(3.35, OUT_Z + 1.9, 3.0, 1.1));
   ctx.blobs.add(3.35, OUT_Z + 1.9, 3.2, 1.2, { yaw: -0.35 });
 
   // Garden trees (each fades on its own so it can never hide the manager). Kept clear of the
@@ -132,18 +160,41 @@ export function buildOutdoor(ctx: WorldCtx): void {
   trees.forEach(([x, z, s], i) => {
     const r = rng(900 + i);
     const t = tallProp(ctx, `tree-${i}`, (tb) => buildTree(tb, s, r), { at: [x, z] });
+    void swapModel(ctx, t, TREE_IDS[i % TREE_IDS.length], { fit: { h: 3.9 * s, uniform: true }, yaw: r() * 6 });
     sway(ctx, t, 0.012, r());
     ctx.colliders.push(footprint(x, z, 0.5 * s, 0.5 * s));
     ctx.blobs.add(x, z, 3.6 * s, 3.6 * s, { shape: 'round' });
   });
 
   // Bench beside the path, and a ping-pong table out on the east lawn.
-  b.place(2.55, 0, 17.2, -Math.PI / 2, () => buildParkBench(b));
+  void swapModel(ctx, staticProp(ctx, 'park-bench', (pb) => buildParkBench(pb), { at: [2.55, 17.2], yaw: -Math.PI / 2 }), 'park_bench', { fit: { w: 1.7, uniform: true } });
   ctx.colliders.push(footprint(2.6, 17.2, 0.7, 1.8));
   ctx.blobs.add(2.6, 17.2, 1.0, 2.1);
-  b.place(19.4, 0, -10.6, 0, () => buildPingPongTable(b));
+  void swapModel(ctx, staticProp(ctx, 'ping-pong', (pb) => buildPingPongTable(pb), { at: [19.4, -10.6] }), 'ping_pong_table', { fit: { w: 2.5, uniform: true } });
   ctx.colliders.push(footprint(19.4, -10.6, 2.5, 1.4));
   ctx.blobs.add(19.4, -10.6, 2.9, 1.8);
+
+  // Street lamps along the path, a mailbox by the door and the company flag at the back.
+  for (const [x, z] of [
+    [-2.3, 15.0],
+    [2.3, 15.0],
+    [-2.3, 21.0],
+    [2.3, 21.0],
+  ] as const) {
+    void swapModel(ctx, tallProp(ctx, 'street-lamp', (lb) => buildStreetLamp(lb), { at: [x, z] }), 'street_lamp', { glow: 0.3 });
+    ctx.colliders.push(footprint(x, z, 0.4, 0.4));
+    ctx.blobs.add(x, z, 0.7, 0.7, { shape: 'round' });
+  }
+  void swapModel(ctx, staticProp(ctx, 'mailbox', (mb) => buildMailbox(mb), { at: [-2.3, 12.6], yaw: Math.PI / 2 }), 'mailbox', { tint: { Accent: '#3D7CFF' } });
+  ctx.colliders.push(footprint(-2.3, 12.6, 0.45, 0.45));
+  ctx.blobs.add(-2.3, 12.6, 0.6, 0.6, { shape: 'round' });
+  const flag = tallProp(ctx, 'flag-pole', (fb) => buildFlagPole(fb), { at: [-4.5, 26.0] });
+  void swapModel(ctx, flag, 'flag_pole').then((m) => {
+    const cloth = m && findNode(m, 'Flag');
+    if (cloth) ctx.tickers.push((_dt, t) => (cloth.rotation.y = Math.sin(t * 1.7) * 0.18 + Math.sin(t * 4.1) * 0.05));
+  });
+  ctx.colliders.push(footprint(-4.5, 26.0, 0.7, 0.7));
+  ctx.blobs.add(-4.5, 26.0, 0.9, 0.9, { shape: 'round' });
 
   // Bushes hugging the building, with flowers.
   const bushRows: [number, number, number][] = [
@@ -152,17 +203,28 @@ export function buildOutdoor(ctx: WorldCtx): void {
     [-9.0, 9.0, -OUT_Z - 0.75],
   ];
   const fr = rng(4242);
+  const shrubs = new Batch();
+  const bushes: THREE.Matrix4[] = [];
+  const bush = (x: number, z: number, size: number) => {
+    const yaw = fr() * 6;
+    shrubs.place(x, 0, z, yaw, () => buildBush(shrubs, size, fr));
+    // The catalog bush is ~1.5 m across; ours is 2.2 × size.
+    bushes.push(scenery(x, z, yaw, (size * 2.2) / 1.5));
+  };
   for (const [x0, x1, z] of bushRows) {
-    for (let x = x0; x <= x1; x += 0.95 + fr() * 0.3) b.place(x, 0, z, fr() * 6, () => buildBush(b, 0.45 + fr() * 0.2, fr));
+    for (let x = x0; x <= x1; x += 0.95 + fr() * 0.3) bush(x, z, 0.45 + fr() * 0.2);
     ctx.colliders.push(aabb(x0 - 0.6, x1 + 0.6, z - 0.55, z + 0.55));
     ctx.blobs.add((x0 + x1) / 2, z, x1 - x0 + 1.4, 1.5);
   }
   for (const side of [-1, 1]) {
     const x = side * (OFFICE.halfW + OFFICE.wallT + 0.75);
-    for (let z = -8.5; z <= 8.5; z += 1.0 + fr() * 0.3) b.place(x, 0, z, fr() * 6, () => buildBush(b, 0.4 + fr() * 0.2, fr));
+    for (let z = -8.5; z <= 8.5; z += 1.0 + fr() * 0.3) bush(x, z, 0.4 + fr() * 0.2);
     ctx.colliders.push(aabb(x - 0.55, x + 0.55, -9.1, 9.1));
     ctx.blobs.add(x, 0, 1.4, 18.6);
   }
+  const shrubGroup = shrubs.build({ name: 'bushes' });
+  ctx.root.add(shrubGroup);
+  void swapScenery(ctx, shrubGroup, [{ id: 'bush_round', at: bushes }]);
 
   // Grass tufts along the edges of the apron and the path.
   const tr = rng(777);
@@ -181,21 +243,41 @@ export function buildOutdoor(ctx: WorldCtx): void {
     const s = i % 2 ? 1 : -1;
     tufts.push([s * (1.95 + tr() * 0.35), OUT_Z + 1.5 + tr() * (pathLen - 3)]);
   }
-  for (const [x, z] of tufts) b.place(x, 0, z, tr() * 6, () => buildGrassTuft(b, tr));
+  const grass = new Batch();
+  const blades: THREE.Matrix4[] = [];
+  for (const [x, z] of tufts) {
+    const yaw = tr() * 6;
+    grass.place(x, 0, z, yaw, () => buildGrassTuft(grass, tr));
+    blades.push(scenery(x, z, yaw, 0.6 + tr() * 0.35));
+  }
+  const grassGroup = grass.build({ name: 'grass-tufts' });
+  ctx.root.add(grassGroup);
+  void swapScenery(ctx, grassGroup, [{ id: 'grass_tuft', at: blades, shadows: false }]);
 
   // Hedge around the garden, with a little gate across the path.
   const { minX, maxX, minZ, maxZ } = NAV_BOUNDS;
+  const hedges = new Batch();
+  const tiles: THREE.Matrix4[] = [];
   const hedge = (x0: number, z0: number, x1: number, z1: number) => {
     const len = Math.hypot(x1 - x0, z1 - z0);
     const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
     const cx = (x0 + x1) / 2;
     const cz = (z0 + z1) / 2;
     // The hedge is outside the shadow frustum, so it skips the shadow pass entirely.
-    b.box(alongX ? len : 0.9, 0.85, alongX ? 0.9 : len, PALETTE.grassDark, { at: [cx, 0.42, cz], r: 0.4, seg: 4, finish: 'matte', cast: false });
+    hedges.box(alongX ? len : 0.9, 0.85, alongX ? 0.9 : len, PALETTE.grassDark, { at: [cx, 0.42, cz], r: 0.4, seg: 4, finish: 'matte', cast: false });
     for (let t = 0.5; t < len; t += 1.1) {
       const px = alongX ? Math.min(x0, x1) + t : cx;
       const pz = alongX ? cz : Math.min(z0, z1) + t;
-      b.ball([0.55, 0.42, 0.55], shade(PALETTE.grassDark, (fr() - 0.5) * 0.08), { at: [px, 0.82, pz], rot: [0, fr() * 6, 0], ws: 8, hs: 5, finish: 'matte', cast: false, flat: true });
+      hedges.ball([0.55, 0.42, 0.55], shade(PALETTE.grassDark, (fr() - 0.5) * 0.08), { at: [px, 0.82, pz], rot: [0, fr() * 6, 0], ws: 8, hs: 5, finish: 'matte', cast: false, flat: true });
+    }
+    // Catalog hedge tiles (2 m along their X), stretched a little to fill the run exactly.
+    const n = Math.max(1, Math.round(len / 2));
+    const step = len / n;
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) * step;
+      const px = alongX ? Math.min(x0, x1) + t : cx;
+      const pz = alongX ? cz : Math.min(z0, z1) + t;
+      tiles.push(placement(px, 0, pz, alongX ? 0 : Math.PI / 2).multiply(new THREE.Matrix4().makeScale(step / 2.02, 0.9, 0.95)));
     }
   };
   hedge(minX, minZ + 0.4, maxX, minZ + 0.4);
@@ -209,10 +291,16 @@ export function buildOutdoor(ctx: WorldCtx): void {
     aabb(maxX - 0.85, maxX + 1, minZ - 1, maxZ + 1),
     aabb(minX - 1, maxX + 1, maxZ - 0.85, maxZ + 1),
   );
-  // Gate: two posts and a picket fence section.
-  for (const s of [-1, 1]) b.box(0.22, 1.2, 0.22, '#FFFDF7', { at: [s * 1.9, 0.6, maxZ - 0.4], r: 0.06 });
-  for (let i = 0; i < 9; i++) b.box(0.12, 0.85, 0.06, '#FFFDF7', { at: [-1.6 + i * 0.4, 0.43, maxZ - 0.4], r: 0.04 });
-  for (const y of [0.3, 0.65]) b.box(3.6, 0.08, 0.05, '#FFFDF7', { at: [0, y, maxZ - 0.44], r: 0.025 });
+  // Gate: two posts and a picket fence section (two catalog fence tiles).
+  for (const s of [-1, 1]) hedges.box(0.22, 1.2, 0.22, '#FFFDF7', { at: [s * 1.9, 0.6, maxZ - 0.4], r: 0.06 });
+  for (let i = 0; i < 9; i++) hedges.box(0.12, 0.85, 0.06, '#FFFDF7', { at: [-1.6 + i * 0.4, 0.43, maxZ - 0.4], r: 0.04 });
+  for (const y of [0.3, 0.65]) hedges.box(3.6, 0.08, 0.05, '#FFFDF7', { at: [0, y, maxZ - 0.44], r: 0.025 });
+  const hedgeGroup = hedges.build({ name: 'hedge' });
+  ctx.root.add(hedgeGroup);
+  void swapScenery(ctx, hedgeGroup, [
+    { id: 'hedge', at: tiles, shadows: false },
+    { id: 'fence_picket', at: [placement(-0.96, 0, maxZ - 0.4, 0), placement(1.04, 0, maxZ - 0.4, 0)] },
+  ]);
 
   // Rolling faceted hills and a ring of distant trees, softened by the fog.
   const hills = new Batch();
@@ -231,13 +319,27 @@ export function buildOutdoor(ctx: WorldCtx): void {
       flat: true,
     });
   }
+  const hillGroup = hills.build({ name: 'scenery', receive: false });
+  ctx.root.add(hillGroup);
+  const far = new Batch();
+  const farTrees: THREE.Matrix4[][] = [[], [], []];
   for (let i = 0; i < 46; i++) {
     const a = hr() * Math.PI * 2;
     const d = 34 + hr() * 30;
-    hills.place(Math.cos(a) * d, 0, Math.sin(a) * d, hr() * 6, () => buildTree(hills, 0.9 + hr() * 0.6, hr, false));
+    const yaw = hr() * 6;
+    const size = 0.9 + hr() * 0.6;
+    const x = Math.cos(a) * d;
+    const z = Math.sin(a) * d;
+    far.place(x, 0, z, yaw, () => buildTree(far, size, hr, false));
+    farTrees[i % 3].push(scenery(x, z, yaw, size * 0.95));
   }
-  const hillGroup = hills.build({ name: 'scenery', receive: false });
-  ctx.root.add(hillGroup);
+  const farGroup = far.build({ name: 'far-trees', receive: false });
+  ctx.root.add(farGroup);
+  void swapScenery(ctx, farGroup, [
+    { id: 'tree_round', at: farTrees[0], shadows: false },
+    { id: 'tree_pine', at: farTrees[1], shadows: false },
+    { id: 'tree_blossom', at: farTrees[2], shadows: false },
+  ]);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -303,6 +405,27 @@ export function buildParkBench(b: Batch): void {
     b.box(0.07, 0.42, 0.5, PALETTE.doorFrame, { at: [s * 0.7, 0.21, -0.02], r: 0.03 });
     b.box(0.07, 0.42, 0.07, PALETTE.doorFrame, { at: [s * 0.7, 0.62, -0.29], rot: [-0.15, 0, 0], r: 0.03 });
   }
+}
+
+/** Street lamp: a dark post with a glowing globe. */
+export function buildStreetLamp(b: Batch): void {
+  b.puck(0.2, 0.12, PALETTE.doorFrame, { at: [0, 0.06, 0], finish: 'plastic' });
+  b.cyl(0.05, 0.07, 2.9, PALETTE.doorFrame, { at: [0, 1.5, 0], seg: 12, finish: 'plastic' });
+  b.ball(0.2, '#FFF4D6', { at: [0, 3.1, 0], glow: 1.4 });
+}
+
+/** Mailbox on a wooden post, flag up. Faces +Z. */
+export function buildMailbox(b: Batch): void {
+  b.box(0.1, 1.0, 0.1, PALETTE.wood, { at: [0, 0.5, 0], r: 0.02, finish: 'wood' });
+  b.box(0.24, 0.24, 0.48, '#3D7CFF', { at: [0, 1.12, 0], r: 0.1, finish: 'plastic' });
+  b.box(0.03, 0.2, 0.08, '#FF5A5F', { at: [0.14, 1.2, -0.1], r: 0.01 });
+}
+
+/** Flag pole with the company flag. */
+export function buildFlagPole(b: Batch): void {
+  b.puck(0.3, 0.2, '#E9DCC6', { at: [0, 0.1, 0], finish: 'matte' });
+  b.cyl(0.04, 0.05, 4.9, '#E9EEF6', { at: [0, 2.6, 0], seg: 12, finish: 'gloss' });
+  b.box(1.2, 0.75, 0.02, PALETTE.claude, { at: [0.62, 4.55, 0], r: 0.01, finish: 'cloth' });
 }
 
 /** Ping-pong table with net, paddles and a ball. Long axis along X. */

@@ -19,6 +19,8 @@ export interface WorldCtx {
   tickers: ((dt: number, elapsed: number) => void)[];
   /** Invisible proxies the camera must not pass through (walls, partitions, ceiling, roof). */
   cameraBlockers: THREE.Object3D[];
+  /** Where the manager is (the occlusion target), for props that react when they come close. */
+  focus: THREE.Vector3;
 }
 
 export function aabb(minX: number, maxX: number, minZ: number, maxZ: number): AABB {

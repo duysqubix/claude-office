@@ -56,6 +56,7 @@ export function createWorld(engine: Engine): World {
     statics: new Batch(),
     tickers: [],
     cameraBlockers: [],
+    focus: new THREE.Vector3(MANAGER_START.x, 0, MANAGER_START.z),
   };
 
   const building = buildBuilding(ctx);
@@ -118,6 +119,7 @@ export function createWorld(engine: Engine): World {
     },
     updateOcclusion(camera, target) {
       lastCamera = camera;
+      ctx.focus.copy(target);
       fader.update(camera, target);
     },
     setDoorOpen(open) {

@@ -109,6 +109,17 @@
     "r": 0.042,
     "h": 0.1
   },
+  "deskTop": {
+    "_doc": "Where the desk-top items sit, in the desk frame (x across, z toward the sitter; metres). ox = the desk's outer side, mugSide = random side.",
+    "monitorZ": -0.11,
+    "keyboard": [-0.06, 0.18],
+    "mouse": [0.27, 0.16],
+    "mug": [0.52, -0.06],
+    "clutter": [0.5, -0.13],
+    "nameplate": [0.56, 0.27],
+    "nameplateTurn": 0.35,
+    "nameplateW": 0.29
+  },
   "nameplate": {
     "w": 0.41,
     "h": 0.155
@@ -124,6 +135,11 @@
     "w": 1.62,
     "h": 0.87,
     "centerY": 1.85
+  },
+  "hiringBoard": {
+    "w": 0.64,
+    "h": 0.93,
+    "d": 0.45
   },
   "managerDesk": {
     "w": 2.2,
@@ -182,7 +198,7 @@
     "d": 0.8
   },
   "whiteboard": {
-    "w": 3.3,
+    "w": 3.0,
     "h": 1.5,
     "centerY": 1.58
   },
