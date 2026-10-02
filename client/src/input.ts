@@ -17,13 +17,16 @@ const ACTION_KEYS: Record<string, Action> = {
 };
 const MOVE_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
+/** Input types you type text into. A focused checkbox or radio leaves the keys to the game. */
+const TEXT_INPUTS = new Set(['text', 'search', 'email', 'url', 'tel', 'password', 'number']);
+
 /** True when keystrokes belong to a text field or the terminal, not the game. */
 export function isTypingTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
   if (t.isContentEditable) return true;
   if (t.closest('.xterm, .term-modal')) return true;
-  const tag = t.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  if (t instanceof HTMLInputElement) return TEXT_INPUTS.has(t.type);
+  return t.tagName === 'TEXTAREA' || t.tagName === 'SELECT';
 }
 
 export class Input {

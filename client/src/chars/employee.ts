@@ -23,10 +23,16 @@ const SEAT_FORWARD = 0.13;
 const SEAT_LIFT = 0.13;
 const WALK_SPEED = 1.65;
 
-/** The chair at one desk. Shared by whoever sits there over time. */
+/**
+ * The chair at one desk. Shared by whoever sits there over time, but driven by one person at
+ * a time: whoever is getting in, sitting in or getting out of it (see drive).
+ */
 export class Chair {
   slide = 0;
-  target = 0;
+  private target = 0;
+  private driver: object | null = null;
+  /** The frame time it last moved at: everyone near it updates it, but it moves once a frame. */
+  private movedAt = -1;
   private rest: THREE.Vector3;
   private dirLocal: THREE.Vector3;
   /** World direction the chair slides out (away from the desk). */
@@ -44,12 +50,35 @@ export class Chair {
     this.dirWorld.normalize();
   }
 
-  update(dt: number): void {
+  /** Slide toward `to`, unless someone else is using the chair. True if `who` drives it now. */
+  drive(who: object, to: number): boolean {
+    if (this.driver && this.driver !== who) return false;
+    this.driver = who;
+    this.target = to;
+    return true;
+  }
+
+  /** `who` is out of the chair (or gone): it's free for whoever's next. */
+  release(who: object): void {
+    if (this.driver === who) this.driver = null;
+  }
+
+  /** Someone other than `who` is getting in, sitting in or getting out of it. */
+  busyFor(who: object): boolean {
+    return this.driver !== null && this.driver !== who;
+  }
+
+  update(dt: number, t: number): void {
+    if (t === this.movedAt) return;
+    this.movedAt = t;
     const step = 1.5 * dt;
     this.slide += clamp(this.target - this.slide, -step, step);
     this.desk.chair.position.copy(this.rest).addScaledVector(this.dirLocal, this.slide);
   }
 }
+
+/** Longest anyone waits at a chair someone else is still getting out of before sitting anyway. */
+const CHAIR_WAIT = 4;
 
 export interface EmployeeHooks {
   /** A shove from the manager (for the "!" pop). */
@@ -83,6 +112,10 @@ export class EmployeeChar implements Bumpable {
   private waveGoodbyeDone = false;
   private hopFrom = new THREE.Vector3();
   private hopTo = new THREE.Vector3();
+  /** Seconds into the hop out of the chair (standing up). */
+  private hopT = 0;
+  /** Seconds spent at the chair waiting for someone else to get out of it. */
+  private chairWait = 0;
   private idleStyle: number;
   private seed: number;
   private exitPush = 0;
@@ -114,7 +147,7 @@ export class EmployeeChar implements Bumpable {
     scene.add(this.rig.root);
     if (seated) {
       this.phase = 'seated';
-      this.chair.slide = this.chair.target = 0;
+      if (this.chair.drive(this, 0)) this.chair.slide = 0;
       this.placeSeated();
       this.body.heading.snap(desk.yaw);
       this.body.begin();
@@ -172,7 +205,7 @@ export class EmployeeChar implements Bumpable {
     if (this.phase === 'leaving' || this.phase === 'gone' || this.phase === 'standing-up') return;
     if (this.phase === 'seated' || this.phase === 'sitting-down') {
       this.setPhase('standing-up');
-      this.chair.target = CHAIR_OUT;
+      this.chair.drive(this, CHAIR_OUT);
     } else {
       this.startLeaving();
     }
@@ -264,6 +297,7 @@ export class EmployeeChar implements Bumpable {
   protected extraPose(_dt: number, _t: number): void {}
 
   protected walkTo(target: THREE.Vector3): void {
+    this.chairWait = 0;
     const from = this.position.clone().setY(0);
     const p = this.world.findPath(from, target.clone().setY(0));
     this.path = (p && p.length ? p : [target.clone()]).map((v) => v.clone().setY(0));
@@ -338,11 +372,17 @@ export class EmployeeChar implements Bumpable {
         const arrived = this.followPath(dt);
         body.locomote(dt, this.speed, 0, s);
         if (mgrDist < 4) body.lookAt(managerHead, 0.8);
-        if (arrived) {
-          this.setPhase('sitting-down');
-          this.chair.target = CHAIR_OUT;
-          this.hopFrom.copy(this.position);
+        if (!arrived) break;
+        // Someone else still getting out of the chair: wait beside it for them (not for ever).
+        if (this.chair.busyFor(this) && this.chairWait < CHAIR_WAIT) {
+          this.chairWait += dt;
+          body.heading.setTarget(this.desk.yaw);
+          break;
         }
+        this.chairWait = 0;
+        this.setPhase('sitting-down');
+        this.chair.drive(this, CHAIR_OUT);
+        this.hopFrom.copy(this.position);
         break;
       }
       case 'sitting-down':
@@ -391,7 +431,7 @@ export class EmployeeChar implements Bumpable {
     this.waveOverlay(dt, t, managerHead, mgrDist);
     this.rig.setOpacity(this.opacity);
     body.update(dt);
-    this.chair.update(dt);
+    this.chair.update(dt, t);
     // Labels float a little above wherever the head actually is (slumped sleepers included).
     this.rig.root.worldToLocal(this.headWorld(_seat));
     _seat.y += DIM.headR + 0.22;
@@ -427,8 +467,8 @@ export class EmployeeChar implements Bumpable {
       body.flail(t, (0.5 - u) * 4);
       if (T + dt >= 0.78) body.land(3);
     } else {
-      // Scoot in with the chair.
-      if (this.chair.target !== 0) this.chair.target = 0;
+      // Scoot in with the chair (once anyone else using it is out of it).
+      this.chair.drive(this, 0);
       this.placeSeated();
       this.seatedPose(t, dt);
       if (this.chair.slide <= 0.001) {
@@ -440,16 +480,19 @@ export class EmployeeChar implements Bumpable {
 
   private standingUp(dt: number, t: number): void {
     const body = this.body;
-    const T = this.phaseT;
     body.heading.setTarget(this.desk.yaw);
-    if (this.chair.slide < CHAIR_OUT - 0.001 && T < 1.2) {
+    // Wait for the chair to slide out, but not for long: one someone else is driving may never
+    // come out, and then they get up anyway.
+    if (this.chair.slide < CHAIR_OUT - 0.001 && this.phaseT < 1.2) {
+      this.chair.drive(this, CHAIR_OUT);
       this.placeSeated();
       this.seatedPose(t, dt);
       this.hopFrom.copy(this.position);
-      this.phaseT = 0;
+      this.hopT = 0;
       return;
     }
-    const u = clamp(T / 0.42, 0, 1);
+    this.hopT += dt;
+    const u = clamp(this.hopT / 0.42, 0, 1);
     this.position.lerpVectors(this.hopFrom, _seat.copy(this.desk.approach).setY(0), smoothstep(u));
     body.hop = Math.sin(Math.PI * u) * 0.24;
     this.sitLegs(1 - smoothstep(u));
@@ -457,7 +500,9 @@ export class EmployeeChar implements Bumpable {
     body.target.armRRoll += 0.6 * (1 - u);
     if (u >= 1) {
       body.land(2.5);
-      this.chair.target = 0;
+      // Out of it: the chair rolls back in by itself, free for whoever's next.
+      this.chair.drive(this, 0);
+      this.chair.release(this);
       this.stoodUp();
     }
   }
@@ -809,6 +854,7 @@ export class EmployeeChar implements Bumpable {
 
   /** Remove from the scene. */
   dispose(): void {
+    this.chair.release(this);
     this.rig.dispose();
   }
 }

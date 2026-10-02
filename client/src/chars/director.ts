@@ -201,6 +201,7 @@ export class Director {
         this.employees.set(data.sessionId, e);
         this.hooks.added?.(e, initial);
       } else {
+        if (e.phase === 'leaving') this.reclaimDesk(e);
         if (e.phase === 'leaving' || e.phase === 'standing-up') e.comeBack();
         const prev = e.data.state;
         e.setData(data);
@@ -340,6 +341,23 @@ export class Director {
     // New arrivals pick a random free desk (not always the first one), avoiding desks someone
     // else came back to recently. A full office doubles people up rather than failing.
     return take(pickRandom(free.filter((d) => !claimed.has(d.index))) ?? pickRandom(free) ?? desks[taken.size % desks.length]);
+  }
+
+  /**
+   * A session came back while walking out, and leavers' desks count as free, so theirs may
+   * have been handed out meanwhile. If another session has it, they get a fresh desk; if a
+   * regular has it, the regular makes room (sessions win).
+   */
+  private reclaimDesk(e: EmployeeChar): void {
+    const index = e.desk.index;
+    const taken = this.list().some((x) => x !== e && x.desk.index === index && x.phase !== 'leaving' && x.phase !== 'gone');
+    if (taken) {
+      const { desk } = this.assignDesk(e.data.sessionId);
+      e.desk = desk;
+      e.chair = this.chairFor(desk);
+    } else if (this.regulars?.holding().has(index)) {
+      this.regulars.makeRoom(index);
+    }
   }
 
   /** A free station at the intern bench (stable per intern), growing the bench if it's full. */
