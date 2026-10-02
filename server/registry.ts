@@ -49,7 +49,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
       }),
   );
   const live = await liveProcesses(entries.map((e) => e.pid));
-  return entries.filter((e) => {
+  return withGrace(entries.filter((e) => {
     const p = live.get(e.pid);
     if (!p) return false;
     // Registry files can outlive their process, and pids get recycled. Claude records the
@@ -57,7 +57,29 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     // Otherwise accept anything that is still a claude binary.
     if (e.procStart && squash(e.procStart) === squash(p.lstart)) return true;
     return /claude/i.test(basename(p.comm));
-  });
+  }));
+}
+
+/** Sessions on the last poll, and the ones missing from it for the first time. */
+let lastSeen = new Map<string, RegistryEntry>();
+const graced = new Set<string>();
+
+/**
+ * One bad read (a registry file caught mid-rewrite, a ps that failed) must not make
+ * everyone stand up and walk out: a session missing from one poll is kept for that poll,
+ * and only gone once it's missing twice in a row (a real exit shows up a second later).
+ */
+function withGrace(fresh: RegistryEntry[]): RegistryEntry[] {
+  const out = new Map(fresh.map((e) => [e.sessionId, e]));
+  for (const id of graced) if (out.has(id)) graced.delete(id);
+  for (const [id, e] of lastSeen) {
+    if (out.has(id)) continue;
+    if (graced.delete(id)) continue;
+    graced.add(id);
+    out.set(id, e);
+  }
+  lastSeen = out;
+  return [...out.values()];
 }
 
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
