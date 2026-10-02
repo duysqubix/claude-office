@@ -1,4 +1,4 @@
-// The wobble. Every joint is a damped spring chasing a target pose. Behaviours (walking,
+// The springy body. Every joint is a damped spring chasing a target pose. Behaviours (walking,
 // typing, waving…) only say where things *should* be; the springs decide how they get
 // there: lagging, overshooting once, settling. Root motion is watched too, so starting,
 // stopping, turning and landing push the body around without anyone scripting it.

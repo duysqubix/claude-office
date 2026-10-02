@@ -45,13 +45,13 @@ const LAST_TEXT = [
   'The build is green. Two small calls are left for you to decide.',
 ];
 const PROMPTS = [
-  'make the employees wobble more',
+  'give the employees springier arms',
   'why is the door not opening?',
   'add a coffee machine that actually works',
   'fix the flaky test in roster.spec.ts',
   'can you tidy up the README',
 ];
-const TITLES = ['Wobble tuning', 'Door sensor bug', 'Coffee machine API', 'Flaky roster test', 'README polish', 'Desk monitor redesign'];
+const TITLES = ['Spring tuning', 'Door sensor bug', 'Coffee machine API', 'Flaky roster test', 'README polish', 'Desk monitor redesign'];
 const INTERN_TYPES: [string, string][] = [
   ['Explore', 'Find every caller of findPath'],
   ['oh-my-claudecode:executor', 'Implement the hire panel'],
@@ -200,7 +200,7 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       '',
     ];
     if (e.state === 'working') {
-      lines.push(`● ${e.activity?.tool ?? 'Thinking'}(${a.replace(/^\$ /, '')})`, '  ⎿  Running…', '', `✻ ${pickR(['Wobbling', 'Hustling', 'Pondering', 'Noodling'])}… (esc to interrupt)`);
+      lines.push(`● ${e.activity?.tool ?? 'Thinking'}(${a.replace(/^\$ /, '')})`, '  ⎿  Running…', '', `✻ ${pickR(['Jiggling', 'Hustling', 'Pondering', 'Noodling'])}… (esc to interrupt)`);
     } else if (e.state === 'needs-you') {
       lines.push('╭─ Permission ─────────────────────────────╮', '│ Allow Bash(rm -rf node_modules)?        │', '│ ❯ 1. Yes   2. No, tell Claude otherwise │', '╰──────────────────────────────────────────╯');
     } else {
@@ -219,7 +219,7 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       cwd: project === '~' ? HOME : `${HOME}/${project}`,
       project,
       title: pickR(TITLES),
-      branch: pickR(['main', 'wobble-tuning', 'fix/door', 'feat/hire-panel']),
+      branch: pickR(['main', 'spring-tuning', 'fix/door', 'feat/hire-panel']),
       model: pickR(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-fable-5-1']),
       kind: 'interactive',
       entrypoint: 'cli',

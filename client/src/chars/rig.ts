@@ -1,4 +1,4 @@
-// The character model: a hierarchy of soft parts so every joint can wobble on its own.
+// The character model: a hierarchy of soft parts so every joint can lag and sway on its own.
 //
 // root (feet at y=0, yaw)
 // └─ squash (squash-and-stretch, anchored at the feet)

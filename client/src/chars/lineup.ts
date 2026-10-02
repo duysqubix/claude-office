@@ -1,5 +1,5 @@
 // Debug: `?lineup=1` puts every hair style, the manager and an intern in a row in front
-// of the camera, idling (or `&pose=walk|run|jump`). For tuning looks and wobble.
+// of the camera, idling (or `&pose=walk|run|jump`). For tuning looks and springs.
 import * as THREE from 'three';
 import { Body } from './body';
 import { employeeLooks, internLooks, managerLooks, type HairStyle, type Looks } from './looks';
