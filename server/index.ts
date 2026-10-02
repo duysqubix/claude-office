@@ -29,6 +29,7 @@ const MAX_BODY = 64 * 1024;
 /** Hook payloads carry full tool input (a Write can hold a whole file). */
 const MAX_HOOK_BODY = 4 * 1024 * 1024;
 const MAX_TEXT = 8000;
+const CSP_PROD = "frame-ancestors 'none'; script-src 'self'; object-src 'none'; base-uri 'none'";
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -79,6 +80,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   if (!originOk(req)) throw new HttpError(403, 'Cross-origin request');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  // Nobody may frame the office: an invisible frame over a decoy button could click Allow for
+  // you. The built game has no inline script, so production also pins scripts to our origin.
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', IS_PROD ? CSP_PROD : "frame-ancestors 'none'");
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
   if (url.pathname.startsWith('/api/')) return api(req, res, url);
   if (vite) {
