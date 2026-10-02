@@ -11,7 +11,7 @@
 
 [Quick start](#quick-start) · [What you'll see](#what-youll-see) · [Features](#features) · [Controls](#controls) · [How it works](#how-it-works) · [Roadmap](#roadmap)
 
-<img src="docs/media/office.jpg" alt="Overhead view of the office: desk pods on blue and pink carpets, a Team Room with a big wall screen, the manager's corner, a break area and the intern bench, with a lawn and trees outside" width="900">
+<img src="docs/media/office.jpg" alt="Overhead view of a busy office: employees at desk pods, two with their hands up asking to run a command, a thought bubble, NPC regulars, interns at the bench and Mabel at reception, with the garden outside" width="900">
 
 </div>
 
@@ -93,6 +93,8 @@ that trails a beat behind the controls, bright colours, soft shadows.
   really doing (written by Haiku on your Claude login, at most 20 an hour, only while you're
   watching); regulars daydream. Turn them off in Help.
 - **First person.** `V` puts you behind your own eyes, mug in hand.
+
+<p align="center"><img src="docs/media/chat.jpg" alt="The chat panel open on an employee: their reply renders as a markdown table and highlighted code with a Copy button, with Chat and Terminal tabs, Interrupt, and Sit at their computer" width="900"></p>
 
 ## Optional extras
 
