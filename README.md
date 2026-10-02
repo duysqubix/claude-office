@@ -5,7 +5,7 @@
 **Your Claude Code sessions, as a cosy little 3D office. You're the manager.**
 
 [![Node 20+](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=nodedotjs&logoColor=white)](package.json)
-[![macOS | Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-555)](#quick-start)
+[![macOS | Linux | Windows (WSL2)](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28WSL2%29-555)](#quick-start)
 [![Three.js](https://img.shields.io/badge/three.js-0.186-000000?logo=threedotjs&logoColor=white)](https://threejs.org)
 [![For Claude Code](https://img.shields.io/badge/for-Claude%20Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 
@@ -34,8 +34,27 @@ npm start          # builds, serves http://127.0.0.1:4777 and opens your browser
 Every Claude Code session already running on your machine walks into the office. The
 office only **reads** Claude Code's own files and changes nothing in your Claude setup.
 
-**Requirements:** macOS or Linux, Node 20+, Claude Code (`claude`) on your PATH, and
-`tmux` if you want to hire, resume or let go of sessions from inside the game.
+**Requirements:** macOS, Linux or Windows ([with WSL2](#windows-wsl2)), Node 20+, Claude
+Code (`claude`) on your PATH, and `tmux` if you want to hire, resume or let go of sessions
+from inside the game.
+
+### Windows (WSL2)
+
+Run the office inside [WSL2](https://learn.microsoft.com/windows/wsl/install), in the same
+distro as Claude Code. It's then the Linux setup: install Node 20+, `tmux` and Claude Code
+in WSL and run the three commands above.
+
+- **Open it in your Windows browser.** WSL2 forwards `localhost` to Windows, so
+  `http://127.0.0.1:4777` works there. If `npm start` doesn't open it for you, paste the
+  address into your browser.
+- **Only sessions running in WSL join.** The office reads `~/.claude` in your WSL home.
+  Claude Code running natively on Windows (PowerShell or CMD) keeps its sessions in your
+  Windows home, so those don't appear.
+- **Sluggish on a laptop with two GPUs?** Windows often runs the browser on the
+  power-saving integrated GPU, and below 20 fps the whole game slows down, not just the
+  picture. In **Settings → System → Display → Graphics**, set your browser to **High
+  performance**, then quit the browser completely (every window) and reopen it. Task
+  Manager's **GPU engine** column shows which GPU it's using.
 
 ## What you'll see
 
