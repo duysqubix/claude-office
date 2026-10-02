@@ -189,14 +189,30 @@ export class Director {
   sync(roster: Employee[]): void {
     const initial = !this.hadRoster;
     this.hadRoster = true;
-    const seen = new Set<string>();
+    // A hidden tab draws no frames, so nobody would finish getting up or walk anywhere, and
+    // leavers would keep their desks (arrivals would grow the office for good). So there,
+    // leavers are simply gone and arrivals are at their desks, as a page load finds them.
+    const hidden = document.hidden;
+    const seen = new Set(roster.map((d) => d.sessionId));
+    // Leavers first, so this update's arrivals can have their desks.
+    for (const e of this.employees.values()) {
+      if (seen.has(e.data.sessionId)) continue;
+      const going = e.phase === 'leaving' || e.phase === 'gone' || e.phase === 'standing-up';
+      if (hidden) {
+        if (!going) this.hooks.leaving?.(e);
+        this.remove(e);
+      } else if (!going) {
+        e.leave();
+        this.hooks.leaving?.(e);
+        for (const i of this.crews.get(e.data.sessionId)?.values() ?? []) i.leave();
+      }
+    }
     for (const data of roster) {
-      seen.add(data.sessionId);
       let e = this.employees.get(data.sessionId);
       if (!e) {
         const { desk, displaced } = this.assignDesk(data.sessionId);
         // A regular is still getting out of that chair: walk in rather than appear in it.
-        e = new EmployeeChar(data, desk, this.chairFor(desk), this.world, this.scene, initial && !displaced);
+        e = new EmployeeChar(data, desk, this.chairFor(desk), this.world, this.scene, (initial || hidden) && !displaced);
         e.hooks.onBump = (x) => this.hooks.bumped?.(x);
         this.employees.set(data.sessionId, e);
         this.hooks.added?.(e, initial);
@@ -208,14 +224,7 @@ export class Director {
         if (prev !== data.state) this.hooks.stateChanged?.(e, prev);
       }
       this.desks.set(data.sessionId, e.desk.index);
-      this.syncCrew(e, initial);
-    }
-    for (const e of this.employees.values()) {
-      if (seen.has(e.data.sessionId)) continue;
-      if (e.phase === 'leaving' || e.phase === 'gone' || e.phase === 'standing-up') continue;
-      e.leave();
-      this.hooks.leaving?.(e);
-      for (const i of this.crews.get(e.data.sessionId)?.values() ?? []) i.leave();
+      this.syncCrew(e, initial || hidden);
     }
     this.desks.save();
     this.stations.save();
@@ -232,14 +241,7 @@ export class Director {
       e.update(dt, t, manager, managerHead);
       if (e.phase !== before) this.desksDirty = true;
       if (e.phase === 'gone') {
-        this.employees.delete(id);
-        this.hooks.removed?.(e);
-        e.dispose();
-        for (const i of this.crews.get(id)?.values() ?? []) {
-          i.leave();
-          this.leftovers.push(i);
-        }
-        this.crews.delete(id);
+        this.remove(e);
         continue;
       }
       if (!doorBusy && distXZ(e.position, this.door) < 2.5) doorBusy = true;
@@ -297,6 +299,23 @@ export class Director {
   private retire(i: InternChar): void {
     this.hooks.internRemoved?.(i);
     i.dispose();
+  }
+
+  /** Off the floor for good. Their interns walk out after them (in a hidden tab, they go too). */
+  private remove(e: EmployeeChar): void {
+    const id = e.data.sessionId;
+    this.employees.delete(id);
+    this.hooks.removed?.(e);
+    e.dispose();
+    for (const i of this.crews.get(id)?.values() ?? []) {
+      if (document.hidden) {
+        this.retire(i);
+      } else {
+        i.leave();
+        this.leftovers.push(i);
+      }
+    }
+    this.crews.delete(id);
   }
 
   /** The desk's one Chair, whoever sits there (sessions and regulars share it). */
@@ -379,9 +398,12 @@ export class Director {
     return pick;
   }
 
-  private syncCrew(e: EmployeeChar, initial: boolean): void {
+  /** `present`: new interns are already at their stations (a page load, or a hidden tab). */
+  private syncCrew(e: EmployeeChar, present: boolean): void {
     const id = e.data.sessionId;
     const listed = e.data.interns;
+    // In a hidden tab (see sync) an intern who's done goes at once instead of walking out.
+    const hidden = document.hidden;
     let crew = this.crews.get(id);
     if (!crew) {
       if (!listed.length) return;
@@ -389,21 +411,30 @@ export class Director {
       this.crews.set(id, crew);
     }
     const keep = new Set(listed.map((i) => i.id));
-    for (const i of crew.values()) if (!keep.has(i.data.id)) i.leave();
+    for (const [iid, i] of crew) {
+      if (keep.has(i.data.id)) continue;
+      if (hidden) {
+        crew.delete(iid);
+        this.retire(i);
+      } else {
+        i.leave();
+      }
+    }
     const boss = { name: e.data.displayName, shirt: e.rig.looks.shirt };
     listed.forEach((data, k) => {
       let i = crew.get(data.id);
       if (i && (i.phase === 'leaving' || i.phase === 'standing')) {
-        // Came back while heading out: that one keeps walking, a fresh one sits down.
+        // Came back while heading out: that one keeps walking (hidden: just goes), a fresh one sits down.
         crew.delete(data.id);
-        this.leftovers.push(i);
+        if (hidden) this.retire(i);
+        else this.leftovers.push(i);
         i = undefined;
       }
       if (!i) {
         const slot = this.claimStation(data.id);
         const spots = e.desk.internSpots;
         const spot = spots.length ? spots[k % spots.length] : e.desk.approach;
-        i = new InternChar(data, boss, slot, spot.clone(), this.world, this.scene, initial);
+        i = new InternChar(data, boss, slot, spot.clone(), this.world, this.scene, present);
         crew.set(data.id, i);
         this.hooks.internAdded?.(i);
       } else {

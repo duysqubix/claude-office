@@ -2,6 +2,8 @@
 // - nobody ever shares a desk: a session that comes back while walking out finds its desk
 //   handed to another session (they get a fresh desk) or to a regular (who makes room);
 // - nobody hangs getting up: standing up finishes even when someone else has the chair;
+// - a hidden tab (no frames) with sessions coming and going keeps its desks, and nobody is
+//   left behind: characters = roster + regulars;
 // - the keys belong to the game unless you're typing in a text field (a clicked Help
 //   checkbox or radio doesn't swallow W/A/S/D/R).
 // The roster is driven straight through the director with crafted rosters (the frozen demo,
@@ -220,6 +222,89 @@ try {
     check('a busy minute (arrivals, departures, breaks): nobody shared a desk', w.shared.length === 0, w.shared.join(' | ') || JSON.stringify(churn));
     check('a busy minute: nobody spent more than 5 s standing up', w.worstStand <= 5, `worst ${w.worstStand} s`);
     check('no page errors (busy minute)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
+  // ------------------------------------------------------------------ a hidden tab with churn
+  {
+    // A background tab draws no frames, but roster pushes keep coming: leavers must not
+    // freeze in their chairs (holding desks), or arrivals grow the office for good.
+    const { page, logs } = await open(`${BASE}/?demo=1&quiet=1&debug=1&seed=11&regulars=lively`);
+    await page.evaluate(() => {
+      window.__frames = 0;
+      const f = () => {
+        window.__frames++;
+        requestAnimationFrame(f);
+      };
+      requestAnimationFrame(f);
+    });
+    const count = () =>
+      page.evaluate(() => {
+        const o = window.office;
+        const at = new Map();
+        for (const c of [...o.director.list(), ...o.regulars.crew()]) if (c.atDesk) at.set(c.desk.index, (at.get(c.desk.index) ?? 0) + 1);
+        return {
+          hidden: document.hidden,
+          frames: window.__frames,
+          desks: o.world.desks.length,
+          sessions: o.director.list().length,
+          interns: o.director.interns().length,
+          regulars: o.regulars.list().length,
+          // Every character in the scene (the manager too).
+          inScene: o.engine.scene.children.filter((c) => c.name === 'character').length,
+          shared: [...at].filter(([, n]) => n > 1).map(([d]) => d),
+          notSeated: o.director.list().filter((e) => !e.seated).map((e) => `${e.data.displayName}:${e.phase}`),
+        };
+      });
+    const before = await count();
+    const other = await browser.newPage();
+    await other.bringToFront();
+    await wait(500);
+    const hid = await count();
+    // Eight rounds of two sessions out and two in (some in one push, some in two), with interns.
+    const churn = await page.evaluate(async () => {
+      const o = window.office;
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      let roster = o.store.employees.map((e) => ({ ...e }));
+      const template = roster[0];
+      let n = 0;
+      const fresh = (interns) => {
+        n++;
+        const crew = Array.from({ length: interns }, (_, k) => ({ id: `probe-intern-${n}-${k}`, type: 'Explore', description: 'Looking around', active: true }));
+        return { ...template, sessionId: `probe-hidden-${n}`, displayName: `Temp ${n}`, state: 'working', ask: undefined, interns: crew };
+      };
+      for (let round = 0; round < 8; round++) {
+        const out = roster.slice(0, 2).map((e) => e.sessionId);
+        const kept = roster.filter((e) => !out.includes(e.sessionId));
+        const arrivals = [fresh(round % 2), fresh(1)];
+        if (round % 2) o.director.sync(kept);
+        roster = [...kept, ...arrivals];
+        o.director.sync(roster);
+        await sleep(50);
+      }
+      return { roster: roster.length, interns: roster.reduce((s, e) => s + e.interns.length, 0) };
+    });
+    const after = await count();
+    check('hidden tab: really hidden, no frames drawn during the churn', hid.hidden && after.hidden && after.frames === hid.frames, JSON.stringify({ hid: [hid.hidden, hid.frames], after: [after.hidden, after.frames] }));
+    check('hidden tab with churn: the office keeps its desks', after.desks === before.desks, `${before.desks} → ${after.desks}`);
+    const expected = churn.roster + churn.interns + after.regulars + 1;
+    check(
+      'hidden tab with churn: characters = roster + regulars (+ interns and you), nobody left behind',
+      after.sessions === churn.roster && after.interns === churn.interns && after.regulars === before.regulars && after.inScene === expected,
+      JSON.stringify({ churn, sessions: after.sessions, interns: after.interns, regulars: [before.regulars, after.regulars], inScene: after.inScene, expected }),
+    );
+    check('hidden tab with churn: arrivals are at their desks, nobody shares one', after.notSeated.length === 0 && after.shared.length === 0, JSON.stringify({ notSeated: after.notSeated, shared: after.shared }));
+    await page.bringToFront();
+    await other.close();
+    await wait(3000);
+    const shown = await count();
+    const w = await watch(page);
+    check(
+      'back on the tab: frames again, same desks, everyone at a desk',
+      shown.frames > after.frames + 30 && shown.desks === before.desks && shown.notSeated.length === 0 && shown.shared.length === 0 && w.shared.length === 0,
+      JSON.stringify({ frames: [after.frames, shown.frames], desks: shown.desks, notSeated: shown.notSeated, shared: [...shown.shared, ...w.shared] }),
+    );
+    check('no page errors (hidden tab)', !errors(logs).length, errors(logs).join(' | '));
     await page.close();
   }
 

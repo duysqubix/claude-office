@@ -108,6 +108,11 @@ export class InternChar implements Bumpable {
   }
 
   dispose(): void {
+    // Gone straight from the stool (a hidden tab skips the walk out): their station goes dark.
+    if (this.slot && this.phase !== 'leaving' && this.phase !== 'gone') {
+      this.slot.setScreen('off');
+      this.slot.setLabel('');
+    }
     this.rig.dispose();
   }
 
