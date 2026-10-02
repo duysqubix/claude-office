@@ -72,6 +72,11 @@ gives up their desk ("All yours!") and heads out.
 | Night | After 9 pm the same crowd stays (the office is for working late), with yawns and night-owl quips. |
 | Testing | `?regulars=off\|some\|lively\|<n>` and `?seed=<n>` for repeatable screenshots. |
 
+**Mabel on the front desk** is a permanent regular: always at reception from page load, never
+displaced, never off shift. She waves at everyone who comes through the door, takes calls on her
+headset and says hello when the boss walks up. She has her own switch in Help (default on;
+Regulars Off doesn't affect her; `?receptionist=0|1`).
+
 Later: regulars as shop items (hire a barista, a cleaner, a DJ), and pets that follow them around.
 
 ## v1.1: the next round (queued, [milestone](https://github.com/duysqubix/claude-office/milestone/2))
