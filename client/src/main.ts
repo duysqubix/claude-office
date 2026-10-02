@@ -82,7 +82,11 @@ function runOffice(): void {
   engine.camera.add(viewModel.group);
   const crosshair = h('div', { id: 'crosshair', hidden: true });
   document.body.append(crosshair);
-  manager.onStep = (k) => sfx.step(k);
+  manager.onStep = (k) => {
+    sfx.step(k);
+    // Locks the first-person arm's bob to the real footfalls.
+    viewModel.step(k);
+  };
 
   const director = new Director(world, scene, {
     added(e, initial) {
