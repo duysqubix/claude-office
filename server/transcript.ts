@@ -232,7 +232,7 @@ export class TranscriptTail {
 
   private say(role: ChatLine['role'], text: string, ts?: string, tool?: string): void {
     const t = text.trim();
-    this.chatter.push({ role, text: t.length > CHAT_TEXT_MAX ? t.slice(0, CHAT_TEXT_MAX - 1) + '…' : t, ts, seq: ++this.chatSeq, ...(tool && { tool }) });
+    this.chatter.push({ role, text: t.length > CHAT_TEXT_MAX ? cut(t, CHAT_TEXT_MAX - 1) + '…' : t, ts, seq: ++this.chatSeq, ...(tool && { tool }) });
     if (this.chatter.length > CHATTER_KEEP) this.chatter.splice(0, this.chatter.length - CHATTER_KEEP);
   }
 
@@ -316,7 +316,14 @@ export function humanize(text: string): string | null {
 
 export function clip(s: string, n: number): string {
   const one = s.replace(/\s+/g, ' ').trim();
-  return one.length > n ? one.slice(0, n - 1) + '…' : one;
+  return one.length > n ? cut(one, n - 1) + '…' : one;
+}
+
+/** slice(0, n) that never splits a UTF-16 surrogate pair (half an emoji makes invalid JSON for strict parsers). */
+export function cut(s: string, n: number): string {
+  const head = s.slice(0, n);
+  const last = head.charCodeAt(head.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? head.slice(0, -1) : head;
 }
 
 const baseName = (p: unknown) => (typeof p === 'string' ? p.split('/').filter(Boolean).pop() ?? p : '');

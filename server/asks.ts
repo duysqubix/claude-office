@@ -10,7 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import type { AnswerRequest, Ask, AskOption } from '../shared/protocol';
-import { clip } from './transcript';
+import { clip, cut } from './transcript';
 
 export const HOLD_MS = Number(process.env.OFFICE_HOLD_MS ?? 90_000);
 /** Game input within this window counts as "the manager is here". */
@@ -127,7 +127,7 @@ export class AskBroker extends EventEmitter {
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 /** Truncate but keep line breaks (commands, plans). */
-const clipKeep = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+const clipKeep = (s: string, n: number) => (s.length > n ? cut(s, n - 1) + '…' : s);
 const base = (p: unknown) => str(p).split('/').filter(Boolean).pop() ?? str(p);
 
 function toAsk(h: HookPayload): Ask | null {
