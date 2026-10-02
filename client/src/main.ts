@@ -534,7 +534,9 @@ function runOffice(): void {
   }
 
   // --- loop ----------------------------------------------------------------------------
-  const clock = new THREE.Clock();
+  const timer = new THREE.Timer();
+  // Time spent in a hidden tab doesn't arrive as one huge step when you come back.
+  timer.connect(document);
   const managerHead = new THREE.Vector3();
   let t = 0;
   let frames = 0;
@@ -546,9 +548,10 @@ function runOffice(): void {
     labels.resize();
   });
 
-  function frame(): void {
+  function frame(time?: number): void {
     requestAnimationFrame(frame);
-    const dt = Math.min(clock.getDelta(), 1 / 20);
+    timer.update(time);
+    const dt = Math.min(timer.getDelta(), 1 / 20);
     // Two frames on the same timestamp would divide by zero downstream; just skip.
     if (dt <= 1e-5) return;
     t += dt;
@@ -648,13 +651,15 @@ function runLineup(): void {
   const ly = Number(params.get('ly') ?? 0.75);
   cam.position.set(lx, ly + 0.6, centre.z + dist);
   cam.lookAt(lx, ly, centre.z);
-  const clock = new THREE.Clock();
+  const timer = new THREE.Timer();
+  timer.connect(document);
   let t = 0;
   window.addEventListener('resize', () => engine.resize());
   document.getElementById('splash')?.classList.add('gone');
-  const frame = () => {
+  const frame = (time?: number) => {
     requestAnimationFrame(frame);
-    const dt = Math.min(clock.getDelta(), 0.05);
+    timer.update(time);
+    const dt = Math.min(timer.getDelta(), 0.05);
     if (dt <= 1e-5) return;
     t += dt;
     lineup.update(dt, t, cam.position);
