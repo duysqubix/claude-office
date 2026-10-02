@@ -198,6 +198,41 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+
+// Freeze this tab against hot reloads from other people's edits. A reload closes the tab's
+// socket, the office then (correctly) sees no manager and sends a pending question straight
+// to the terminal, which would test our colleagues' typing speed rather than answering.
+// The stub keeps Vite's five exports so CSS and hot-context modules still load.
+const VITE_CLIENT_STUB = `
+const sheets = new Map();
+export function updateStyle(id, css) {
+  let el = sheets.get(id);
+  if (!el) {
+    el = document.createElement('style');
+    el.setAttribute('data-vite-dev-id', id);
+    document.head.appendChild(el);
+    sheets.set(id, el);
+  }
+  el.textContent = css;
+}
+export function removeStyle(id) {
+  sheets.get(id)?.remove();
+  sheets.delete(id);
+}
+export function injectQuery(url) {
+  return url;
+}
+export function createHotContext() {
+  const noop = () => {};
+  return { data: {}, accept: noop, acceptExports: noop, dispose: noop, prune: noop, decline: noop, invalidate: noop, on: noop, off: noop, send: noop };
+}
+export class ErrorOverlay extends HTMLElement {}
+`;
+await page.setRequestInterception(true);
+page.on('request', (req) => {
+  if (new URL(req.url()).pathname === '/@vite/client') req.respond({ status: 200, contentType: 'text/javascript', body: VITE_CLIENT_STUB });
+  else req.continue();
+});
 const pageErrors = [];
 page.on('pageerror', (e) => pageErrors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && pageErrors.push(m.text()));

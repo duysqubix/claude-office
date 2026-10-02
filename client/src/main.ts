@@ -3,14 +3,16 @@
 // Debug URL params (handy for screenshots and filmstrips):
 //   demo=1                 pretend office, no server (quiet=1 freezes the cast)
 //   autowalk=1             the manager walks, runs, stops dead, turns and jumps on a loop
-//   cam=closeup&focus=N    frame desk N's person up close (focus=<name>|manager; cy/cd/ch tweak the angle)
+// Params marked (dev) only work in dev builds (import.meta.env.DEV): in production they could
+// deep-link straight into someone's terminal or panels.
+//   cam=closeup&focus=N    frame desk N's person up close (focus=<name>|manager, dev; cy/cd/ch tweak the angle)
 //   cam=overview|door      fixed wide shots
-//   panel=hire|archive|roster|help|stats|interns|employee|ask   open a panel
-//   term=1                 sit at the focused person's computer
-//   pose=walk|run|jump     freeze the manager mid-motion
-//   near=N  at=x,z  yaw=deg pitch=deg dist=m   manager / camera placement
+//   panel=hire|archive|roster|help|stats|interns|employee|ask   open a panel (dev)
+//   term=1                 sit at the focused person's computer (dev)
+//   pose=walk|run|jump     freeze the manager mid-motion (dev)
+//   near=N (dev)  at=x,z  yaw=deg pitch=deg dist=m   manager / camera placement
 //   view=first|third       camera mode
-//   debug=1                window.office = { manager, director, camera, world, panels, store, regulars, engine }
+//   debug=1 (dev)          window.office = { manager, director, camera, world, panels, store, regulars, engine }
 //   lineup=1               every look in a row (character tuning)
 //   regulars=off|some|lively|<n>   NPC coworkers for this visit (<n>: that many, all seated)
 //   seed=<n>               seed Math.random, so the same people sit at the same desks
@@ -43,6 +45,8 @@ import { createWorld } from './world/index';
 import type { Interactable } from './world/types';
 
 const params = new URLSearchParams(location.search);
+/** Deep-link debug params (panel, term, focus, near, pose, debug): dev builds only. */
+const devParam = (name: string): string | null => (import.meta.env.DEV ? params.get(name) : null);
 const DEG = Math.PI / 180;
 // ?seed=<n>: every Math.random() in the page is seeded, so screenshots repeat (who sits where).
 const seedParam = Number(params.get('seed') ?? NaN);
@@ -426,6 +430,8 @@ function runOffice(): void {
     switch (it.kind) {
       case 'reception':
         panels.open('hire');
+        // Mabel on the front desk has a word about it.
+        regulars.atReception();
         break;
       case 'archive':
         panels.open('archive');
@@ -518,7 +524,7 @@ function runOffice(): void {
   }
 
   // --- debug params --------------------------------------------------------------------
-  const pose = params.get('pose') as DebugPose | null;
+  const pose = devParam('pose') as DebugPose | null;
   if (pose === 'walk' || pose === 'run' || pose === 'jump') manager.debugPose = pose;
   const at = params.get('at')?.split(',').map(Number);
   if (at && at.length === 2 && at.every(Number.isFinite)) manager.teleport(new THREE.Vector3(at[0], 0, at[1]), manager.yaw);
@@ -531,12 +537,12 @@ function runOffice(): void {
   if (params.has('dist')) camera.dist = Number(params.get('dist'));
   const view = params.get('view');
   if (view === 'first' || view === 'third') camera.setMode(view);
-  const near = params.get('near');
+  const near = devParam('near');
   const autowalk = params.has('autowalk');
-  if (params.has('debug')) Object.assign(window, { office: { manager, director, camera, world, panels, store, regulars, engine } });
+  if (devParam('debug') !== null) Object.assign(window, { office: { manager, director, camera, world, panels, store, regulars, engine } });
 
   const findFocus = (): EmployeeChar | undefined => {
-    const f = params.get('focus');
+    const f = devParam('focus');
     if (f === null) return undefined;
     const n = Number(f);
     if (f !== '' && Number.isInteger(n)) return director.list().find((e) => e.desk.index === n && e.phase !== 'gone');
@@ -548,9 +554,9 @@ function runOffice(): void {
     if (camMode === 'overview') return { position: new THREE.Vector3(0, 3.6, 9.6), look: new THREE.Vector3(0, 0.2, -3.5) };
     if (camMode === 'door') return { position: new THREE.Vector3(5.5, 4.2, 17.5), look: new THREE.Vector3(0, 1, 10) };
     if (camMode === 'closeup') {
-      const isManager = params.get('focus') === 'manager';
+      const isManager = devParam('focus') === 'manager';
       // focus=<name> frames a regular too (camera only: never their panel).
-      const name = params.get('focus')?.toLowerCase();
+      const name = devParam('focus')?.toLowerCase();
       const e = isManager ? undefined : (findFocus() ?? regulars.list().find((r) => r.name.toLowerCase() === name));
       if (!e && !isManager) return null;
       const head = e ? e.headWorld() : manager.rig.head.getWorldPosition(new THREE.Vector3());
@@ -567,13 +573,13 @@ function runOffice(): void {
   window.setTimeout(() => {
     const desk = near !== null ? world.desks[Number(near)] : undefined;
     if (desk) manager.teleport(desk.approach.clone().add(new THREE.Vector3(Math.sin(desk.yaw), 0, Math.cos(desk.yaw)).multiplyScalar(-0.5)), desk.yaw);
-    const p = params.get('panel') as PanelId | null;
+    const p = devParam('panel') as PanelId | null;
     const focus = findFocus() ?? director.list().find((e) => e.data.ask) ?? director.list()[0];
     if (p === 'employee' && focus) panels.openEmployee(focus.data.sessionId);
     else if (p === 'ask' && focus) panels.openAsk(focus.data.sessionId);
     else if (p === 'chat' && focus) panels.openChat(focus.data.sessionId);
     else if (p === 'hire' || p === 'archive' || p === 'roster' || p === 'help' || p === 'stats' || p === 'interns') panels.open(p);
-    if (params.has('term')) {
+    if (devParam('term') !== null) {
       const hosted = focus?.data.hosted ? focus : director.list().find((e) => e.data.hosted && e.seated);
       if (hosted) sitAt(hosted.data.sessionId, true);
     }
@@ -710,7 +716,7 @@ function runOffice(): void {
 // ---------------------------------------------------------------------------------------
 
 function runLineup(): void {
-  const pose = (params.get('pose') as DebugPose | null) ?? null;
+  const pose = (devParam('pose') as DebugPose | null) ?? null;
   const centre = new THREE.Vector3(0, 0, 0.5);
   const lineup = createLineup(scene, centre, 0, pose);
   const cam = engine.camera;
