@@ -1,5 +1,9 @@
-// Smoke test against a running office server (read-only: never hires or fires anyone).
+// Smoke test against a running office server (read-only: never hires or fires anyone; it
+// opens one Shell-tab shell and closes it again).
 //   npm run smoke            (expects the server on 127.0.0.1:4777, or set PORT)
+import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import http from 'node:http';
 import WebSocket from 'ws';
 
@@ -87,6 +91,81 @@ try {
     ws.on('error', () => resolve('refused'));
   });
   check('/ws refuses a foreign Origin', evilWs === 'refused', evilWs);
+
+  // /term: bad ids and kinds are refused (1008). These never attach to anyone's Claude session.
+  const termClose = (query) =>
+    new Promise((resolve) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${PORT}/term?${query}`, { headers: { Origin: BASE } });
+      const t = setTimeout(() => {
+        ws.terminate();
+        resolve({ code: 'timeout', reason: '' });
+      }, 4000);
+      ws.on('close', (code, reason) => {
+        clearTimeout(t);
+        resolve({ code, reason: String(reason) });
+      });
+      ws.on('error', () => {});
+    });
+  const badId = await termClose('id=not-a-session&kind=shell');
+  check('/term refuses a bad session id', badId.code === 1008, `${badId.code} ${badId.reason}`);
+  const badKind = await termClose(`id=${randomUUID()}&kind=root`);
+  const shells = badKind.code === 1008 && /kind/i.test(badKind.reason);
+  check('/term refuses an unknown terminal kind', shells, `${badKind.code} ${badKind.reason}`);
+  const stranger = await termClose(`id=${randomUUID()}&kind=shell`);
+  check('/term refuses a shell for someone not in the office', stranger.code === 1008, `${stranger.code} ${stranger.reason}`);
+
+  // The Shell tab: someone's shell opens in their folder. An external session first, so an
+  // office without shells (it ignores kind) never attaches to anyone's Claude; and a shell
+  // this check started is closed again afterwards.
+  const who = shells ? (employees ?? []).find((e) => !e.hosted && e.cwd) ?? (employees ?? []).find((e) => e.cwd) : undefined;
+  if (who) {
+    const name = `office-${who.sessionId.slice(0, 8)}-sh`;
+    const tmux = (...args) => execFileSync('tmux', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    let had = true;
+    try {
+      tmux('has-session', '-t', `=${name}`);
+    } catch {
+      had = false;
+    }
+    const opened = await new Promise((resolve) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${PORT}/term?id=${who.sessionId}&kind=shell&cols=100&rows=30`, { headers: { Origin: BASE } });
+      let settled = false;
+      const done = (v) => {
+        if (settled) return;
+        settled = true;
+        ws.terminate();
+        resolve(v);
+      };
+      // The first output means the shell is up; give it a moment to settle in its folder.
+      ws.once('message', () => setTimeout(() => done({ ok: true }), 600));
+      ws.on('close', (code, reason) => done({ ok: false, why: `${code} ${reason}` }));
+      ws.on('error', () => {});
+      setTimeout(() => done({ ok: false, why: 'no output in 5 s' }), 5000);
+    });
+    let at = '';
+    try {
+      at = tmux('display-message', '-p', '-t', `=${name}:`, '#{pane_current_path}');
+    } catch {
+      // not running
+    }
+    const real = (p) => {
+      try {
+        return realpathSync(p);
+      } catch {
+        return p;
+      }
+    };
+    check(`a shell opens in ${who.displayName}'s folder`, opened.ok && !!at && real(at) === real(who.cwd), `${opened.why ?? 'opened'}; ${at || 'no session'} vs ${who.cwd}`);
+    if (!had) {
+      try {
+        tmux('kill-session', '-t', `=${name}`);
+      } catch {
+        // already gone
+      }
+    }
+  } else {
+    console.log(shells ? '  (nobody in the office: shell check skipped)' : '  (this office has no Shell tab: shell check skipped)');
+  }
 } catch (err) {
   check('server reachable', false, err.message);
 }
