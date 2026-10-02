@@ -366,7 +366,7 @@ body.seated .co-needs .co-key {
 .splash-logo {
   width: 96px;
   height: 96px;
-  animation: logo-wobble 1.4s ease-in-out infinite;
+  animation: logo-bounce 1.4s ease-in-out infinite;
 }
 .splash-title {
   color: var(--paper);
@@ -402,7 +402,7 @@ body.seated .co-needs .co-key {
     opacity: 1;
   }
 }
-@keyframes logo-wobble {
+@keyframes logo-bounce {
   0%,
   100% {
     transform: rotate(-6deg);

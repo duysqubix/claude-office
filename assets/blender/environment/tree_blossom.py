@@ -36,7 +36,7 @@ def trunk(M):
     # A stout trunk that forks at 1.2 m into two leaning limbs, plus a third smaller one.
     prof = [(0.0, 0.0), (0.36, 0.0), (0.35, 0.03), (0.3, 0.1), (0.26, 0.25), (0.24, 0.6),
             (0.22, 1.0), (0.2, 1.35), (0.0, 1.4)]
-    _env.trunk("Trunk", prof, M["trunk"], verts=12, bend=(-0.08, 0.05), seed=4, wobble=0.04,
+    _env.trunk("Trunk", prof, M["trunk"], verts=12, bend=(-0.08, 0.05), seed=4, lumps=0.04,
                roots=5, root_amp=0.3, root_h=0.45)
     for k, (start, tip, r0, r1) in enumerate((
             ((-0.05, 0.03, 1.2), (-0.75, 0.25, 2.35), 0.16, 0.09),

@@ -34,7 +34,7 @@
   --co-font: 'Fredoka', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
   --co-mono: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
 
-  /* Springs sampled from chars/spring.ts so panels wobble like bodies (UX.md §4.4). */
+  /* Springs sampled from chars/spring.ts so panels spring like bodies (UX.md §4.4). */
   --spring-pop: linear(0, 0.201, 0.605, 0.978, 1.198, 1.252, 1.191, 1.088, 0.997, 0.946, 0.937, 0.954, 0.981, 1.003, 1);
   --spring-soft: linear(0, 0.165, 0.497, 0.819, 1.042, 1.146, 1.158, 1.118, 1.062, 1.015, 0.985, 0.974, 0.976, 0.984, 1);
   --spring-bump: linear(0, 0.342, 0.917, 1.263, 1.282, 1.121, 0.965, 0.905, 0.932, 0.987, 1.023, 1.028, 1);
@@ -974,7 +974,8 @@
 .co-bubble::after {
   content: '';
   position: absolute;
-  left: 50%;
+  /* --shift: how far labels.ts slid the bubble to keep it on screen; the tail stays over the head. */
+  left: clamp(16px, calc(50% - var(--shift, 0px)), calc(100% - 16px));
   bottom: -10px;
   width: 14px;
   height: 14px;
@@ -2583,19 +2584,19 @@ button.co-pill:focus-visible {
   background: var(--paper);
 }
 .co-thought__puff:nth-of-type(1) {
-  left: 30%;
+  left: clamp(14px, calc(30% - var(--shift, 0px)), calc(100% - 28px));
   bottom: -15px;
   width: 13px;
   height: 11px;
 }
 .co-thought__puff:nth-of-type(2) {
-  left: calc(30% - 10px);
+  left: clamp(6px, calc(30% - 10px - var(--shift, 0px)), calc(100% - 36px));
   bottom: -25px;
   width: 9px;
   height: 8px;
 }
 .co-thought__puff:nth-of-type(3) {
-  left: calc(30% - 17px);
+  left: clamp(1px, calc(30% - 17px - var(--shift, 0px)), calc(100% - 42px));
   bottom: -32px;
   width: 6px;
   height: 6px;
@@ -2827,7 +2828,7 @@ html.co-calm .co-thought.is-out {
 }
 
 /* Reduced motion: the OS setting or Help → "Calmer motion" (html.co-calm). Springs become short
-   fades; nothing bobs, breathes, wiggles or pulses. Character wobble is the 3D side's business. */
+   fades; nothing bobs, breathes, wiggles or pulses. Character sway is the 3D side's business. */
 @media (prefers-reduced-motion: reduce) {
   .co-panel,
   .co-toast,

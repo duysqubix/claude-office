@@ -1,5 +1,5 @@
 """Intern stool: a small round stool sized for 0.7-scale interns. Plump `Seat` cushion on a
-wooden disc and three chunky splayed legs, one shimmed with a folded paper wedge (it wobbles).
+wooden disc and three chunky splayed legs, one shimmed with a folded paper wedge (it rocks).
 Origin at the floor centre."""
 import math
 

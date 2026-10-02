@@ -29,7 +29,7 @@ def materials():
 def trunk(M):
     prof = [(0.0, 0.0), (0.3, 0.0), (0.295, 0.025), (0.27, 0.07), (0.24, 0.15), (0.215, 0.3),
             (0.2, 0.6), (0.18, 1.3), (0.0, 1.3)]
-    _env.trunk("Trunk", prof, M["trunk"], verts=12, seed=3, wobble=0.03, roots=5,
+    _env.trunk("Trunk", prof, M["trunk"], verts=12, seed=3, lumps=0.03, roots=5,
                root_amp=0.32, root_h=0.4)
 
 

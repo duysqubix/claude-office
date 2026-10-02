@@ -27,7 +27,7 @@ Every character shares one body plan, customised through skin tone, clothes, hai
 | Legs | hip at 34 % of H; 21 % shows below the bean | hips at (±0.105, 0.42), thigh 0.17 (r 0.085), shin 0.15 (r 0.078) | Capsules with a bending knee. At rest the knees are soft (2°) and the legs turn out 2°. |
 | Shoes | 22 % of H long | ellipsoid 0.19 w × 0.14 h × 0.27 l, 0.03 below and 0.05 ahead of the ankle | Toes out 7°. Soles stay roughly level with the floor (§2.5). |
 
-Scale: employees 0.96–1.04 (1.19–1.29 m), the manager 1.08, interns 0.7. The big round head is deliberate: it is what makes lag and wobble readable.
+Scale: employees 0.96–1.04 (1.19–1.29 m), the manager 1.08, interns 0.7. The big round head is deliberate: it is what makes lag and sway readable.
 
 ### 1.2 Face
 Face positions are in head-centre space, on the sphere surface (`face` in `rig-dimensions.json`).
@@ -90,7 +90,7 @@ At 10 m (the outdoor default) with FOV 45° on a 1080p screen, a 1.24 m characte
 - **Sway:** once per cycle (half the bob frequency), toward the stance foot, peaking as the swinging foot lands.
 - **Arms:** splayed and swinging against the legs. At a walk the forearm trails on the back-swing; at a run the elbows pump. Mittens flop on the wrists when an arm changes direction.
 - **Turns:** the head turns first and the body follows about 0.1 s later. Turning on the spot takes little shuffle steps.
-- **Raised arms:** they overshoot and wobble a little as they settle.
+- **Raised arms:** they overshoot and sway a little as they settle.
 
 ### 2.2 Always and never
 **Always:** lagging torso, head and arms; quick short steps; waddle bob and sway; head-led turns; a little overshoot on stopping.
@@ -281,7 +281,7 @@ Only day ships: the sky dome (`engine/sky.ts`) uses `PALETTE.skyDayTop` and `sky
 - **Panels:** paper fill (amber means needs-you here), a 4 px ink border, a 3 px inner bevel band, and a solid, unblurred drop shadow.
 - **Titles:** outlined, with a paper fill, a 5 px ink stroke (`paint-order: stroke fill`) and a 3 px solid drop, in Fredoka 700.
 - **Speech:** blue glass, a gradient from `rgba(244,247,246,.92)` to `rgba(138,176,189,.88)` with a `#4396CA` edge.
-- **Motion:** panels and chips pop (300 ms) on a spring easing sampled from `chars/spring.ts`, so the UI wobbles like the bodies. Big moments slam in (350 ms).
+- **Motion:** panels and chips pop (300 ms) on a spring easing sampled from `chars/spring.ts`, so the UI springs like the bodies. Big moments slam in (350 ms).
 - **Icons:** 2D stickers with thick outlines.
 - **Not built yet:**
   - Gradient fills for celebration titles: orange `#FFD23A → #FF8C1A`, green `#C8F55A → #5BC81E` or silver `#FFFFFF → #CAD8E3`, each with a 5–6 px `#3C3E3D` outline.
@@ -301,7 +301,7 @@ Only day ships: the sky dome (`engine/sky.ts`) uses `PALETTE.skyDayTop` and `sky
 
 ## 7. Polish checklist (amateur tells to remove)
 - [ ] Characters moving in sync (same phase, same springs). Randomise both per person.
-- [ ] Wobble that never settles (ζ < 0.3 on torso or arms), or no wobble at all (ζ > 0.8).
+- [ ] Sway that never settles (ζ < 0.3 on torso or arms), or no sway at all (ζ > 0.8).
 - [ ] Constant-speed motion: linear lerps, instant starts and stops, rotations that pop. Everything should ease or spring.
 - [ ] Feet that slide while idle, or turns on the spot with no steps.
 - [ ] Objects that float or sink: no contact shadow, gaps under feet and chairs, or decals z-fighting (offset them 2–5 mm and use `polygonOffset`).

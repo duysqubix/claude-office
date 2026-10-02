@@ -167,10 +167,10 @@ def tube(name, p0, p1, r0, r1=None, material=None, verts=12, round_ends=True):
     return ob
 
 
-def trunk(name, profile, material, verts=14, bend=(0.0, 0.0), seed=0, wobble=0.0, roots=0,
+def trunk(name, profile, material, verts=14, bend=(0.0, 0.0), seed=0, lumps=0.0, roots=0,
           root_amp=0.0, root_h=0.4):
     """Lathe a (radius, z) profile, then lean it: x += bend[0]·t², y += bend[1]·t² (t = z/top).
-    `wobble` adds a gentle noise to the radius so the bark doesn't look turned on a lathe;
+    `lumps` adds a gentle noise to the radius so the bark doesn't look turned on a lathe;
     `roots` lobes swell the foot into soft buttress roots that fade out by `root_h`."""
     ob = lib.lathe(name, profile, material=material, verts=verts)
     top = max(z for _, z in profile)
@@ -180,8 +180,8 @@ def trunk(name, profile, material, verts=14, bend=(0.0, 0.0), seed=0, wobble=0.0
         rr = Vector((v.co.x, v.co.y, 0))
         if rr.length > 1e-5:
             k = 1.0
-            if wobble:
-                k += wobble * noise.noise(Vector((v.co.x * 3, v.co.y * 3, v.co.z * 1.2)) + off)
+            if lumps:
+                k += lumps * noise.noise(Vector((v.co.x * 3, v.co.y * 3, v.co.z * 1.2)) + off)
             if roots and v.co.z < root_h:
                 a = math.atan2(v.co.y, v.co.x) + seed
                 lobe = (0.5 + 0.5 * math.cos(roots * a)) ** 1.5

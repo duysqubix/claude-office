@@ -101,7 +101,7 @@ export function placeOnWall(obj: THREE.Object3D, side: WallSide, u: number, y: n
   obj.rotation.y = wallFacingYaw(side);
 }
 
-/** A slow wobble about the object's base: plants and trees breathe a little. */
+/** A slow sway about the object's base: plants and trees breathe a little. */
 export function sway(ctx: WorldCtx, obj: THREE.Object3D, amp: number, phase: number): void {
   const p = phase * Math.PI * 2;
   const speed = 0.8 + phase * 0.5;

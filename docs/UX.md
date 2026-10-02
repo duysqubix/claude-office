@@ -263,7 +263,7 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
 - **Icons**: inline SVG in `ui/icons.ts`, no icon fonts or emoji; 24 viewBox, filled shapes, 2 px ink stroke, round
   joins (sticker style). State glyphs: bolt, "!", check, "z", three dots (§5); plus clipboard, bell, folder, speaker…
 
-### 4.4 Motion (springs sampled from `chars/spring.ts`, so panels wobble like bodies)
+### 4.4 Motion (springs sampled from `chars/spring.ts`, so panels spring like bodies)
 
 ```css
 --spring-pop:  linear(0, .201, .605, .978, 1.198, 1.252, 1.191, 1.088, .997, .946, .937, .954, .981, 1.003, 1); /* 5.2 Hz, ζ .4, 300 ms */
@@ -278,7 +278,7 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   300 bump. **Button**: press y +3 (60 linear), release 300 bump, hover y −2 (120 ease-out). **Bezel**: FLIP 420 soft;
   close 260 ease-in. **Slam** ("Interview went great!", "Nobody needs you"): scale 1.4 → .95 → 1, 350.
 - Origin = whatever opened it. **Reduced motion** (OS setting or "Calmer motion"): springs become 150 fades; no bob,
-  breathing, wiggle, confetti or streaks; go-tos and camera shots become 150 fade-cuts; wobble stays, bump kicks 50 %.
+  breathing, wiggle, confetti or streaks; go-tos and camera shots become 150 fade-cuts; springs stay, bump kicks 50 %.
 
 ### 4.5 Sound
 
@@ -295,7 +295,7 @@ sound"). `M` mutes (`claude-office:muted`, master to 0 in 50). P1: pan by screen
 | `whoosh` / `bell` | noise → bandpass 800→2400, Q .8, 350 / triangle 1319 + sine 2637 (×.3), 900 | .07 / .20 |
 | `step` / `boing` / `thud` | noise 30, lowpass 600, ±6 % pitch / sine 260→520, 130 / sine 140→70, 90 | .035–.05 / .10 / .14 |
 | `boop` / `error` (error toast) / `pip` | square 440→330, 80 / square 220→180, 120 (both lowpass 1200) / sine 1568, 40 | .07 / .08 / .05 |
-| `wahwah` / `slurp` | triangle 392, 330, 262 (160 each), the last bending −60 cents over 400 with a 6 Hz wobble / noise bandpass 900→400, 250 | .14 / .06 |
+| `wahwah` / `slurp` | triangle 392, 330, 262 (160 each), the last bending −60 cents over 400 with a 6 Hz vibrato / noise bandpass 900→400, 250 | .14 / .06 |
 
 ## 5. Controls and accessibility
 

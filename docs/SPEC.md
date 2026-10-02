@@ -215,7 +215,7 @@ the session id (`hash32`/`pick` in palette.ts): skin, shirt, pants, shoes, hair 
 hair style, glasses. The manager: white shirt, red tie, navy pants, slick dark hair,
 holds a coffee mug, slightly taller (scale 1.08).
 
-### 6.5 Wobble (the whole point)
+### 6.5 Springy motion (the whole point)
 
 No physics engine. Everything is springs:
 
@@ -227,7 +227,7 @@ No physics engine. Everything is springs:
 - Idle: breathing scale, blinks every 2–6 s, occasional look-around. Heads turn to look
   at the manager when within 4 m (characters notice you).
 - Jump (manager): squash, launch, arms flail up, stretch in air, squash on landing.
-- Bumping into an employee gives them a wobble impulse (lean spring kick + "!" bounce).
+- Bumping into an employee gives them a spring impulse (lean spring kick + "!" bounce).
 
 ### 6.6 Employee behaviour
 

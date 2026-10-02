@@ -35,7 +35,7 @@ def materials():
 def trunk(M):
     prof = [(0.0, 0.0), (0.36, 0.0), (0.355, 0.025), (0.33, 0.07), (0.3, 0.14), (0.28, 0.24),
             (0.265, 0.4), (0.255, 0.7), (0.24, 1.2), (0.22, 1.7), (0.2, 2.4), (0.0, 2.4)]
-    _env.trunk("Trunk", prof, M["trunk"], verts=14, bend=(0.1, 0.04), seed=1, wobble=0.03,
+    _env.trunk("Trunk", prof, M["trunk"], verts=14, bend=(0.1, 0.04), seed=1, lumps=0.03,
                roots=5, root_amp=0.32, root_h=0.5)
     # Two limbs reaching into the canopy.
     _env.tube("LimbL", (0.0, 0.0, 1.5), (-0.6, -0.32, 2.2), 0.1, 0.07, M["trunk"], verts=10)

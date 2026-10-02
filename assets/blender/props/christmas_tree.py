@@ -43,7 +43,7 @@ def base(M):
 
 def tiers(M):
     for i, (r, z, h) in enumerate(TIERS):
-        # Cone with a soft scalloped hem: radius wobbles around the bottom ring.
+        # Cone with a soft scalloped hem: radius ripples around the bottom ring.
         prof = [(0.0, z + h), (r * 0.25, z + h * 0.8), (r * 0.7, z + h * 0.32), (r, z + 0.04),
                 (r * 0.92, z), (0.0, z + 0.02)]
         t = lib.lathe(f"CTr_Tier{i}", prof, material=M["needles" if i % 2 == 0 else "needles2"],
