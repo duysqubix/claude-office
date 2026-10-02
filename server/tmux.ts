@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import { TMUX_PREFIX } from './config';
 import { cleanEnv, run, which } from './exec';
+import { cut } from './transcript';
 
 export interface HostedPane {
   tmuxName: string;
@@ -176,5 +177,5 @@ export async function capture(tmuxName: string, maxLines = 18, maxCols = 80): Pr
   return lines
     .filter((l) => l.trim())
     .slice(-maxLines)
-    .map((l) => (l.length > maxCols ? l.slice(0, maxCols) : l));
+    .map((l) => (l.length > maxCols ? cut(l, maxCols) : l));
 }
