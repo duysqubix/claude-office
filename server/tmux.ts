@@ -3,6 +3,7 @@
 // ever touches tmux sessions with the office- prefix.
 import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
+import type { HirePermissionMode } from '../shared/protocol';
 import { PORT, TMUX_PREFIX } from './config';
 import { cleanEnv, run, which } from './exec';
 import { cut } from './transcript';
@@ -129,9 +130,16 @@ export function newSessionId(): string {
 }
 
 /** New claude session in `cwd` with a session id we chose, so we can recognise it when it registers. */
-export async function hire(opts: { sessionId: string; cwd: string; displayName: string; prompt?: string }): Promise<{ tmuxName: string }> {
+export async function hire(opts: {
+  sessionId: string;
+  cwd: string;
+  displayName: string;
+  prompt?: string;
+  permissionMode?: HirePermissionMode;
+}): Promise<{ tmuxName: string }> {
   const tmuxName = TMUX_PREFIX + opts.sessionId.slice(0, 8);
   const args = ['--session-id', opts.sessionId, '-n', opts.displayName];
+  if (opts.permissionMode) args.push('--permission-mode', opts.permissionMode);
   if (opts.prompt?.trim()) args.push('--', opts.prompt.trim());
   await newSession(tmuxName, opts.cwd, args, { sessionId: opts.sessionId, displayName: opts.displayName });
   return { tmuxName };

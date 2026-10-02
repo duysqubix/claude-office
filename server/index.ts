@@ -9,7 +9,8 @@ import { readdir, stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { ViteDevServer } from 'vite';
-import type { AnswerRequest, ApiResult, ClientMessage, ServerMessage } from '../shared/protocol';
+import { HIRE_PERMISSION_MODES } from '../shared/protocol';
+import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, ServerMessage } from '../shared/protocol';
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
 import { HOME, HOST, IS_PROD, PORT, ROOT } from './config';
@@ -142,9 +143,14 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const requested = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
       if (requested && !NAME_OK.test(requested)) throw new HttpError(400, 'Names can use letters, numbers, spaces and . \' - (max 32)');
       if (requested && roster.takenNames().has(requested)) throw new HttpError(409, `Someone called ${requested} already works here`);
+      const mode = body.permissionMode;
+      if (mode !== undefined && !(HIRE_PERMISSION_MODES as readonly unknown[]).includes(mode)) {
+        throw new HttpError(400, `permissionMode must be one of: ${HIRE_PERMISSION_MODES.join(', ')}`);
+      }
+      const permissionMode = mode as HirePermissionMode | undefined;
       const sessionId = newSessionId();
       const displayName = requested || roster.nameForNewHire(sessionId);
-      const { tmuxName } = await hire({ sessionId, cwd, displayName, prompt });
+      const { tmuxName } = await hire({ sessionId, cwd, displayName, prompt, permissionMode });
       roster.addPendingHire({ sessionId, tmuxName, cwd, displayName });
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }

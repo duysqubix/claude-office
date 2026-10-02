@@ -252,8 +252,9 @@ export interface ApiResult {
 //   GET  /api/projects             -> ProjectInfo[]
 //   GET  /api/archive              -> PastSession[]
 //   GET  /api/session/:id/chatter  -> ChatLine[]      (last ~12 human/assistant text lines)
-//   POST /api/hire   {cwd, prompt?, name?} -> ApiResult (new claude session in tmux, walks in the door;
-//                                                      name: optional, ≤ 32 chars, becomes `claude -n <name>`)
+//   POST /api/hire   {cwd, prompt?, name?, permissionMode?} -> ApiResult (new claude session in tmux,
+//                    walks in the door; name: optional, ≤ 32 chars, becomes `claude -n <name>`;
+//                    permissionMode: one of HIRE_PERMISSION_MODES, else the user's own default)
 //   POST /api/rehire {sessionId}    -> ApiResult      (claude --resume in tmux)
 //   POST /api/fire   {sessionId}    -> ApiResult      (hosted only: ends the tmux session)
 //   POST /api/say    {sessionId, text} -> ApiResult   (hosted only: types text + Enter into their terminal)
@@ -275,3 +276,7 @@ export type TermClientMessage = { t: 'in'; d: string } | { t: 'resize'; cols: nu
 
 export const SLEEP_AFTER_MS = 15 * 60 * 1000;
 export const DEFAULT_PORT = 4777;
+
+/** Permission modes a hire may start in (`claude --permission-mode`). Never one that skips prompts. */
+export const HIRE_PERMISSION_MODES = ['manual', 'plan', 'acceptEdits'] as const;
+export type HirePermissionMode = (typeof HIRE_PERMISSION_MODES)[number];
