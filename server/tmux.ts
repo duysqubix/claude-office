@@ -3,7 +3,7 @@
 // ever touches tmux sessions with the office- prefix.
 import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
-import { TMUX_PREFIX } from './config';
+import { PORT, TMUX_PREFIX } from './config';
 import { cleanEnv, run, which } from './exec';
 import { cut } from './transcript';
 
@@ -100,6 +100,9 @@ async function newSession(tmuxName: string, cwd: string, claudeArgs: string[], m
     '-c', cwd,
     '-e', `PATH=${env.PATH ?? ''}`,
     '-e', 'CLAUDE_OFFICE=1',
+    // The permission hook asks the office that hired this session, so a second office on
+    // another port (a dev copy) keeps its hires' questions to itself.
+    '-e', `CLAUDE_OFFICE_PORT=${PORT}`,
     // Stamped so a restarted server can recognise hires that haven't registered with Claude yet.
     '-e', `CLAUDE_OFFICE_SESSION=${meta.sessionId}`,
     '-e', `CLAUDE_OFFICE_NAME=${meta.displayName ?? ''}`,
