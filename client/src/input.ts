@@ -1,11 +1,12 @@
 // Keyboard state for the game. Never touches keys while you're typing into a form field
 // or the terminal (Claude Code needs Esc and everything else).
 
-export type Action = 'interact' | 'roster' | 'hire' | 'mute' | 'help' | 'jump' | 'close' | 'next' | 'view';
+export type Action = 'interact' | 'roster' | 'hire' | 'mute' | 'help' | 'jump' | 'close' | 'next' | 'view' | 'peek';
 
 const ACTION_KEYS: Record<string, Action> = {
   KeyE: 'interact',
   KeyQ: 'next',
+  KeyT: 'peek',
   KeyN: 'next',
   KeyR: 'roster',
   KeyV: 'view',

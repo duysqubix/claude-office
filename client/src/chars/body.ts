@@ -622,7 +622,8 @@ export class Body {
       rig.mug.parent!.getWorldQuaternion(_q);
       _q2.setFromAxisAngle(_up, yawNow);
       rig.mug.quaternion.copy(_q.invert().multiply(_q2));
-      rig.mug.rotateX(this.sip);
+      // Negative: the rim tips back toward the mouth (+X rotation would tip it away).
+      rig.mug.rotateX(-this.sip);
     }
   }
 }

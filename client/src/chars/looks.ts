@@ -17,7 +17,7 @@ export interface Looks {
   glasses: boolean;
   glassesColor: string;
   sleeves: 'long' | 'short';
-  /** Hosted employees wear an office lanyard. */
+  /** The orange staff lanyard: every Claude session wears one, regulars (NPC coworkers) never do. */
   lanyard: boolean;
   tie: boolean;
   mug: boolean;
@@ -28,6 +28,8 @@ export interface Looks {
   girth: number;
   /** Walking pace multiplier, a little personality. */
   pace: number;
+  /** A mic on the headphones (the receptionist, chars/receptionist.ts). */
+  headset?: boolean;
 }
 
 const EMPLOYEE_HAIR: HairStyle[] = ['tuft', 'bob', 'cap', 'beanie', 'bun', 'headphones', 'bald'];
@@ -42,7 +44,8 @@ function pickNot(list: readonly string[], seed: string, salt: string, avoid: str
   return list[i] === avoid ? list[(i + 1) % list.length] : list[i];
 }
 
-export function employeeLooks(sessionId: string, hosted: boolean): Looks {
+/** A Claude session. Hosted or not, they wear the staff lanyard (`_hosted` stays for callers). */
+export function employeeLooks(sessionId: string, _hosted: boolean): Looks {
   const shirt = pick(PALETTE.shirts, sessionId, 'shirt');
   const hairStyle = pick(EMPLOYEE_HAIR, sessionId, 'hair');
   return {
@@ -57,13 +60,43 @@ export function employeeLooks(sessionId: string, hosted: boolean): Looks {
     glasses: roll(sessionId, 'glasses') < 0.3,
     glassesColor: pick(GLASSES_COLORS, sessionId, 'glassesColor'),
     sleeves: roll(sessionId, 'sleeves') < 0.5 ? 'short' : 'long',
-    lanyard: hosted,
+    lanyard: true,
     tie: false,
     mug: false,
     laptop: false,
     scale: 0.96 + roll(sessionId, 'height') * 0.08,
     girth: 0.94 + roll(sessionId, 'girth') * 0.14,
     pace: 0.9 + roll(sessionId, 'pace') * 0.25,
+  };
+}
+
+/** A regular (NPC coworker, chars/npc.ts): office folk, so no staff lanyard; a mug for breaks. */
+export function regularLooks(id: string): Looks {
+  return { ...employeeLooks(id, false), lanyard: false, mug: true };
+}
+
+/** Mabel on the front desk: always the same warm face. Sunny cardigan, red specs, headset on. */
+export function receptionistLooks(): Looks {
+  return {
+    role: 'employee',
+    skin: PALETTE.skins[1],
+    shirt: '#FFD93D',
+    pants: '#4B3F72',
+    shoes: '#E63946',
+    hair: '#D94F30',
+    hairStyle: 'headphones',
+    hatColor: '#3D7CFF',
+    glasses: true,
+    glassesColor: '#E63946',
+    sleeves: 'long',
+    lanyard: false,
+    tie: false,
+    mug: true,
+    laptop: false,
+    scale: 1,
+    girth: 1.04,
+    pace: 1,
+    headset: true,
   };
 }
 

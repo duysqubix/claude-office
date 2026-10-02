@@ -22,6 +22,23 @@ export interface DirectorHooks {
   internRemoved?(i: InternChar): void;
 }
 
+/**
+ * Regulars (NPC coworkers, chars/regulars.ts) borrow desks no session is using and give them
+ * back the moment a session needs one. They are never in `employees`.
+ */
+export interface DeskSharers {
+  /** Desks they hold right now (at it, on a break, or walking to it). */
+  holding(): ReadonlySet<number>;
+  /** A session is taking this desk: whoever holds it gives it up ("All yours!"). */
+  makeRoom(deskIndex: number): void;
+  /** Put up the nameplate and screen of a desk one of them holds; false if none does. */
+  paintDesk(desk: DeskSlot): boolean;
+  /** One of them is within `r` of `p` (keeps the door open). */
+  near(p: THREE.Vector3, r: number): boolean;
+}
+
+const NO_DESKS: ReadonlySet<number> = new Set();
+
 const DESK_KEY = 'claude-office:desks';
 const SLOT_KEY = 'claude-office:intern-slots';
 const MEMORY_TTL = 14 * 24 * 3600 * 1000;
@@ -101,6 +118,8 @@ function screenFor(e: EmployeeChar): ScreenState {
 
 export class Director {
   readonly employees = new Map<string, EmployeeChar>();
+  /** NPC coworkers sharing the desks and the door (set by main.ts). */
+  regulars: DeskSharers | null = null;
   private chairs = new Map<number, Chair>();
   /** Each boss's interns, by intern id. */
   private crews = new Map<string, Map<string, InternChar>>();
@@ -127,6 +146,21 @@ export class Director {
 
   get doorPosition(): THREE.Vector3 {
     return this.door;
+  }
+
+  /** The first roster has arrived (regulars wait for it before sitting anywhere). */
+  get hasRoster(): boolean {
+    return this.hadRoster;
+  }
+
+  /** Desks sessions came back to in the last few days (regulars leave these for them if they can). */
+  rememberedDesks(): Set<number> {
+    return this.desks.claimedByOthers('', 3 * 24 * 3600 * 1000);
+  }
+
+  /** Repaint desk nameplates and monitors on the next update (a regular sat, stood or switched apps). */
+  refreshDesks(): void {
+    this.desksDirty = true;
   }
 
   byDesk(index: number): EmployeeChar | undefined {
@@ -160,8 +194,9 @@ export class Director {
       seen.add(data.sessionId);
       let e = this.employees.get(data.sessionId);
       if (!e) {
-        const desk = this.assignDesk(data.sessionId);
-        e = new EmployeeChar(data, desk, this.chairFor(desk), this.world, this.scene, initial);
+        const { desk, displaced } = this.assignDesk(data.sessionId);
+        // A regular is still getting out of that chair: walk in rather than appear in it.
+        e = new EmployeeChar(data, desk, this.chairFor(desk), this.world, this.scene, initial && !displaced);
         e.hooks.onBump = (x) => this.hooks.bumped?.(x);
         this.employees.set(data.sessionId, e);
         this.hooks.added?.(e, initial);
@@ -190,7 +225,7 @@ export class Director {
   update(dt: number, t: number, manager: THREE.Vector3, managerHead: THREE.Vector3): void {
     const head = new THREE.Vector3();
     const focus = new THREE.Vector3();
-    let doorBusy = distXZ(manager, this.door) < 2.5;
+    let doorBusy = distXZ(manager, this.door) < 2.5 || !!this.regulars?.near(this.door, 2.5);
     for (const [id, e] of this.employees) {
       const before = e.phase;
       e.update(dt, t, manager, managerHead);
@@ -263,7 +298,8 @@ export class Director {
     i.dispose();
   }
 
-  private chairFor(desk: DeskSlot): Chair {
+  /** The desk's one Chair, whoever sits there (sessions and regulars share it). */
+  chairFor(desk: DeskSlot): Chair {
     let c = this.chairs.get(desk.index);
     if (!c || c.desk !== desk) {
       c = new Chair(desk);
@@ -272,23 +308,38 @@ export class Director {
     return c;
   }
 
-  private assignDesk(sessionId: string): DeskSlot {
+  /**
+   * A desk for a new session: their remembered one if no other session has it, else a truly
+   * free desk, else a random regular's. Whichever it is, a regular sitting there makes room
+   * ("All yours!"). The office only grows once every desk has a real session at it.
+   */
+  private assignDesk(sessionId: string): { desk: DeskSlot; displaced: boolean } {
     const taken = new Set<number>();
     for (const e of this.employees.values()) if (e.phase !== 'gone' && e.phase !== 'leaving') taken.add(e.desk.index);
+    const held = this.regulars?.holding() ?? NO_DESKS;
+    const take = (desk: DeskSlot) => {
+      const displaced = held.has(desk.index);
+      if (displaced) this.regulars?.makeRoom(desk.index);
+      return { desk, displaced };
+    };
     let desks = this.world.desks;
     const saved = this.desks.get(sessionId);
-    if (saved !== undefined && saved < desks.length && !taken.has(saved)) return desks[saved];
+    if (saved !== undefined && saved < desks.length && !taken.has(saved)) return take(desks[saved]);
     // Prefer desks nobody else has a recent claim on, so people who come back keep their spot.
     const claimed = this.desks.claimedByOthers(sessionId, 3 * 24 * 3600 * 1000);
-    let free = desks.filter((d) => !taken.has(d.index));
+    let free = desks.filter((d) => !taken.has(d.index) && !held.has(d.index));
     if (!free.length) {
+      // Every desk without a session has a regular at it: one of them gives theirs up.
+      const theirs = desks.filter((d) => !taken.has(d.index));
+      const desk = pickRandom(theirs.filter((d) => !claimed.has(d.index))) ?? pickRandom(theirs);
+      if (desk) return take(desk);
       this.world.ensureDesks(desks.length + 1);
       desks = this.world.desks;
       free = desks.filter((d) => !taken.has(d.index));
     }
     // New arrivals pick a random free desk (not always the first one), avoiding desks someone
     // else came back to recently. A full office doubles people up rather than failing.
-    return pickRandom(free.filter((d) => !claimed.has(d.index))) ?? pickRandom(free) ?? desks[taken.size % desks.length];
+    return take(pickRandom(free.filter((d) => !claimed.has(d.index))) ?? pickRandom(free) ?? desks[taken.size % desks.length]);
   }
 
   /** A free station at the intern bench (stable per intern), growing the bench if it's full. */
@@ -353,6 +404,11 @@ export class Director {
     }
     for (const desk of this.world.desks) {
       const e = at.get(desk.index);
+      // A regular's desk: their name and department, ordinary office work on the screen.
+      if (!e && this.regulars?.paintDesk(desk)) {
+        this.deskKeys.set(desk.index, 'regular');
+        continue;
+      }
       let key: string;
       if (!e) key = 'vacant';
       else {

@@ -1,16 +1,19 @@
 // One Claude Code session as a person at a desk.
 // Phases: entering → sitting-down → seated → standing-up → leaving → gone.
+// Regulars (NPC coworkers, chars/npc.ts) reuse all of this through the protected extension
+// points (stoodUp, away, seatedExtra, extraPose); sessions never use 'away'.
 import * as THREE from 'three';
 import type { ActivityKind, Employee, EmployeeState } from '../../../shared/protocol';
 import { hash32 } from '../style/palette';
 import type { DeskSlot, World } from '../world/types';
 import { Body, type Pose } from './body';
-import { employeeLooks } from './looks';
+import { employeeLooks, type Looks } from './looks';
 import { Glancer, type Bumpable } from './manager';
 import { DIM, HEAD_Y, Rig } from './rig';
 import { angleDelta, clamp, damp, smoothstep } from './spring';
 
-export type Phase = 'entering' | 'sitting-down' | 'seated' | 'standing-up' | 'leaving' | 'gone';
+/** 'away': up and about but coming back (a regular's coffee break); still holds the desk. */
+export type Phase = 'entering' | 'sitting-down' | 'seated' | 'standing-up' | 'leaving' | 'away' | 'gone';
 
 /** How far the chair slides out when someone gets in or out. */
 export const CHAIR_OUT = 0.45;
@@ -70,9 +73,9 @@ export class EmployeeChar implements Bumpable {
   internFocus: THREE.Vector3 | null = null;
   hooks: EmployeeHooks = {};
 
-  private phaseT = 0;
+  protected phaseT = 0;
   private path: THREE.Vector3[] = [];
-  private speed = 0;
+  protected speed = 0;
   private opacity = 1;
   private glance = new Glancer(0.75);
   private celebrateT = -1;
@@ -96,11 +99,13 @@ export class EmployeeChar implements Bumpable {
     private world: World,
     scene: THREE.Object3D,
     seated: boolean,
+    /** Regulars bring their own looks (no staff lanyard). */
+    looks: Looks = employeeLooks(data.sessionId, data.hosted),
   ) {
     this.data = data;
     this.seed = hash32(data.sessionId);
     this.idleStyle = this.seed % 4;
-    this.rig = new Rig(employeeLooks(data.sessionId, data.hosted));
+    this.rig = new Rig(looks);
     this.body = new Body(this.rig, desk.yaw);
     this.labelAnchor.position.y = DIM.pelvisY + HEAD_Y + DIM.headR + 0.2;
     this.rig.root.add(this.labelAnchor);
@@ -226,12 +231,30 @@ export class EmployeeChar implements Bumpable {
 
   // -------------------------------------------------------------------------------------
 
-  private setPhase(p: Phase): void {
+  protected setPhase(p: Phase): void {
     this.phase = p;
     this.phaseT = 0;
   }
 
-  private walkTo(target: THREE.Vector3): void {
+  // Extension points for regulars (chars/npc.ts). The defaults are the session behaviour.
+
+  /** Out of the chair and on their feet: a session heads home. */
+  protected stoodUp(): void {
+    this.startLeaving();
+  }
+
+  /** Every frame of the 'away' phase (sessions never get there). */
+  protected away(_dt: number, _t: number, _mgrDist: number, _managerHead: THREE.Vector3): void {}
+
+  /** Seated body language of someone who isn't a session; true replaces the session poses. */
+  protected seatedExtra(_tt: number, _dt: number): boolean {
+    return false;
+  }
+
+  /** Added on top of every phase's pose, just before the springs step. */
+  protected extraPose(_dt: number, _t: number): void {}
+
+  protected walkTo(target: THREE.Vector3): void {
     const from = this.position.clone().setY(0);
     const p = this.world.findPath(from, target.clone().setY(0));
     this.path = (p && p.length ? p : [target.clone()]).map((v) => v.clone().setY(0));
@@ -259,7 +282,7 @@ export class EmployeeChar implements Bumpable {
   }
 
   /** Follow the path; returns true when arrived. */
-  private followPath(dt: number): boolean {
+  protected followPath(dt: number): boolean {
     const pos = this.position;
     while (this.path.length && Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < (this.path.length > 1 ? 0.35 : 0.06)) {
       this.path.shift();
@@ -325,6 +348,9 @@ export class EmployeeChar implements Bumpable {
       case 'standing-up':
         this.standingUp(dt, t);
         break;
+      case 'away':
+        this.away(dt, t, mgrDist, managerHead);
+        break;
       case 'leaving': {
         const arrived = this.followPath(dt);
         body.locomote(dt, this.speed, 0, s);
@@ -352,6 +378,7 @@ export class EmployeeChar implements Bumpable {
       }
     }
 
+    this.extraPose(dt, t);
     this.waveOverlay(dt, t, managerHead, mgrDist);
     this.rig.setOpacity(this.opacity);
     body.update(dt);
@@ -422,7 +449,7 @@ export class EmployeeChar implements Bumpable {
     if (u >= 1) {
       body.land(2.5);
       this.chair.target = 0;
-      this.startLeaving();
+      this.stoodUp();
     }
   }
 
@@ -508,6 +535,7 @@ export class EmployeeChar implements Bumpable {
       if (this.celebrateT >= 1.8) this.celebrateT = -1;
       if (k > 0.3) return;
     }
+    if (this.seatedExtra(tt, dt)) return;
 
     switch (st) {
       case 'needs-you': {
@@ -618,7 +646,7 @@ export class EmployeeChar implements Bumpable {
   }
 
   /** Forearms resting on the desk edge. */
-  private handsOnDesk(T: Pose, which: 'L' | 'R' | 'LR', k = 1): void {
+  protected handsOnDesk(T: Pose, which: 'L' | 'R' | 'LR', k = 1): void {
     if (which.includes('L')) {
       T.armLPitch += 0.85 * k;
       T.elbowL += 0.85 * k;
@@ -630,7 +658,7 @@ export class EmployeeChar implements Bumpable {
   }
 
   /** Arms crossed over the belly. */
-  private foldArms(T: Pose, k = 1): void {
+  protected foldArms(T: Pose, k = 1): void {
     T.armLPitch += 0.5 * k;
     T.armRPitch += 0.5 * k;
     T.armLRoll -= 0.3 * k;

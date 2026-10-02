@@ -10,8 +10,11 @@
 //   pose=walk|run|jump     freeze the manager mid-motion
 //   near=N  at=x,z  yaw=deg pitch=deg dist=m   manager / camera placement
 //   view=first|third       camera mode
-//   debug=1                window.office = { manager, director, camera, world, panels }
+//   debug=1                window.office = { manager, director, camera, world, panels, store, regulars, engine }
 //   lineup=1               every look in a row (character tuning)
+//   regulars=off|some|lively|<n>   NPC coworkers for this visit (<n>: that many, all seated)
+//   seed=<n>               seed Math.random, so the same people sit at the same desks
+//   hour=<h>               pretend it's that hour (regulars' night-owl mode after 21)
 import '@fontsource/fredoka/400.css';
 import '@fontsource/fredoka/600.css';
 import '@fontsource/fredoka/700.css';
@@ -22,6 +25,8 @@ import { Director } from './chars/director';
 import type { EmployeeChar } from './chars/employee';
 import { createLineup } from './chars/lineup';
 import { Manager, type DebugPose, type MoveIntent } from './chars/manager';
+import type { RegularChar } from './chars/npc';
+import { Regulars, mulberry32 } from './chars/regulars';
 import { ViewModel } from './chars/viewmodel';
 import { createDemoBackend } from './demo';
 import { createEngine } from './engine/index';
@@ -39,6 +44,9 @@ import type { Interactable } from './world/types';
 
 const params = new URLSearchParams(location.search);
 const DEG = Math.PI / 180;
+// ?seed=<n>: every Math.random() in the page is seeded, so screenshots repeat (who sits where).
+const seedParam = Number(params.get('seed') ?? NaN);
+if (Number.isFinite(seedParam)) Math.random = mulberry32(seedParam);
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const uiRoot = document.getElementById('ui') as HTMLElement;
@@ -104,6 +112,21 @@ function runOffice(): void {
     internAdded: (i) => labels.attachIntern(i),
     internRemoved: (i) => labels.detachIntern(i),
   });
+
+  // Regulars: NPC coworkers at the desks no session is using (chars/regulars.ts). Never in the
+  // roster, stats, toasts or Q; E gets a quip, never a panel. `?regulars=` and `?seed=` for tests.
+  const regulars = new Regulars(world, scene, director, {
+    seed: Number.isFinite(seedParam) ? seedParam : undefined,
+    hooks: {
+      added: (r) => labels.attachRegular(r),
+      removed: (r) => labels.detachRegular(r),
+      bumped: (r) => {
+        labels.bumpedRegular(r);
+        sfx.boing();
+      },
+    },
+  });
+  director.regulars = regulars;
 
   // Sitting at someone's computer: walk behind the chair → ease the camera → open the terminal.
   // Until the bezel is open, Esc (or any move key) cancels.
@@ -233,6 +256,26 @@ function runOffice(): void {
       undefined,
       THREE.MathUtils.clamp(length / 3.5, 4.5, 9),
     );
+  }
+
+  /** T (quick terminal): whoever the E prompt points at, else the nearest person in the office. */
+  function peekTarget(): string | undefined {
+    const near = nearestInteractable();
+    if (near && 'it' in near && near.it.kind === 'desk' && near.it.deskIndex !== undefined) {
+      const e = director.byDesk(near.it.deskIndex);
+      if (e) return e.data.sessionId;
+    }
+    let best: EmployeeChar | undefined;
+    let bestD = Infinity;
+    for (const e of director.list()) {
+      if (e.phase === 'leaving' || e.phase === 'gone') continue;
+      const d = manager.distanceTo(e.position);
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    return best?.data.sessionId;
   }
 
   /** Q / N / the chip: the next person with their hand up, longest-waiting first. */
@@ -409,6 +452,11 @@ function runOffice(): void {
     }
   }
 
+  /** What E would use: a world interactable, or a regular to chat with (a quip, never a panel). */
+  type Target = { it: Interactable; label: string } | { regular: RegularChar; label: string };
+  /** Third-person reach for chatting with a regular. */
+  const CHAT_REACH = 1.7;
+
   function labelFor(it: Interactable): string | null {
     if (it.kind !== 'desk') return it.label;
     const e = it.deskIndex !== undefined ? director.byDesk(it.deskIndex) : undefined;
@@ -421,17 +469,28 @@ function runOffice(): void {
   const _eye = new THREE.Vector3();
   const _view = new THREE.Vector3();
   const _to = new THREE.Vector3();
+  const _head = new THREE.Vector3();
   /**
    * What E would use. First person: whatever the crosshair points at within 2.5 m (else the
    * nearest thing in front). Third person: the nearest in reach, preferring what you face.
    */
-  function nearestInteractable(): { it: Interactable; label: string } | null {
+  function nearestInteractable(): Target | null {
     const fp = camera.firstPerson > 0.5;
     if (fp) {
       engine.camera.getWorldPosition(_eye);
       camera.viewDir(_view);
     }
-    let best: { it: Interactable; label: string } | null = null;
+    /** Lower is better; null when it's out of the crosshair's reach. */
+    const aim = (pos: THREE.Vector3, d: number): number | null => {
+      if (fp) {
+        const angle = _to.copy(pos).sub(_eye).normalize().angleTo(_view);
+        if (angle > 70 * DEG) return null;
+        return angle < 22 * DEG ? angle : 1 + d;
+      }
+      const facing = Math.abs(THREE.MathUtils.euclideanModulo(yawToward(manager.position, pos) - manager.yaw + Math.PI, Math.PI * 2) - Math.PI);
+      return d + (facing > 100 * DEG ? 10 : 0);
+    };
+    let best: Target | null = null;
     let bestScore = Infinity;
     for (const it of world.interactables) {
       const d = manager.distanceTo(it.position);
@@ -439,17 +498,19 @@ function runOffice(): void {
       if (d > reach) continue;
       const label = labelFor(it);
       if (!label) continue;
-      let score: number;
-      if (fp) {
-        const angle = _to.copy(it.position).sub(_eye).normalize().angleTo(_view);
-        if (angle > 70 * DEG) continue;
-        score = angle < 22 * DEG ? angle : 1 + d;
-      } else {
-        const facing = Math.abs(THREE.MathUtils.euclideanModulo(yawToward(manager.position, it.position) - manager.yaw + Math.PI, Math.PI * 2) - Math.PI);
-        score = d + (facing > 100 * DEG ? 10 : 0);
-      }
-      if (score < bestScore) {
+      const score = aim(it.position, d);
+      if (score !== null && score < bestScore) {
         best = { it, label };
+        bestScore = score;
+      }
+    }
+    for (const r of regulars.list()) {
+      if (r.phase === 'leaving' || r.phase === 'gone') continue;
+      const d = manager.distanceTo(r.position);
+      if (d > (fp ? 2.5 : CHAT_REACH)) continue;
+      const score = aim(r.headWorld(_head), d);
+      if (score !== null && score < bestScore) {
+        best = { regular: r, label: `Chat with ${r.name}` };
         bestScore = score;
       }
     }
@@ -472,7 +533,7 @@ function runOffice(): void {
   if (view === 'first' || view === 'third') camera.setMode(view);
   const near = params.get('near');
   const autowalk = params.has('autowalk');
-  if (params.has('debug')) Object.assign(window, { office: { manager, director, camera, world, panels, store } });
+  if (params.has('debug')) Object.assign(window, { office: { manager, director, camera, world, panels, store, regulars, engine } });
 
   const findFocus = (): EmployeeChar | undefined => {
     const f = params.get('focus');
@@ -488,7 +549,9 @@ function runOffice(): void {
     if (camMode === 'door') return { position: new THREE.Vector3(5.5, 4.2, 17.5), look: new THREE.Vector3(0, 1, 10) };
     if (camMode === 'closeup') {
       const isManager = params.get('focus') === 'manager';
-      const e = isManager ? undefined : findFocus();
+      // focus=<name> frames a regular too (camera only: never their panel).
+      const name = params.get('focus')?.toLowerCase();
+      const e = isManager ? undefined : (findFocus() ?? regulars.list().find((r) => r.name.toLowerCase() === name));
       if (!e && !isManager) return null;
       const head = e ? e.headWorld() : manager.rig.head.getWorldPosition(new THREE.Vector3());
       const yaw = (e ? e.body.heading.value : manager.yaw) + Number(params.get('cy') ?? 50) * DEG;
@@ -564,7 +627,8 @@ function runOffice(): void {
             if (!panels.pressE()) panels.close();
           } else if (!sitting) {
             const near = nearestInteractable();
-            if (near) interact(near.it);
+            if (near && 'regular' in near) regulars.chat(near.regular);
+            else if (near) interact(near.it);
           }
           break;
         }
@@ -597,15 +661,19 @@ function runOffice(): void {
         case 'next':
           if (!sitting) goToNextNeedsYou();
           break;
+        case 'peek':
+          if (!sitting) panels.peek(peekTarget());
+          break;
       }
     }
 
     const busy = !!panels.openId || !!sitting;
     const axis = busy ? { x: 0, y: 0 } : input.axis();
     const intent: MoveIntent = autowalk && !busy ? autowalkIntent(t) : { x: axis.x, y: axis.y, run: input.running, jump };
-    manager.update(dt, t, intent, camera.yaw, director.bumpables());
+    manager.update(dt, t, intent, camera.yaw, director.bumpables().concat(regulars.bumpables()));
     manager.rig.head.getWorldPosition(managerHead);
     director.update(dt, t, manager.position, managerHead);
+    regulars.update(dt, t, manager.position, managerHead);
 
     const shot = debugShot();
     if (shot) camera.snapShot(shot);
@@ -615,7 +683,7 @@ function runOffice(): void {
     const fp = camera.firstPerson;
     manager.rig.root.visible = fp < 0.5 || camera.shotBlend > 0.5;
     viewModel.update(dt, manager.speed, manager.sipping, fp > 0.5 && camera.shotBlend < 0.1 ? fp : 0);
-    const wantFade = fp > 0 ? 1 : THREE.MathUtils.clamp((camera.distance - 0.6) / 0.9, 0.45, 1);
+    const wantFade = fp > 0 ? 1 : camera.distance < 0.4 ? 0 : THREE.MathUtils.clamp((camera.distance - 0.6) / 0.9, 0.45, 1);
     managerFade += (wantFade - managerFade) * Math.min(1, dt * 8);
     manager.rig.setOpacity(managerFade > 0.98 ? 1 : managerFade);
     world.update(dt, t);

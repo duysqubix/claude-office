@@ -228,23 +228,36 @@ export class CameraRig {
     // Third person: orbit the follow point, then pull in so walls and the ceiling never cut
     // in. If a wall would push the camera right up behind the manager, swing it up and look
     // over their head instead.
-    let want = this.collide(this.focus, this.orbitDir(this.sPitch), this.sDist);
+    let probe = this.collide(this.focus, this.orbitDir(this.sPitch), this.sDist);
     let bestLift = 0;
     const enough = Math.min(this.sDist, 2.0);
-    if (want < enough) {
-      // The smallest swing up (≤ 50° total) that gets back to a comfortable distance.
-      for (let extra = 8 * DEG; this.sPitch + extra <= 50 * DEG + 1e-6; extra += 8 * DEG) {
-        const d = this.collide(this.focus, this.orbitDir(this.sPitch + extra), this.sDist);
-        if (d > want + 0.3) {
-          want = d;
-          bestLift = extra;
+    if (probe < enough) {
+      // The smallest swing up that gets back to a comfortable distance: up to 50° normally;
+      // backed right up against a wall, keep going to a straight-down shot from under the
+      // ceiling (88°: exactly 90° would leave lookAt without a sense of up).
+      const steps: number[] = [];
+      for (let p = this.sPitch + 8 * DEG; p <= 82 * DEG + 1e-6; p += 8 * DEG) steps.push(p);
+      steps.push(88 * DEG);
+      // "Cornered" is decided once, from the best we managed within 50°.
+      let cornered: boolean | null = null;
+      for (const p of steps) {
+        if (p > 50 * DEG + 1e-6) {
+          cornered ??= probe < 0.6;
+          if (!cornered) break;
         }
-        if (want >= enough) break;
+        const d = this.collide(this.focus, this.orbitDir(p), this.sDist);
+        if (d > probe + 0.3) {
+          probe = d;
+          bestLift = p - this.sPitch;
+        }
+        if (probe >= enough) break;
       }
     }
-    this.lift += (bestLift - this.lift) * damp(4, dt);
-    this.orbitDir(this.sPitch + this.lift);
-    this.cDist += (want - this.cDist) * damp(want < this.cDist ? 18 : 2.5, dt);
+    this.lift += (bestLift - this.lift) * damp(this.lift < bestLift ? 8 : 4, dt);
+    // Measure along the exact ray the camera sits on this frame (the lift eases), then pull
+    // in at once (never a frame through a wall or out the door) and ease back out gently.
+    const want = this.collide(this.focus, this.orbitDir(this.sPitch + this.lift), this.sDist);
+    this.cDist = want < this.cDist ? want : Math.min(want, this.cDist + (want - this.cDist) * damp(2.5, dt));
     _pos.copy(_dir).multiplyScalar(this.cDist).add(this.focus);
     _look.copy(this.focus);
 
@@ -283,14 +296,18 @@ export class CameraRig {
     const blockers = this.world.cameraBlockers ?? [];
     let best = dist;
     if (blockers.length) {
-      _right.set(dir.z, 0, -dir.x).normalize();
-      _up.crossVectors(_right, dir).normalize();
+      // Offsets stay inside the manager's 0.3 m collision circle (sideways) and go straight
+      // up/down in world space, so no ray starts inside a wall even when looking overhead.
+      _right.set(dir.z, 0, -dir.x);
+      if (_right.lengthSq() < 1e-8) _right.set(1, 0, 0);
+      _right.normalize();
+      _up.set(0, 1, 0);
       const offsets: [number, number][] = [
         [0, 0],
-        [0.22, 0],
-        [-0.22, 0],
-        [0, 0.18],
-        [0, -0.18],
+        [0.18, 0],
+        [-0.18, 0],
+        [0, 0.15],
+        [0, -0.15],
       ];
       this.ray.far = dist + 0.3;
       for (const [rx, uy] of offsets) {
@@ -306,13 +323,21 @@ export class CameraRig {
       // Stay a little under the ceiling.
       best = Math.min(best, (room.ceilingY - 0.3 - from.y) / dir.y);
     }
-    best = Math.max(0.6, best);
-    // Never end up on the other side of a wall from the manager.
+    // Right up against a wall the camera may come very close (the manager fades).
+    best = Math.max(0.15, best);
+    // Never end up on the other side of a wall from the manager (the doorway gap has no
+    // blocker to stop the rays): bisect for the farthest point still on their side.
     if (this.world.isInside) {
-      for (let i = 0; i < 6; i++) {
-        _origin.copy(dir).multiplyScalar(best).add(from);
-        if (this.world.isInside(_origin) === inside || best <= 0.6) break;
-        best *= 0.8;
+      const sameSide = (d: number) => this.world.isInside(_origin.copy(dir).multiplyScalar(d).add(from)) === inside;
+      if (!sameSide(best)) {
+        let lo = 0.15;
+        let hi = best;
+        for (let i = 0; i < 12; i++) {
+          const mid = (lo + hi) / 2;
+          if (sameSide(mid)) lo = mid;
+          else hi = mid;
+        }
+        best = lo;
       }
     }
     return best;
