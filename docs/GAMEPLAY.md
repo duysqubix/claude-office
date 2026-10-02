@@ -48,6 +48,17 @@ Also in v0.5: off-screen arrows to anyone waiting, browser notifications + tab b
 the game is in the background, `N` = walk to the next person who needs you, `1`–`9` = jump
 to an employee, quick message from the roster.
 
+## v1.1: the next round (queued)
+
+- **Blender models everywhere**: swap the remaining procedural furniture for the 232 catalog
+  models, and dress the characters with Rodin's kit (bodies, 13 hairstyles, hats, outfits).
+- **Shell tab** on every computer: a real zsh in that employee's folder next to Claude (today:
+  type `!command` in Claude for one-off shell commands).
+- **Coffee-shop music**: gentle background lo-fi with a volume knob (generated in the browser,
+  no licensing issues).
+- **Spotify on the manager's laptop**: walk to your desk, sign in with Spotify (PKCE, Premium,
+  Web Playback SDK), browse your playlists and change tracks in-game; the office speakers play it.
+
 ## v1: the game layer
 
 ### Currency: Beans ☕ (working name)
