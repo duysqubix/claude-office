@@ -96,11 +96,17 @@ function runOffice(): void {
     actions: {
       walkTo: (id) => walkTo(id),
       sitAt: (id) => sitAt(id),
+      answered: (id) => {
+        // Lower their hand now; the next roster broadcast says what they actually do next.
+        const e = director.employees.get(id);
+        if (e?.data.state === 'needs-you') e.setData({ ...e.data, state: 'working', stateSince: Date.now(), ask: undefined, waitingFor: undefined });
+      },
     },
   });
 
   const hud = new Hud(uiRoot, {
     needsYou: () => goToNextNeedsYou(),
+    stats: () => panels.toggle('stats'),
     roster: () => panels.toggle('roster'),
     hire: () => panels.toggle('hire'),
     mute: () => hud.setMuted(sfx.toggle()),
@@ -277,7 +283,7 @@ function runOffice(): void {
     }, 250);
   }
 
-  terminal.onClose = () => {
+  terminal.events.onClose = () => {
     sitting = null;
     manager.frozen = false;
     camera.setShot(null);
@@ -464,7 +470,7 @@ function runOffice(): void {
     }
     const near = busy ? null : nearestInteractable();
     hud.setPrompt(near ? truncate(near.label, 40) : null);
-    labels.update(director, manager.position, engine.camera);
+    labels.update(manager.position, engine.camera);
 
     engine.render();
     labels.render(scene, engine.camera);

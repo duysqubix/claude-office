@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import type { Intern } from '../../../shared/protocol';
 import { hash32 } from '../style/palette';
-import type { World } from '../world/types';
+import type { InternSlot, World } from '../world/types';
 import { Body } from './body';
 import { internLooks } from './looks';
 import type { Bumpable } from './manager';
@@ -25,8 +25,12 @@ export class InternChar implements Bumpable {
   private opacity = 1;
   private seed: number;
 
+  // Takes the director's intern-bench arguments; until interns sit at the bench they keep
+  // their reserved `slot` but still stand at `spot` by the boss's desk.
   constructor(
     data: Intern,
+    _boss: unknown,
+    readonly slot: InternSlot | null,
     public spot: THREE.Vector3,
     private world: World,
     scene: THREE.Object3D,
@@ -52,6 +56,10 @@ export class InternChar implements Bumpable {
 
   get position(): THREE.Vector3 {
     return this.rig.root.position;
+  }
+
+  setData(next: Intern): void {
+    this.data = next;
   }
 
   /** Move to a different spot at the desk (after the crew reshuffles). */
