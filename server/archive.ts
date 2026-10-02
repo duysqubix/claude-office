@@ -25,7 +25,22 @@ interface Digest {
 
 const digestCache = new Map<string, { mtimeMs: number; digest: Digest }>();
 
-async function allTranscripts(): Promise<FileInfo[]> {
+/** The scan stats every transcript on disk, so callers within 5 s (chat polls) share one. */
+const LISTING_TTL_MS = 5000;
+let listing: { at: number; files: Promise<FileInfo[]> } | null = null;
+
+function allTranscripts(): Promise<FileInfo[]> {
+  const now = Date.now();
+  if (listing && now - listing.at < LISTING_TTL_MS) return listing.files;
+  const files = scanTranscripts();
+  listing = { at: now, files };
+  files.catch(() => {
+    if (listing?.files === files) listing = null;
+  });
+  return files;
+}
+
+async function scanTranscripts(): Promise<FileInfo[]> {
   let dirs: string[] = [];
   try {
     dirs = await readdir(PROJECTS_DIR);

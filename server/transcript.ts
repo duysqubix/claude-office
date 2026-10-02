@@ -84,7 +84,13 @@ export class TranscriptTail {
   private firstPrompt?: string;
   private pending = new Map<string, PendingTool>();
   chatter: ChatLine[] = [];
-  private chatSeq = 0;
+  /**
+   * Chat lines are numbered by where they sit in the transcript file (byte offset × 64 + their
+   * index within that JSON line), so a fresh reader of the same file (a session that came back
+   * after an adopt or call-back) numbers them exactly as before and chat feeds continue.
+   */
+  private lineAt = 0;
+  private lineSay = 0;
   /** Background task ids (= subagent file ids) that reported completed/failed/killed. */
   readonly finishedTasks = new Set<string>();
   /** tool_use ids that got a tool_result. */
@@ -121,9 +127,12 @@ export class TranscriptTail {
     if (size === this.offset) return false;
 
     let start = this.offset;
+    // File offset of the first byte of `buf` below: any unfinished line from last time, then the chunk.
+    let bufAt = this.offset - this.leftover.length;
     let skipFirstLine = false;
     if (start === 0 && size > INITIAL_TAIL_BYTES) {
       start = size - INITIAL_TAIL_BYTES;
+      bufAt = start;
       skipFirstLine = true;
     }
     const end = Math.min(size, start + MAX_READ_PER_POLL);
@@ -134,6 +143,7 @@ export class TranscriptTail {
     if (skipFirstLine) {
       const nl = buf.indexOf(0x0a);
       buf = nl === -1 ? Buffer.alloc(0) : buf.subarray(nl + 1);
+      bufAt += nl + 1;
     }
     const lastNl = buf.lastIndexOf(0x0a);
     if (lastNl === -1) {
@@ -141,9 +151,15 @@ export class TranscriptTail {
       return false;
     }
     this.leftover = Buffer.from(buf.subarray(lastNl + 1));
-    const text = buf.subarray(0, lastNl).toString('utf8');
-    for (const line of text.split('\n')) {
-      if (line) this.ingest(line);
+    for (let pos = 0; pos < lastNl; ) {
+      let nl = buf.indexOf(0x0a, pos);
+      if (nl === -1 || nl > lastNl) nl = lastNl;
+      if (nl > pos) {
+        this.lineAt = bufAt + pos;
+        this.lineSay = 0;
+        this.ingest(buf.subarray(pos, nl).toString('utf8'));
+      }
+      pos = nl + 1;
     }
     if (!this.title && !this.headScanned) await this.scanHeadForPrompt();
     return true;
@@ -232,7 +248,7 @@ export class TranscriptTail {
 
   private say(role: ChatLine['role'], text: string, ts?: string, tool?: string): void {
     const t = text.trim();
-    this.chatter.push({ role, text: t.length > CHAT_TEXT_MAX ? cut(t, CHAT_TEXT_MAX - 1) + '…' : t, ts, seq: ++this.chatSeq, ...(tool && { tool }) });
+    this.chatter.push({ role, text: t.length > CHAT_TEXT_MAX ? cut(t, CHAT_TEXT_MAX - 1) + '…' : t, ts, seq: this.lineAt * 64 + Math.min(63, this.lineSay++), ...(tool && { tool }) });
     if (this.chatter.length > CHATTER_KEEP) this.chatter.splice(0, this.chatter.length - CHATTER_KEEP);
   }
 

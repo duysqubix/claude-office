@@ -102,7 +102,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     if (path === '/api/archive') return sendJson(res, 200, await listPastSessions(new Set(roster.employees.map((e) => e.sessionId))));
     const chatter = path.match(/^\/api\/session\/([0-9a-f-]{36})\/chatter$/i);
     if (chatter) {
-      const n = Math.min(120, Math.max(1, Number(url.searchParams.get('n')) || 12));
+      const n = Math.min(120, Math.max(1, Number(url.searchParams.get('n')) || (url.searchParams.has('after') ? 120 : 12)));
       const after = Number(url.searchParams.get('after'));
       const live = roster.tail(chatter[1]);
       const lines = live ? live.chatter : (await findPastSession(chatter[1]))?.digest.chatter ?? [];
