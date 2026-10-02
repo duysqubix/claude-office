@@ -57,6 +57,10 @@ const DEMO = [
 export function wireThoughts(backend: ThoughtsBackend, store: RosterStore): void {
   backend.setThoughts?.(thoughtsOn());
   bus.on('thoughts', ({ on }) => backend.setThoughts?.(on));
+  // Switched in another window of the office: this one follows (and tells the server).
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === KEY) bus.emit('thoughts', { on: thoughtsOn() });
+  });
   backend.onThought = (id, text) => {
     if (thoughtsOn()) bus.emit('thought', { id, text });
   };

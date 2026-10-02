@@ -319,10 +319,19 @@ export function renderAsk(
     const t = ev.target as HTMLElement;
     const inText = t instanceof HTMLInputElement && t.type === 'text';
     if (ev.isComposing) return;
+    // Same for a held Enter on a focused answer button (Enter presses buttons on every repeat).
+    if (ev.repeat && ev.key === 'Enter' && t instanceof HTMLButtonElement) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
     const n = !inText && !ev.metaKey && !ev.ctrlKey && !ev.altKey ? digitOf(ev) : 0;
     if (n) {
       ev.preventDefault();
       ev.stopPropagation();
+      // A held digit never answers: not one held from before the card had focus, nor a
+      // re-submit on every repeat after a failed answer.
+      if (ev.repeat) return;
       // Inside a question, digits pick that question's options; elsewhere they press the numbered buttons.
       const group = groups.find((g) => g.fs.contains(t));
       if (group) {

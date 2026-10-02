@@ -534,8 +534,12 @@ try {
     // Needs-you beats a thought.
     const asker3 = await tp.evaluate(() => window.office.director.list().find((x) => x.handUp)?.data.displayName ?? null);
     if (asker3) {
+      // Look at them (an off-screen head shows its edge face, not its bubble).
       await tp.evaluate((n) => {
-        const e = window.office.director.list().find((x) => x.data.displayName === n);
+        const of = window.office;
+        const e = of.director.list().find((x) => x.data.displayName === n);
+        const head = e.labelAnchor.getWorldPosition(e.position.clone());
+        of.camera.snapShot({ position: head.clone().add(head.clone().set(0, 1.6, 4)), look: head });
         window.officeThink(e.data.sessionId, 'This should never cover the question.');
       }, asker3);
       await wait(500);
@@ -545,20 +549,23 @@ try {
         return !!pill?.closest('.co-tagstack')?.querySelector('.co-bubble--needs:not([hidden])');
       }, asker3);
       check('needs-you beats a thought (no cloud over a raised hand)', (!c3 || !c3.shown) && needs, JSON.stringify({ c3, needs }));
+      await tp.evaluate(() => window.office.camera.setShot(null));
     } else check('needs-you beats a thought (no one needs you in this demo run)', false);
 
-    // Regulars daydream on their own (first one within ~16 s), where you can see them: stand
-    // the manager by one and look at them.
-    await tp.evaluate(() => {
-      const of = window.office;
-      const r = of.regulars.list().find((x) => x.phase === 'seated');
-      if (!r) return;
-      of.manager.teleport(r.position.clone().add(r.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-2.2)).setY(0), of.manager.yaw);
-      const head = r.labelAnchor.getWorldPosition(r.position.clone());
-      of.camera.snapShot({ position: head.clone().add(head.clone().set(0, 1.6, 4)), look: head });
-    });
+    // Regulars daydream on their own (within ~16 s), where you can see them: stand the manager
+    // by one at their desk and look at them (again every 8 s, in case they get up for a coffee).
+    const lookAtRegular = () =>
+      tp.evaluate(() => {
+        const of = window.office;
+        const r = of.regulars.list().find((x) => x.phase === 'seated' && !x.quipping);
+        if (!r) return;
+        of.manager.teleport(r.position.clone().add(r.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-2.2)).setY(0), of.manager.yaw);
+        const head = r.labelAnchor.getWorldPosition(r.position.clone());
+        of.camera.snapShot({ position: head.clone().add(head.clone().set(0, 1.6, 4)), look: head });
+      });
     let dream = null;
-    for (let i = 0; i < 24 && !dream; i++) {
+    for (let i = 0; i < 40 && !dream; i++) {
+      if (i % 8 === 0) await lookAtRegular();
       await wait(1000);
       dream = await tp.evaluate(() => {
         const c = [...document.querySelectorAll('.co-tagstack')].find((s) => s.querySelector('.co-pill--regular') && s.querySelector('.co-thought:not([hidden])'));
@@ -586,16 +593,81 @@ try {
     await tp.close();
   }
 
+  // Held keys never repeat into a session or answer a card: only keys pressed while a terminal
+  // is live may repeat into it, and an ask card ignores repeats.
+  {
+    const o = await open(`${BASE}/?demo=1&quiet=1&debug=1`);
+    const hp = o.page;
+    const ppl = await roster(hp);
+    const hostedOne = ppl.find((p) => p.hosted && p.state !== 'needs-you');
+    const askerOne = ppl.find((p) => p.ask === 'permission');
+    const rows = () => hp.evaluate(() => document.querySelector('.co-chat__term .xterm-rows')?.textContent ?? '');
+    const prompts = (t) => (t.match(/>/g) ?? []).length;
+    const repeat = async (key, n = 6) => {
+      for (let i = 0; i < n; i++) {
+        await hp.keyboard.down(key);
+        await wait(60);
+      }
+      await hp.keyboard.up(key);
+    };
+
+    // Enter held on the chat's Terminal button.
+    await hp.evaluate((id) => window.office.panels.openChat(id), hostedOne.id);
+    await wait(800);
+    await hp.evaluate(() => [...document.querySelectorAll('.co-seg__btn')].find((b) => b.textContent.startsWith('Terminal'))?.focus());
+    await hp.keyboard.down('Enter');
+    await wait(900);
+    const before = await rows();
+    await repeat('Enter');
+    await wait(300);
+    const after = await rows();
+    check('Enter held on "Terminal" never repeats into their session', /Demo office/.test(before) && prompts(after) === prompts(before), `${prompts(before)} → ${prompts(after)} prompts`);
+    await hp.evaluate(() => window.office.panels.close());
+    await wait(300);
+
+    // T held: the quick look opens, and no "t" gets typed. (Stand by a hosted one so T picks them.)
+    await hp.evaluate((id) => {
+      const of = window.office;
+      const e = of.director.list().find((x) => x.data.sessionId === id);
+      of.manager.teleport(e.desk.approach.clone().setY(0), of.manager.yaw);
+    }, hostedOne.id);
+    await wait(400);
+    await focusGame(hp);
+    await hp.keyboard.down('KeyT');
+    await wait(900);
+    await repeat('KeyT', 5);
+    await wait(300);
+    const tRows = await rows();
+    check('T held opens the quick look and types nothing', /Demo office/.test(tRows) && !/>\s*t/.test(tRows), JSON.stringify(tRows.slice(-60)));
+    await hp.evaluate(() => window.office.panels.close());
+    await wait(300);
+
+    // A digit held from before the card had focus never answers.
+    await focusGame(hp);
+    await hp.keyboard.down('Digit1');
+    await hp.evaluate((id) => window.office.panels.openAsk(id), askerOne.id);
+    await wait(400);
+    await repeat('Digit1', 4);
+    await wait(500);
+    const card = await hp.evaluate(() => ({
+      focused: document.activeElement?.classList.contains('co-ask') ?? false,
+      folded: !!document.querySelector('.co-panel--person .co-ask.is-folded'),
+    }));
+    check('a held digit never answers the ask card', card.focused && !card.folded, JSON.stringify(card));
+    check('no page errors (held keys)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
+    await hp.close();
+  }
+
   // Bubbles stay whole on screen: a head at each edge of the window still has its whole bubble
   // inside (12 px margin), clear of the HUD's corners, with the tail or puffs toward the head.
   {
     const o = await open(`${BASE}/?demo=1&quiet=1&debug=1`);
     const bp = o.page;
-    const who = await bp.evaluate(() => {
+    const { id: who, name: whoName } = await bp.evaluate(() => {
       const of = window.office;
       const e = of.director.list().find((x) => !x.handUp && x.phase === 'seated');
       of.manager.teleport(e.position.clone().add(e.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-1.6)).setY(0), of.manager.yaw);
-      return e.data.sessionId;
+      return { id: e.data.sessionId, name: e.data.displayName };
     });
     // Aim a fixed camera so their head lands at (tx, ty) on screen (a few bisection steps).
     const aim = (tx, ty) =>
@@ -650,7 +722,7 @@ try {
       const head = await aim(tx, ty);
       await bp.evaluate((id) => window.officeThink(id, 'A long thought about the integration test, right at the edge of the screen.'), who);
       await wait(700);
-      const r = await bp.evaluate((hx) => {
+      const r = await bp.evaluate((hx, name) => {
         const vw = innerWidth;
         const vh = innerHeight;
         const zones = [...document.querySelectorAll('.co-hud__badge, .co-hud__needs > *, .co-hud__row, .co-hud__right')].map((z) => z.getBoundingClientRect()).filter((z) => z.width > 0);
@@ -660,14 +732,16 @@ try {
           const clearHud = zones.every((z) => r.right <= z.left || r.left >= z.right || r.bottom <= z.top || r.top >= z.bottom);
           return { cls: b.className.split(' ')[0], l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom), inside, clearHud };
         });
-        const cloud = [...document.querySelectorAll('.co-thought:not([hidden])')].find((c) => c.textContent.includes('right at the edge'));
+        // Their cloud (the demo's own pretend thoughts may have changed its words meanwhile).
+        const pill = [...document.querySelectorAll('.co-tagstack .co-pill')].find((p) => p.textContent.trim() === name);
+        const cloud = pill?.closest('.co-tagstack')?.querySelector('.co-thought:not([hidden])');
         const puff = cloud?.querySelector('.co-thought__puff')?.getBoundingClientRect();
         const cr = cloud?.getBoundingClientRect();
         // Slid sideways to stay on screen, the puffs still lean from the cloud's middle toward the head.
         const mid = cr ? (cr.left + cr.right) / 2 : hx;
         const toward = !cloud || !puff || Math.abs(mid - hx) < 24 || Math.abs(puff.left - hx) < Math.abs(mid - hx);
         return { boxes, shown: !!cloud, toward };
-      }, head.x);
+      }, head.x, whoName);
       seen.push(`${edge}:${r.shown ? 'shown' : 'none'}`);
       for (const b of r.boxes) if (!b.inside || !b.clearHud) bad.push({ edge, head, ...b });
       if (!r.shown || !r.toward) bad.push({ edge, head, shown: r.shown, toward: r.toward });
@@ -688,14 +762,20 @@ try {
   // read-only: presence is only recorded, never sent, and nothing is posted.
   {
     const lv = await open(`${BASE}/?debug=1`, { live: true });
+    // A second window of the office (same browser, same saved settings).
+    const lv2 = await open(`${BASE}/?debug=1`, { live: true });
     await wait(800);
     const first = await lv.page.evaluate(() => window.__presence.at(-1) ?? null);
+    await lv.page.bringToFront();
     await lv.page.evaluate(() => window.office.panels.open('help'));
     await wait(300);
     await lv.page.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
-    await wait(300);
+    await wait(500);
     const after = await lv.page.evaluate(() => window.__presence.at(-1) ?? null);
+    const other = await lv2.page.evaluate(() => window.__presence.at(-1) ?? null);
     check('presence says thoughts:true, and Help → off sends thoughts:false at once', first?.thoughts === true && after?.thoughts === false, JSON.stringify({ first, after }));
+    check('the other window follows the switch (thoughts:false there too)', other?.thoughts === false, JSON.stringify(other));
+    await lv2.page.close();
     await lv.page.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
     await wait(200);
     check('live: nothing was posted (thoughts)', lv.posts.length === 0, lv.posts.join(' | '));

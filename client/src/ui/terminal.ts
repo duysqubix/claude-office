@@ -69,6 +69,12 @@ export class TerminalView {
   private live: boolean;
   private disposed = false;
   private timers: number[] = [];
+  /**
+   * Keys that went down while the terminal was live. Auto-repeat only gets through for these: a
+   * key already held when it opened (the Enter that pressed "Terminal", the T that opened the
+   * quick look) must never repeat into the session, where a CR picks "Yes".
+   */
+  private held = new Set<string>();
   private resizeObs: ResizeObserver | null = null;
 
   constructor(
@@ -104,8 +110,14 @@ export class TerminalView {
         ev.stopPropagation();
         return false;
       }
-      return this.live;
+      if (!this.live) return false;
+      if (ev.type === 'keyup') this.held.delete(ev.code);
+      else if (!ev.repeat) this.held.add(ev.code);
+      else if (!this.held.has(ev.code)) return false;
+      return true;
     });
+    // Focus left and came back: whatever was held then counts as held from before.
+    term.textarea?.addEventListener('blur', () => this.held.clear());
     term.onData((d) => {
       if (this.live) this.link?.send({ t: 'in', d });
     });
