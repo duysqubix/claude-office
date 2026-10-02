@@ -7,7 +7,7 @@ import type { AnswerRequest, ApiResult, Ask, AskOption } from '../../../shared/p
 import { el, fmtClock } from './el';
 import { icon } from './icons';
 import { enhanceMarkdown, renderMarkdown, visibleText } from './markdown';
-import { needsServer } from './offline';
+import { holdDisabled, needsServer, releaseDisabled } from './offline';
 import './theme.css';
 
 /** What the card reports: an AnswerRequest without the sessionId, which the caller adds. */
@@ -220,8 +220,8 @@ export function renderAsk(
   function setBusy(on: boolean, pressed?: HTMLButtonElement): void {
     busy = on;
     for (const b of [...buttons, noteToggle]) {
-      if (on) b.setAttribute('aria-disabled', 'true');
-      else b.removeAttribute('aria-disabled');
+      if (on) holdDisabled(b);
+      else releaseDisabled(b);
     }
     if (on && pressed?.firstElementChild) {
       // The pressed button's key cap (or icon) becomes a spinner until the answer lands.

@@ -260,7 +260,8 @@ class Tag {
       this.pill.hidden = fade <= 0.01;
     });
 
-    const bang = needs && e.phase !== 'leaving';
+    // Off the screen, their edge face is the marker: no 3D "!" pulled in beside it.
+    const bang = needs && e.phase !== 'leaving' && onScreen;
     this.set('bang', bang, () => (this.bang.hidden = !bang));
 
     // What the bubble says (UX.md §2.1): needs-you always; chatter only close up.
@@ -324,7 +325,7 @@ class Tag {
       }
     }
 
-    const thinking = e.seated && st === 'working' && d.activity?.kind === 'thinking' && this.bubble.hidden && !thinkAloud && camDist < 18;
+    const thinking = onScreen && e.seated && st === 'working' && d.activity?.kind === 'thinking' && this.bubble.hidden && !thinkAloud && camDist < 18;
     this.set('thought', thinking, () => (this.thought.hidden = !thinking));
     const sleeping = e.seated && st === 'sleeping' && camDist < 26;
     this.set('zzz', sleeping, () => (this.zzz.hidden = !sleeping));
@@ -681,14 +682,21 @@ export class LabelLayer {
     for (const t of this.order) if (t.cloud.el.parentElement) stacks.push({ root: t.cloud.el.parentElement, anchor: t.e.labelAnchor });
     for (const t of this.regularTags.values()) if (t.obj.visible && t.cloud.el.parentElement) stacks.push({ root: t.cloud.el.parentElement, anchor: t.r.labelAnchor });
     for (const { root, anchor } of stacks) {
-      const items = [...root.children].filter(
+      const bubbles = [...root.children].filter(
         (c): c is HTMLElement => c instanceof HTMLElement && !c.hidden && (c.classList.contains('co-bubble') || c.classList.contains('co-thought') || c.classList.contains('co-bang')),
       );
-      if (!items.length) continue;
+      const pill = [...root.children].find((c): c is HTMLElement => c instanceof HTMLElement && c.classList.contains('co-pill') && !c.hidden);
       anchor.getWorldPosition(_p);
       _ndc.copy(_p).project(camera);
       const ax = ((_ndc.x + 1) / 2) * this.vw;
       const ay = ((1 - _ndc.y) / 2) * this.vh;
+      // A head off the screen keeps its label where it is (its bubbles are hidden; the edge face has it).
+      const on = _ndc.z < 1 && ax >= 0 && ax <= this.vw && ay >= 0 && ay <= this.vh;
+      const items = !on || !bubbles.length ? [] : pill ? [...bubbles, pill] : bubbles;
+      if (!items.length) {
+        for (const el of [...bubbles, ...(pill ? [pill] : [])]) this.unshift(el);
+        continue;
+      }
       this.clampStack(items, root, ax, ay);
     }
   }
@@ -721,6 +729,14 @@ export class LabelLayer {
     }
   }
 
+  /** Back where CSS2D puts it. */
+  private unshift(el: HTMLElement): void {
+    if (!this.shifts.get(el) || this.shifts.get(el) === '0,0') return;
+    this.shifts.set(el, '0,0');
+    el.style.translate = '';
+    el.style.setProperty('--shift', '0px');
+  }
+
   /** The smallest shift that puts `box` MARGIN inside the window and off the HUD and the panel. */
   private fit(box: Box): { dx: number; dy: number } {
     let dx = 0;
@@ -749,7 +765,17 @@ export class LabelLayer {
     return { dx, dy };
   }
 
+  /**
+   * Draw the labels. The WebGL render just updated every matrix in the scene (the camera is in it
+   * too), so CSS2DRenderer is spared its own updateMatrixWorld walk.
+   */
   render(scene: THREE.Scene, camera: THREE.Camera): void {
-    this.renderer.render(scene, camera);
+    const auto = scene.matrixWorldAutoUpdate;
+    scene.matrixWorldAutoUpdate = false;
+    try {
+      this.renderer.render(scene, camera);
+    } finally {
+      scene.matrixWorldAutoUpdate = auto;
+    }
   }
 }

@@ -445,6 +445,16 @@ try {
       toasts: [...document.querySelectorAll('.co-toast')].map((t) => t.textContent).join(' | '),
     }));
     check('offline: Hire disables and Enter does not hire', hireOff.open === 'hire' && hireOff.btn === 'true' && !/Interview went great/.test(hireOff.toasts), JSON.stringify(hireOff));
+    // Back online after picking a project offline: no stale "Pick a project first", not disabled.
+    await op.evaluate(() => window.officeOffline(false));
+    await wait(100);
+    const hireOn = await op.evaluate(() => {
+      const b = document.querySelector('.co-panel--hire .co-panel__foot .co-btn');
+      return { tip: b?.getAttribute('data-co-tip'), aria: b?.getAttribute('aria-disabled'), off: b?.dataset.offline ?? null };
+    });
+    check('back online: Hire has no stale tooltip and is enabled', hireOn.tip === null && hireOn.aria === null && hireOn.off === null, JSON.stringify(hireOn));
+    await op.evaluate(() => window.officeOffline(true));
+    await wait(100);
 
     // Personnel files and the ask card.
     await op.evaluate(() => window.office.panels.open('archive'));
@@ -484,6 +494,34 @@ try {
     await wait(400);
     const reopened = await op.evaluate(() => document.querySelector('.co-panel--person .co-needsnote')?.hidden);
     check('"Got it" puts the note away, and it stays away for this wait', afterGot === true && reopened === true, JSON.stringify({ afterGot, reopened }));
+    // In the chat too (a new wait: their note is back), and focus stays in the chat.
+    await op.evaluate((id) => {
+      const st = window.office.store;
+      st.set(st.employees.map((x) => (x.sessionId === id ? { ...x, stateSince: Date.now() } : x)), Date.now());
+      window.office.panels.openChat(id);
+    }, asker2.id);
+    await wait(500);
+    const chatGot = await op.evaluate(() => {
+      const b = [...document.querySelectorAll('.co-chat__note .co-btn')].find((x) => x.textContent.trim() === 'Got it');
+      if (!b) return { button: false };
+      b.focus();
+      b.click();
+      return { button: true, focus: document.activeElement?.tagName, inChat: !!document.activeElement?.closest('.co-panel--chat') };
+    });
+    check('chat "Got it": the note goes and focus stays in the chat', chatGot.button && chatGot.inChat, JSON.stringify(chatGot));
+    await op.evaluate(() => window.office.panels.close());
+    await wait(250);
+    // The needs-you chip rebuilds when the count changes; focus follows it.
+    const chipFocus = await op.evaluate(async () => {
+      const of = window.office;
+      document.querySelector('.co-needs')?.focus();
+      const before = document.activeElement?.className;
+      const free = of.store.employees.find((x) => x.state !== 'needs-you');
+      of.store.set(of.store.employees.map((x) => (x === free ? { ...x, state: 'needs-you', stateSince: Date.now(), waitingFor: 'permission' } : x)), Date.now());
+      await new Promise((r) => setTimeout(r, 100));
+      return { before, after: document.activeElement?.className, text: document.activeElement?.textContent };
+    });
+    check('the needs-you chip keeps keyboard focus when its count changes', /co-needs/.test(chipFocus.before ?? '') && /co-needs/.test(chipFocus.after ?? ''), JSON.stringify(chipFocus));
     check('no page errors (offline and Got it)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
     await op.close();
   }
@@ -593,6 +631,60 @@ try {
     await tp.close();
   }
 
+  // Labels track moving heads frame by frame (the label pass reuses the WebGL pass's matrices):
+  // someone walking in, the manager walking and running (the camera moves every frame).
+  {
+    const o = await open(`${BASE}/?demo=1&debug=1`);
+    const lp = o.page;
+    // A pretend hire walks in through the door.
+    await lp.evaluate(() => window.office.panels.open('hire'));
+    await wait(500);
+    await lp.keyboard.type('~/somewhere/label-track');
+    await lp.keyboard.press('Enter');
+    await lp.keyboard.press('Enter');
+    await wait(2600);
+    await focusGame(lp);
+    const sample = () =>
+      lp.evaluate(
+        () =>
+          new Promise((done) => {
+            const of = window.office;
+            const cam = of.engine.camera;
+            let worst = 0;
+            let n = 0;
+            let frames = 0;
+            const tick = () => {
+              for (const e of of.director.list()) {
+                const pill = [...document.querySelectorAll('.co-tagstack .co-pill')].find((p) => p.textContent.trim() === e.data.displayName);
+                const root = pill?.closest('.co-tagstack');
+                if (!root || pill.hidden) continue;
+                const v = e.labelAnchor.getWorldPosition(e.position.clone()).project(cam);
+                if (v.z > 1 || Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95) continue;
+                const r = root.getBoundingClientRect();
+                const x = ((v.x + 1) / 2) * innerWidth;
+                const y = ((1 - v.y) / 2) * innerHeight;
+                worst = Math.max(worst, Math.abs((r.left + r.right) / 2 - x), Math.abs(r.bottom - y));
+                n++;
+              }
+              if (++frames < 45) requestAnimationFrame(tick);
+              else done({ worst: Math.round(worst * 10) / 10, n });
+            };
+            requestAnimationFrame(tick);
+          }),
+      );
+    const entering = await lp.evaluate(() => window.office.director.list().some((e) => e.phase === 'entering'));
+    const walkIn = await sample();
+    await lp.keyboard.down('KeyW');
+    const walking = await sample();
+    await lp.keyboard.down('ShiftLeft');
+    const running = await sample();
+    await lp.keyboard.up('ShiftLeft');
+    await lp.keyboard.up('KeyW');
+    const track = { entering, walkIn, walking, running };
+    check('labels sit exactly over moving heads (walking in, walking, running)', [walkIn, walking, running].every((s) => s.n > 0 && s.worst <= 1.5), JSON.stringify(track));
+    await lp.close();
+  }
+
   // Held keys never repeat into a session or answer a card: only keys pressed while a terminal
   // is live may repeat into it, and an ask card ignores repeats.
   {
@@ -669,8 +761,8 @@ try {
       of.manager.teleport(e.position.clone().add(e.position.clone().sub(of.manager.position).setY(0).normalize().multiplyScalar(-1.6)).setY(0), of.manager.yaw);
       return { id: e.data.sessionId, name: e.data.displayName };
     });
-    // Aim a fixed camera so their head lands at (tx, ty) on screen (a few bisection steps).
-    const aim = (tx, ty) =>
+    // Aim a fixed camera so someone's head lands at (tx, ty) on screen (a few bisection steps).
+    const aim = (tx, ty, id = who) =>
       bp.evaluate(
         async (id, tx, ty) => {
           const of = window.office;
@@ -709,7 +801,7 @@ try {
           }
           return screen(kx, ky);
         },
-        who,
+        id,
         tx,
         ty,
       );
@@ -754,6 +846,37 @@ try {
     await wait(600);
     const offscreen = await bp.evaluate(() => [...document.querySelectorAll('.co-thought:not([hidden])')].some((c) => c.textContent.includes('Nobody can see')));
     check('a head off the screen shows no thought', !offscreen);
+    // Whoever needs you: off the screen it's the edge face alone (no 3D "!" pulled in beside it);
+    // under the HUD, the "!", the bubble and their name move down together (the "!" never covers the name).
+    const askerId = await bp.evaluate(() => window.office.director.list().find((x) => x.handUp)?.data.sessionId ?? null);
+    if (askerId) {
+      const parts = () =>
+        bp.evaluate((id) => {
+          const e = window.office.director.list().find((x) => x.data.sessionId === id);
+          const pill = [...document.querySelectorAll('.co-tagstack .co-pill')].find((p) => p.textContent.trim() === e.data.displayName);
+          const stack = pill?.closest('.co-tagstack');
+          const box = (el) => {
+            if (!el || el.hidden) return null;
+            const r = el.getBoundingClientRect();
+            return r.width ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null;
+          };
+          return {
+            bang: box(stack?.querySelector('.co-bang:not(.co-bang--bump)')),
+            bubble: box(stack?.querySelector('.co-bubble--needs')),
+            pill: box(pill),
+            edge: [...document.querySelectorAll('.co-edge')].some((b) => (b.getAttribute('aria-label') ?? '').includes(e.data.displayName)),
+          };
+        }, askerId);
+      await aim(-90, 470, askerId);
+      await wait(500);
+      const off = await parts();
+      check('needs you, off the screen: the edge face only, no 3D "!"', !off.bang && off.edge, JSON.stringify(off));
+      await aim(150, 205, askerId);
+      await wait(600);
+      const under = await parts();
+      const overlap = (a, b) => !!a && !!b && a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+      check('needs you, under the HUD: the "!" and the bubble never cover their name', !!under.pill && !overlap(under.bang, under.pill) && !overlap(under.bubble, under.pill), JSON.stringify(under));
+    } else check('needs you near the edges (no one needs you in this demo run)', false);
     await bp.evaluate(() => window.office.camera.setShot(null));
     await bp.close();
   }

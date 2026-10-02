@@ -64,7 +64,8 @@ export function wireThoughts(backend: ThoughtsBackend, store: RosterStore): void
   backend.onThought = (id, text) => {
     if (thoughtsOn()) bus.emit('thought', { id, text });
   };
-  if (!backend.demo) return;
+  // ?quiet freezes the demo cast (tests and screenshots): no pretend thoughts either.
+  if (!backend.demo || new URLSearchParams(location.search).has('quiet')) return;
   let n = 0;
   const tick = () => {
     window.setTimeout(tick, 12_000 + Math.random() * 6000);

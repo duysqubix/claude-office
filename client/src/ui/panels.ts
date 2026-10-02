@@ -18,7 +18,7 @@ import type { Sfx } from './sfx';
 import type { Panel, PanelId } from './shell';
 import { enhanceMarkdown, plainText, renderMarkdown } from './markdown';
 import { markNoteSeen, noteSeen } from './notes';
-import { isOffline, needsServer } from './offline';
+import { holdDisabled, isOffline, needsServer, releaseDisabled, setServerTip } from './offline';
 import { HIGH_CONTEXT, renderTeamStats } from './teamstats';
 import { setThoughtsOn, thoughtsOn, wireThoughts } from './thoughts';
 import { TerminalView } from './terminal';
@@ -450,7 +450,7 @@ export class PanelHost {
       firing = true;
       const e = store.get(id);
       const name = e?.displayName ?? 'them';
-      go.btn.setAttribute('aria-disabled', 'true');
+      holdDisabled(go.btn);
       go.set('Letting go…', true);
       // Their departure gets this toast, not the generic "clocked out" (registered before the reply can race it).
       toasts.expect(id, 'leave');
@@ -738,8 +738,7 @@ export class PanelHost {
     const sync = () => {
       if (!busy) go.set(chosen ? `Hire for ${chosen.name}` : 'Hire someone');
       go.btn.disabled = !chosen;
-      if (chosen) go.btn.removeAttribute('data-co-tip');
-      else go.btn.setAttribute('data-co-tip', 'Pick a project first');
+      setServerTip(go.btn, chosen ? null : 'Pick a project first');
       firstTime.hidden = !chosen || chosen.known;
       for (const o of options) {
         const on = !!chosen && o.cwd === chosen.cwd;
@@ -818,11 +817,11 @@ export class PanelHost {
       if (!chosen || busy || isOffline()) return;
       busy = true;
       error.hidden = true;
-      go.btn.setAttribute('aria-disabled', 'true');
+      holdDisabled(go.btn);
       go.set('Interviewing…', true);
       const r = await backend.hire(chosen.cwd, task.value.trim() || undefined, name.value.trim() || undefined);
       busy = false;
-      go.btn.removeAttribute('aria-disabled');
+      releaseDisabled(go.btn);
       if (r.ok) {
         confetti(go.btn);
         sfx.fanfare();
@@ -922,7 +921,7 @@ export class PanelHost {
             const b = labelled('primary', 'Call back in');
             b.btn.classList.add('co-btn--small');
             if (calling.has(s.sessionId)) {
-              b.btn.setAttribute('aria-disabled', 'true');
+              holdDisabled(b.btn);
               b.set('Calling…', true);
             }
             b.btn.addEventListener('click', () => void callBack(s));

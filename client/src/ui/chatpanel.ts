@@ -16,7 +16,7 @@ import { employeeLooks } from '../chars/looks';
 import { icon, stateGlyph, STATE_WORD, type IconName } from './icons';
 import { enhanceMarkdown, renderMarkdown } from './markdown';
 import { markNoteSeen, noteSeen } from './notes';
-import { isOffline, needsServer } from './offline';
+import { holdDisabled, isOffline, needsServer, releaseDisabled } from './offline';
 import './theme.css';
 
 export interface ChatApi {
@@ -628,19 +628,19 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
 
   async function interrupt(): Promise<void> {
     if (interruptBtn.getAttribute('aria-disabled') === 'true') return;
-    for (const b of [interruptBtn, termInterrupt]) b.setAttribute('aria-disabled', 'true');
+    for (const b of [interruptBtn, termInterrupt]) holdDisabled(b);
     const res = await api.interrupt(id);
     if (closed) return;
-    for (const b of [interruptBtn, termInterrupt]) b.removeAttribute('aria-disabled');
+    for (const b of [interruptBtn, termInterrupt]) releaseDisabled(b);
     if (res.ok) systemLine(`You interrupted ${e.displayName}.`);
     else systemLine(`Couldn't interrupt: ${res.error ?? 'unknown error'}`, 'bad');
   }
 
   async function adopt(): Promise<void> {
-    adoptBtn.setAttribute('aria-disabled', 'true');
+    holdDisabled(adoptBtn);
     const res = await api.adopt(id);
     if (closed) return;
-    adoptBtn.removeAttribute('aria-disabled');
+    releaseDisabled(adoptBtn);
     if (res.ok) {
       e = { ...e, adopting: true };
       render();
@@ -726,6 +726,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
               onClick: () => {
                 markNoteSeen(e);
                 render();
+                // The button is gone: keep focus in the chat, not on the page.
+                view.focus();
               },
             }),
           );
@@ -801,7 +803,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
         if (termView) termView.focus();
         else (termPane.querySelector<HTMLElement>('.co-btn') ?? shell.title).focus({ preventScroll: true });
       } else if (e.hosted) input.focus({ preventScroll: true });
-      else (adoptBtn.hidden ? panel : adoptBtn).focus({ preventScroll: true });
+      else (adoptBtn.hidden || ended ? shell.title : adoptBtn).focus({ preventScroll: true });
     },
     getMode: () => mode,
     setMode,

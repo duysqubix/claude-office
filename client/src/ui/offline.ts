@@ -19,6 +19,30 @@ export function needsServer<T extends HTMLElement>(el: T): T {
   return el;
 }
 
+/**
+ * Disable a server button for its own reason (an answer in flight). Going back online won't
+ * undo it; releaseDisabled() does.
+ */
+export function holdDisabled(el: HTMLElement): void {
+  el.setAttribute('aria-disabled', 'true');
+  delete el.dataset.offlineAria;
+}
+
+/** Its own reason is over: enabled again, unless the office is offline (then reconnecting does it). */
+export function releaseDisabled(el: HTMLElement): void {
+  if (el.dataset.offline === 'true') el.dataset.offlineAria = '';
+  else el.removeAttribute('aria-disabled');
+}
+
+/** Set a server button's tooltip (null: none). While offline it waits, and shows once the office is back. */
+export function setServerTip(el: HTMLElement, text: string | null): void {
+  if (el.dataset.offline === 'true') {
+    if (text === null) delete el.dataset.tipOnline;
+    else el.dataset.tipOnline = text;
+  } else if (text === null) el.removeAttribute('data-co-tip');
+  else el.setAttribute('data-co-tip', text);
+}
+
 function apply(el: HTMLElement): void {
   const on = offline;
   if (on === (el.dataset.offline === 'true')) return;

@@ -220,6 +220,7 @@ export class Hud {
 
     if (needs !== Number(this.needsKey || -1)) {
       this.needsKey = String(needs);
+      const hadFocus = this.needsSlot.contains(document.activeElement);
       const chip = needsChip(needs, { left: this.soonestAsk() ?? undefined, onClick: () => this.on.needsYou() });
       // "Nobody needs you" slams in only when the last person was just answered.
       if (needs === 0 && !this.hadNeeds) chip.classList.add('is-static');
@@ -227,6 +228,8 @@ export class Hud {
       this.needsSlot.replaceChildren(chip);
       this.ring = chip.querySelector('circle');
       chip.classList.add('is-counted');
+      // Rebuilt under the keyboard: focus moves to the new chip (or back to the game for the calm one).
+      if (hadFocus) (chip.matches('button') ? chip : document.getElementById('scene'))?.focus({ preventScroll: true });
     }
     this.updateRing();
 
