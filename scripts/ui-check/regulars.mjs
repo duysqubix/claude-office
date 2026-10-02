@@ -361,6 +361,30 @@ try {
   await wait(800);
   const backIn = await fd.page.evaluate(() => window.office.regulars.frontDesk?.phase ?? null);
   check('on again: she walks back in', backIn === 'entering', String(backIn));
+  // Off → on → off while she's walking back: she turns round and goes, never sitting down.
+  const phase = () => fd.page.evaluate(() => window.office.regulars.frontDesk?.phase ?? null);
+  for (let i = 0; i < 80 && (await phase()) !== 'seated'; i++) await wait(250);
+  await toggle();
+  // Let her get a few metres toward the door before calling her back.
+  const away = () =>
+    fd.page.evaluate(() => {
+      const rc = window.office.regulars.frontDesk;
+      return rc && rc.phase === 'leaving' ? Math.hypot(rc.position.x - rc.desk.approach.x, rc.position.z - rc.desk.approach.z) : 0;
+    });
+  for (let i = 0; i < 60 && (await away()) < 3; i++) await wait(150);
+  await toggle();
+  await wait(400);
+  const turned = await phase();
+  await toggle();
+  let sat = false;
+  let outAgain = false;
+  for (let i = 0; i < 120 && !outAgain; i++) {
+    await wait(200);
+    const p = await phase();
+    if (p === 'sitting-down' || p === 'seated') sat = true;
+    outAgain = p === null;
+  }
+  check('off → on → off while she walks back: she ends up gone and never sits', turned === 'entering' && outAgain && !sat, `came back as ${turned}, gone ${outAgain}, sat ${sat}`);
   await fd.page.evaluate(() => localStorage.removeItem('claude-office:receptionist'));
   check('no page errors at the front desk', !fd.logs.some((l) => l.startsWith('[pageerror]')), fd.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
   await fd.page.close();

@@ -271,6 +271,15 @@ export class RegularChar extends EmployeeChar {
   }
 
   /**
+   * Called back on the way out (only the receptionist, when her switch flips on again): she's
+   * not off home any more, so she holds the desk again and a second Off turns her round.
+   */
+  override comeBack(): void {
+    if (this.plan === 'home') this.plan = null;
+    super.comeBack();
+  }
+
+  /**
    * A session needs this desk. At the desk: up, "All yours!" with a wave toward the door the
    * newcomer comes in by, grab the mug, off home. Anywhere else they just head home from there.
    */
