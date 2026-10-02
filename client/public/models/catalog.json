@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-02T01:57:44.695Z",
+  "generated": "2026-10-02T02:03:14.699Z",
   "totals": {
     "all": 232,
     "done": 232
@@ -11260,7 +11260,7 @@
         "EyeR"
       ],
       "textures": 0,
-      "bytes": 32252
+      "bytes": 30632
     },
     {
       "id": "char_forearm",
@@ -12790,7 +12790,7 @@
         "held_box"
       ],
       "textures": 1,
-      "bytes": 114264
+      "bytes": 114144
     },
     {
       "id": "held_clipboard",
@@ -13155,7 +13155,7 @@
         "preset_employee_a"
       ],
       "textures": 1,
-      "bytes": 602388
+      "bytes": 602384
     },
     {
       "id": "preset_employee_b",
@@ -13327,7 +13327,7 @@
         "preset_intern"
       ],
       "textures": 1,
-      "bytes": 578340
+      "bytes": 578916
     },
     {
       "id": "preset_manager",
