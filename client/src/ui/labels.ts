@@ -6,11 +6,13 @@ import * as THREE from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import type { EmployeeChar } from '../chars/employee';
 import type { InternChar } from '../chars/intern';
+import type { RegularChar } from '../chars/npc';
 import { bus } from './bus';
 import { bangMarker, zzz } from './components';
 import { truncate, waitingLines } from './dom';
 import { createEdgeIndicators, type EdgeTarget, type EdgeViewport } from './edge';
 import { el, type Markup } from './el';
+import { plainText, visibleText } from './markdown';
 import { employeeFace, faceSvg } from './faces';
 import { stateBadge, STATE_WORD } from './icons';
 
@@ -21,12 +23,31 @@ const MAX_BUBBLES = 3;
 const MAX_PILLS = 10;
 /** A bubble's text changes at most this often. */
 const BUBBLE_HOLD_MS = 800;
+/** Regulars (NPC coworkers): name pills only this close, a few at a time; their own bubble budget. */
+const REGULAR_PILL_RANGE = 6;
+const MAX_REGULAR_PILLS = 4;
+const REGULAR_BUBBLE_RANGE = 10;
+const MAX_REGULAR_BUBBLES = 3;
 const _p = new THREE.Vector3();
 const _cam = new THREE.Vector3();
+/** Panels go to a bottom sheet below this width (theme.css). */
+const SHEET = typeof window !== 'undefined' ? window.matchMedia('(max-width: 899px)') : null;
+
+/** Restart an element's CSS animation without a forced layout (no `void el.offsetWidth`). */
+function replay(node: HTMLElement): void {
+  for (const a of node.getAnimations()) {
+    a.cancel();
+    a.play();
+  }
+}
 
 class Tag {
   readonly obj: CSS2DObject;
   readonly head = new THREE.Vector3();
+  /** Distance to the manager this frame (for ordering). */
+  dist = 0;
+  /** This person's edge-face target, updated in place. */
+  readonly target: EdgeTarget;
   private root: HTMLElement;
   private bang: HTMLElement;
   private bump: HTMLElement;
@@ -40,6 +61,12 @@ class Tag {
   private bubbleAt = 0;
   private bumpTimer = 0;
   private faces = new Map<string, Markup>();
+  /** Needs-you lines, worked out once per ask / waitingFor. */
+  private needsSrc = '\u0000';
+  private needs: { line1: string; line2: string; code: string; fact: string } = { line1: '', line2: '', code: '', fact: '' };
+  /** lastText as one plain line, worked out once per text. */
+  private saidSrc = '\u0000';
+  private saidPlain = '';
 
   constructor(
     readonly e: EmployeeChar,
@@ -65,6 +92,45 @@ class Tag {
     this.obj = new CSS2DObject(this.root);
     this.obj.center.set(0.5, 1);
     e.labelAnchor.add(this.obj);
+    this.target = { id: e.data.sessionId, position: this.head, faceSvg: this.face(), urgent: true };
+  }
+
+  /** What they say when they need you: [line 1, line 2 or a command, the plain fact]. */
+  needsLines() {
+    const d = this.e.data;
+    const src = `${d.ask?.id ?? ''}|${d.waitingFor ?? ''}`;
+    if (src !== this.needsSrc) {
+      this.needsSrc = src;
+      if (d.ask) {
+        const first = d.ask.kind === 'permission' ? (d.ask.detail ?? '').slice(0, 400).split('\n').find((l) => l.trim()) : '';
+        this.needs = { line1: truncate(d.ask.title, 40), code: first ? truncate(visibleText(first), 36) : '', line2: first ? '' : 'Click or press E to answer', fact: d.ask.title };
+      } else {
+        const [said, fact] = waitingLines(d);
+        this.needs = { line1: said, line2: fact, code: '', fact };
+      }
+    }
+    return this.needs;
+  }
+
+  /** What someone at their desk says when you're close (UX.md §2.1). */
+  private line(): string {
+    const e = this.e;
+    const d = e.data;
+    switch (d.state) {
+      case 'working':
+        return truncate(d.activity?.label ?? 'Thinking…', 60);
+      case 'idle':
+        if (e.stateAge < 3 || !d.lastText) return 'Done!';
+        if (d.lastText !== this.saidSrc) {
+          this.saidSrc = d.lastText;
+          this.saidPlain = truncate(plainText(d.lastText), 70);
+        }
+        return this.saidPlain;
+      case 'starting':
+        return 'Getting settled…';
+      default:
+        return '';
+    }
   }
 
   /** Their portrait for the edge marker (cached; hosted changes it). */
@@ -84,16 +150,17 @@ class Tag {
   bumped(): void {
     window.clearTimeout(this.bumpTimer);
     const b = this.bump;
-    b.hidden = false;
-    // Restart the pop.
-    b.style.animation = 'none';
-    void b.offsetWidth;
-    b.style.animation = '';
+    // Showing it starts the pop; a second bump while it shows restarts it.
+    if (b.hidden) b.hidden = false;
+    else replay(b);
     this.bumpTimer = window.setTimeout(() => (b.hidden = true), 900);
   }
 
-  /** `pillFade` 0–1 (0 hides it); `bubbleAllowed`: one of the nearest few. */
-  update(camDist: number, mgrDist: number, pillFade: number, bubbleAllowed: boolean): void {
+  /**
+   * `pillFade` 0–1 (0 hides it); `bubbleAllowed`: one of the nearest few; `inReach`: within the
+   * pill range, where a needs-you bubble shows (beyond it, just the "!" and the pill).
+   */
+  update(camDist: number, mgrDist: number, pillFade: number, bubbleAllowed: boolean, inReach: boolean): void {
     const e = this.e;
     const d = e.data;
     const st = d.state;
@@ -128,18 +195,15 @@ class Tag {
       kind = 'say';
       text = e.quipText;
     } else if (needs && !walking) {
-      kind = 'needs';
-      if (d.ask) {
-        line1 = truncate(d.ask.title, 40);
-        const first = d.ask.kind === 'permission' ? (d.ask.detail ?? '').split('\n').find((l) => l.trim()) : '';
-        if (first) code = truncate(first, 36);
-        else line2 = 'Click or press E to answer';
-      } else [line1, line2] = waitingLines(d);
+      if (inReach) {
+        kind = 'needs';
+        ({ line1, line2, code } = this.needsLines());
+      }
     } else if (bubbleAllowed && mgrDist < BUBBLE_RANGE && st !== 'sleeping') {
       kind = 'say';
       if (e.phase === 'entering') text = new Date().getHours() < 12 ? 'Morning!' : 'Hi!';
       else if (e.phase === 'leaving') text = 'Bye!';
-      else if (e.seated) text = bubbleLine(e);
+      else if (e.seated) text = this.line();
     }
     if (kind === 'say' && !text) kind = '';
     const key = `${kind}|${text}|${line1}|${line2}|${code}`;
@@ -171,9 +235,8 @@ class Tag {
         }
         // A new line nudges the bubble (unless it just popped in).
         if (was === kind) {
-          this.bubble.classList.remove('is-bumped');
-          void this.bubble.offsetWidth;
-          this.bubble.classList.add('is-bumped');
+          if (this.bubble.classList.contains('is-bumped')) replay(this.bubble);
+          else this.bubble.classList.add('is-bumped');
         }
       }
     }
@@ -229,18 +292,72 @@ class InternTag {
   }
 }
 
-/** What someone at their desk says when you're close (UX.md §2.1). */
-function bubbleLine(e: EmployeeChar): string {
-  const d = e.data;
-  switch (d.state) {
-    case 'working':
-      return truncate(d.activity?.label ?? 'Thinking…', 60);
-    case 'idle':
-      return e.stateAge < 3 || !d.lastText ? 'Done!' : truncate(d.lastText, 70);
-    case 'starting':
-      return 'Getting settled…';
-    default:
-      return '';
+/**
+ * Over a regular (an NPC coworker, not a session): a small muted name pill up close (no state,
+ * not a button), what they say, and the bump pop. Never an edge face or a needs-you bubble.
+ */
+class RegularTag {
+  readonly obj: CSS2DObject;
+  private root: HTMLElement;
+  private pill: HTMLElement;
+  private bubble: HTMLElement;
+  private bump: HTMLElement;
+  private shown = -1;
+  private said = '';
+  private bumpTimer = 0;
+
+  constructor(readonly r: RegularChar) {
+    this.bump = bangMarker('bump');
+    this.bump.hidden = true;
+    this.bubble = el('div', { class: 'co-bubble', attrs: { hidden: true } });
+    this.pill = el('span', { class: 'co-pill co-pill--regular', attrs: { hidden: true, title: `${r.name}, ${r.profile.dept}` } }, r.name);
+    this.root = el('div', { class: 'co-tagstack' }, this.bump, this.bubble, this.pill);
+    this.obj = new CSS2DObject(this.root);
+    this.obj.center.set(0.5, 1);
+    this.obj.visible = false;
+    r.labelAnchor.add(this.obj);
+  }
+
+  bumped(): void {
+    window.clearTimeout(this.bumpTimer);
+    const b = this.bump;
+    b.hidden = false;
+    this.obj.visible = true;
+    b.style.animation = 'none';
+    void b.offsetWidth;
+    b.style.animation = '';
+    this.bumpTimer = window.setTimeout(() => (b.hidden = true), 900);
+  }
+
+  /** `pillFade` 0–1; `say`: their line, or '' for none. */
+  update(pillFade: number, say: string): void {
+    const fade = Math.round(pillFade * 10) / 10;
+    if (fade !== this.shown) {
+      this.shown = fade;
+      this.pill.style.opacity = fade >= 1 ? '' : String(fade);
+      this.pill.hidden = fade <= 0;
+    }
+    if (say !== this.said) {
+      const was = this.said;
+      this.said = say;
+      this.bubble.hidden = !say;
+      if (say) {
+        this.bubble.replaceChildren(el('span', { class: 'co-bubble__text' }, say));
+        if (was) {
+          this.bubble.classList.remove('is-bumped');
+          void this.bubble.offsetWidth;
+          this.bubble.classList.add('is-bumped');
+        }
+      }
+    }
+    // Nothing to show: skip the element entirely.
+    this.obj.visible = !this.pill.hidden || !this.bubble.hidden || !this.bump.hidden;
+  }
+
+  dispose(): void {
+    window.clearTimeout(this.bumpTimer);
+    this.obj.removeFromParent();
+    this.root.remove();
   }
 }
 
@@ -248,10 +365,18 @@ export class LabelLayer {
   readonly renderer = new CSS2DRenderer();
   private tags = new Map<EmployeeChar, Tag>();
   private internTags = new Map<InternChar, InternTag>();
+  private regularTags = new Map<RegularChar, RegularTag>();
   private edges: ReturnType<typeof createEdgeIndicators>;
-  /** Keep edge faces clear of an open panel. */
+  /** Keep edge faces clear of an open panel: its box, measured a few times a second. */
   private inset: EdgeViewport['inset'] = {};
+  private panelEl: HTMLElement | null = null;
+  private insetAt = 0;
   private visible = true;
+  private vw = window.innerWidth;
+  private vh = window.innerHeight;
+  /** Reused every frame. */
+  private order: Tag[] = [];
+  private targets: EdgeTarget[] = [];
   /** Clicked someone's needs-you bubble. */
   onBubbleClick: (e: EmployeeChar) => void = () => {};
 
@@ -260,24 +385,37 @@ export class LabelLayer {
     container.append(this.renderer.domElement);
     this.edges = createEdgeIndicators(document.getElementById('ui') ?? container, (id) => bus.emit('go-to', { id }));
     bus.on('panel', (p) => {
-      if (!p.open || p.left === undefined || p.top === undefined) this.inset = {};
-      else if (p.top > window.innerHeight * 0.4) this.inset = { bottom: window.innerHeight - p.top + 16 };
-      else this.inset = { right: window.innerWidth - p.left + 16 };
+      this.panelEl = p.open ? (p.el ?? null) : null;
+      this.insetAt = 0;
     });
     this.resize();
   }
 
   resize(): void {
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.vw = window.innerWidth;
+    this.vh = window.innerHeight;
+    this.renderer.setSize(this.vw, this.vh);
+    this.insetAt = 0;
+  }
+
+  /** The open panel's edge, from its layout box (it widens for terminals and plans; windows resize). */
+  private measureInset(): void {
+    const p = this.panelEl;
+    if (!p?.isConnected || p.classList.contains('is-out')) this.inset = {};
+    else if (SHEET?.matches) this.inset = { bottom: this.vh - p.offsetTop + 16 };
+    else this.inset = { right: this.vw - p.offsetLeft + 16 };
   }
 
   attach(e: EmployeeChar): void {
-    if (!this.tags.has(e)) this.tags.set(e, new Tag(e, (x) => this.onBubbleClick(x)));
+    if (this.tags.has(e)) return;
+    this.tags.set(e, new Tag(e, (x) => this.onBubbleClick(x)));
+    this.order = [...this.tags.values()];
   }
 
   detach(e: EmployeeChar): void {
     this.tags.get(e)?.dispose();
     this.tags.delete(e);
+    this.order = [...this.tags.values()];
   }
 
   attachIntern(i: InternChar): void {
@@ -293,6 +431,19 @@ export class LabelLayer {
     this.tags.get(e)?.bumped();
   }
 
+  attachRegular(r: RegularChar): void {
+    if (!this.regularTags.has(r)) this.regularTags.set(r, new RegularTag(r));
+  }
+
+  detachRegular(r: RegularChar): void {
+    this.regularTags.get(r)?.dispose();
+    this.regularTags.delete(r);
+  }
+
+  bumpedRegular(r: RegularChar): void {
+    this.regularTags.get(r)?.bumped();
+  }
+
   /** Hide everything (e.g. while sitting at someone's terminal). */
   setVisible(v: boolean): void {
     this.visible = v;
@@ -303,13 +454,15 @@ export class LabelLayer {
     camera.getWorldPosition(_cam);
     // Pills reach farther the farther out the camera is (UX.md §2.1).
     const reach = Math.max(10, _cam.distanceTo(manager) + 2);
-    const near = [...this.tags.values()]
-      .map((t) => ({ t, d: Math.hypot(t.e.position.x - manager.x, t.e.position.z - manager.z) }))
-      .sort((a, b) => a.d - b.d);
+    const order = this.order;
+    for (const t of order) t.dist = Math.hypot(t.e.position.x - manager.x, t.e.position.z - manager.z);
+    order.sort((a, b) => a.dist - b.dist);
     let pills = 0;
     let bubbles = 0;
-    const targets: EdgeTarget[] = [];
-    for (const { t, d } of near) {
+    const targets = this.targets;
+    targets.length = 0;
+    for (const t of order) {
+      const d = t.dist;
       t.e.labelAnchor.getWorldPosition(_p);
       t.head.copy(_p);
       const camDist = _p.distanceTo(_cam);
@@ -317,29 +470,48 @@ export class LabelLayer {
       if (fade > 0 && !t.e.handUp) pills++;
       const chatty = !t.e.handUp && bubbles < MAX_BUBBLES && d < BUBBLE_RANGE;
       if (chatty) bubbles++;
-      t.update(camDist, d, fade, chatty);
+      t.update(camDist, d, fade, chatty, d <= reach);
 
       const e = t.e;
       if (e.handUp && e.phase !== 'leaving' && e.phase !== 'gone') {
-        const fact = e.data.ask?.title ?? waitingLines(e.data)[1];
-        targets.push({
-          id: e.data.sessionId,
-          position: t.head,
-          faceSvg: t.face(),
-          urgent: true,
-          name: e.data.displayName,
-          tooltip: `Go to ${e.data.displayName} (${fact.charAt(0).toLowerCase()}${fact.slice(1)})`,
-          since: e.data.stateSince,
-        });
+        const tg = t.target;
+        const fact = t.needsLines().fact;
+        tg.faceSvg = t.face();
+        tg.name = e.data.displayName;
+        tg.tooltip = `Go to ${e.data.displayName} (${fact.charAt(0).toLowerCase()}${fact.slice(1).replace(/[.!?]+$/, '')})`;
+        tg.since = e.data.stateSince;
+        targets.push(tg);
       }
     }
     for (const it of this.internTags.values()) {
       it.i.labelAnchor.getWorldPosition(_p);
       it.update(_p.distanceTo(_cam));
     }
+    // Regulars: a quiet pill for the nearest few up close, and their lines (ones that matter,
+    // like "All yours!", carry across the room). They never use the sessions' budgets.
+    const regulars = [...this.regularTags.values()]
+      .map((t) => ({ t, d: Math.hypot(t.r.position.x - manager.x, t.r.position.z - manager.z) }))
+      .sort((a, b) => a.d - b.d);
+    let regularPills = 0;
+    let regularBubbles = 0;
+    for (const { t, d } of regulars) {
+      const fade = regularPills < MAX_REGULAR_PILLS ? THREE.MathUtils.clamp((REGULAR_PILL_RANGE - d) / 1.5, 0, 1) : 0;
+      if (fade > 0) regularPills++;
+      const r = t.r;
+      const heard = r.quipping && regularBubbles < MAX_REGULAR_BUBBLES && (d < REGULAR_BUBBLE_RANGE || (r.quipLoud && d < 24));
+      if (heard) regularBubbles++;
+      t.update(fade, heard ? r.quipText : '');
+    }
     // Longest waiting first: they win when markers merge.
-    targets.sort((a, b) => (a.since ?? 0) - (b.since ?? 0));
-    this.edges.updateEdgeIndicators(camera, { width: window.innerWidth, height: window.innerHeight, inset: this.inset }, this.visible ? targets : []);
+    if (targets.length > 1) targets.sort((a, b) => (a.since ?? 0) - (b.since ?? 0));
+    const now = performance.now();
+    if (now - this.insetAt > 250) {
+      this.insetAt = now;
+      this.measureInset();
+    }
+    // A bottom sheet (narrow windows) leaves no free edge for faces; the panel has the floor.
+    const room = this.visible && this.inset?.bottom === undefined;
+    this.edges.updateEdgeIndicators(camera, { width: this.vw, height: this.vh, inset: this.inset }, room ? targets : []);
   }
 
   render(scene: THREE.Scene, camera: THREE.Camera): void {

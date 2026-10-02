@@ -56,6 +56,11 @@ export function fmtClock(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** How long someone has been waiting: "0:42" (it counts) for the first hour, then "1h 12m". */
+export function fmtWait(ms: number): string {
+  return ms < 3_600_000 ? fmtClock(ms) : fmtDuration(ms);
+}
+
 /** "45s", "12m", "1h 12m", "2d 3h". */
 export function fmtDuration(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));

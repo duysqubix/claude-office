@@ -72,7 +72,7 @@
 
 /* ------------------------------------------------------------------ key caps */
 
-/* Key legends in the system's rounded face: Fredoka's small round Q reads as an "a" at 13 px. */
+/* Key legends in the system face, like a real keyboard: Fredoka's small round Q reads as an "a" at 13 px. */
 .co-key {
   display: inline-flex;
   align-items: center;
@@ -87,7 +87,7 @@
   border-radius: 7px;
   background: var(--paper-2);
   color: var(--ink);
-  font: 700 13px/16px ui-rounded, 'SF Pro Rounded', var(--co-font);
+  font: 700 13px/16px system-ui, -apple-system, 'Segoe UI', sans-serif;
   text-shadow: none;
   transition: transform 60ms linear, border-bottom-width 60ms linear;
 }
@@ -1217,13 +1217,31 @@ body.seated .co-edges {
 .co-md p {
   margin: 0 0 8px;
 }
+.co-md h4,
+.co-md h5,
+.co-md h6 {
+  margin: 12px 0 4px;
+  font-family: var(--co-font);
+  font-weight: 700;
+}
 .co-md h4 {
-  margin: 10px 0 4px;
-  font: 700 16px/20px var(--co-font);
+  font-size: 17px;
+  line-height: 22px;
 }
 .co-md h5 {
-  margin: 8px 0 4px;
-  font: 700 15px/20px var(--co-font);
+  font-size: 16px;
+  line-height: 20px;
+}
+.co-md h6 {
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 20px;
+}
+.co-md strong {
+  font-weight: 600;
+}
+.co-md s {
+  color: var(--ink-2);
 }
 .co-md ul,
 .co-md ol {
@@ -1233,9 +1251,16 @@ body.seated .co-edges {
 .co-md li {
   margin: 2px 0;
 }
+.co-md li > p {
+  margin: 0;
+}
 .co-md li > ul,
 .co-md li > ol {
   margin: 2px 0;
+}
+.co-md li.co-md__task {
+  margin-left: -18px;
+  list-style: none;
 }
 .co-md code {
   padding: 0 4px;
@@ -1243,29 +1268,8 @@ body.seated .co-edges {
   background: var(--paper-2);
   font: 500 13px/18px var(--co-mono);
 }
-.co-md pre {
-  margin: 6px 0 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--well);
-  color: var(--well-ink);
-  font: 400 13px/18px var(--co-mono);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.co-md pre code {
-  padding: 0;
-  background: none;
-  color: inherit;
-}
-.co-md .co-md-table {
-  background: var(--paper-2);
-  color: var(--ink);
-  white-space: pre;
-  overflow-x: auto;
-}
 .co-md blockquote {
-  margin: 6px 0;
+  margin: 6px 0 8px;
   padding: 2px 0 2px 10px;
   border-left: 3px solid var(--ink-2);
   color: var(--ink-2);
@@ -1282,6 +1286,173 @@ body.seated .co-edges {
   border-top: 2px dashed var(--paper-2);
 }
 
+/* A long message in a small place (the employee panel): the first lines, fading out. */
+.co-md--clip {
+  position: relative;
+  max-height: 168px;
+  overflow: hidden;
+}
+.co-md--clip::after {
+  content: '';
+  position: absolute;
+  top: 136px;
+  right: 0;
+  left: 0;
+  height: 32px;
+  background: linear-gradient(rgba(255, 253, 247, 0), var(--paper));
+  pointer-events: none;
+}
+
+/* Tables: real tables in their own box, scrolling sideways when wide. */
+.co-md__table {
+  margin: 6px 0 10px;
+  overflow-x: auto;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.co-md table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font: 400 14px/19px var(--co-font);
+}
+.co-md th,
+.co-md td {
+  padding: 5px 10px;
+  border-bottom: 1.5px solid var(--paper-2);
+  overflow-wrap: normal;
+  text-align: left;
+  vertical-align: top;
+}
+.co-md td code {
+  white-space: nowrap;
+}
+.co-md th {
+  background: var(--paper-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.co-md th + th,
+.co-md td + td {
+  border-left: 1.5px solid var(--paper-2);
+}
+.co-md tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Code: a dark well with its language and a copy button; long lines scroll, never wrap. */
+.co-code {
+  margin: 6px 0 10px;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--well);
+  color: var(--well-ink);
+}
+.co-code__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1.5px solid rgba(255, 253, 247, 0.12);
+  font: 600 12px/16px var(--co-font);
+}
+.co-code__lang {
+  color: rgba(230, 237, 245, 0.75);
+}
+.co-code__copy {
+  padding: 2px 10px;
+  border: 1.5px solid rgba(255, 253, 247, 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--well-ink);
+  font: 600 12px/16px var(--co-font);
+  cursor: pointer;
+}
+.co-code__copy:hover {
+  background: rgba(255, 253, 247, 0.12);
+}
+.co-code__copy:focus-visible,
+.co-code pre:focus-visible {
+  outline: 3px solid transparent;
+  box-shadow: inset 0 0 0 2px var(--paper);
+}
+.co-code pre {
+  margin: 0;
+  padding: 8px 12px 10px;
+  overflow-x: auto;
+  font: 400 13px/18px var(--co-mono);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.co-md .co-code code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+/* Syntax colours on the dark well: the terminal's palette. */
+.co-code .hljs-comment,
+.co-code .hljs-quote,
+.co-code .hljs-meta {
+  color: #8b9bb0;
+}
+.co-code .hljs-comment {
+  font-style: italic;
+}
+.co-code .hljs-keyword,
+.co-code .hljs-selector-tag,
+.co-code .hljs-literal,
+.co-code .hljs-doctag {
+  color: #d2a8ff;
+}
+.co-code .hljs-string,
+.co-code .hljs-regexp,
+.co-code .hljs-char.escape_ {
+  color: #9be15d;
+}
+.co-code .hljs-number,
+.co-code .hljs-symbol,
+.co-code .hljs-bullet {
+  color: #ffd93d;
+}
+.co-code .hljs-title,
+.co-code .hljs-section,
+.co-code .hljs-selector-id,
+.co-code .hljs-selector-class {
+  color: #7fb2ff;
+}
+.co-code .hljs-attr,
+.co-code .hljs-attribute,
+.co-code .hljs-property,
+.co-code .hljs-variable,
+.co-code .hljs-template-variable,
+.co-code .hljs-params {
+  color: #5be3e6;
+}
+.co-code .hljs-built_in,
+.co-code .hljs-type,
+.co-code .hljs-name,
+.co-code .hljs-tag {
+  color: #ff9e8a;
+}
+.co-code .hljs-addition {
+  background: rgba(107, 203, 119, 0.14);
+  color: #9be15d;
+}
+.co-code .hljs-deletion {
+  background: rgba(255, 107, 107, 0.14);
+  color: #ff8a8a;
+}
+.co-code .hljs-emphasis {
+  font-style: italic;
+}
+.co-code .hljs-strong {
+  font-weight: 700;
+}
+
 /* ------------------------------------------------------------------ chat (chatpanel.ts) */
 
 .co-panel--chat {
@@ -1292,6 +1463,96 @@ body.seated .co-edges {
 .co-panel--chat .co-panel__body {
   padding: 14px 16px 10px;
   gap: 10px;
+}
+/* Terminal mode (T): the same panel, wide enough for a real terminal. */
+.co-panel--chat.co-panel--term {
+  width: min(max(60vw, 560px), calc(100vw - 32px));
+}
+.co-seg {
+  display: inline-flex;
+  flex: none;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: 0 3px 0 var(--shade);
+}
+.co-seg__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 10px 0 8px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 600 14px/18px var(--co-font);
+  cursor: pointer;
+}
+.co-seg__btn + .co-seg__btn {
+  border-left: 2px solid var(--ink);
+}
+.co-seg__btn[aria-pressed='true'] {
+  background: var(--primary);
+}
+.co-seg__btn .co-icon {
+  width: 18px;
+  height: 18px;
+}
+.co-seg__btn .co-key {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 12px;
+}
+.co-seg__btn:focus-visible {
+  outline: 3px solid transparent;
+  box-shadow: inset 0 0 0 3px var(--ink);
+}
+.co-chat__term {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 14px;
+}
+.co-chat__termslot {
+  flex: 1;
+  min-height: 0;
+}
+.co-chat__termslot .term-screen {
+  box-sizing: border-box;
+  height: 100%;
+}
+.co-chat__termbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font: 600 13px/18px var(--co-font);
+}
+.co-chat__termstatus {
+  margin-right: auto;
+}
+.co-chat__termnote {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 24px;
+  border: 2px dashed var(--ink-2);
+  border-radius: 12px;
+  text-align: center;
+}
+.co-chat__termnote p {
+  max-width: 420px;
+  margin: 0;
 }
 .co-chat__head {
   flex: none;
@@ -1401,6 +1662,13 @@ body.seated .co-edges {
   background: var(--paper);
   box-shadow: 0 3px 0 var(--shade);
 }
+/* Code and tables want the room: their message takes the whole row. */
+.co-msg--assistant:has(.co-code, .co-md__table) {
+  width: 94%;
+}
+.co-msg--assistant:has(.co-code, .co-md__table) .co-msg__body {
+  flex: 1 1 auto;
+}
 .co-msg--cont {
   padding-left: 36px;
 }
@@ -1472,6 +1740,8 @@ body.seated .co-edges {
   cursor: pointer;
 }
 .co-step--toggle b {
+  flex: none;
+  white-space: nowrap;
   font-weight: 700;
 }
 .co-step--toggle .co-step__text {
@@ -2182,6 +2452,16 @@ body.seated .co-edges {
 .co-choice--toggle {
   align-items: center;
 }
+/* Help: Off / Some / Lively for the office regulars, side by side. */
+.co-regulars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.co-regulars .co-choice {
+  padding: 8px 10px 8px 8px;
+  gap: 8px;
+}
 .co-btn__lead {
   display: inline-flex;
 }
@@ -2192,6 +2472,19 @@ body.seated .co-edges {
   padding: 0 10px 0 1px;
   font-size: 13px;
   cursor: default;
+}
+/* Regulars (NPC coworkers): a quiet name tag. No state, not a button. */
+.co-pill--regular {
+  height: 22px;
+  padding: 0 9px;
+  border-width: 1.5px;
+  border-color: rgba(43, 45, 66, 0.35);
+  background: rgba(255, 253, 247, 0.8);
+  box-shadow: none;
+  color: var(--ink-2);
+  font: 600 13px/16px var(--co-font);
+  cursor: default;
+  pointer-events: none;
 }
 .co-pill__face svg {
   display: block;

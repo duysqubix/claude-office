@@ -7,12 +7,13 @@
 //   store.onChange(() => view.update(store.get(id)!));   …   view.close();
 import type { AnswerRequest, ApiResult, ChatLine, Employee } from '../../../shared/protocol';
 import { renderAsk, type AskView } from './askpanel';
+import type { TermStatus, TerminalView, TerminalViewOptions } from './terminal';
 import { button, panelShell } from './components';
-import { el, fmtClock, fmtTime } from './el';
+import { el, fmtTime, fmtWait } from './el';
 import { faceSvg } from './faces';
 import { employeeLooks } from '../chars/looks';
 import { icon, stateGlyph, STATE_WORD, type IconName } from './icons';
-import { renderMarkdown } from './markdown';
+import { enhanceMarkdown, renderMarkdown } from './markdown';
 import './theme.css';
 
 export interface ChatApi {
@@ -28,6 +29,8 @@ export interface ChatApi {
   answer(req: AnswerRequest): Promise<ApiResult>;
   /** "Sit at their computer": the full terminal (the existing flow). */
   sit(sessionId: string): void;
+  /** A live terminal for the quick look (Terminal mode). Without it, Terminal mode says it isn't available. */
+  openTerminal?(sessionId: string, opts: TerminalViewOptions): TerminalView;
   /** The close button. Default: the view closes itself. */
   onClose?(): void;
 }
@@ -73,7 +76,14 @@ export interface ChatOptions {
   pollMs?: number;
   /** Clock override (the UI kit freezes time). */
   now?: () => number;
+  /** Start in Terminal mode (T from the office). */
+  mode?: ChatMode;
+  /** Chat ⇄ Terminal flipped (the panel changed width). */
+  onMode?(mode: ChatMode): void;
 }
+
+/** Chat: the conversation. Terminal: their live terminal, right here (the quick look). */
+export type ChatMode = 'chat' | 'terminal';
 
 export interface ChatView {
   readonly el: HTMLElement;
@@ -82,9 +92,13 @@ export interface ChatView {
   focus(): void;
   /** Their session ended: say so, keep the history readable, drop the composer. */
   end(text: string): void;
+  getMode(): ChatMode;
+  setMode(mode: ChatMode): void;
   close(): void;
 }
 
+/** The quick look takes keys this long after it opens (the T that opened it is long gone by then). */
+const TERM_HOLD_MS = 400;
 /** A gap this long between messages gets a time label. */
 const TIME_GAP_MS = 10 * 60_000;
 /** Runs of this many tool steps or more collapse into one chip. */
@@ -130,6 +144,10 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   let emptyNote: HTMLElement | null = null;
   let ended = false;
   let faceHosted = e.hosted;
+  let mode: ChatMode = 'chat';
+  let termView: TerminalView | null = null;
+  /** Bumped when the feed restarts, so answers to older requests are dropped. */
+  let gen = 0;
   const pending: Pending[] = [];
 
   // ---------------------------------------------------------------- frame
@@ -150,7 +168,24 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   const where = el('span', { class: 'co-chat__where' });
   const interruptBtn = button('Interrupt', { small: true, icon: 'stop', onClick: () => void interrupt() });
   const sitBtn = button('Sit at their computer', { small: true, icon: 'terminal', onClick: () => api.sit(id) });
-  const head = el('div', { class: 'co-chat__head' }, el('div', { class: 'co-chat__meta' }, stateChip, where), el('div', { class: 'co-chat__actions' }, interruptBtn, sitBtn));
+  // Chat ⇄ Terminal (T): the same person, their conversation or their live terminal.
+  const segChat = el('button', { class: 'co-seg__btn', attrs: { type: 'button', 'aria-pressed': 'true' } }, el('span', { html: icon('chat', 18) }), 'Chat');
+  const segTerm = el(
+    'button',
+    { class: 'co-seg__btn', attrs: { type: 'button', 'aria-pressed': 'false', 'aria-keyshortcuts': 'T' } },
+    el('span', { html: icon('terminal', 18) }),
+    'Terminal',
+    el('kbd', { class: 'co-key' }, 'T'),
+  );
+  segChat.addEventListener('click', () => setMode('chat'));
+  segTerm.addEventListener('click', () => setMode('terminal'));
+  const seg = el('div', { class: 'co-seg', attrs: { role: 'group', 'aria-label': 'Show' } }, segChat, segTerm);
+  const head = el(
+    'div',
+    { class: 'co-chat__head' },
+    el('div', { class: 'co-chat__meta' }, stateChip, where),
+    el('div', { class: 'co-chat__actions' }, seg, interruptBtn, sitBtn),
+  );
   panel.insertBefore(head, shell.body);
 
   const feed = shell.body;
@@ -170,6 +205,27 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   const jump = el('button', { class: 'co-chat__jump co-btn co-btn--small', attrs: { type: 'button', hidden: true } }, 'New messages');
   jump.addEventListener('click', () => scrollToEnd(true));
   feed.append(loading, msgs, askSlot, waitNote, typing, jump);
+
+  // Terminal mode: their live terminal (hosted), or why there isn't one.
+  const termStatus = el('span', { class: 'co-chat__termstatus' });
+  const termLed = el('i', { class: 'term-led', attrs: { 'aria-hidden': 'true' } });
+  const termRetry = button('Try again', { small: true, onClick: () => termView?.retry() });
+  termRetry.hidden = true;
+  // Esc here leaves the quick look (unlike sitting down, where Esc goes to Claude), so stopping
+  // them has its own button right by the terminal.
+  const termInterrupt = button('Interrupt', { small: true, icon: 'stop', onClick: () => void interrupt() });
+  const termSlot = el('div', { class: 'co-chat__termslot' });
+  const termBar = el(
+    'div',
+    { class: 'co-chat__termbar' },
+    termLed,
+    termStatus,
+    el('span', { class: 'co-chat__termhint' }, el('kbd', { class: 'co-key' }, 'Esc'), ' back to the chat (not to Claude)'),
+    termRetry,
+    termInterrupt,
+  );
+  const termPane = el('div', { class: 'co-chat__term', attrs: { hidden: true } }, termSlot, termBar);
+  feed.after(termPane);
 
   // Composer (hosted) and the adopt card (external): both live in the footer.
   const input = el('textarea', {
@@ -263,14 +319,16 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       msgs.append(userBubble(l.text, ts));
     } else {
       const showFace = lastRole !== 'assistant';
+      const body = el('div', { class: 'co-msg__body co-md', html: renderMarkdown(l.text) });
       msgs.append(
         el(
           'div',
           { class: `co-msg co-msg--assistant${showFace ? '' : ' co-msg--cont'}`, attrs: { title: fmtTime(ts) } },
           showFace ? el('span', { class: 'co-msg__face', html: faceSvg(looks(), { size: 28 }) }) : null,
-          el('div', { class: 'co-msg__body co-md', html: renderMarkdown(l.text) }),
+          body,
         ),
       );
+      enhanceMarkdown(body);
     }
     lastRole = l.role;
   }
@@ -315,9 +373,10 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   }
 
   async function load(): Promise<void> {
+    const g = gen;
     try {
       const lines = await api.chatter(id, { n: 60 });
-      if (closed) return;
+      if (closed || g !== gen) return;
       loaded = true;
       loading.remove();
       addLines(lines);
@@ -327,19 +386,40 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       }
       settle();
     } catch (err) {
-      if (closed) return;
+      if (closed || g !== gen) return;
       loading.textContent = `Couldn't open the conversation: ${err instanceof Error ? err.message : String(err)}. Retrying…`;
     }
     schedule();
   }
 
+  /** Start the feed over: a session that left and came back (moved in, called back) numbers its lines from 1 again. */
+  function restartFeed(): void {
+    gen++;
+    window.clearTimeout(pollTimer);
+    loaded = false;
+    lastSeq = -1;
+    steps = null;
+    lastRole = null;
+    lastMsgTs = NaN;
+    emptyNote = null;
+    msgs.replaceChildren();
+    loading.textContent = 'Opening the conversation…';
+    if (!loading.isConnected) msgs.before(loading);
+    void load();
+  }
+
   async function poll(): Promise<void> {
-    if (closed) return;
+    if (closed || ended) return;
     if (!loaded) return load();
+    const g = gen;
     try {
-      addLines(await api.chatter(id, { after: lastSeq }));
+      // A busy turn can add more than the server's default 12 lines between polls.
+      const lines = await api.chatter(id, { after: lastSeq, n: 120 });
+      if (closed || g !== gen) return;
+      addLines(lines);
       pollFailures = 0;
     } catch {
+      if (closed || g !== gen) return;
       pollFailures++;
       if (pollFailures === 3) systemLine('Lost the conversation feed. Still trying…', 'bad');
     }
@@ -350,7 +430,101 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   }
 
   function schedule(): void {
-    if (!closed) pollTimer = window.setTimeout(() => void poll(), opts.pollMs ?? 1200);
+    window.clearTimeout(pollTimer);
+    if (!closed && !ended) pollTimer = window.setTimeout(() => void poll(), opts.pollMs ?? 1200);
+  }
+
+  // ---------------------------------------------------------------- terminal mode
+
+  const STATUS: Record<TermStatus, string> = {
+    connecting: 'Connecting…',
+    connected: 'Live',
+    reconnecting: 'Reconnecting…',
+    lost: 'Connection lost',
+    ended: 'Session ended',
+  };
+
+  /** Fill the terminal pane for who they are now: a live terminal, or why there isn't one. */
+  function renderTerm(): void {
+    const canAttach = e.hosted && !ended && !!api.openTerminal;
+    if (canAttach && termView) return;
+    termView?.dispose();
+    termView = null;
+    termBar.hidden = !canAttach;
+    if (canAttach) {
+      // Live after a beat (or a click in it), never on the T that opened it: a reflexive Enter or
+      // 1 must not answer a prompt in their terminal.
+      const v = api.openTerminal!(id, {
+        hold: true,
+        onKey: (ev) => {
+          // Esc (or Ctrl+]) leaves the quick look; everything else is typed into their session.
+          const leave = (ev.key === 'Escape' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey) || (ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']'));
+          if (leave && ev.type === 'keydown') {
+            setMode('chat');
+            shell.title.focus({ preventScroll: true });
+          }
+          return leave;
+        },
+        onStatus: (st) => {
+          termStatus.textContent = STATUS[st];
+          termLed.classList.toggle('on', st === 'connected');
+          termRetry.hidden = st !== 'lost';
+        },
+        onEnd: (why, reason) => {
+          if (why === 'refused') termStatus.textContent = `Can't open their terminal${reason ? `: ${reason}` : ''}`;
+        },
+      });
+      termView = v;
+      termSlot.replaceChildren(v.el);
+      v.start();
+      const release = () => {
+        window.clearTimeout(holdTimer);
+        v.el.removeEventListener('pointerdown', release);
+        if (termView === v) v.release();
+      };
+      const holdTimer = window.setTimeout(release, TERM_HOLD_MS);
+      v.el.addEventListener('pointerdown', release);
+      return;
+    }
+    termSlot.replaceChildren(
+      el(
+        'div',
+        { class: 'co-chat__termnote' },
+        el('span', { html: icon('terminal', 32) }),
+        ended
+          ? el('p', null, `${e.displayName}'s session has ended.`)
+          : !e.hosted
+            ? el(
+                'p',
+                null,
+                el('strong', null, `${e.displayName} runs in their own terminal`),
+                ` (pid ${e.pid}), so there's no screen to show here. Bring them into the office and you can look in any time.`,
+              )
+            : el('p', null, "Their terminal can't be shown here."),
+        !e.hosted && !ended ? (e.adopting ? el('p', { class: 'co-muted' }, 'Waiting for them to type /exit in their terminal…') : button('Bring into the office', { kind: 'primary', onClick: () => void adopt() })) : null,
+      ),
+    );
+  }
+
+  function setMode(next: ChatMode): void {
+    if (closed || next === mode) return;
+    mode = next;
+    const term = mode === 'terminal';
+    panel.classList.toggle('co-panel--term', term);
+    feed.hidden = term;
+    termPane.hidden = !term;
+    segChat.setAttribute('aria-pressed', String(!term));
+    segTerm.setAttribute('aria-pressed', String(term));
+    shell.foot.hidden = term || ended;
+    if (term) {
+      renderTerm();
+      termView?.focus();
+    } else {
+      termView?.dispose();
+      termView = null;
+      scrollToEnd(true);
+    }
+    opts.onMode?.(mode);
   }
 
   // ---------------------------------------------------------------- composer
@@ -444,10 +618,11 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   }
 
   async function interrupt(): Promise<void> {
-    interruptBtn.setAttribute('aria-disabled', 'true');
+    if (interruptBtn.getAttribute('aria-disabled') === 'true') return;
+    for (const b of [interruptBtn, termInterrupt]) b.setAttribute('aria-disabled', 'true');
     const res = await api.interrupt(id);
     if (closed) return;
-    interruptBtn.removeAttribute('aria-disabled');
+    for (const b of [interruptBtn, termInterrupt]) b.removeAttribute('aria-disabled');
     if (res.ok) systemLine(`You interrupted ${e.displayName}.`);
     else systemLine(`Couldn't interrupt: ${res.error ?? 'unknown error'}`, 'bad');
   }
@@ -469,7 +644,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   function renderState(): void {
     stateChip.dataset.state = e.state;
     const word = STATE_WORD[e.state] ?? e.state;
-    const since = e.state === 'needs-you' ? ` ${fmtClock(now() - e.stateSince)}` : '';
+    const since = e.state === 'needs-you' ? ` ${fmtWait(now() - e.stateSince)}` : '';
     const text = `${word}${since}`;
     if (stateChip.dataset.text === text) return;
     stateChip.dataset.text = text;
@@ -491,6 +666,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     if (e.branch) where.append(el('span', { class: 'co-tag', html: icon('branch', 18) }, e.branch));
     interruptBtn.hidden = !e.hosted || ended;
     interruptBtn.disabled = e.state !== 'working';
+    termInterrupt.disabled = e.state !== 'working';
     sitBtn.hidden = !e.hosted || ended;
 
     // Typing while they work.
@@ -507,8 +683,12 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       card = renderAsk(askSlot, e.ask, (a) => api.answer({ ...a, sessionId: id }), {
         name: e.displayName,
         now: opts.now,
-        // The folded line stays a moment, then makes room (only this card, never a newer one).
-        onSettled: () => window.setTimeout(() => card?.el.remove(), 4000),
+        onSettled: (outcome) => {
+          // "Answer in their terminal" sits you down at it (hosted), as from their panel (UX.md §3.3).
+          if (outcome === 'terminal' && e.hosted) api.sit(id);
+          // The folded line stays a moment, then makes room (only this card, never a newer one).
+          window.setTimeout(() => card?.el.remove(), 4000);
+        },
       });
       askView = card;
       revealAsk();
@@ -530,7 +710,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     // Footer: the composer for hosted sessions, the adopt card for the rest.
     composer.hidden = !e.hosted || ended;
     adoptCard.hidden = e.hosted || ended;
-    shell.foot.hidden = ended;
+    shell.foot.hidden = ended || mode === 'terminal';
+    if (mode === 'terminal') renderTerm();
     if (!e.hosted) {
       adoptCard.classList.toggle('is-waiting', !!e.adopting);
       if (e.adopting) {
@@ -560,31 +741,49 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   render();
   container.append(panel);
   void load();
+  if (opts.mode === 'terminal') setMode('terminal');
 
   const view: ChatView = {
     el: panel,
     update(next: Employee) {
       if (closed || next.sessionId !== id) return;
+      // Back from the end, or moved into the office: their transcript starts over.
+      const restart = ended || next.hosted !== e.hosted;
       e = next;
       ended = false;
       render();
+      if (restart) restartFeed();
     },
     end(text: string) {
       if (closed || ended) return;
       ended = true;
+      window.clearTimeout(pollTimer);
       askView?.settle('elsewhere');
       waitNote.hidden = true;
       render();
       systemLine(text);
     },
     focus() {
-      if (e.hosted) input.focus({ preventScroll: true });
+      // An open question comes first: E focuses its card (it never answers).
+      if (mode === 'chat' && askView && e.ask?.id === askId) {
+        askView.focus();
+        revealAsk();
+        return;
+      }
+      if (mode === 'terminal') {
+        if (termView) termView.focus();
+        else (termPane.querySelector<HTMLElement>('.co-btn') ?? shell.title).focus({ preventScroll: true });
+      } else if (e.hosted) input.focus({ preventScroll: true });
       else (adoptBtn.hidden ? panel : adoptBtn).focus({ preventScroll: true });
     },
+    getMode: () => mode,
+    setMode,
     close() {
       if (closed) return;
       closed = true;
       window.clearTimeout(pollTimer);
+      termView?.dispose();
+      termView = null;
       askView?.destroy();
       // A host animating it out (.is-out) removes it when that's done.
       if (!panel.classList.contains('is-out')) panel.remove();

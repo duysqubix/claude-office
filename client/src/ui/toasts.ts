@@ -20,10 +20,13 @@ export interface ToastExtras {
 
 /** Toasts held while seated: the latest few. */
 const HELD_MAX = 3;
+/** How long a hire, call-back or let-go waits for its arrival or departure. */
+const EXPECT_MS = 5 * 60_000;
 
 export class Toasts {
   private stack: ToastStack;
   private held: ToastRequest[] = [];
+  private expected = new Map<string, { at: number; text?: (e: Employee) => string }>();
 
   constructor(root: HTMLElement) {
     this.stack = new ToastStack(root);
@@ -37,7 +40,32 @@ export class Toasts {
     }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
 
+  /**
+   * Hires, call-backs and let-gos have their own toast (UX.md §2): their arrival or departure
+   * then says `text` instead of the generic "clocked in", or nothing at all without one.
+   */
+  expect(sessionId: string, kind: 'arrive' | 'leave', text?: (e: Employee) => string): void {
+    const now = Date.now();
+    for (const [k, v] of this.expected) if (now - v.at > EXPECT_MS) this.expected.delete(k);
+    this.expected.set(`${kind}:${sessionId}`, { at: now, text });
+  }
+
+  /** The hire, call-back or let-go fell through: their arrival or departure is news again. */
+  forget(sessionId: string, kind: 'arrive' | 'leave'): void {
+    this.expected.delete(`${kind}:${sessionId}`);
+  }
+
   show(text: string, kind: ToastKind = 'info', ms?: number, sub?: string, extras: ToastExtras = {}): void {
+    if ((kind === 'arrive' || kind === 'leave') && extras.who) {
+      const key = `${kind}:${extras.who.sessionId}`;
+      const mine = this.expected.get(key);
+      if (mine && Date.now() - mine.at < EXPECT_MS) {
+        this.expected.delete(key);
+        if (!mine.text) return;
+        this.show(mine.text(extras.who), 'good', ms, undefined, { who: extras.who });
+        return;
+      }
+    }
     const crowd = kind === 'arrive' || kind === 'leave';
     const req: ToastRequest = {
       text,

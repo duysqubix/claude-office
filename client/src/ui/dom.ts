@@ -1,6 +1,5 @@
-// Tiny DOM helpers and formatters shared by the UI.
-import type { Employee, EmployeeState } from '../../../shared/protocol';
-import { PALETTE } from '../style/palette';
+// Tiny DOM helpers and wording shared by the game and the UI.
+import type { Employee } from '../../../shared/protocol';
 
 type Child = Node | string | number | null | undefined | false;
 type Props = Record<string, unknown> & { class?: string; style?: string };
@@ -18,43 +17,14 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props | 
       else el.setAttribute(k, v === true ? '' : String(v));
     }
   }
-  append(el, children);
-  return el;
-}
-
-export function append(el: Element, children: Child[]): void {
   for (const c of children) {
     if (c === null || c === undefined || c === false) continue;
     el.append(c instanceof Node ? c : String(c));
   }
+  return el;
 }
 
-export function clear(el: Element): void {
-  while (el.firstChild) el.firstChild.remove();
-}
-
-export const STATE_COLOR: Record<EmployeeState, string> = {
-  working: PALETTE.stateWorking,
-  'needs-you': PALETTE.stateNeedsYou,
-  idle: PALETTE.stateIdle,
-  sleeping: PALETTE.stateSleeping,
-  starting: PALETTE.stateStarting,
-};
-
-/** The user-facing word for each state ("free", never "idle": idle reads as stuck). */
-export const STATE_LABEL: Record<EmployeeState, string> = {
-  working: 'Working',
-  'needs-you': 'Needs you',
-  idle: 'Free',
-  sleeping: 'Asleep',
-  starting: 'Starting',
-};
-
-export function stateChip(state: EmployeeState): HTMLElement {
-  return h('span', { class: `chip state-${state}`, style: `--c:${STATE_COLOR[state]}` }, h('i'), STATE_LABEL[state]);
-}
-
-/** What a needs-you person says (line 1) and the plain fact (line 2), by what they're waiting for. */
+/** What a needs-you person says (line 1) and the plain fact (line 2), by what they're waiting for (UX.md §2.1). */
 export function waitingLines(e: Employee): [said: string, fact: string] {
   const w = (e.waitingFor ?? '').toLowerCase();
   if (w.includes('permission')) return ['Can I do this?', 'Needs your permission'];
@@ -91,15 +61,6 @@ export function truncate(s: string, n: number): string {
   return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
 }
 
-export function duration(ms: number): string {
-  const m = Math.max(0, Math.floor(ms / 60000));
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m`;
-  const hrs = Math.floor(m / 60);
-  if (hrs < 24) return `${hrs}h ${m % 60}m`;
-  return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
-}
-
 export function ago(ts: number, now = Date.now()): string {
   const s = Math.max(0, (now - ts) / 1000);
   if (s < 60) return 'just now';
@@ -111,27 +72,8 @@ export function ago(ts: number, now = Date.now()): string {
   return new Date(ts).toLocaleDateString();
 }
 
-export function money(usd: number | undefined): string {
-  if (usd === undefined) return '—';
-  return usd < 0.01 ? '<$0.01' : `$${usd.toFixed(2)}`;
-}
-
 /** "/Users/me/x" → "~/x" given the home dir. */
 export function tildify(path: string, home: string): string {
   if (home && (path === home || path.startsWith(home + '/'))) return '~' + path.slice(home.length);
   return path;
-}
-
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const ta = h('textarea', { style: 'position:fixed;opacity:0' }, text);
-    document.body.append(ta);
-    ta.select();
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok;
-  }
 }

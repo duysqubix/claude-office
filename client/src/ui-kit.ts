@@ -36,6 +36,7 @@ import { createEdgeIndicators, placeEdge } from './ui/edge';
 import { el, markup, type Child, type Markup } from './ui/el';
 import { faceSvg, internFace, logoSvg, managerFace, setTabAlert } from './ui/faces';
 import { icon, stateBadge, STATE_WORD, type IconName } from './ui/icons';
+import { enhanceMarkdown, renderMarkdown } from './ui/markdown';
 import { planMeter, renderTeamStats } from './ui/teamstats';
 import './ui/theme.css';
 
@@ -588,6 +589,55 @@ root.append(
     ),
   );
 
+  // Needs you without an in-game question: the amber note, and "Sit down and answer" takes E.
+  const clod = employeeLooks(P.clod.id, true);
+  const waiting = panelShell({
+    title: 'Clod',
+    theme: 'person',
+    band: clod.shirt,
+    face: faceSvg(clod, { size: 64 }),
+    body: [
+      stateHead('needs-you', '1:05'),
+      el(
+        'div',
+        { class: 'co-needsnote' },
+        el('span', { class: 'co-needsnote__bang', attrs: { 'aria-hidden': 'true' } }, '!'),
+        el('span', { class: 'co-needsnote__text' }, el('strong', null, "I've got a menu open."), el('span', null, 'Needs you at the keyboard')),
+      ),
+      tags(),
+    ],
+    foot: [button('Let go', { kind: 'danger-text' }), button('Talk', { icon: 'chat' }), button('Sit down and answer', { kind: 'primary', icon: 'terminal', key: 'E' })],
+  });
+  waiting.foot.firstElementChild?.classList.add('co-push');
+
+  const fileRow = (title: string, meta: string, live: boolean) =>
+    el(
+      'div',
+      { class: `co-file${live ? ' is-live' : ''}` },
+      el('span', { class: 'co-file__icon', html: icon('folder', 36) }),
+      el('span', { class: 'co-file__main' }, el('span', { class: 'co-file__title' }, title), el('span', { class: 'co-muted' }, meta)),
+      live ? button('Go to them', { small: true }) : button('Call back in', { kind: 'primary', small: true }),
+    );
+  const files = panelShell({
+    title: 'Personnel files',
+    theme: 'files',
+    body: [
+      el('input', { class: 'co-input', attrs: { type: 'search', placeholder: 'Search past sessions' } }),
+      el(
+        'div',
+        { class: 'co-list' },
+        fileRow('Flaky roster test', 'blendscope, just now, $5.21. In the office.', true),
+        fileRow('Door sensor bug', 'claude-office, 4 h ago, $6.94', false),
+        fileRow('Coffee machine API', 'crateswipe, yesterday, $4.04', false),
+      ),
+    ],
+  });
+  const empty = panelShell({
+    title: 'Roster',
+    theme: 'roster',
+    body: [el('div', { class: 'co-empty' }, el('strong', null, "Nobody's in yet."), el('span', { class: 'co-muted' }, 'Hire someone at reception, or run claude in any terminal.'))],
+  });
+
   section(
     'panels',
     'Panels',
@@ -601,6 +651,9 @@ root.append(
       cell('roster', roster.el),
       cell('hire', hire.el),
       cell('intern desk', interns.el),
+      cell('needs you, no question (sit down)', waiting.el),
+      cell('personnel files', files.el),
+      cell('empty roster', empty.el),
     ),
   );
 }
@@ -801,6 +854,76 @@ root.append(
   const adopting = box(520);
   mount(adopting, person(P.claudine, { hosted: false, adopting: true, state: 'idle', project: 'homebase', branch: undefined }), mockApi([]));
 
+  // Agent text at its richest: a table, highlighted code, nested and task lists, a quote, links.
+  const RICH: ChatLine[] = [
+    { seq: 1, role: 'user', text: 'what did you change for the door, and what is left?', ts: iso(T0 - 9 * 60_000) },
+    {
+      seq: 2,
+      role: 'assistant',
+      ts: iso(T0 - 8 * 60_000),
+      text: [
+        '## Door fix',
+        'The door now opens for **anyone** within 2.5 m, not just the manager. ~~Closing on a timer~~ is gone.',
+        '',
+        '| File | Change | Tests |',
+        '| --- | --- | ---: |',
+        '| `world/door.ts` | opens for walkers | 12 pass |',
+        '| `chars/director.ts` | exposes `walking` | 3 pass |',
+        '| `main.ts` | one call per frame | n/a |',
+        '',
+        '```ts',
+        'export function updateDoor(world: World, people: readonly Char[]): void {',
+        '  const near = people.some((c) => c.position.distanceTo(world.door) < 2.5);',
+        "  world.setDoorOpen(near); // closes 1.2 s after the last one",
+        '}',
+        '```',
+        '',
+        'Still to do:',
+        '- [x] Open for everyone',
+        '- [x] Tests for slow walkers',
+        '- [ ] Tune the slide speed',
+        '  - maybe 300 ms?',
+        '',
+        '```diff',
+        '- if (manager.position.distanceTo(door) < 2.5) open();',
+        '+ if (near) open();',
+        '```',
+        '',
+        '> The door model\'s pivot is 2 cm off; worth a look later.',
+        '',
+        'Docs: [Vector3.distanceTo](https://threejs.org/docs/#api/en/math/Vector3.distanceTo)',
+      ].join('\n'),
+    },
+    { seq: 3, role: 'tool', text: '$ npm test -- --run door', tool: 'Bash' },
+    {
+      seq: 4,
+      role: 'assistant',
+      ts: iso(T0 - 7 * 60_000),
+      text: ['All green:', '', '```bash', 'npm test -- --run door', '# ✓ 15 passed (0.9s)', '```', '', '```json', '{ "door": { "radius": 2.5, "closeAfterMs": 1200 } }', '```'].join('\n'),
+    },
+  ];
+  const rich = box(900);
+  mount(rich, person(P.clyde, { state: 'idle', project: 'claude-office', branch: 'door-fix' }), mockApi(RICH));
+
+  // Hostile text must come out inert: no images load, no scripts run, no javascript: links.
+  const HOSTILE = [
+    'Raw HTML stays text: <img src=x onerror="window.__xss=1"> and <script>window.__xss=2</script>',
+    '',
+    '[a javascript: link](javascript:window.__xss=3) and [a data: link](data:text/html,hi) stay plain text.',
+    '',
+    '![an image](https://example.com/b.png) is a link, never loaded.',
+    '',
+    '<div onclick="window.__xss=4" style="position:fixed;inset:0">a raw HTML block</div>',
+    '',
+    'Real links still work: [the docs](https://example.com/docs), <https://example.com/auto> and mail to <a@b.co>.',
+  ].join('\n');
+  const hostile = el('div', {
+    class: 'co-md',
+    style: 'max-width:440px;padding:14px 16px;border:3px solid #2B2D42;border-radius:16px;background:#FFFDF7;font:400 15px/21px Fredoka, sans-serif',
+    html: renderMarkdown(HOSTILE),
+  });
+  enhanceMarkdown(hostile);
+
   section(
     'chat',
     'Chat',
@@ -813,9 +936,11 @@ root.append(
       cell('a send the office refused', failed),
       cell('started in their own terminal', external),
       cell('bringing them in (waiting for /exit)', adopting),
+      cell('rich markdown: table, highlighted code, lists', rich),
+      cell('hostile markdown renders inert', hostile),
     ),
   );
 }
 
 // For the headless behaviour checks (dev only).
-Object.assign(window, { __kit: { ToastStack, Bus, renderAsk, placeEdge, THREE, ASK_BASH, ASK_QUESTION, openChat } });
+Object.assign(window, { __kit: { ToastStack, Bus, renderAsk, placeEdge, THREE, ASK_BASH, ASK_QUESTION, openChat, renderMarkdown, enhanceMarkdown } });

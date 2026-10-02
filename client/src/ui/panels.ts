@@ -3,19 +3,22 @@
 // right; the world keeps running behind them.
 import type { ApiResult, Employee, EmployeeState, PastSession, ProjectInfo } from '../../../shared/protocol';
 import { employeeLooks } from '../chars/looks';
+import { REGULARS_PRESETS, readRegularsDensity, setRegularsDensity, type RegularsPreset } from '../chars/regulars-setting';
 import type { Backend, RosterStore } from '../net';
 import { renderAsk, type AskView } from './askpanel';
 import { bus } from './bus';
-import { httpChatApi, openChat, type ChatApi } from './chatpanel';
+import { httpChatApi, openChat, type ChatApi, type ChatMode, type ChatView } from './chatpanel';
 import { button, keyCap, panelShell, personRow } from './components';
 import { confetti } from './confetti';
 import { ago, doingText, tildify, truncate, waitingLines } from './dom';
-import { el, fmtClock, fmtDuration, fmtMoney, fmtTokens, type Child } from './el';
+import { el, fmtDuration, fmtMoney, fmtTokens, fmtWait, type Child } from './el';
 import { employeeFace, internFace } from './faces';
 import { icon, stateBadge, STATE_WORD, type IconName } from './icons';
 import type { Sfx } from './sfx';
 import type { Panel, PanelId } from './shell';
+import { enhanceMarkdown, plainText, renderMarkdown } from './markdown';
 import { HIGH_CONTEXT, renderTeamStats } from './teamstats';
+import { TerminalView } from './terminal';
 import type { Toasts } from './toasts';
 
 export type { PanelId } from './shell';
@@ -40,6 +43,11 @@ export interface PanelDeps {
 export interface OpenOptions {
   /** Move keyboard focus into the panel (default). A go-to passes false: focus stays on the game. */
   focus?: boolean;
+}
+
+export interface ChatOpenOptions extends OpenOptions {
+  /** Open straight into their live terminal (T). */
+  mode?: ChatMode;
 }
 
 type SimplePanel = Exclude<PanelId, 'employee' | 'ask' | 'chat'>;
@@ -69,13 +77,13 @@ const shirtOf = (sessionId: string, hosted: boolean) => employeeLooks(sessionId,
 /** What someone is up to, in one line (roster rows). */
 function lineFor(e: Employee): string {
   if (e.state === 'needs-you') return e.ask?.title ?? waitingLines(e)[1];
-  if (e.state === 'idle') return e.lastText ? truncate(e.lastText, 80) : 'Free';
+  if (e.state === 'idle') return e.lastText ? truncate(plainText(e.lastText), 80) : 'Free';
   return doingText(e);
 }
 
 /** Time in their current state: "0:42" while they need you (it counts), "12m" otherwise. */
 function since(e: Employee, now: number): string {
-  return e.state === 'needs-you' ? fmtClock(now - e.stateSince) : fmtDuration(now - e.stateSince);
+  return e.state === 'needs-you' ? fmtWait(now - e.stateSince) : fmtDuration(now - e.stateSince);
 }
 
 function tag(name: IconName, text: string, title?: string): HTMLElement {
@@ -125,6 +133,8 @@ export class PanelHost {
   private layer: HTMLElement;
   private current: Panel | null = null;
   private openedAt = 0;
+  /** The open chat, for T (Chat ⇄ Terminal). */
+  private chatView: ChatView | null = null;
   /** Fires with true when a panel opens, false when the last one closes. */
   onChange: ((open: boolean) => void) | null = null;
   /** The person whose panel (or chat) is open. */
@@ -167,6 +177,7 @@ export class PanelHost {
   }
 
   open(id: SimplePanel, opts: OpenOptions = {}): void {
+    this.employeeId = null;
     const make: Record<SimplePanel, () => Panel> = {
       hire: () => this.hire(),
       archive: () => this.archive(),
@@ -190,11 +201,25 @@ export class PanelHost {
   }
 
   /** Talk: the chat with someone (their conversation, a composer, their ask inline). */
-  openChat(sessionId: string, opts: OpenOptions = {}): void {
-    const chat = this.chat(sessionId);
+  openChat(sessionId: string, opts: ChatOpenOptions = {}): void {
+    const chat = this.chat(sessionId, opts.mode ?? 'chat');
     if (!chat) return;
     this.present(chat, opts);
     this.employeeId = sessionId;
+  }
+
+  /**
+   * T: a quick look at someone's live terminal without sitting down. With a chat open it flips
+   * Chat ⇄ Terminal; otherwise it opens `sessionId`'s chat straight in terminal mode.
+   */
+  peek(sessionId?: string): void {
+    const chat = this.current?.id === 'chat' ? this.chatView : null;
+    if (chat) {
+      chat.setMode(chat.getMode() === 'terminal' ? 'chat' : 'terminal');
+      chat.focus();
+      return;
+    }
+    if (sessionId) this.openChat(sessionId, { mode: 'terminal' });
   }
 
   /** `E` with a panel open: press its button marked E. False when it has none (the caller closes it). */
@@ -215,7 +240,7 @@ export class PanelHost {
     this.layer.append(p.el);
     this.deps.sfx.pop();
     this.onChange?.(true);
-    bus.emit('panel', { name: p.id, open: true, left: p.el.offsetLeft, top: p.el.offsetTop });
+    bus.emit('panel', { name: p.id, open: true, left: p.el.offsetLeft, top: p.el.offsetTop, el: p.el });
     if (opts.focus === false) return;
     requestAnimationFrame(() => {
       if (this.current !== p) return;
@@ -228,6 +253,11 @@ export class PanelHost {
   private onKey(ev: KeyboardEvent): void {
     if (PAGE_KEYS.has(ev.key)) ev.stopPropagation();
     if (ev.key !== 'Escape' || ev.defaultPrevented || ev.isComposing) return;
+    if (this.current?.escape?.()) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
     const t = ev.target;
     if (!(t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement)) return;
     ev.preventDefault();
@@ -274,6 +304,8 @@ export class PanelHost {
     let askView: AskView | null = null;
     let askId: string | null = null;
     let confirming = false;
+    /** "Last said" as rendered markdown, redone only when it changes. */
+    let said: { text: string; el: HTMLElement } | null = null;
     let footKey = '';
     let eButton: HTMLButtonElement | null = null;
 
@@ -299,8 +331,9 @@ export class PanelHost {
             return r;
           },
           {
+            // Cards never focus themselves: only opening their panel does (focus()), so a new ask
+            // can't jump under your fingers.
             name: e.displayName,
-            focus: focusAsk && this.current?.el === panel,
             now: () => store.now(),
             onSettled: (outcome) => {
               // "Answer in their terminal": you sit down at it (hosted), UX.md §3.3.
@@ -358,10 +391,16 @@ export class PanelHost {
         if (high) ctx.append(el('span', { class: 'co-muted' }, 'Nearly full: expect a /compact'));
       }
 
-      const pairs: [string, string][] = [];
+      const pairs: [string, string | HTMLElement][] = [];
       if (e.state !== 'needs-you') pairs.push(['Now', doingText(e)]);
       if (e.title) pairs.push(['Working on', e.title]);
-      if (e.lastText) pairs.push(['Last said', truncate(e.lastText, 280)]);
+      if (e.lastText) {
+        if (said?.text !== e.lastText) {
+          said = { text: e.lastText, el: el('div', { class: 'co-md co-md--clip', html: renderMarkdown(e.lastText) }) };
+          enhanceMarkdown(said.el);
+        }
+        pairs.push(['Last said', said.el]);
+      }
       if (e.lastPrompt) pairs.push(['You asked', truncate(e.lastPrompt, 200)]);
       if (e.interns.length) {
         const active = e.interns.filter((i) => i.active);
@@ -378,42 +417,53 @@ export class PanelHost {
       }
     };
 
+    /** A let-go in flight: the footer stays exactly as it is until it lands. */
+    let firing = false;
     const fire = async (go: Labelled) => {
-      if (go.btn.getAttribute('aria-disabled') === 'true') return;
+      if (firing) return;
+      firing = true;
       const e = store.get(id);
       const name = e?.displayName ?? 'them';
       go.btn.setAttribute('aria-disabled', 'true');
       go.set('Letting go…', true);
+      // Their departure gets this toast, not the generic "clocked out" (registered before the reply can race it).
+      toasts.expect(id, 'leave');
       const r = await backend.fire(id);
       if (r.ok) {
-        toasts.show(`${name} packed up and left.`, 'leave', 4000, 'Their session has ended.', { who: e });
+        toasts.show(`${name} packed up and left.`, 'info', 4000, 'Their session has ended.', { who: e });
         if (this.current?.el === panel) this.close();
         return;
       }
+      toasts.forget(id, 'leave');
       toasts.show(`Couldn't let ${name} go`, 'bad', 7000, r.error);
+      firing = false;
       confirming = false;
       refresh();
     };
 
     const renderFoot = (e: Employee | undefined) => {
+      if (firing) return;
       const needsSit = !!e && e.hosted && e.state === 'needs-you' && !e.ask;
-      const key = e ? `${e.hosted}|${needsSit}|${!!e.ask}|${confirming}|${e.state === 'working'}` : 'gone';
+      // "In the middle of something" only matters on the confirm, so working ⇄ free never rebuilds the buttons.
+      const key = e ? `${e.hosted}|${needsSit}|${!!e.ask}|${confirming}|${confirming && e.state === 'working'}` : 'gone';
       if (key === footKey) return;
       footKey = key;
       eButton = null;
       const foot = shell.foot;
+      const focused = foot.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.action : undefined;
       foot.replaceChildren();
       foot.hidden = !e;
       if (!e) return;
+      // Whatever had focus in the footer keeps it (or its nearest stand-in) after the rebuild.
+      queueMicrotask(() => {
+        if (!focused || foot.contains(document.activeElement)) return;
+        (foot.querySelector<HTMLElement>(`[data-action="${focused}"]`) ?? eButton ?? foot.querySelector<HTMLElement>('.co-btn'))?.focus({ preventScroll: true });
+      });
       if (confirming && e.hosted) {
-        const keep = button('Keep them', {
-          onClick: () => {
-            confirming = false;
-            refresh();
-            eButton?.focus({ preventScroll: true });
-          },
-        });
+        const keep = button('Keep them', { onClick: () => cancelConfirm() });
+        keep.dataset.action = 'keep';
         const go = labelled('danger', 'Let go');
+        go.btn.dataset.action = 'fire';
         go.btn.addEventListener('click', () => void fire(go));
         foot.append(
           el(
@@ -431,6 +481,7 @@ export class PanelHost {
       }
       // E presses the button carrying the E cap; with an ask open, E focuses the card instead.
       const talk = button('Talk', { kind: needsSit ? 'secondary' : 'primary', icon: 'chat', key: needsSit || e.ask ? undefined : 'E', onClick: () => this.openChat(id) });
+      talk.dataset.action = 'talk';
       if (!e.hosted) {
         foot.append(talk);
         eButton = e.ask ? null : talk;
@@ -444,14 +495,23 @@ export class PanelHost {
         },
       });
       letGo.classList.add('co-push');
+      letGo.dataset.action = 'letgo';
       const sit = button(needsSit ? 'Sit down and answer' : 'Sit at their computer', {
         kind: needsSit ? 'primary' : 'secondary',
         icon: 'terminal',
         key: needsSit ? 'E' : undefined,
         onClick: () => actions.sitAt(id),
       });
+      sit.dataset.action = 'sit';
       foot.append(letGo, needsSit ? talk : sit, needsSit ? sit : talk);
       eButton = needsSit ? sit : e.ask ? null : talk;
+    };
+
+    /** Keep them: back to the normal buttons, focus on the one that started it. */
+    const cancelConfirm = () => {
+      confirming = false;
+      refresh();
+      (shell.foot.querySelector<HTMLElement>('[data-action="letgo"]') ?? eButton)?.focus({ preventScroll: true });
     };
 
     const refresh = () => {
@@ -494,6 +554,12 @@ export class PanelHost {
         if (focusAsk && askView) askView.focus();
         else shell.title.focus({ preventScroll: true });
       },
+      escape: () => {
+        // Esc on the let-go confirm backs out of the confirm first (UX.md §5).
+        if (!confirming || firing) return false;
+        cancelConfirm();
+        return true;
+      },
       pressE: () => {
         if (askView && store.get(id)?.ask?.id === askId) {
           askView.focus();
@@ -516,11 +582,23 @@ export class PanelHost {
   // -------------------------------------------------------------------------------------
   // Talk
 
-  private chat(id: string): Panel | null {
+  private chat(id: string, mode: ChatMode): Panel | null {
     const { store } = this.deps;
     const e = store.get(id);
     if (!e) return null;
-    const view = openChat(this.layer, e, this.chatApi(), { dock: true, now: () => store.now() });
+    // Assigned right below; onMode can run inside openChat (starting in terminal mode), before it is.
+    let opened: ChatView | null = null;
+    const view = openChat(this.layer, e, this.chatApi(), {
+      dock: true,
+      now: () => store.now(),
+      mode,
+      // Terminal mode widens the panel: keep the edge faces clear of it.
+      onMode: () => {
+        if (opened && this.chatView === opened) bus.emit('panel', { name: 'chat', open: true, left: opened.el.offsetLeft, top: opened.el.offsetTop, el: opened.el });
+      },
+    });
+    opened = view;
+    this.chatView = view;
     let adopting = !!e.adopting;
     let ended = false;
     const unsub = store.subscribe(() => {
@@ -545,6 +623,7 @@ export class PanelHost {
       },
       dispose: () => {
         unsub();
+        if (this.chatView === view) this.chatView = null;
         view.close();
       },
     };
@@ -560,7 +639,8 @@ export class PanelHost {
       return r;
     };
     const say: ChatApi['say'] = (sid, text) => backend.say(sid, text);
-    if (!backend.demo) return { ...http, say, answer };
+    const openTerminal: ChatApi['openTerminal'] = (sid, o) => new TerminalView(backend, sid, o);
+    if (!backend.demo) return { ...http, say, answer, openTerminal };
     const pretend = async (): Promise<ApiResult> => ({ ok: false, error: 'the demo office has no real sessions' });
     return {
       ...http,
@@ -571,6 +651,7 @@ export class PanelHost {
       },
       say,
       answer,
+      openTerminal,
       interrupt: pretend,
       adopt: pretend,
     };
@@ -621,7 +702,7 @@ export class PanelHost {
     let active = -1;
     let busy = false;
 
-    const expand = (p: string) => (p.startsWith('~') && store.home ? store.home + p.slice(1) : p);
+    const expand = (p: string) => (p.startsWith('~') && store.home ? store.home + p.slice(1) : p).replace(/(.)\/+$/, '$1');
     const baseName = (p: string) => p.replace(/\/+$/, '').split('/').pop() || p;
 
     const sync = () => {
@@ -718,6 +799,7 @@ export class PanelHost {
         toasts.show('Interview went great!', 'good', 4200, 'Your new hire is on the way.', { slam: true });
         const sid = r.sessionId;
         if (sid) {
+          toasts.expect(sid, 'arrive', (e) => `${e.displayName} just started on ${e.project}.`);
           window.setTimeout(() => {
             if (!store.get(sid)) toasts.show('Your new hire is running late.', 'warn', 7000, "If they don't show up, check the server terminal.");
           }, 20_000);
@@ -756,34 +838,47 @@ export class PanelHost {
     shell.body.append(search, list);
     let all: PastSession[] = [];
     let loaded = false;
+    /** Call-backs in flight: their rows keep saying "Calling…" through re-renders. */
+    const calling = new Set<string>();
+    let shownKey = '';
 
-    const callBack = async (s: PastSession, b: Labelled) => {
-      if (b.btn.getAttribute('aria-disabled') === 'true') return;
-      b.btn.setAttribute('aria-disabled', 'true');
-      b.set('Calling…', true);
+    const isLive = (s: PastSession) => s.live || !!store.get(s.sessionId);
+
+    const callBack = async (s: PastSession) => {
+      if (calling.has(s.sessionId)) return;
+      calling.add(s.sessionId);
+      render(true);
+      // Their arrival gets this toast, not the generic "clocked in" (registered before the reply can race it).
+      toasts.expect(s.sessionId, 'arrive', (e) => `Welcome back, ${e.displayName}!`);
       const r = await backend.rehire(s.sessionId);
+      calling.delete(s.sessionId);
       if (r.ok) {
         sfx.fanfare();
         toasts.show('Called back in.', 'good', 4000, "They're on their way.");
         if (this.current?.el === shell.el) this.close();
         return;
       }
-      b.btn.removeAttribute('aria-disabled');
-      b.set('Call back in');
+      toasts.forget(s.sessionId, 'arrive');
+      render(true);
       toasts.show("Couldn't call them back", 'bad', 7000, r.error);
     };
 
-    const render = () => {
+    /** Rows change on load, search, a call-back, or someone in them walking in or out; nothing else. */
+    const render = (force = false) => {
       if (!loaded) return;
       const q = search.value.trim().toLowerCase();
-      const rows = all.filter((s) => !q || `${s.title ?? ''} ${s.project} ${s.lastPrompt ?? ''}`.toLowerCase().includes(q));
+      const rows = all.filter((s) => !q || `${s.title ?? ''} ${s.project} ${s.lastPrompt ?? ''}`.toLowerCase().includes(q)).slice(0, 60);
+      const key = `${q}|${rows.map((s) => `${s.sessionId}:${isLive(s) ? 1 : 0}:${calling.has(s.sessionId) ? 1 : 0}`).join()}`;
+      if (!force && key === shownKey) return;
+      shownKey = key;
+      const focused = list.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.session : undefined;
       if (!rows.length) {
         list.replaceChildren(el('p', { class: 'co-muted' }, all.length ? `No files match "${search.value.trim()}".` : 'No past sessions yet. Finished sessions end up here.'));
         return;
       }
       list.replaceChildren(
-        ...rows.slice(0, 60).map((s) => {
-          const live = s.live || !!store.get(s.sessionId);
+        ...rows.map((s) => {
+          const live = isLive(s);
           let side: HTMLElement;
           if (live) {
             side = button('Go to them', {
@@ -796,9 +891,14 @@ export class PanelHost {
           } else {
             const b = labelled('primary', 'Call back in');
             b.btn.classList.add('co-btn--small');
-            b.btn.addEventListener('click', () => void callBack(s, b));
+            if (calling.has(s.sessionId)) {
+              b.btn.setAttribute('aria-disabled', 'true');
+              b.set('Calling…', true);
+            }
+            b.btn.addEventListener('click', () => void callBack(s));
             side = b.btn;
           }
+          side.dataset.session = s.sessionId;
           const title = s.title ?? (s.lastPrompt ? truncate(s.lastPrompt, 60) : 'Untitled session');
           const meta = [s.project, ago(s.lastActive), s.costUSD !== undefined ? fmtMoney(s.costUSD) : ''].filter(Boolean).join(', ');
           return el(
@@ -810,17 +910,18 @@ export class PanelHost {
           );
         }),
       );
+      if (focused) list.querySelector<HTMLElement>(`[data-session="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
     };
-    search.addEventListener('input', render);
+    search.addEventListener('input', () => render());
     backend
       .archive()
       .then((rows) => {
         all = rows;
         loaded = true;
-        render();
+        render(true);
       })
       .catch((err: Error) => list.replaceChildren(el('p', { class: 'co-error' }, `Couldn't open the cabinet: ${err.message}`)));
-    const unsub = store.subscribe(render);
+    const unsub = store.subscribe(() => render());
     return { id: 'archive', el: shell.el, focus: () => search.focus({ preventScroll: true }), dispose: unsub };
   }
 
@@ -834,11 +935,23 @@ export class PanelHost {
     shell.foot.append(hireBtn);
     shell.el.append(shell.foot);
 
+    let shownKey = '';
+    /** The time in each row ticks in place: no rebuild, so focus and screen readers stay put. */
+    const tickTimes = () => {
+      const now = store.now();
+      for (const t of shell.body.querySelectorAll<HTMLElement>('.co-person__time')) {
+        const e = store.get(t.dataset.session ?? '');
+        if (e) t.textContent = since(e, now);
+      }
+    };
     const render = () => {
-      const focused = (document.activeElement as HTMLElement | null)?.dataset?.session;
+      const people = [...store.employees].sort((a, b) => a.displayName.localeCompare(b.displayName));
+      const key = people.map((e) => `${e.sessionId}|${e.state}|${e.hosted}|${e.displayName}|${e.project}|${lineFor(e)}|${e.interns.filter((i) => i.active).length}`).join('\n');
+      if (key === shownKey) return tickTimes();
+      shownKey = key;
+      const focused = shell.body.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.session : undefined;
       const scroll = shell.body.scrollTop;
       const now = store.now();
-      const people = [...store.employees].sort((a, b) => a.displayName.localeCompare(b.displayName));
       if (!people.length) {
         shell.body.replaceChildren(el('div', { class: 'co-empty' }, el('strong', null, "Nobody's in yet."), el('span', { class: 'co-muted' }, 'Hire someone at reception, or run claude in any terminal.')));
         return;
@@ -859,7 +972,10 @@ export class PanelHost {
                 face: employeeFace(e.sessionId, e.hosted, { size: 40 }),
                 name: e.displayName,
                 line: `${e.project}: ${lineFor(e)}`,
-                side: [since(e, now), n ? el('span', { class: 'co-mini', attrs: { title: `${n} intern${n === 1 ? '' : 's'} helping` } }, `+${n}`) : null],
+                side: [
+                  el('span', { class: 'co-person__time', attrs: { 'data-session': e.sessionId } }, since(e, now)),
+                  n ? el('span', { class: 'co-mini', attrs: { title: `${n} intern${n === 1 ? '' : 's'} helping` } }, `+${n}`) : null,
+                ],
                 onClick: () => {
                   this.close();
                   actions.walkTo(e.sessionId);
@@ -878,7 +994,7 @@ export class PanelHost {
     };
     render();
     const unsub = store.subscribe(render);
-    const tick = window.setInterval(render, 5000);
+    const tick = window.setInterval(tickTimes, 1000);
     return {
       id: 'roster',
       el: shell.el,
@@ -902,6 +1018,7 @@ export class PanelHost {
       [['V'], 'First or third person'],
       [['E'], 'Talk to someone, answer them, use reception, the files, the boards, the coffee'],
       [['Q'], 'Go to whoever has needed you longest'],
+      [['T'], "Look at someone's live terminal, right where you stand"],
       [['R'], 'Roster'],
       [['H'], 'Hire someone'],
       [['M'], 'Sound on or off'],
@@ -918,6 +1035,23 @@ export class PanelHost {
     const calm = el('input', { attrs: { type: 'checkbox' } });
     calm.checked = document.documentElement.classList.contains('co-calm');
     calm.addEventListener('change', () => applyCalm(calm.checked));
+    // Regulars: NPC coworkers at the free desks (chars/regulars.ts), saved per browser.
+    const density = readRegularsDensity();
+    const presets: Record<RegularsPreset, [string, string]> = {
+      off: ['Off', 'Just sessions'],
+      some: ['Some', 'About half'],
+      lively: ['Lively', 'All desks but one'],
+    };
+    const regulars = el(
+      'div',
+      { class: 'co-regulars', attrs: { role: 'radiogroup', 'aria-label': 'Office regulars' } },
+      ...REGULARS_PRESETS.map((p) => {
+        const input = el('input', { attrs: { type: 'radio', name: 'co-regulars', value: p } });
+        input.checked = density === p;
+        input.addEventListener('change', () => input.checked && setRegularsDensity(p));
+        return el('label', { class: 'co-choice' }, input, el('span', null, presets[p][0], el('small', null, presets[p][1])));
+      }),
+    );
     shell.body.append(
       el('dl', { class: 'co-rows co-keys' }, ...keys.map(([ks, what]) => el('div', { class: 'co-row' }, el('dt', null, ...ks.map((k) => keyCap(k))), el('dd', null, what)))),
       el('h3', { class: 'co-section' }, 'Reading the room'),
@@ -927,7 +1061,10 @@ export class PanelHost {
         ...states.map(([s, what]) => el('div', { class: 'co-row' }, el('dt', null, el('span', { html: stateBadge(s, true) }), STATE_WORD[s]), el('dd', null, what))),
       ),
       el('label', { class: 'co-choice co-choice--toggle' }, calm, el('span', null, 'Calmer motion', el('small', null, 'No bobbing, breathing, wiggles or confetti; pops become fades.'))),
-      el('p', { class: 'co-muted' }, 'Everyone here is a live Claude Code session on this machine. Sessions you hire here run in tmux, so you can sit at their computer.'),
+      el('h3', { class: 'co-section' }, 'Office regulars'),
+      el('p', { class: 'co-muted' }, 'Coworkers who aren’t Claude sessions fill the free desks, and give one up whenever a session needs it.'),
+      regulars,
+      el('p', { class: 'co-muted' }, 'Everyone with the orange lanyard is a live Claude Code session on this machine. Sessions you hire here run in tmux, so you can sit at their computer.'),
     );
     return { id: 'help', el: shell.el };
   }
@@ -938,8 +1075,14 @@ export class PanelHost {
   private teamRoom(): Panel {
     const { store, actions } = this.deps;
     const shell = panelShell({ title: 'Team Room', theme: 'help', dock: true, onClose: () => this.close() });
-    const render = () => {
+    let shown: unknown = undefined;
+    let shownAt = 0;
+    /** Only new numbers redraw (focus and screen readers stay put); reset countdowns refresh every 30 s. */
+    const render = (force = false) => {
       const stats = store.stats;
+      if (!force && stats === shown && Date.now() - shownAt < 30_000) return;
+      shown = stats;
+      shownAt = Date.now();
       if (!stats) {
         shell.body.replaceChildren(el('p', { class: 'co-muted' }, 'No numbers yet. The server sends them every few seconds.'));
         return;
@@ -953,9 +1096,9 @@ export class PanelHost {
         },
       });
     };
-    render();
-    const unsub = store.subscribe(render);
-    const tick = window.setInterval(render, 1000);
+    render(true);
+    const unsub = store.subscribe(() => render());
+    const tick = window.setInterval(() => render(), 5000);
     return {
       id: 'stats',
       el: shell.el,
@@ -972,9 +1115,14 @@ export class PanelHost {
   private internDesk(): Panel {
     const { store, actions } = this.deps;
     const shell = panelShell({ title: 'Intern desk', theme: 'interns', dock: true, onClose: () => this.close() });
+    let shownKey = '';
     const render = () => {
       const rows = store.employees.flatMap((boss) => boss.interns.map((i) => ({ boss, i })));
       rows.sort((a, b) => Number(b.i.active) - Number(a.i.active) || a.boss.displayName.localeCompare(b.boss.displayName));
+      const key = rows.map(({ boss, i }) => `${i.id}|${i.active}|${i.type}|${i.description}|${boss.sessionId}|${boss.displayName}|${boss.hosted}`).join('\n');
+      if (key === shownKey) return;
+      shownKey = key;
+      const focused = shell.body.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.intern : undefined;
       if (!rows.length) {
         shell.body.replaceChildren(el('div', { class: 'co-empty' }, el('strong', null, 'No interns right now.'), el('span', { class: 'co-muted' }, 'They show up when someone hands off work.')));
         return;
@@ -995,11 +1143,13 @@ export class PanelHost {
               },
             });
             row.classList.toggle('is-waiting', !i.active);
+            row.dataset.intern = i.id;
             row.setAttribute('aria-label', `${internType(i.type)}, ${i.active ? 'working' : 'waiting'}, for ${boss.displayName}. Go to ${boss.displayName}.`);
             return row;
           }),
         ),
       );
+      if (focused) shell.body.querySelector<HTMLElement>(`[data-intern="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
     };
     render();
     const unsub = store.subscribe(render);

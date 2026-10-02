@@ -64,8 +64,8 @@ export interface OfficeEvents {
   'go-to': { id: string };
   toast: ToastRequest;
   sfx: { name: SfxName; /** Screen x in −1…1 for panning (P1). */ pan?: number };
-  /** A docked panel opened or closed. `left`/`top`: its layout box, so edge faces stay clear of it. */
-  panel: { name: string; open: boolean; left?: number; top?: number };
+  /** A docked panel opened or closed. `el` (and `left`/`top`, its box then): so edge faces stay clear of it. */
+  panel: { name: string; open: boolean; left?: number; top?: number; el?: HTMLElement };
   jump: undefined;
   land: undefined;
   bump: { id: string; hard: boolean };

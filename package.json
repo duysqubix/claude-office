@@ -31,11 +31,14 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^26.6.3",
     "@types/three": "^0.186.0",
     "@types/ws": "^8.18.2",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
+    "highlight.js": "^11.12.0",
+    "markdown-it": "^15.0.2",
     "n8ao": "^2.0.1",
     "puppeteer-core": "^25.12.0",
     "three": "^0.186.1",

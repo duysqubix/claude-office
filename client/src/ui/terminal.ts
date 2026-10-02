@@ -1,6 +1,11 @@
-// "Sit at their computer" (UX.md §3.4): a chunky monitor with a real xterm.js terminal on /term.
-// Every key goes to the terminal (Claude Code needs Esc) once the bezel has finished opening;
-// before that, Esc cancels the sit-down. Stand up with the button or Ctrl+].
+// Someone's live terminal over /term: one TerminalView (xterm.js + fit + the socket + reconnect),
+// used two ways:
+// - "Sit at their computer" (UX.md §3.4), TerminalOverlay: a chunky monitor grows out of their
+//   desk screen. Every key goes to Claude (it needs Esc) once the bezel is open; before that Esc
+//   cancels. Stand up with the button or Ctrl+].
+// - The quick look (T), in the chat panel: the same terminal, right away, no walking or sitting.
+// Office tmux sessions run with `mouse on`: xterm sends the wheel to tmux as mouse events and tmux
+// scrolls Claude's history, so nothing here may swallow wheel events.
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
@@ -17,6 +22,181 @@ const RETRY_MS = [1000, 2000, 4000];
 /** After their session ends, the message stays this long before you stand up. */
 const ENDED_MS = 2000;
 
+const THEME = {
+  background: '#1B2330',
+  foreground: '#E6EDF5',
+  cursor: '#7FD8FF',
+  cursorAccent: '#1B2330',
+  selectionBackground: '#3C5A86',
+  black: '#2B2D42',
+  red: '#FF6B6B',
+  green: '#6BCB77',
+  yellow: '#FFD93D',
+  blue: '#4D96FF',
+  magenta: '#B983FF',
+  cyan: '#00C2C7',
+  white: '#E6EDF5',
+  brightBlack: '#6B7A8F',
+  brightRed: '#FF8A8A',
+  brightGreen: '#9BE15D',
+  brightYellow: '#FFE680',
+  brightBlue: '#7FB2FF',
+  brightMagenta: '#D2A8FF',
+  brightCyan: '#5BE3E6',
+  brightWhite: '#FFFFFF',
+};
+
+export type TermStatus = 'connecting' | 'connected' | 'reconnecting' | 'lost' | 'ended';
+
+export interface TerminalViewOptions {
+  /** Connection state, for the host's chrome (the chin's LED, a header line). */
+  onStatus?(status: TermStatus): void;
+  /** For good: the session ended (1000) or the office refused the attach (1008, with its reason). */
+  onEnd?(why: 'ended' | 'refused', reason: string): void;
+  /** The host's keys come first: return true for a key the host used (it never reaches Claude). */
+  onKey?(ev: KeyboardEvent): boolean;
+  /** Hold every key until release() (the sit-down's bezel animation). Default: live at once. */
+  hold?: boolean;
+}
+
+/** A live, interactive terminal for one session. Put `el` in the page, then start(). */
+export class TerminalView {
+  readonly el: HTMLElement;
+  private term: Terminal | null = null;
+  private fitter: FitAddon | null = null;
+  private link: TermLink | null = null;
+  private attempt = 0;
+  private live: boolean;
+  private disposed = false;
+  private timers: number[] = [];
+  private resizeObs: ResizeObserver | null = null;
+
+  constructor(
+    private backend: Backend,
+    readonly sessionId: string,
+    private opts: TerminalViewOptions = {},
+  ) {
+    this.el = el('div', { class: 'term-screen' });
+    this.live = !opts.hold;
+  }
+
+  /** Open xterm in `el` (it must be in the document, to measure) and connect. */
+  start(): void {
+    if (this.term || this.disposed) return;
+    const term = new Terminal({
+      fontFamily: 'ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, monospace',
+      fontSize: 14,
+      lineHeight: 1.1,
+      cursorBlink: true,
+      macOptionIsMeta: true,
+      scrollback: 5000,
+      theme: THEME,
+    });
+    const fitter = new FitAddon();
+    term.loadAddon(fitter);
+    term.open(this.el);
+    this.term = term;
+    this.fitter = fitter;
+    this.fit();
+    term.attachCustomKeyEventHandler((ev) => {
+      if (this.opts.onKey?.(ev)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        return false;
+      }
+      return this.live;
+    });
+    term.onData((d) => {
+      if (this.live) this.link?.send({ t: 'in', d });
+    });
+    term.onResize(({ cols, rows }) => this.link?.send({ t: 'resize', cols, rows }));
+    // Panels change width (Chat ⇄ Terminal) and windows resize: follow the box.
+    this.resizeObs = new ResizeObserver(() => this.fit());
+    this.resizeObs.observe(this.el);
+    this.connect();
+  }
+
+  /** Let keys through (after the sit-down's bezel opened) and take focus. */
+  release(): void {
+    this.live = true;
+    this.fit();
+    this.focus();
+  }
+
+  focus(): void {
+    this.term?.focus();
+  }
+
+  fit(): void {
+    try {
+      this.fitter?.fit();
+    } catch {
+      // not laid out yet
+    }
+  }
+
+  /** Reconnect now (the "Try again" button). */
+  retry(): void {
+    this.attempt = 0;
+    this.link?.close();
+    this.connect();
+    this.focus();
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const t of this.timers) window.clearTimeout(t);
+    this.timers = [];
+    this.resizeObs?.disconnect();
+    const link = this.link;
+    this.link = null;
+    link?.close();
+    this.term?.dispose();
+    this.term = null;
+    this.fitter = null;
+  }
+
+  private connect(): void {
+    const term = this.term;
+    if (!term || this.disposed) return;
+    const link = this.backend.terminal(this.sessionId, term.cols, term.rows);
+    this.link = link;
+    this.opts.onStatus?.(this.attempt ? 'reconnecting' : 'connecting');
+    link.onOpen = () => {
+      if (this.link !== link) return;
+      this.attempt = 0;
+      this.opts.onStatus?.('connected');
+      link.send({ t: 'resize', cols: term.cols, rows: term.rows });
+    };
+    link.onData = (d) => {
+      if (this.link === link) term.write(d);
+    };
+    link.onClose = (code, reason) => {
+      if (this.link !== link || this.disposed) return;
+      if (code === 1000) {
+        // 'detached': the session ended or was let go.
+        this.opts.onStatus?.('ended');
+        term.write(`\r\n\x1b[2m[Their session has ended.]\x1b[0m\r\n`);
+        this.opts.onEnd?.('ended', reason);
+      } else if (code === 1008) {
+        this.opts.onStatus?.('ended');
+        this.opts.onEnd?.('refused', reason);
+      } else if (this.attempt < RETRY_MS.length) {
+        this.opts.onStatus?.('reconnecting');
+        this.timers.push(
+          window.setTimeout(() => {
+            if (this.link === link && !this.disposed) this.connect();
+          }, RETRY_MS[this.attempt++]),
+        );
+      } else {
+        this.opts.onStatus?.('lost');
+        term.write(`\r\n\x1b[2m[Connection lost. Press Try again to reconnect.]\x1b[0m\r\n`);
+      }
+    };
+  }
+}
+
 export interface TerminalEvents {
   /** The overlay closed (stood up, cancelled, or the session went away). */
   onClose?(): void;
@@ -24,22 +204,22 @@ export interface TerminalEvents {
   onNotice?(text: string, kind: 'leave' | 'bad' | 'info'): void;
 }
 
+const STATUS_TEXT: Record<TermStatus, string> = {
+  connecting: 'Connecting…',
+  connected: 'Connected',
+  reconnecting: 'Reconnecting…',
+  lost: 'Connection lost',
+  ended: 'Session ended',
+};
+
+/** Sitting at someone's computer: the monitor overlay around a TerminalView. */
 export class TerminalOverlay {
   events: TerminalEvents = {};
   private layer: HTMLElement | null = null;
   private monitor: HTMLElement | null = null;
-  private term: Terminal | null = null;
-  private link: TermLink | null = null;
-  private fit: FitAddon | null = null;
+  private view: TerminalView | null = null;
   private from: DOMRect | null = null;
   private timers: number[] = [];
-  private onResize = () => {
-    try {
-      this.fit?.fit();
-    } catch {
-      // not laid out
-    }
-  };
 
   constructor(
     private root: HTMLElement,
@@ -55,18 +235,52 @@ export class TerminalOverlay {
     if (this.layer) this.close();
     this.from = from ?? null;
     let ready = false;
-    let attempt = 0;
-    const screen = el('div', { class: 'term-screen' });
-    const status = el('span', { class: 'term-status' }, 'Connecting…');
+    const status = el('span', { class: 'term-status' }, STATUS_TEXT.connecting);
     const led = el('i', { class: 'term-led', attrs: { 'aria-hidden': 'true' } });
-    const retry = button('Try again', { small: true });
+    const retry = button('Try again', { small: true, onClick: () => view.retry() });
     retry.hidden = true;
     const stand = button('Stand up', { key: 'Ctrl+]', onClick: () => this.close() });
     stand.classList.add('term-stand');
+
+    const view: TerminalView = new TerminalView(this.backend, who.sessionId, {
+      hold: true,
+      onKey: (ev) => {
+        // Ctrl+] stands up and never reaches the terminal.
+        if (ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']')) {
+          if (ev.type === 'keydown') this.close();
+          return true;
+        }
+        // Until the bezel is open nothing goes to Claude; Esc means "never mind".
+        if (!ready && ev.key === 'Escape') {
+          if (ev.type === 'keydown') this.close();
+          return true;
+        }
+        return false;
+      },
+      onStatus: (s) => {
+        status.textContent = STATUS_TEXT[s];
+        led.classList.toggle('on', s === 'connected');
+        retry.hidden = s !== 'lost';
+      },
+      onEnd: (why, reason) => {
+        if (why === 'refused') {
+          this.events.onNotice?.(`Can't use ${who.displayName}'s computer${reason ? `: ${reason}` : ''}`, 'bad');
+          this.close();
+          return;
+        }
+        // The chin and the terminal say so; the office's own "clocked out" toast follows.
+        this.timers.push(
+          window.setTimeout(() => {
+            if (this.view === view) this.close();
+          }, ENDED_MS),
+        );
+      },
+    });
+
     const monitor = el(
       'div',
       { class: 'term-monitor' },
-      el('div', { class: 'term-bezel' }, screen),
+      el('div', { class: 'term-bezel' }, view.el),
       el(
         'div',
         { class: 'term-chin' },
@@ -87,149 +301,41 @@ export class TerminalOverlay {
     layer.addEventListener('pointerdown', (ev) => {
       if (ev.target === layer) {
         ev.preventDefault();
-        this.term?.focus();
+        view.focus();
       }
     });
     this.root.append(layer);
     this.layer = layer;
     this.monitor = monitor;
+    this.view = view;
     document.body.classList.add('seated');
     this.growFrom(monitor, this.from);
-
-    const term = new Terminal({
-      fontFamily: 'ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, monospace',
-      fontSize: 14,
-      lineHeight: 1.1,
-      cursorBlink: true,
-      macOptionIsMeta: true,
-      scrollback: 5000,
-      theme: {
-        background: '#1B2330',
-        foreground: '#E6EDF5',
-        cursor: '#7FD8FF',
-        cursorAccent: '#1B2330',
-        selectionBackground: '#3C5A86',
-        black: '#2B2D42',
-        red: '#FF6B6B',
-        green: '#6BCB77',
-        yellow: '#FFD93D',
-        blue: '#4D96FF',
-        magenta: '#B983FF',
-        cyan: '#00C2C7',
-        white: '#E6EDF5',
-        brightBlack: '#6B7A8F',
-        brightRed: '#FF8A8A',
-        brightGreen: '#9BE15D',
-        brightYellow: '#FFE680',
-        brightBlue: '#7FB2FF',
-        brightMagenta: '#D2A8FF',
-        brightCyan: '#5BE3E6',
-        brightWhite: '#FFFFFF',
-      },
-    });
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    term.open(screen);
-    this.term = term;
-    this.fit = fit;
-    this.onResize();
-    // Office tmux sessions run with `mouse on`: tmux turns on mouse reporting, so xterm sends
-    // the wheel to tmux as mouse events and tmux scrolls Claude's history (copy mode).
-
-    term.attachCustomKeyEventHandler((ev) => {
-      // Ctrl+] stands up and never reaches the terminal.
-      if (ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']')) {
-        if (ev.type === 'keydown') this.close();
-        return false;
-      }
-      // Until the bezel is open nothing goes to Claude; Esc means "never mind".
-      if (!ready) {
-        if (ev.type === 'keydown' && ev.key === 'Escape') this.close();
-        return false;
-      }
-      return true;
-    });
-
-    const later = (fn: () => void, ms: number) => this.timers.push(window.setTimeout(fn, ms));
-    const connect = () => {
-      const link = this.backend.terminal(who.sessionId, term.cols, term.rows);
-      this.link = link;
-      status.textContent = attempt ? 'Reconnecting…' : 'Connecting…';
-      retry.hidden = true;
-      link.onOpen = () => {
-        attempt = 0;
-        status.textContent = 'Connected';
-        led.classList.add('on');
-        link.send({ t: 'resize', cols: term.cols, rows: term.rows });
-      };
-      link.onData = (d) => term.write(d);
-      link.onClose = (code, reason) => {
-        if (this.term !== term || this.link !== link) return;
-        led.classList.remove('on');
-        if (code === 1000) {
-          // 'detached': the session ended or was let go.
-          status.textContent = 'Session ended';
-          term.write(`\r\n\x1b[2m[${who.displayName}'s session has ended.]\x1b[0m\r\n`);
-          this.events.onNotice?.(`${who.displayName}'s session has ended.`, 'leave');
-          later(() => {
-            if (this.term === term) this.close();
-          }, ENDED_MS);
-        } else if (code === 1008) {
-          this.events.onNotice?.(`Can't use ${who.displayName}'s computer${reason ? `: ${reason}` : ''}`, 'bad');
-          this.close();
-        } else if (attempt < RETRY_MS.length) {
-          status.textContent = 'Reconnecting…';
-          later(() => {
-            if (this.term === term && this.link === link) connect();
-          }, RETRY_MS[attempt++]);
-        } else {
-          status.textContent = 'Connection lost';
-          retry.hidden = false;
-          term.write(`\r\n\x1b[2m[Connection lost. Press Try again to reconnect.]\x1b[0m\r\n`);
-        }
-      };
-    };
-    retry.addEventListener('click', () => {
-      attempt = 0;
-      this.link?.close();
-      connect();
-      term.focus();
-    });
-    connect();
-    term.onData((d) => {
-      if (ready) this.link?.send({ t: 'in', d });
-    });
-    term.onResize(({ cols, rows }) => this.link?.send({ t: 'resize', cols, rows }));
-    window.addEventListener('resize', this.onResize);
-    later(() => {
-      if (this.term !== term) return;
-      ready = true;
-      this.onResize();
-      term.focus();
-    }, OPEN_MS);
-    term.focus();
+    view.start();
+    view.focus();
+    this.timers.push(
+      window.setTimeout(() => {
+        if (this.view !== view) return;
+        ready = true;
+        view.release();
+      }, OPEN_MS),
+    );
   }
 
   close(): void {
     if (!this.layer) return;
-    window.removeEventListener('resize', this.onResize);
     for (const t of this.timers) window.clearTimeout(t);
     this.timers = [];
     const layer = this.layer;
     const monitor = this.monitor;
+    const view = this.view;
     this.layer = null;
     this.monitor = null;
-    const link = this.link;
-    this.link = null;
-    link?.close();
-    const term = this.term;
-    this.term = null;
-    this.fit = null;
+    this.view = null;
     document.body.classList.remove('seated');
     layer.classList.add('out');
     if (monitor && this.from) this.shrinkInto(monitor, this.from);
     window.setTimeout(() => {
-      term?.dispose();
+      view?.dispose();
       layer.remove();
     }, 260);
     this.events.onClose?.();

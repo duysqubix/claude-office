@@ -163,28 +163,32 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
    bg #1B2330, fg #E6EDF5, cursor #7FD8FF. Chin (52, paper text): face 32, "Claudette's computer" 16/600, project; state
    LED; hint "Esc goes to Claude" at 70 %; secondary "Stand up" `Ctrl+]`.
 4. Every key goes to Claude (Esc, Tab, Ctrl+C, Ctrl+B: office tmux runs `prefix None`) except `Ctrl+]`; Cmd+C/V copy and
-   paste; the wheel is swallowed (in tmux's alt screen it sends ↑/↓ into Claude's prompts). Backdrop clicks refocus.
-   Someone else needs you: amber tab on the bezel top, face + "Klaus needs you" (click = stand up and go).
+   paste; the wheel scrolls Claude's history (office tmux runs `mouse on`). Backdrop clicks refocus. Someone else needs
+   you: the needs-you chip stays in the strip above the bezel (a reminder only; `Ctrl+]` stands you up).
 5. Stand up: bezel back into the monitor (260 ease-in), camera returns (900), game keys 150 after. `/term` closes
    1000/1008 or they leave the roster: "Claudette's session has ended.", stand up after 2 s. Other drops:
    "Reconnecting…" (1, 2, 4 s), then [Try again]. The chin says "Connecting…" until it opens.
 
 ### 3.5 Panels, the board, letting go, offline
 
-- **Employee panel**: shirt-colour band, face (56) straddling its edge, name as the outlined title, state chip + time;
+- **Employee panel**: shirt-colour band, face (64) straddling its edge, name as the outlined title, state chip + time;
   icon chips for project, branch, model, uptime, cost; "Context" bar (`pct`, "128k of 200k"; danger from 85 %: "Nearly
-  full: expect a /compact"); rows Now, Working on, Last said, You asked, Interns; collapsible "Recent chatter". Footer:
-  primary "Talk" `E` (the chat), "Sit at their computer", danger text "Let go" far left. External: "Started in your own
-  terminal (crateswipe, pid 66880). Talk to them there." **Help** (`?`): controls, legend, "Calmer motion".
+  full: expect a /compact"); rows Now, Working on, Last said, You asked, Interns (the chat has the conversation).
+  Footer: primary "Talk" `E` (the chat), "Sit at their computer", danger text "Let go" far left; needs you without an
+  ask: primary "Sit down and answer" `E`. External: "Started in your own terminal (pid 66880)." and Talk only. **Help**
+  (`?`): controls, legend, "Calmer motion".
 - **Chat** ("Talk" `E` in the employee panel; `chatpanel.ts`): their conversation as in Claude Code, polled every 1.2 s:
-  assistant text as light markdown, tool steps as chips (3+ in a row collapse to "5 steps, last: Editing auth.ts"), a
+  assistant text as rich markdown (`markdown.ts`: GFM tables, task lists ☐/☑, code with colours and Copy; raw HTML stays
+  text, links are http(s)/mailto only, images become links), tool steps as chips (3+ collapse to "5 steps, last: …"), a
   time label after 10-minute gaps. Enter sends, Shift+Enter adds a line, slash commands pass through, Esc hands the keys
   back to the game; your message shows at once ("Sending…", "Sent", or why it failed with Try again / Edit) and
   reconciles with the feed. Working: a typing indicator with `activity.label`. Needs you: the ask card inline, scrolled
   to its question, and sending waits ("Answer their question above first."). Header: Interrupt (Esc in their terminal),
   Sit at their computer. Started elsewhere: read-only history and "Bring into the office" (`/api/adopt`; "Type /exit in
   their terminal: they'll walk in here with their whole conversation."), then a waiting state until they're back,
-  hosted.
+  hosted. **Quick look** (`T`, or Chat ⇄ Terminal in the header): their live terminal right in the panel, which widens to
+  60 %: no walk, no sit. Keys go to Claude; `Esc` (or `Ctrl+]`) comes back to the chat. Not hosted: "runs in their own
+  terminal" and "Bring into the office". Sitting down stays the immersive way in.
 - **Roster** (`R`, button, whiteboard): mint panel "Roster", grouped Needs you, Working, Starting, Free, Asleep. Row 56:
   face 40, name 16/600, project, activity or `lastText` 14 ink-2; right: "12m" in state, "+2" interns. Click or Enter →
   go to. Footer "Hire someone" `H`. Empty: "Nobody's in yet." (as the first-run card).
@@ -246,7 +250,8 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   hair or hat silhouette, glasses) on a disc of their shirt colour; 24/32/40/56. Favicon and logo too.
 - **Button**: pill, 44 tall (40 small), padding 0 20, 16/600, optional key cap right; primary, secondary, danger or
   text. Disabled: 45 % opacity, no shadow, a tooltip saying why. **Chip** 30 tall, glyph 18 + 15/600. **Key cap** min
-  24×24, paper-2, 2 px border + 4 px bottom border, 13/700; US labels, bound by `e.code`.
+  24×24, paper-2, 2 px border + 4 px bottom border, 13/700 in `system-ui` (Fredoka's Q reads as "a"); US labels, bound
+  by `e.code`.
 - **Toast**: paper, 3 px border, radius 16, 6 px left stripe (state, primary or danger), face or icon 32, text 16 (name
   600), optional small action. **Tooltip**: ink, paper 14/600, radius 10, after 400. **Banner**: top-centre pill, 44
   tall, 16/600: ink with paper text (offline), working green with ink text (back).
@@ -298,6 +303,7 @@ sound"). `M` mutes (`claude-office:muted`, master to 0 in 50). P1: pan by screen
 | `E` | interact; with a panel open, press its button marked `E` (an ask card has none: `E` focuses it), else close it; ignored in a panel's first 250 |
 | `Q` (also `N`, as in GAMEPLAY.md) | go to the next person who needs you, longest-waiting first; `Q` sits next to WASD |
 | `1`–`9` | with an ask card focused: its buttons in order; otherwise (P1) the person in that roster row |
+| `T` | quick look at the targeted (else nearest) person's live terminal; with a chat open, Chat ⇄ Terminal |
 | `R` / `H` / `M` / `?` | roster / hire / sound / help |
 | `Esc` | clear a search field, then close the composer, the confirm, the panel; cancel a go to. Never at a terminal |
 | `Ctrl+]` | stand up from the computer |

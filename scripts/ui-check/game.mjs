@@ -30,6 +30,14 @@ async function open(url, { live = false } = {}) {
       if (typeof d === 'string' && d.includes('"presence"')) return;
       return send.call(this, d);
     };
+    // The tree is edited live by other agents: no hot reload may restart the office mid-check.
+    window.WebSocket = new Proxy(WebSocket, {
+      construct(target, args) {
+        const p = args[1];
+        if (p === 'vite-hmr' || (Array.isArray(p) && p.includes('vite-hmr'))) return { addEventListener() {}, removeEventListener() {}, send() {}, close() {}, readyState: 0 };
+        return Reflect.construct(target, args);
+      },
+    });
   });
   const posts = [];
   if (live) {
@@ -95,6 +103,16 @@ try {
   }
 
   // Employee panel → E → chat
+  // Who closes panels (for a failure report).
+  await page.evaluate(() => {
+    const host = window.office.panels;
+    const close = host.close.bind(host);
+    window.__closes = [];
+    host.close = () => {
+      window.__closes.push(new Error('close').stack.split('\n').slice(2, 6).join(' < '));
+      close();
+    };
+  });
   await page.evaluate((id) => window.office.panels.openEmployee(id), hosted.id);
   await wait(500);
   const emp = await page.evaluate(() => {
@@ -109,6 +127,14 @@ try {
   check('employee panel: face, title, state chip', emp.face && emp.title === hosted.name && !!emp.chip, JSON.stringify(emp));
   check('employee footer: Talk (primary, E), Sit, Let go', emp.foot.some((t) => /^Talk.*E\*$/.test(t)) && emp.foot.some((t) => t.startsWith('Sit at their computer')) && emp.foot.includes('Let go'), emp.foot.join(' | '));
   await shot(page, '2b-employee');
+  // Let go: an in-place confirm; Esc backs out of the confirm, not the panel.
+  await page.evaluate(() => [...document.querySelectorAll('.co-panel--person .co-panel__foot .co-btn')].find((b) => b.textContent.trim() === 'Let go')?.click());
+  await wait(200);
+  const confirmShown = await page.evaluate(() => ({ confirm: !!document.querySelector('.co-confirm'), focus: document.activeElement?.textContent?.trim() }));
+  await page.keyboard.press('Escape');
+  await wait(250);
+  const afterConfirmEsc = await page.evaluate(() => ({ open: window.office.panels.openId, confirm: !!document.querySelector('.co-confirm') }));
+  check('Let go asks first (Keep them focused); Esc backs out of the confirm only', confirmShown.confirm && confirmShown.focus === 'Keep them' && afterConfirmEsc.open === 'employee' && !afterConfirmEsc.confirm, JSON.stringify({ confirmShown, afterConfirmEsc }));
   await focusGame(page);
   await page.keyboard.press('KeyE');
   await wait(700);
@@ -117,7 +143,8 @@ try {
     focused: document.activeElement?.classList.contains('co-chat__input') ?? false,
     composer: !document.querySelector('.co-chat__composer')?.hidden,
   }));
-  check('E on the employee panel opens the chat with the composer focused', chat.open === 'chat' && chat.focused && chat.composer, JSON.stringify(chat));
+  const closes = await page.evaluate(() => window.__closes.join(' || '));
+  check('E on the employee panel opens the chat with the composer focused', chat.open === 'chat' && chat.focused && chat.composer, `${JSON.stringify(chat)} closes: ${closes}`);
   await wait(1500);
   await page.keyboard.type('Can you run the tests?');
   await page.keyboard.press('Enter');
@@ -160,6 +187,104 @@ try {
   await shot(page, '2b-chat-external');
   await page.evaluate(() => window.office.panels.close());
 
+  // Quick terminal (T): their live terminal in the chat panel, no walking or sitting.
+  const pos0 = await page.evaluate(() => window.office.manager.position.toArray());
+  // Keys pressed right as it opens never reach their terminal (a reflexive Enter can't answer a prompt).
+  await page.evaluate((id) => window.office.panels.peek(id), hosted.id);
+  await page.keyboard.type('zzz');
+  await wait(900);
+  const early = await page.evaluate(() => ({
+    rows: document.querySelector('.co-chat__term .xterm-rows')?.textContent ?? '',
+    interrupt: [...document.querySelectorAll('.co-chat__termbar .co-btn')].some((b) => b.textContent.trim() === 'Interrupt'),
+  }));
+  check('the quick look ignores keys for its first moment; Interrupt sits by the terminal', !/zzz/.test(early.rows) && early.interrupt, JSON.stringify({ interrupt: early.interrupt, typed: /zzz/.test(early.rows) }));
+  await page.evaluate(() => window.office.panels.close());
+  await wait(300);
+  // Mounted and attaching at once; the demo's pretend connection then waits 350 ms on purpose.
+  const peekMs = await page.evaluate(async (id) => {
+    const t0 = performance.now();
+    window.office.panels.peek(id);
+    const out = { mounted: -1, text: -1 };
+    return await new Promise((res) => {
+      const look = () => {
+        const xt = document.querySelector('.co-chat__term .xterm');
+        if (out.mounted < 0 && xt && xt.getBoundingClientRect().width > 300) out.mounted = Math.round(performance.now() - t0);
+        const txt = document.querySelector('.co-chat__term .xterm-rows')?.textContent ?? '';
+        if (txt.trim().length > 10) {
+          out.text = Math.round(performance.now() - t0);
+          res(out);
+        } else if (performance.now() - t0 > 4000) res(out);
+        else requestAnimationFrame(look);
+      };
+      look();
+    });
+  }, hosted.id);
+  await wait(300);
+  const peek = await page.evaluate(() => ({
+    open: window.office.panels.openId,
+    wide: document.querySelector('.co-panel--chat.co-panel--term')?.getBoundingClientRect().width ?? 0,
+    focus: document.activeElement?.classList.contains('xterm-helper-textarea') ?? false,
+    pressed: document.querySelector('.co-seg__btn[aria-pressed="true"]')?.textContent.trim(),
+    walking: window.office.manager.autoWalking,
+  }));
+  check('T shows the terminal at once (< 300 ms) and their screen follows', peekMs.mounted >= 0 && peekMs.mounted < 300 && peekMs.text >= 0 && peekMs.text < 350 + 300, JSON.stringify(peekMs));
+  check('terminal mode: wide panel, terminal focused, no walk', peek.open === 'chat' && peek.wide > 800 && peek.focus && !peek.walking && peek.pressed?.startsWith('Terminal'), JSON.stringify(peek));
+  await page.keyboard.press('KeyW');
+  await page.keyboard.press('KeyE');
+  await page.keyboard.press('KeyQ');
+  await wait(400);
+  const typed = await page.evaluate((p0) => ({
+    open: window.office.panels.openId,
+    moved: window.office.manager.position.distanceTo(new window.office.manager.position.constructor(...p0)) > 0.01,
+    rows: document.querySelector('.co-chat__term .xterm-rows')?.textContent ?? '',
+  }), pos0);
+  check('game keys go to the terminal, not the game', typed.open === 'chat' && !typed.moved && /weq/.test(typed.rows.replace(/\s+/g, '')), JSON.stringify({ open: typed.open, moved: typed.moved }));
+  await shot(page, '2b-terminal-panel');
+  await page.keyboard.press('Escape');
+  await wait(300);
+  const back = await page.evaluate(() => ({
+    open: window.office.panels.openId,
+    term: !!document.querySelector('.co-panel--term'),
+    feed: document.querySelector('.co-chat__feed')?.hidden === false,
+    xterm: !!document.querySelector('.co-chat__term .xterm'),
+    focus: document.activeElement?.className,
+  }));
+  check('Esc leaves the terminal for the chat (panel stays)', back.open === 'chat' && !back.term && back.feed && !back.xterm, JSON.stringify(back));
+  const tKey = await page.evaluate(() => /peek/.test(String(window.office.panels.peek)));
+  await page.keyboard.press('KeyT');
+  await wait(500);
+  const flip = await page.evaluate(() => !!document.querySelector('.co-panel--term .xterm'));
+  if (flip) check('T flips back to the terminal', flip);
+  else {
+    await page.evaluate(() => window.office.panels.peek());
+    await wait(500);
+    check('peek() flips back to the terminal (T key not bound in main.ts yet)', await page.evaluate(() => !!document.querySelector('.co-panel--term .xterm')), String(tKey));
+  }
+  await page.evaluate(() => [...document.querySelectorAll('.co-seg__btn')].find((b) => b.textContent.startsWith('Chat'))?.click());
+  await wait(300);
+  check('the Chat button switches back', await page.evaluate(() => !document.querySelector('.co-panel--term') && document.querySelector('.co-chat__feed')?.hidden === false));
+  await page.evaluate(() => window.office.panels.close());
+  await wait(300);
+  // Not office-hosted: no tmux to show; say so and offer to bring them in.
+  await page.evaluate((id) => window.office.panels.peek(id), external.id);
+  await wait(500);
+  const extTerm = await page.evaluate(() => ({
+    note: document.querySelector('.co-chat__termnote')?.textContent ?? '',
+    xterm: !!document.querySelector('.co-chat__term .xterm'),
+    button: document.querySelector('.co-chat__termnote .co-btn')?.textContent.trim(),
+  }));
+  check('external terminal mode explains and offers "Bring into the office"', /runs in their own terminal/.test(extTerm.note) && !extTerm.xterm && extTerm.button === 'Bring into the office', JSON.stringify(extTerm));
+  await shot(page, '2b-terminal-external');
+  await page.evaluate(() => window.office.panels.close());
+  // T from anywhere: the nearest (or targeted) person's terminal, straight away.
+  await wait(300);
+  await focusGame(page);
+  await page.keyboard.press('KeyT');
+  await wait(600);
+  const anywhere = await page.evaluate(() => ({ open: window.office.panels.openId, term: !!document.querySelector('.co-panel--term'), walking: window.office.manager.autoWalking }));
+  check('T in the office opens someone\'s terminal without walking', anywhere.open === 'chat' && anywhere.term && !anywhere.walking, JSON.stringify(anywhere));
+  await page.evaluate(() => window.office.panels.close());
+
   // Ask card in the person panel: E focuses it, 1 answers
   await page.evaluate((id) => window.office.panels.openAsk(id), asker.id);
   await wait(500);
@@ -170,6 +295,14 @@ try {
     talk: [...document.querySelectorAll('.co-panel--person .co-panel__foot .co-btn')].map((b) => b.textContent.trim()),
   }));
   check('openAsk: person panel with the ask card focused', ask.open === 'ask' && ask.card && ask.focused, JSON.stringify(ask));
+  // A go-to (focus: false) never puts focus in the card: one digit must not be able to approve.
+  await focusGame(page);
+  await page.evaluate((id) => window.office.panels.openAsk(id, { focus: false }), asker.id);
+  await wait(500);
+  const goToFocus = await page.evaluate(() => document.activeElement?.id || document.activeElement?.className || document.activeElement?.tagName);
+  check('a go-to leaves focus on the game, not the ask card', goToFocus === 'scene', String(goToFocus));
+  await page.evaluate((id) => window.office.panels.openAsk(id), asker.id);
+  await wait(500);
   check('with an ask open, Talk has no E cap', ask.talk.some((t) => t === 'Talk'), ask.talk.join(' | '));
   await shot(page, '2b-ask');
   await page.keyboard.press('Digit1');
@@ -202,6 +335,9 @@ try {
   const toast = await page.evaluate(() => [...document.querySelectorAll('.co-toast')].map((t) => t.textContent).join(' | '));
   check('hiring closes the panel with the slam toast', (await openId(page)) === null && /Interview went great!/.test(toast), toast);
   await shot(page, '2b-hired-toast');
+  await wait(2600);
+  const arrival = await page.evaluate(() => [...document.querySelectorAll('.co-toast')].map((t) => t.textContent).join(' | '));
+  check('the new hire arrives with their own toast, not "clocked in"', /just started on new-thing/.test(arrival) && !/clocked in for new-thing/.test(arrival), arrival);
 
   // Roster, files, help, Team Room, intern desk
   for (const [id, cls, name] of [

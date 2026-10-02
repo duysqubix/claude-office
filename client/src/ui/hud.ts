@@ -39,8 +39,12 @@ export class Hud {
   private soundBtn: HTMLButtonElement;
   private promptWrap: HTMLElement;
   private promptText = '';
+  private promptFp = false;
+  private crosshair: HTMLElement | null = null;
   private banner: HTMLElement;
   private bannerText: HTMLElement;
+  /** What screen readers hear: changes with the situation, not with every second of the countdown. */
+  private bannerSr: HTMLElement;
   private bannerLead: HTMLElement;
   private retryBtn: HTMLButtonElement;
   private srLive: HTMLElement;
@@ -90,11 +94,12 @@ export class Hud {
 
     this.promptWrap = el('div', { class: 'co-hud__prompt', attrs: { hidden: true } });
     this.bannerLead = el('span');
-    this.bannerText = el('span');
+    this.bannerText = el('span', { attrs: { 'aria-hidden': 'true' } });
+    this.bannerSr = el('span', { class: 'co-sr' });
     this.retryBtn = el('button', { class: 'co-btn co-btn--small', attrs: { type: 'button', hidden: true } }, 'Retry now');
     // net.ts reconnects at once on the browser's 'online' event.
     this.retryBtn.addEventListener('click', () => window.dispatchEvent(new Event('online')));
-    this.banner = el('div', { class: 'co-banner co-hud__banner', attrs: { role: 'status', hidden: true } }, this.bannerLead, this.bannerText, this.retryBtn);
+    this.banner = el('div', { class: 'co-banner co-hud__banner', attrs: { role: 'status', hidden: true } }, this.bannerLead, this.bannerSr, this.bannerText, this.retryBtn);
     this.srLive = el('div', { class: 'co-sr', attrs: { 'aria-live': 'assertive' } });
 
     this.root = el('div', { class: 'co-hud' }, left, right, this.promptWrap, this.banner, this.srLive);
@@ -136,20 +141,27 @@ export class Hud {
     this.soundBtn.setAttribute('aria-pressed', String(m));
   }
 
+  /** Every frame: touches the DOM only when something changed. */
   setPrompt(text: string | null): void {
     if (!text) {
-      this.promptWrap.hidden = true;
-      this.promptText = '';
+      if (this.promptText) {
+        this.promptWrap.hidden = true;
+        this.promptText = '';
+      }
       return;
     }
     // First person: the prompt sits under the crosshair.
-    const fp = document.getElementById('crosshair')?.hidden === false;
-    this.promptWrap.classList.toggle('is-fp', fp);
-    if (text !== this.promptText || this.promptWrap.hidden) {
+    this.crosshair ??= document.getElementById('crosshair');
+    const fp = this.crosshair?.hidden === false;
+    if (fp !== this.promptFp) {
+      this.promptFp = fp;
+      this.promptWrap.classList.toggle('is-fp', fp);
+    }
+    if (text !== this.promptText) {
       this.promptText = text;
       this.promptWrap.replaceChildren(el('div', { class: 'co-prompt' }, keyCap('E', true), text));
+      this.promptWrap.hidden = false;
     }
-    this.promptWrap.hidden = false;
   }
 
   setOffline(offline: boolean, retryAt = 0): void {
@@ -186,7 +198,7 @@ export class Hud {
     if (this.offline) {
       const s = Math.max(0, Math.ceil((this.retryAt - Date.now()) / 1000));
       if (Date.now() - this.offlineSince > STUCK_MS) this.showBanner('stuck', "The office server isn't running. Start it with npm run dev in the claude-office folder.");
-      else this.showBanner('offline', s > 1 ? `Lost the office server. Reconnecting in ${s}s…` : 'Lost the office server. Reconnecting…');
+      else this.showBanner('offline', s > 1 ? `Lost the office server. Reconnecting in ${s}s…` : 'Lost the office server. Reconnecting…', 'Lost the office server. Reconnecting.');
     }
   }
 
@@ -234,7 +246,7 @@ export class Hud {
     const now = new Set(people.filter((e) => e.state === 'needs-you').map((e) => e.sessionId));
     for (const e of people) {
       if (now.has(e.sessionId) && !this.waiting.has(e.sessionId)) {
-        const fact = e.ask?.title ?? waitingLines(e)[1];
+        const fact = (e.ask?.title ?? waitingLines(e)[1]).replace(/[.!?]+$/, '');
         this.srLive.textContent = `${e.displayName}: ${fact.charAt(0).toLowerCase()}${fact.slice(1)}.`;
       }
     }
@@ -278,8 +290,10 @@ export class Hud {
     this.meterSlot.replaceChildren(planMeter(u.stats.plan.limits, Date.now() + u.skew, () => this.on.stats()));
   }
 
-  private showBanner(kind: 'offline' | 'stuck' | 'back', text: string): void {
+  /** `spoken`: what screen readers hear, when the visible text ticks (the countdown). */
+  private showBanner(kind: 'offline' | 'stuck' | 'back', text: string, spoken = text): void {
     this.banner.hidden = false;
+    if (this.bannerSr.textContent !== spoken) this.bannerSr.textContent = spoken;
     this.banner.classList.toggle('co-banner--back', kind === 'back');
     if (this.banner.dataset.kind !== kind) {
       this.banner.dataset.kind = kind;

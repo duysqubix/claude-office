@@ -6,7 +6,7 @@
 import type { AnswerRequest, ApiResult, Ask, AskOption } from '../../../shared/protocol';
 import { el, fmtClock } from './el';
 import { icon } from './icons';
-import { renderMarkdown } from './markdown';
+import { enhanceMarkdown, renderMarkdown, visibleText } from './markdown';
 import './theme.css';
 
 /** What the card reports: an AnswerRequest without the sessionId, which the caller adds. */
@@ -102,9 +102,12 @@ export function renderAsk(
   card.dataset.kind = ask.kind;
 
   if (ask.kind === 'plan') {
-    card.append(el('div', { class: 'co-ask__plan co-md', html: renderMarkdown(ask.detail), attrs: { tabindex: 0, role: 'region', 'aria-label': 'The plan' } }));
+    const plan = el('div', { class: 'co-ask__plan co-md', html: renderMarkdown(ask.detail), attrs: { tabindex: 0, role: 'region', 'aria-label': 'The plan' } });
+    card.append(plan);
+    enhanceMarkdown(plan);
   } else if (ask.kind === 'permission' && ask.detail) {
-    card.append(el('pre', { class: 'co-ask__well', attrs: { tabindex: 0, role: 'region', 'aria-label': 'What they want to do' } }, ask.detail));
+    // What you approve is what runs: escape sequences, zero-width and bidi characters show as \u{…}.
+    card.append(el('pre', { class: 'co-ask__well', attrs: { tabindex: 0, role: 'region', 'aria-label': 'What they want to do' } }, visibleText(ask.detail)));
   }
 
   const body = el('div', { class: 'co-ask__body' });

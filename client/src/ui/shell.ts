@@ -9,6 +9,8 @@ export interface Panel {
   focus?(): void;
   /** `E` with the panel open: press its button marked E (or focus its ask card). False: it has none. */
   pressE?(): boolean;
+  /** Esc inside the panel: back out of something smaller first (a confirm). True: used. */
+  escape?(): boolean;
   /** Stop timers and subscriptions. The host removes the element after its out animation. */
   dispose?(): void;
 }
