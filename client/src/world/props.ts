@@ -605,7 +605,9 @@ function laptopScreen(): THREE.MeshStandardMaterial {
       c.fill();
     });
   });
-  return new THREE.MeshStandardMaterial({ map: tex.tex, emissive: '#FFFFFF', emissiveMap: tex.tex, emissiveIntensity: 0.9, roughness: 0.4 });
+  // Emissive only (black albedo), so the room's light doesn't push it into bloom; `map` stays set
+  // so paint() flips the shared texture for the model's UVs.
+  return new THREE.MeshStandardMaterial({ color: 0x000000, map: tex.tex, emissive: '#FFFFFF', emissiveMap: tex.tex, emissiveIntensity: 1.0, roughness: 0.4 });
 }
 
 /**

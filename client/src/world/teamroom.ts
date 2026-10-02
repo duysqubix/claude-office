@@ -316,7 +316,11 @@ function drawFlipchartPad(c: CanvasRenderingContext2D, w: number, h: number): vo
 const GOOD = '#4ADE80';
 const WARN = '#FFB020';
 const BAD = '#FF5A5F';
-const BOARD_HDR = 1.25;
+/**
+ * Screen brightness. White text stays under the bloom threshold (engine/post.ts), so the board
+ * reads crisp instead of haloing; the dark background keeps it looking like a lit screen.
+ */
+const BOARD_HDR = 1.0;
 
 function pctColor(p: number): string {
   return p >= 85 ? BAD : p >= 60 ? WARN : GOOD;

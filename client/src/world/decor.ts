@@ -34,7 +34,7 @@ function buildOddsAndEnds(ctx: WorldCtx): void {
     ctx.root.add(g);
     return g;
   };
-  void addModel(onWall('exit-sign', 'south', 0, 2.72), 'exit_sign', { fit: { w: 0.5, uniform: true }, glow: 0.6 });
+  void addModel(onWall('exit-sign', 'south', 0, 2.72), 'exit_sign', { fit: { w: 0.5, uniform: true }, glow: 0.3 });
   void addModel(onWall('calendar', 'north', -8.5, 1.62), 'calendar_wall', { fit: { h: 0.72, uniform: true } });
   void addModel(onWall('cork-board', 'east', 2.0, 1.6), 'cork_board', { fit: { w: 1.2, uniform: true }, tint: { Accent: '#C98F5A' } });
   void addModel(onWall('hanging-plant', 'south', 5.4, 2.2), 'plant_hanging', { tint: { Accent: '#FF9DCB' } });

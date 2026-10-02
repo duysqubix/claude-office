@@ -62,14 +62,14 @@ export class Screen {
   private timer = 0;
   private dirty = true;
   private mesh: THREE.Mesh | null = null;
-  /** Brightness multiplier: above 1 the screen glows into the bloom pass. */
+  /** Brightness multiplier: a little over 1 reads as a lit screen; kept under the bloom threshold so text stays crisp. */
   private readonly hdr: number;
 
   constructor(
     seed: number,
     private readonly accent: string,
     px: { w: number; h: number } = { w: W, h: H },
-    hdr = 1.35,
+    hdr = 1.1,
   ) {
     this.canvas = document.createElement('canvas');
     this.canvas.width = px.w;
@@ -358,7 +358,7 @@ function mixHex(a: string, b: string, t: number): string {
 // Office apps: what a regular (an NPC coworker, chars/regulars.ts) has on screen. Ordinary office
 // work, never a terminal: light, friendly and gently alive (a cell cursor hops, new mail slides
 // in, slides advance, a doc types itself, a chart draws, the calendar's now-line creeps down).
-// Surfaces stay below white so the 1.35× screen brightness doesn't bloom them into glare.
+// Surfaces stay below white, so even at the screen brightness nothing blooms into glare.
 
 const OFFICE: Record<OfficeApp, { color: string; title: string }> = {
   sheet: { color: '#2FA36B', title: 'Budget.xlsx' },
