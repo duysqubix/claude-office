@@ -1,9 +1,8 @@
 {
-  "generated": "2026-10-02T00:59:44.976Z",
+  "generated": "2026-10-02T01:04:10.881Z",
   "totals": {
     "all": 232,
-    "done": 229,
-    "planned": 3
+    "done": 232
   },
   "byArtist": {
     "Claude Cézanne": 51,
@@ -4558,7 +4557,7 @@
       "artist": "Claude Lorrain",
       "group": "building, outdoors, plants",
       "priority": "P1",
-      "description": "2 m section of clipped hedge: one faceted block with facets mottled in three greens, sunlit on top",
+      "description": "2 m section of hedge: a long mound of big rounded faceted clumps in three greens, darker low and lighter on top",
       "tags": [
         "hedge",
         "garden",
@@ -4571,33 +4570,33 @@
       "file": "models/hedge.glb",
       "thumb": "models/thumbs/hedge.jpg",
       "dims": {
-        "w": 2.048,
-        "h": 0.915,
-        "d": 0.858
+        "w": 2.023,
+        "h": 1.023,
+        "d": 0.974
       },
       "bbox": {
         "min": [
-          -1.03,
-          0,
-          -0.431
+          -1.013,
+          -0.021,
+          -0.471
         ],
         "max": [
-          1.018,
-          0.915,
-          0.427
+          1.01,
+          1.002,
+          0.502
         ]
       },
-      "tris": 1200,
+      "tris": 487,
       "materials": [
+        "LeafDark",
         "Leaf",
-        "LeafLight",
-        "LeafDark"
+        "LeafLight"
       ],
       "nodes": [
         "hedge"
       ],
       "textures": 1,
-      "bytes": 100656
+      "bytes": 97360
     },
     {
       "id": "mailbox",
@@ -13417,6 +13416,61 @@
       "bytes": 555756
     },
     {
+      "id": "char_shoe_boot",
+      "name": "Boot",
+      "category": "character-body",
+      "artist": "Claude Rodin",
+      "group": "characters",
+      "priority": "P1",
+      "description": "Chunky laced ankle boot with a thick sole; pivot at the ankle",
+      "tags": [
+        "body",
+        "shoe",
+        "boot"
+      ],
+      "tintable": [
+        "Shoes"
+      ],
+      "anchors": {
+        "sole": [
+          0,
+          -0.1,
+          0.052
+        ]
+      },
+      "status": "done",
+      "file": "models/char_shoe_boot.glb",
+      "thumb": "models/thumbs/char_shoe_boot.jpg",
+      "dims": {
+        "w": 0.2,
+        "h": 0.201,
+        "d": 0.297
+      },
+      "bbox": {
+        "min": [
+          -0.1,
+          -0.101,
+          -0.106
+        ],
+        "max": [
+          0.1,
+          0.1,
+          0.191
+        ]
+      },
+      "tris": 1740,
+      "materials": [
+        "Shoes",
+        "BootSole",
+        "BootLaces"
+      ],
+      "nodes": [
+        "char_shoe_boot"
+      ],
+      "textures": 1,
+      "bytes": 73120
+    },
+    {
       "id": "char_torso_labcoat",
       "name": "Torso: labcoat",
       "category": "character-body",
@@ -13519,23 +13573,23 @@
       "file": "models/char_torso_sweater.glb",
       "thumb": "models/thumbs/char_torso_sweater.jpg",
       "dims": {
-        "w": 0.539,
+        "w": 0.537,
         "h": 0.569,
-        "d": 0.458
+        "d": 0.456
       },
       "bbox": {
         "min": [
-          -0.27,
+          -0.268,
           -0.159,
-          -0.229
+          -0.228
         ],
         "max": [
-          0.27,
+          0.268,
           0.41,
-          0.229
+          0.228
         ]
       },
-      "tris": 1644,
+      "tris": 1724,
       "materials": [
         "Shirt",
         "Accent",
@@ -13546,7 +13600,7 @@
         "Chest"
       ],
       "textures": 0,
-      "bytes": 36292
+      "bytes": 38308
     },
     {
       "id": "char_torso_vest",
@@ -13583,20 +13637,20 @@
       "file": "models/char_torso_vest.glb",
       "thumb": "models/thumbs/char_torso_vest.jpg",
       "dims": {
-        "w": 0.518,
+        "w": 0.531,
         "h": 0.569,
-        "d": 0.453
+        "d": 0.466
       },
       "bbox": {
         "min": [
-          -0.259,
+          -0.266,
           -0.159,
-          -0.218
+          -0.224
         ],
         "max": [
-          0.259,
+          0.266,
           0.41,
-          0.235
+          0.242
         ]
       },
       "tris": 2214,
@@ -13611,52 +13665,120 @@
         "Chest"
       ],
       "textures": 0,
-      "bytes": 47732
-    },
-    {
-      "id": "char_shoe_boot",
-      "name": "Char shoe boot",
-      "category": null,
-      "artist": "Claude Rodin",
-      "group": "characters",
-      "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "bytes": 47740
     },
     {
       "id": "legs_shorts",
-      "name": "Legs shorts",
-      "category": null,
+      "name": "Shorts (thigh)",
+      "category": "character-outfit",
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Thigh in roomy shorts with a turned-up hem and a bare knee; pivot at the hip",
+      "tags": [
+        "legs",
+        "shorts",
+        "summer"
+      ],
+      "tintable": [
+        "Pants",
+        "Skin"
+      ],
+      "anchors": {
+        "knee": [
+          0,
+          -0.17,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/legs_shorts.glb",
+      "thumb": "models/thumbs/legs_shorts.jpg",
+      "dims": {
+        "w": 0.226,
+        "h": 0.362,
+        "d": 0.226
+      },
+      "bbox": {
+        "min": [
+          -0.113,
+          -0.249,
+          -0.113
+        ],
+        "max": [
+          0.113,
+          0.113,
+          0.113
+        ]
+      },
+      "tris": 1048,
+      "materials": [
+        "Pants",
+        "Skin"
+      ],
+      "nodes": [
+        "legs_shorts"
+      ],
+      "textures": 1,
+      "bytes": 44424
     },
     {
       "id": "legs_skirt",
-      "name": "Legs skirt",
-      "category": null,
+      "name": "Skirt",
+      "category": "character-outfit",
       "artist": "Claude Rodin",
       "group": "characters",
       "priority": "P1",
-      "description": "",
-      "tags": [],
-      "tintable": [],
-      "anchors": {},
-      "status": "planned",
-      "file": null,
-      "thumb": null
+      "description": "Pleated A-line skirt from the waist to above the knee; pivot at the pelvis",
+      "tags": [
+        "skirt",
+        "pleated",
+        "outfit"
+      ],
+      "tintable": [
+        "Pants"
+      ],
+      "anchors": {
+        "waist": [
+          0,
+          0.035,
+          0
+        ],
+        "hem": [
+          0,
+          -0.235,
+          0
+        ]
+      },
+      "status": "done",
+      "file": "models/legs_skirt.glb",
+      "thumb": "models/thumbs/legs_skirt.jpg",
+      "dims": {
+        "w": 0.7,
+        "h": 0.284,
+        "d": 0.644
+      },
+      "bbox": {
+        "min": [
+          -0.35,
+          -0.238,
+          -0.322
+        ],
+        "max": [
+          0.35,
+          0.046,
+          0.322
+        ]
+      },
+      "tris": 2896,
+      "materials": [
+        "Pants"
+      ],
+      "nodes": [
+        "legs_skirt"
+      ],
+      "textures": 1,
+      "bytes": 98204
     }
   ]
 }

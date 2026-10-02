@@ -239,7 +239,7 @@ def ribbed_band(name, y0, y1, radius_fn, material, n=40, amp=0.0035, rows=4):
         t = k / rows
         y = y0 + (y1 - y0) * t
         roll = math.sin(math.pi * t) ** 0.5
-        base = radius_fn(y) - 0.006 * (1 - roll)
+        base = radius_fn(y) - 0.004 * (1 - roll)
         ring = []
         for i in range(n):
             a = 2 * math.pi * i / n
@@ -431,6 +431,53 @@ def sneaker(M, side=1, laces=True, stripe=True):
                 pts.append(p + Vector((s * 0.002, 0, 0)))
             parts.append(kit.tube(f"Stripe{s}", kit.catmull(pts, 8), 0.007, M["accent"], ring=5,
                                   cap_rings=2))
+    return parts
+
+
+def boot_upper(P):
+    c, (rx, ry, rz) = shoe_frame()
+    foot = kit.sd_ellipsoid(P, tuple(c + Vector((0, 0.004, 0.006))), (rx, ry * 0.96, rz))
+    toe = kit.sd_ellipsoid(P, tuple(c + Vector((0, -ry * 0.45, -0.004))),
+                           (rx * 0.99, ry * 0.52, rz * 0.86))
+    shaft = kit.sd_round_cone(P, (0, 0.012, -0.03), (0, 0.006, 0.075), 0.09, 0.086)
+    d = kit.smin(kit.smin(foot, toe, 0.03), shaft, 0.04)
+    d = kit.smax(d, P[:, 2] - 0.072, 0.012)                      # open top
+    return kit.smax(d, (c.z - rz + 0.026) - P[:, 2], 0.01)       # sits on the sole
+
+
+def boot_sole(P):
+    c, (rx, ry, rz) = shoe_frame()
+    floor = c.z - rz
+    d = kit.sd_ellipsoid(P, tuple(c + Vector((0, 0.0, 0.0))), (rx + 0.01, ry + 0.012, rz))
+    d = kit.smax(d, floor - P[:, 2], 0.006)
+    d = kit.smax(d, P[:, 2] - (floor + 0.03), 0.006)
+    # A chunky heel block under the back.
+    heel = kit.sd_round_box(P, tuple(Vector((0, c.y + ry * 0.55, floor + 0.022))),
+                            (rx * 0.8, ry * 0.3, 0.022), 0.012)
+    return kit.smin(d, heel, 0.008)
+
+
+def boot(M):
+    c, (rx, ry, rz) = shoe_frame()
+    lo = tuple(c - Vector((rx + 0.03, ry + 0.03, rz + 0.02)))
+    hi = (rx + 0.03, ry + 0.06, 0.1)
+    parts = [kit.sdf_mesh("BootUpper", boot_upper, lo, hi, M["shoes"], voxel=0.003, target=900,
+                          remesh="decimate"),
+             kit.sdf_mesh("BootSole", boot_sole, lo, hi, M["sole"], voxel=0.003, target=380,
+                          remesh="decimate")]
+    # Laces criss-crossing up the front of the shaft and the instep.
+    for i, z in enumerate((-0.035, -0.005, 0.025, 0.052)):
+        p = kit.surface_point(boot_upper, Vector((0, -1.0, (z + 0.0) * 3.0)), centre=(0, 0.01, z))
+        parts.append(kit.tube(f"Lace{i}", [p + Vector((-0.03, 0.004, -0.006)),
+                                            p + Vector((0, -0.003, 0.004)),
+                                            p + Vector((0.03, 0.004, -0.006))],
+                              0.0055, M["lace"], ring=5, cap_rings=1))
+    # Padded collar round the top and a pull tab at the back.
+    pts = [Vector((0.088 * math.cos(a), 0.008 + 0.086 * math.sin(a), 0.066))
+           for a in np.linspace(0, 2 * math.pi, 18, endpoint=False)]
+    parts.append(kit.ring_tube("Collar", pts, 0.012, M["shoes"], ring=6))
+    parts.append(lib.rbox("PullTab", (0.03, 0.012, 0.04), (0, 0.1, 0.08), M["lace"], r=0.006,
+                          seg=1))
     return parts
 
 

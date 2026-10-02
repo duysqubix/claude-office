@@ -38,7 +38,7 @@ def build():
         up.append(lib.sphere(f"Collar{s}", 1.0, tuple(p + Vector((0, -0.006, 0))), M["shirt"],
                              scale=(0.056, 0.02, 0.032), u=10, v=6, rot=(-0.35, 0, s * -0.55)))
     prof = B._profile()
-    grow = 0.011
+    grow = 0.018  # clears the pants' waistband lip
     lo_prof = B._slice(prof, B.BELT_Y - 0.012, B.CHEST_Y)
     hi_prof = B._slice(prof, B.CHEST_Y, TOP)
     _, e_lo = B.shell_part("VestLow", lo_prof, M["accent"], opening=opening, grow=grow,

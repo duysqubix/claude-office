@@ -1,0 +1,29 @@
+{
+  "id": "legs_skirt",
+  "name": "Skirt",
+  "category": "character-outfit",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Pleated A-line skirt from the waist to above the knee; pivot at the pelvis",
+  "tags": [
+    "skirt",
+    "pleated",
+    "outfit"
+  ],
+  "tintable": [
+    "Pants"
+  ],
+  "anchors": {
+    "waist": [
+      0,
+      0.035,
+      0
+    ],
+    "hem": [
+      0,
+      -0.235,
+      0
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "legs_shorts",
+  "name": "Shorts (thigh)",
+  "category": "character-outfit",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Thigh in roomy shorts with a turned-up hem and a bare knee; pivot at the hip",
+  "tags": [
+    "legs",
+    "shorts",
+    "summer"
+  ],
+  "tintable": [
+    "Pants",
+    "Skin"
+  ],
+  "anchors": {
+    "knee": [
+      0,
+      -0.17,
+      0
+    ]
+  }
+}

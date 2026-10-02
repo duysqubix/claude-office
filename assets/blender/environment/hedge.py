@@ -1,7 +1,7 @@
-"""Hedge: a 2 m section of clipped box hedge: one faceted low-poly block with softly rounded
-edges and jittered facets, mottled in three greens like clipped leaves, sunlit on top and
-darker at the foot. 2.0 × 0.8 m, 0.9 m tall. Origin at the ground centre; sections tile end to
-end along X at 2.0 m."""
+"""Hedge: a 2 m section of garden hedge, built like the bushes: a long mound of big, rounded
+faceted clumps (five along the bottom, three riding on top), darker green low and lighter on
+top, each clump its own shade. 2.0 × 0.85 m, about 0.95 m tall. Origin at the ground centre;
+sections tile end to end along X at 2.0 m (the end clumps reach x = ±1.0)."""
 import lib
 from environment import _env
 
@@ -9,7 +9,12 @@ NAME = "hedge"
 AO_RES = 512
 AO_DISTANCE = 0.35
 
-L, D, H = 2.0, 0.8, 0.9
+# (x, y, z, radius, material). Materials: 0 Leaf, 1 LeafDark, 2 LeafLight.
+CLUMPS = [
+    (-0.62, 0.07, 0.34, 0.38, 1), (-0.31, -0.07, 0.35, 0.4, 0), (0.0, 0.06, 0.34, 0.4, 1),
+    (0.31, -0.06, 0.35, 0.4, 0), (0.62, 0.05, 0.34, 0.38, 1),
+    (-0.42, 0.01, 0.63, 0.34, 2), (0.0, -0.03, 0.66, 0.35, 0), (0.42, 0.02, 0.63, 0.34, 2),
+]
 
 
 def materials():
@@ -18,34 +23,21 @@ def materials():
             lib.mat("LeafLight", _env.P["treeLeaf"][2], rough=0.8)]
 
 
-def body(M):
-    b = _env.faceted_block("Hedge", (L, D, H), (0, 0, 0), M[0], cuts=9, power=9.0,
-                           jitter=0.05, seed=4, freq=5.0)
-    # Mottled facets read as clipped leaves: sunlit greens on top, mid greens on the sides,
-    # a darker skirt at the foot.
-    _env.mottle(b, [M[2], M[0]], (0.7, 0.3), seed=1, where=lambda p: p.normal.z > 0.72)
-    _env.mottle(b, [M[0], M[1], M[2]], (0.55, 0.3, 0.15), seed=2,
-                where=lambda p: p.normal.z <= 0.72 and p.center.z >= 0.25)
-    _env.mottle(b, [M[1], M[0]], (0.75, 0.25), seed=3,
-                where=lambda p: p.normal.z <= 0.72 and p.center.z < 0.25)
-
-
 def build():
     lib.begin(NAME)
-    body(materials())
+    _env.puff_cluster("Clump", CLUMPS, materials(), seed=90)
 
 
 META = dict(
     name="Hedge section",
     category="outdoor",
     priority="P1",
-    description=("2 m section of clipped hedge: one faceted block with facets mottled in three "
-                 "greens, sunlit on top"),
+    description=("2 m section of hedge: a long mound of big rounded faceted clumps in three "
+                 "greens, darker low and lighter on top"),
     tags=["hedge", "garden", "boundary", "faceted"],
     tintable=[],
     anchors={},
-    notes=("Sections tile end to end along X at 2.0 m (soft rounded ends read as separate clipped "
-           "bushes)."),
+    notes="Sections tile end to end along X at 2.0 m; the end clumps meet and hide the seam.",
 )
 
 

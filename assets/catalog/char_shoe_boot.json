@@ -1,0 +1,24 @@
+{
+  "id": "char_shoe_boot",
+  "name": "Boot",
+  "category": "character-body",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Chunky laced ankle boot with a thick sole; pivot at the ankle",
+  "tags": [
+    "body",
+    "shoe",
+    "boot"
+  ],
+  "tintable": [
+    "Shoes"
+  ],
+  "anchors": {
+    "sole": [
+      0,
+      -0.1,
+      0.052
+    ]
+  }
+}

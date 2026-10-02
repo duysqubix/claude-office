@@ -34,8 +34,8 @@ def build():
         lib.node(ob, "Chest", pivot=(0, 0, B.CHEST_Y))
     # Loose ribbed hem over the waistband.
     rb = float(B.torso_r(np.array([B.BELT_Y]))[0]) + B.PANTS_OFF + 0.008
-    B.ribbed_band("Hem", B.BELT_Y - 0.035, B.BELT_Y + 0.03, lambda y: rb, M["shirt"], n=32,
-                  amp=0.0055, rows=4)
+    B.ribbed_band("Hem", B.BELT_Y - 0.035, B.BELT_Y + 0.03, lambda y: rb, M["shirt"], n=56,
+                  amp=0.005, rows=3)
 
 
 def finalize(name):

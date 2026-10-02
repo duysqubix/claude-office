@@ -5,7 +5,7 @@
   "artist": "Claude Lorrain",
   "priority": "P1",
   "status": "done",
-  "description": "2 m section of clipped hedge: one faceted block with facets mottled in three greens, sunlit on top",
+  "description": "2 m section of hedge: a long mound of big rounded faceted clumps in three greens, darker low and lighter on top",
   "tags": [
     "hedge",
     "garden",
@@ -14,5 +14,5 @@
   ],
   "tintable": [],
   "anchors": {},
-  "notes": "Sections tile end to end along X at 2.0 m (soft rounded ends read as separate clipped bushes)."
+  "notes": "Sections tile end to end along X at 2.0 m; the end clumps meet and hide the seam."
 }
