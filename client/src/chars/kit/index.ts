@@ -24,8 +24,8 @@ export { planKit, type KitPlan } from './plan';
 // The switch
 
 const KIT_KEY = 'claude-office:kit';
-/** Code default: flip to true to dress everyone. */
-const KIT_DEFAULT = false;
+/** Code default: everyone wears the kit (?kit=0 or localStorage '0' turns it off). */
+const KIT_DEFAULT = true;
 
 function readSwitch(): boolean {
   try {

@@ -25,6 +25,7 @@ import * as THREE from 'three';
 import { CameraRig, type CameraShot } from './camera';
 import { Director } from './chars/director';
 import type { EmployeeChar } from './chars/employee';
+import { KIT_ENABLED, kitReport } from './chars/kit';
 import { createLineup } from './chars/lineup';
 import { Manager, type DebugPose, type MoveIntent } from './chars/manager';
 import type { RegularChar } from './chars/npc';
@@ -609,8 +610,16 @@ function runOffice(): void {
   const managerHead = new THREE.Vector3();
   let t = 0;
   let frames = 0;
+  let splashUp = true;
+  const loopStart = performance.now();
   let lastStats = '';
   let managerFade = 1;
+  /** Someone here is still waiting for their kit parts (chars/kit), so would change clothes on screen. */
+  const kitPending = (): boolean =>
+    KIT_ENABLED &&
+    [manager.rig, ...director.list().map((e) => e.rig), ...director.interns().map((i) => i.rig), ...regulars.list().map((r) => r.rig)].some(
+      (rig) => kitReport(rig)?.worn.length === 0,
+    );
 
   window.addEventListener('resize', () => {
     engine.resize();
@@ -708,7 +717,11 @@ function runOffice(): void {
 
     engine.render();
     labels.render(scene, engine.camera);
-    if (++frames === 3) document.getElementById('splash')?.classList.add('gone');
+    // The splash lifts after a few frames, once everyone here is dressed (2.5 s at most).
+    if (splashUp && ++frames >= 3 && (!kitPending() || performance.now() - loopStart > 2500)) {
+      splashUp = false;
+      document.getElementById('splash')?.classList.add('gone');
+    }
   }
   requestAnimationFrame(frame);
 }
