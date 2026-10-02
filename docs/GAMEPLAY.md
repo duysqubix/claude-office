@@ -48,6 +48,13 @@ Also in v0.5: off-screen arrows to anyone waiting, browser notifications + tab b
 the game is in the background, `N` = walk to the next person who needs you, `1`–`9` = jump
 to an employee, quick message from the roster.
 
+## v1: the first release (finishing now)
+
+Everything above, plus the Blender models on the furniture and characters, real markdown in
+chat, a quick terminal (`T`), Regulars and a receptionist, and every review finding fixed.
+Tracked as issues on the [v1 milestone](https://github.com/duysqubix/claude-office/milestone/1);
+done when it's tagged `v1.0.0`.
+
 ## Regulars: NPC coworkers (building now)
 
 The office should never feel empty, even with one session running. **Regulars** are NPC
@@ -67,10 +74,8 @@ gives up their desk ("All yours!") and heads out.
 
 Later: regulars as shop items (hire a barista, a cleaner, a DJ), and pets that follow them around.
 
-## v1.1: the next round (queued)
+## v1.1: the next round (queued, [milestone](https://github.com/duysqubix/claude-office/milestone/2))
 
-- **Blender models everywhere**: swap the remaining procedural furniture for the 232 catalog
-  models, and dress the characters with Rodin's kit (bodies, 13 hairstyles, hats, outfits).
 - **Shell tab** on every computer: a real zsh in that employee's folder next to Claude (today:
   type `!command` in Claude for one-off shell commands).
 - **Coffee-shop music**: gentle background lo-fi with a volume knob (generated in the browser,
@@ -78,7 +83,7 @@ Later: regulars as shop items (hire a barista, a cleaner, a DJ), and pets that f
 - **Spotify on the manager's laptop**: walk to your desk, sign in with Spotify (PKCE, Premium,
   Web Playback SDK), browse your playlists and change tracks in-game; the office speakers play it.
 
-## v1: the game layer
+## v2: the game layer
 
 ### Currency: Beans ☕ (working name)
 Earned from real outcomes:
@@ -104,6 +109,6 @@ Office level (unlocks space as you hire), achievements ("First hire", "Inbox zer
 hour", "Shipped it: 10 commits in a day", "Night owl"), seasonal events (birthday cake on the
 repo's anniversary, Halloween hats), employees' moods reacting to how quickly you unblock them.
 
-## v2 and beyond (ideas, not plans)
+## Beyond (ideas, not plans)
 Team offices (a shared office for a team's agents), employee "skills" visible as desk
 items (MCP servers, tools), meeting room = multi-agent workflows, a commute/outdoor area.
