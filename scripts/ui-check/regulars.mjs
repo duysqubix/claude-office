@@ -225,6 +225,63 @@ try {
   check('no page errors while displacing', !full.logs.some((l) => l.startsWith('[pageerror]')), full.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
   await full.page.close();
 
+  // ------------------------------------------------------------------ breaks: no walking in place, nobody stuck
+  const br = await open(`${BASE}/?demo=1&quiet=1&debug=1&seed=7&regulars=7&hour=11`);
+  const reach = await br.page.evaluate(() => {
+    const o = window.office;
+    const crew = o.regulars;
+    const spots = [...crew.fills, ...crew.hangs];
+    const bad = [];
+    for (const d of o.world.desks) {
+      for (const s of spots) {
+        const path = o.world.findPath(d.approach, s.at);
+        const end = path?.[path.length - 1];
+        if (!end || Math.hypot(end.x - s.at.x, end.z - s.at.z) > 0.25) bad.push(`desk ${d.index} → (${s.at.x.toFixed(1)}, ${s.at.z.toFixed(1)})`);
+      }
+    }
+    return { spots: spots.length, desks: o.world.desks.length, bad };
+  });
+  check('every break and chat spot is reachable from every desk', reach.spots >= 4 && reach.bad.length === 0, `${reach.spots} spots × ${reach.desks} desks; ${reach.bad.slice(0, 4).join(', ')}`);
+  const trip = await br.page.evaluate(async () => {
+    const o = window.office;
+    const crew = o.regulars;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const seated = crew.crew().filter((r) => r.seated);
+    // Two for a guaranteed chat at a facing pair (coffee and cooler first), two more the usual way.
+    const [a, b, ...rest] = seated;
+    const pair = crew.hangs.find((s) => s.mate);
+    const [machine, cooler] = crew.fills;
+    a.takeBreak(machine, pair, 8);
+    pair.by = a;
+    machine.by = a;
+    b.takeBreak(cooler ?? null, pair.mate, 8);
+    pair.mate.by = b;
+    if (cooler) cooler.by = b;
+    const sent = [a, b];
+    for (const r of rest) if (sent.length < 4 && crew.startBreak(r)) sent.push(r);
+    const t0 = performance.now();
+    const back = {};
+    const inPlace = new Map();
+    let worst = 0;
+    let chatted = false;
+    for (let i = 0; i < 900 && Object.keys(back).length < sent.length; i++) {
+      await sleep(100);
+      for (const r of sent) {
+        if (r.partner) chatted = true;
+        // The legs say "walking" but they're not going anywhere.
+        const still = r.gait > 0.3 && r.groundSpeed < 0.05 ? (inPlace.get(r) ?? 0) + 0.1 : 0;
+        inPlace.set(r, still);
+        worst = Math.max(worst, still);
+        if (!back[r.name] && r.seated && i > 20) back[r.name] = +((performance.now() - t0) / 1000).toFixed(1);
+      }
+    }
+    return { sent: sent.map((r) => r.name), back, worst: +worst.toFixed(1), chatted, stillOut: sent.filter((r) => !back[r.name]).map((r) => `${r.name}:${r.phase}/${r.step}`) };
+  });
+  check('a break round trip (desk → coffee → chat → desk) brings everyone back within 90 s', trip.sent.length >= 2 && trip.stillOut.length === 0 && trip.chatted, JSON.stringify(trip));
+  check('no regular walks in place (walking gait, not moving) for more than 1.5 s', trip.worst <= 1.5, `worst ${trip.worst}s`);
+  check('no page errors on breaks', !br.logs.some((l) => l.startsWith('[pageerror]')), br.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
+  await br.page.close();
+
   // ------------------------------------------------------------------ the Help switch
   const sw = await open(`${BASE}/?demo=1&quiet=1&debug=1&seed=11&panel=help`);
   const radios = await sw.page.evaluate(() => [...document.querySelectorAll('.co-regulars input')].map((i) => `${i.value}:${i.checked}`));

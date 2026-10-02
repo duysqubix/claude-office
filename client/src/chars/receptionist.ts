@@ -60,9 +60,10 @@ export class ReceptionistChar extends RegularChar {
 
   protected override extraPose(dt: number, t: number): void {
     super.extraPose(dt, t);
-    // The mic fades with her, and steps aside if the kit puts a headset with its own mic on.
+    // The mic fades with her, and steps aside once the kit's headset (with its own mic) is on.
     const fade = (this.rig.shadow.material as THREE.Material).opacity;
-    this.boom.visible = fade > 0.001 && kitReport(this.rig)?.plan.hat !== 'headset_mic';
+    const kit = kitReport(this.rig);
+    this.boom.visible = fade > 0.001 && !(kit?.plan.hat === 'headset_mic' && kit.worn.includes('hair'));
     if (this.boomMat.opacity !== fade) {
       this.boomMat.transparent = fade < 0.999;
       this.boomMat.opacity = fade;

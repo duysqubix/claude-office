@@ -13,7 +13,7 @@ import type { DeskSlot, OfficeApp, ScreenState, World } from '../world/types';
 import { EmployeeChar, type Chair, type Phase } from './employee';
 import { regularLooks, type Looks } from './looks';
 import { Glancer } from './manager';
-import { clamp, smoothstep } from './spring';
+import { clamp, damp, smoothstep } from './spring';
 
 export interface RegularProfile {
   /** `regular:<name>`, never a session id. */
@@ -103,6 +103,8 @@ export class RegularChar extends EmployeeChar {
   night = false;
   /** On a break the crew pairs them up for a chat; `talking` says whose turn it is. */
   partner: RegularChar | null = null;
+  /** Already had their chat this break (the crew pairs people once per break, then they go back). */
+  chatted = false;
   talking = false;
   /** Their current line carries farther than chatter ("All yours!"). */
   quipLoud = false;
@@ -139,6 +141,15 @@ export class RegularChar extends EmployeeChar {
   private waveAtT = -1;
   private waveFor = 1.4;
   private waveTarget: THREE.Vector3 | null = null;
+  /** How fast they're really moving (measured), and the speed their legs are stepping at. */
+  private ground = 0;
+  private gaitSpeed = 0;
+  private readonly lastPos = new THREE.Vector3();
+  /** Unsticking: where they last made progress, how long since, re-paths tried, and to where. */
+  private readonly progressAt = new THREE.Vector3();
+  private stuckT = 0;
+  private repaths = 0;
+  private walkTarget: THREE.Vector3 | null = null;
   /** Per-person offset so a room of regulars never yawns in unison. */
   protected readonly offset: number;
   /** EmployeeChar's constructor poses them before this class exists: the hooks wait for this. */
@@ -170,6 +181,10 @@ export class RegularChar extends EmployeeChar {
     this.rig.handR.add(this.phone);
     this.arrived = seated;
     this.lastPhase = this.phase;
+    this.lastPos.copy(this.position);
+    this.progressAt.copy(this.position);
+    // Walking in from the door (EmployeeChar set that walk off before this class was ready).
+    if (!seated) this.walkTarget = desk.approach.clone();
     this.ready = true;
     if (seated) this.nextTask();
   }
@@ -227,6 +242,7 @@ export class RegularChar extends EmployeeChar {
   takeBreak(fill: BreakSpot | null, hang: BreakSpot, seconds: number): boolean {
     if (this.phase !== 'seated' || this.plan) return false;
     this.setPlan('break');
+    this.chatted = false;
     this.fillSpot = fill;
     this.hangSpot = hang;
     this.hangFor = seconds;
@@ -296,6 +312,17 @@ export class RegularChar extends EmployeeChar {
     return this.waveAtT >= 0;
   }
 
+  /** The speed their legs are stepping at (0 sitting or standing still), for checks. */
+  get gait(): number {
+    if (this.phase === 'away') return this.gaitSpeed;
+    return this.phase === 'entering' || this.phase === 'leaving' ? this.speed : 0;
+  }
+
+  /** How fast they're really moving across the floor (measured). */
+  get groundSpeed(): number {
+    return this.ground;
+  }
+
   /** Switch to a desk task now (tests and screenshots; the regular picks their own otherwise). */
   startTask(task: DeskTask, seconds?: number): void {
     if (this.phase !== 'seated' || this.plan) return;
@@ -356,6 +383,17 @@ export class RegularChar extends EmployeeChar {
     if (this.phase !== this.lastPhase) this.changedPhase();
     const T = this.body.target;
     const walking = this.phase === 'entering' || this.phase === 'leaving' || (this.phase === 'away' && this.step === 'walk');
+    // How fast they're really going (the gait never outpaces it), and the stuck watchdog.
+    const pos = this.position;
+    const moved = dt > 0 ? Math.hypot(pos.x - this.lastPos.x, pos.z - this.lastPos.z) / dt : 0;
+    this.ground += (Math.min(moved, 4) - this.ground) * damp(14, dt);
+    this.lastPos.copy(pos);
+    if (walking) this.watchProgress(dt);
+    else {
+      this.progressAt.copy(pos);
+      this.stuckT = 0;
+      this.repaths = 0;
+    }
     if (walking && this.mugInHand) {
       // Mug out in front, the way the boss carries theirs.
       T.armRPitch += 0.35;
@@ -397,13 +435,17 @@ export class RegularChar extends EmployeeChar {
     b.sip = 0;
     if (this.step === 'walk') {
       const arrived = this.followPath(dt);
-      b.locomote(dt, this.speed, 0, s);
+      // Legs step no faster than they're really moving, so a stall never walks in place.
+      this.gaitSpeed = Math.min(this.speed, this.ground + 0.15);
+      b.locomote(dt, this.gaitSpeed, 0, s);
       if (mgrDist < 4) b.lookAt(managerHead, 0.6);
       if (arrived) this.setStep(this.fillSpot ? 'fill' : 'hang');
       return;
     }
-    // Standing about: breathing, weight shifting from foot to foot, feet settling.
-    b.locomote(dt, this.speed, 0, s);
+    // Standing about: the gait winds down and the feet come together; breathing, weight shifts.
+    this.speed += (0 - this.speed) * damp(12, dt);
+    this.gaitSpeed = this.speed;
+    b.locomote(dt, this.gaitSpeed, 0, s);
     b.idle(dt, t);
     switch (this.step) {
       case 'yield': {
@@ -489,6 +531,38 @@ export class RegularChar extends EmployeeChar {
   private setStep(s: Step): void {
     this.step = s;
     this.stepT = 0;
+  }
+
+  /** Every walk remembers where it's going, so a stalled one can find its way again. */
+  protected override walkTo(target: THREE.Vector3): void {
+    if (this.ready) {
+      this.walkTarget = target.clone();
+      this.progressAt.copy(this.position);
+      this.stuckT = 0;
+    }
+    super.walkTo(target);
+  }
+
+  /** No headway for 2 s: plan the route again; after two tries on a break, go back to the desk. */
+  private watchProgress(dt: number): void {
+    const pos = this.position;
+    if (Math.hypot(pos.x - this.progressAt.x, pos.z - this.progressAt.z) > 0.25) {
+      this.progressAt.copy(pos);
+      this.stuckT = 0;
+      this.repaths = 0;
+      return;
+    }
+    this.stuckT += dt;
+    if (this.stuckT < 2) return;
+    this.stuckT = 0;
+    if (this.phase === 'away' && this.repaths >= 2) {
+      this.fillSpot = this.hangSpot = null;
+      this.setPhase('entering');
+      this.walkTo(this.desk.approach);
+    } else if (this.walkTarget) {
+      this.walkTo(this.walkTarget);
+    }
+    this.repaths++;
   }
 
   /** Off somewhere: hang up the phone; anywhere but a break, the chat's over too. */

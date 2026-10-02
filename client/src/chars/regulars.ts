@@ -237,6 +237,8 @@ export class Regulars implements DeskSharers {
   private bossGreetedAt = -1e9;
   private deskDeck: string[] = [];
   private deskCall = -1;
+  /** Break spots that failed a check (furniture moved onto them), and when. */
+  private badSpots = new Map<Spot, number>();
 
   constructor(
     private world: World,
@@ -589,17 +591,26 @@ export class Regulars implements DeskSharers {
   /** Off to the coffee machine or the water cooler, if there's room over there. */
   private startBreak(r: RegularChar): boolean {
     if (this.members.filter((m) => m.r.onBreak).length >= MAX_AWAY) return false;
-    const free = this.hangs.filter((s) => !s.by);
+    const free = this.hangs.filter((s) => !s.by && this.clock - (this.badSpots.get(s) ?? -1e9) > 60);
     if (!free.length) return false;
     // Next to someone already standing there is a chat waiting to happen.
-    const social = free.filter((s) => s.mate?.by?.hanging && !s.mate.by.partner);
+    const social = free.filter((s) => s.mate?.by?.hanging && !s.mate.by.partner && !s.mate.by.chatted);
     const hang = pick(social.length && this.rand() < 0.8 ? social : free, this.rand);
+    // Furniture comes and goes (catalog models, new props): the spot must still be clear and
+    // reachable from this desk, or it sits out a minute and they try again later.
+    if (!this.spotOk(hang, r.desk.approach)) return false;
     const fills = this.fills.filter((s) => !s.by).sort((a, b) => a.at.distanceTo(hang.at) - b.at.distanceTo(hang.at));
-    const fill = fills.length && this.rand() < 0.85 ? fills[0] : null;
+    const fill = fills.length && this.rand() < 0.85 && this.spotOk(fills[0], hang.at) ? fills[0] : null;
     if (!r.takeBreak(fill, hang, 6 + this.rand() * 8)) return false;
     hang.by = r;
     if (fill) fill.by = r;
     return true;
+  }
+
+  private spotOk(s: Spot, from: THREE.Vector3): boolean {
+    const ok = roomyAt(this.world, s.at.x, s.at.z) && reaches(this.world, from, s.at);
+    if (!ok) this.badSpots.set(s, this.clock);
+    return ok;
   }
 
   /** Pair up neighbours at the water cooler, take turns talking, and let them go back after. */
@@ -607,10 +618,12 @@ export class Regulars implements DeskSharers {
     for (const s of this.hangs) {
       const a = s.by;
       const b = s.mate?.by;
-      if (!a || !b || a.partner || b.partner || !a.hanging || !b.hanging || a.name > b.name) continue;
+      // One chat per break: once it's over they head back (else they'd pair up again forever).
+      if (!a || !b || a.partner || b.partner || a.chatted || b.chatted || !a.hanging || !b.hanging || a.name > b.name) continue;
       const seconds = 8 + this.rand() * 7;
       a.partner = b;
       b.partner = a;
+      a.chatted = b.chatted = true;
       a.talking = this.rand() < 0.5;
       b.talking = !a.talking;
       a.stayFor(seconds + 1);
@@ -664,6 +677,18 @@ export class Regulars implements DeskSharers {
 
 // ---------------------------------------------------------------------------------------
 
+/** Room to stand at (x, z): clear of every collider by a body's width. */
+function roomyAt(world: World, x: number, z: number): boolean {
+  return world.colliders.every((b) => Math.hypot(Math.max(b.minX - x, 0, x - b.maxX), Math.max(b.minZ - z, 0, z - b.maxZ)) >= 0.42);
+}
+
+/** There's a walkable route from `from` that ends right at `to`. */
+function reaches(world: World, from: THREE.Vector3, to: THREE.Vector3): boolean {
+  const path = world.findPath(from, to);
+  const end = path?.[path.length - 1];
+  return !!end && Math.hypot(end.x - to.x, end.z - to.z) < 0.25;
+}
+
 /**
  * Where breaks happen: one at a time in front of the coffee machine and the water cooler (found
  * by their prop names, else the coffee E spot), and up to three pairs of facing spots on the open
@@ -673,13 +698,9 @@ export class Regulars implements DeskSharers {
 function breakSpots(world: World): { fills: Spot[]; hangs: Spot[] } {
   const coffee = world.interactables.find((i) => i.kind === 'coffee');
   if (!coffee) return { fills: [], hangs: [] };
-  const roomy = (x: number, z: number) => world.colliders.every((b) => Math.hypot(Math.max(b.minX - x, 0, x - b.maxX), Math.max(b.minZ - z, 0, z - b.maxZ)) >= 0.42);
+  const roomy = (x: number, z: number) => roomyAt(world, x, z);
   const spot = (x: number, z: number, yaw: number): Spot => ({ at: new THREE.Vector3(x, 0, z), yaw, by: null, mate: null });
-  const reachable = (s: Spot) => {
-    const path = world.findPath(world.entrance.inside, s.at);
-    const end = path?.[path.length - 1];
-    return !!end && Math.hypot(end.x - s.at.x, end.z - s.at.z) < 0.2;
-  };
+  const reachable = (s: Spot) => reaches(world, world.entrance.inside, s.at);
   /** Step out from the front (+Z side) of a prop until there's room to stand, facing it. */
   const facing = (name: string, fallback?: THREE.Vector3): Spot | null => {
     const prop = world.root.getObjectByName(name);
