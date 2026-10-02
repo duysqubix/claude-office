@@ -5,7 +5,7 @@
 //   ?target=x,z        stand-in manager position (occlusion test)
 //   ?nav=1             show blocked nav cells             ?path=1   draw sample paths
 //   ?desks=N           ensureDesks(N)                     ?interns=N  ensureInternSlots(N)
-//   ?hud=0             hide the overlay
+//   ?hud=0             hide the overlay                   ?cam=px,py,pz,lx,ly,lz  free camera
 // Keys: O toggles AO, D toggles the door, N toggles the nav overlay, H toggles the HUD.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -77,7 +77,8 @@ const views: Record<string, View> = {
   garden: { pos: [-2, 3.2, 17.5], look: [-8, 0.9, 11.8] },
 };
 const viewName = params.get('view') ?? 'follow';
-const view = views[viewName] ?? views.follow;
+const cam = params.get('cam')?.split(',').map(Number);
+const view: View = cam?.length === 6 ? { pos: [cam[0], cam[1], cam[2]], look: [cam[3], cam[4], cam[5]] } : (views[viewName] ?? views.follow);
 const cutaway = params.has('cutaway') ? params.get('cutaway') === '1' : CUTAWAY_VIEWS.has(viewName);
 if (cutaway) world.root.traverse((o) => {
   if (o.userData.overhead) o.visible = false;
@@ -294,6 +295,17 @@ function timedRender(): void {
   ao: engine.aoEnabled,
   dpr: engine.renderer.getPixelRatio(),
 });
+// Wall-clock cost of n back-to-back frames, synchronised with a one-pixel readback (timer queries
+// are coarse on some ANGLE backends, and rAF in a headless browser doesn't wait for the GPU).
+(window as unknown as { __bench: (n?: number) => object }).__bench = (n = 40) => {
+  const px = new Uint8Array(4);
+  engine.render();
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const t0 = performance.now();
+  for (let i = 0; i < n; i++) engine.render();
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  return { msPerFrame: +((performance.now() - t0) / n).toFixed(2), ao: engine.aoEnabled, dpr: engine.renderer.getPixelRatio() };
+};
 const timer = new THREE.Timer();
 let frames = 0;
 let fpsTime = 0;

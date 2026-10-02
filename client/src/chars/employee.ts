@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { ActivityKind, Employee, EmployeeState } from '../../../shared/protocol';
 import { hash32 } from '../style/palette';
 import type { DeskSlot, World } from '../world/types';
-import { Body } from './body';
+import { Body, type Pose } from './body';
 import { employeeLooks } from './looks';
 import { Glancer, type Bumpable } from './manager';
 import { DIM, HEAD_Y, Rig } from './rig';
@@ -83,6 +83,11 @@ export class EmployeeChar implements Bumpable {
   private idleStyle: number;
   private seed: number;
   private exitPush = 0;
+  /** Seconds since the manager answered their question (−1 = not recently). */
+  private thankT = -1;
+  /** A short line they say out loud (shown as their bubble), and until when. */
+  quipText = '';
+  quipUntil = 0;
 
   constructor(
     data: Employee,
@@ -94,7 +99,7 @@ export class EmployeeChar implements Bumpable {
   ) {
     this.data = data;
     this.seed = hash32(data.sessionId);
-    this.idleStyle = this.seed % 3;
+    this.idleStyle = this.seed % 4;
     this.rig = new Rig(employeeLooks(data.sessionId, data.hosted));
     this.body = new Body(this.rig, desk.yaw);
     this.labelAnchor.position.y = DIM.pelvisY + HEAD_Y + DIM.headR + 0.2;
@@ -181,12 +186,42 @@ export class EmployeeChar implements Bumpable {
   /** The manager walked into us. */
   bump(dir: THREE.Vector3, strength: number): void {
     this.body.shove(dir, strength);
+    if (!this.quipping) {
+      const lines = this.state === 'working' ? ["I'm in the zone!", 'Oof!', 'Hey, boss!'] : ['Oof!', 'Hey, boss!', 'Whoa!'];
+      this.quip(lines[Math.floor(Math.random() * lines.length)], 1.8);
+    }
     this.hooks.onBump?.(this);
   }
 
   /** Wave at someone (hello / goodbye). */
   wave(seconds = 1.4): void {
     this.waveT = 1.4 - seconds;
+  }
+
+  /** Say something short (shown in their bubble for `seconds`). */
+  quip(text: string, seconds = 2.5): void {
+    this.quipText = text;
+    this.quipUntil = performance.now() + seconds * 1000;
+  }
+
+  get quipping(): boolean {
+    return !!this.quipText && performance.now() < this.quipUntil;
+  }
+
+  /** The manager answered their question in-game: hand down, happy hop, squint, "Thanks!". */
+  answered(): void {
+    this.thankT = 0;
+    this.quip('Thanks!', 2.4);
+  }
+
+  /** Hand up right now (needs you, and not just answered). */
+  get handUp(): boolean {
+    return this.poseState === 'needs-you';
+  }
+
+  /** Body-language state: right after an answer they're back to work, whatever the roster says. */
+  private get poseState(): EmployeeState {
+    return this.thankT >= 0 && this.thankT < 2.5 && this.data.state === 'needs-you' ? 'working' : this.data.state;
   }
 
   // -------------------------------------------------------------------------------------
@@ -337,21 +372,22 @@ export class EmployeeChar implements Bumpable {
     const T = this.phaseT;
     body.heading.setTarget(this.desk.yaw);
     if (T < 0.32) {
-      // Chair slides out; turn to the desk, little crouch to get ready.
+      // Chair slides out; turn to the desk, a little crouch to get ready.
       this.hopFrom.copy(this.position);
-      body.target.crouch -= 0.06 * smoothstep(T / 0.32);
+      const u = smoothstep(T / 0.32);
+      body.target.crouch -= 0.06 * u;
+      body.target.kneeL += 0.35 * u;
+      body.target.kneeR += 0.35 * u;
       body.target.armLRoll += 0.3;
       body.target.armRRoll += 0.3;
     } else if (T < 0.78) {
-      // Hop into the slid-out chair.
+      // Hop into the slid-out chair, legs folding up to sit.
       const u = (T - 0.32) / 0.46;
       if (T - dt < 0.32) body.spring('squash').kick(2.5);
       this.seatPoint(this.hopTo);
       this.position.lerpVectors(this.hopFrom, this.hopTo, smoothstep(u));
       body.hop = Math.sin(Math.PI * u) * 0.28;
-      const legs = smoothstep(u) * 1.35;
-      body.target.legLPitch += legs;
-      body.target.legRPitch += legs;
+      this.sitLegs(smoothstep(u));
       body.flail(t, (0.5 - u) * 4);
       if (T + dt >= 0.78) body.land(3);
     } else {
@@ -380,9 +416,7 @@ export class EmployeeChar implements Bumpable {
     const u = clamp(T / 0.42, 0, 1);
     this.position.lerpVectors(this.hopFrom, _seat.copy(this.desk.approach).setY(0), smoothstep(u));
     body.hop = Math.sin(Math.PI * u) * 0.24;
-    const legs = (1 - smoothstep(u)) * 1.35;
-    body.target.legLPitch += legs;
-    body.target.legRPitch += legs;
+    this.sitLegs(1 - smoothstep(u));
     body.target.armLRoll += 0.6 * (1 - u);
     body.target.armRRoll += 0.6 * (1 - u);
     if (u >= 1) {
@@ -390,6 +424,17 @@ export class EmployeeChar implements Bumpable {
       this.chair.target = 0;
       this.startLeaving();
     }
+  }
+
+  /** Thighs forward, knees bent so the shins hang (`k` 0 = standing, 1 = sitting). */
+  private sitLegs(k: number): void {
+    const T = this.body.target;
+    T.legLPitch += 1.45 * k;
+    T.legRPitch += 1.45 * k;
+    T.kneeL += 1.4 * k;
+    T.kneeR += 1.4 * k;
+    T.legLRoll += 0.1 * k;
+    T.legRRoll += 0.1 * k;
   }
 
   private lookAtManager(managerHead: THREE.Vector3, dist: number): void {
@@ -401,44 +446,59 @@ export class EmployeeChar implements Bumpable {
     this.body.lookAt(managerHead, w * clamp((range - dist) / 1.2, 0, 1));
   }
 
-  /** Wave hello/goodbye overlay; works seated or walking. */
+  /** Wave hello/goodbye overlay (from the elbow); works seated or walking. */
   private waveOverlay(dt: number, t: number, managerHead: THREE.Vector3, dist: number): void {
     if (this.waveT < 0) return;
     this.waveT += dt;
     const k = Math.sin(clamp(this.waveT / 1.4, 0, 1) * Math.PI);
     const b = this.body;
-    b.target.armRRoll += 2.1 * k;
+    b.target.armRRoll += 2.0 * k;
     b.target.armRPitch += 0.25 * k;
-    b.target.armRStretch += 0.45 * k;
-    b.over.armRRoll += Math.sin(t * 11) * 0.38 * k;
+    b.target.elbowR += 0.35 * k;
+    b.over.elbowR += Math.sin(t * 11) * 0.42 * k;
+    b.over.armRRoll += Math.sin(t * 11 + 0.6) * 0.1 * k;
     if (dist < 9) b.lookAt(managerHead, 0.7 * k);
     if (this.waveT >= 1.4) this.waveT = -1;
   }
 
-  /** The body language of a seated session. */
+  /** The body language of a seated session. Nothing is ever perfectly still. */
   private seatedPose(t: number, dt: number): void {
     const b = this.body;
     const T = b.target;
     const O = b.over;
     const ph = (this.seed % 628) / 100;
     const tt = t + ph;
-    // Sitting: legs forward, knees a little apart.
-    T.legLPitch += 1.35;
-    T.legRPitch += 1.35;
-    T.legLRoll += 0.12;
-    T.legRRoll += 0.12;
-    O.squash += Math.sin(tt * 2.2) * 0.012;
+    this.sitLegs(1);
+    // Feet dangle like a pendulum (0.8–1.2 Hz), with the odd kick.
+    const dangleHz = 0.8 + ((this.seed >> 8) % 40) / 100;
+    const kick = Math.max(0, Math.sin(tt * 0.9)) ** 12 * 0.25;
+    O.kneeL += Math.sin(tt * Math.PI * 2 * dangleHz) * 0.1 + kick;
+    O.kneeR += Math.sin(tt * Math.PI * 2 * dangleHz + 2.1) * 0.1;
+    // Slow breathing.
+    O.squash += Math.sin(tt * 1.6) * 0.012;
 
-    const st = this.state;
+    const st = this.poseState;
+    if (this.thankT >= 0) {
+      // Answered: a happy little hop in the seat with a squint, then back to it.
+      this.thankT += dt;
+      const k = Math.max(0, 1 - this.thankT / 0.9);
+      O.crouch += Math.sin(Math.min(1, this.thankT / 0.45) * Math.PI) * 0.08;
+      T.eyesClosed += 0.5 * k;
+      T.headPitch -= 0.15 * k;
+      if (this.thankT > 3) this.thankT = -1;
+    }
     if (this.celebrateT >= 0) {
+      // Done! Both arms up in a big stretch.
       this.celebrateT += dt;
       const k = Math.sin(clamp(this.celebrateT / 1.8, 0, 1) * Math.PI);
       T.armLRoll += 2.2 * k;
       T.armRRoll += 2.2 * k;
       T.armLPitch += 0.35 * k;
       T.armRPitch += 0.35 * k;
-      T.armLStretch += 0.5 * k;
-      T.armRStretch += 0.5 * k;
+      T.elbowL -= 0.15 * k;
+      T.elbowR -= 0.15 * k;
+      T.armLStretch += 0.3 * k;
+      T.armRStretch += 0.3 * k;
       T.lean -= 0.22 * k;
       T.headPitch -= 0.35 * k;
       T.squash += 0.09 * k;
@@ -451,16 +511,14 @@ export class EmployeeChar implements Bumpable {
 
     switch (st) {
       case 'needs-you': {
-        // Arm straight up, waving like mad, bouncing in the seat. Unmissable.
-        // (Rest roll is 0.3, so this lands ~146°: up and clear of that big head.)
+        // Arm straight up, waving from the elbow, bouncing in the seat. Unmissable.
         T.armRRoll += 2.25;
         T.armRPitch += 0.15;
-        T.armRStretch += 1.0;
-        O.armRRoll += Math.sin(tt * 9.5) * 0.3;
-        O.armRPitch += Math.sin(tt * 9.5 + 1) * 0.1;
-        O.armRStretch += Math.sin(tt * 19) * 0.06;
-        T.armLPitch += 1.1;
-        T.armLRoll -= 0.15;
+        T.armRStretch += 0.7;
+        T.elbowR += 0.25;
+        O.elbowR += Math.sin(tt * 9.5) * 0.45;
+        O.armRRoll += Math.sin(tt * 9.5 + 0.8) * 0.12;
+        this.handsOnDesk(T, 'L');
         O.crouch += Math.abs(Math.sin(tt * 4.6)) * 0.045;
         O.squash += Math.abs(Math.sin(tt * 4.6)) * 0.03;
         T.lean -= 0.04;
@@ -470,20 +528,27 @@ export class EmployeeChar implements Bumpable {
         T.brow += 0.5;
         T.headYaw += Math.sin(tt * 1.3) * 0.45;
         T.headPitch -= 0.1;
-        if (Math.sin(tt * 2.1) > 0.2) b.say('open', 0.1);
+        b.say('open', 0.1);
         break;
       }
       case 'sleeping': {
+        // Head down on folded arms, slow deep breaths.
         T.lean += 0.62;
         T.headPitch += 0.28;
         T.headRoll += 0.38;
-        T.armLPitch += 1.45;
-        T.armRPitch += 1.45;
-        T.armLRoll -= 0.45;
-        T.armRRoll -= 0.45;
+        T.armLPitch += 1.2;
+        T.armRPitch += 1.2;
+        T.armLRoll -= 0.35;
+        T.armRRoll -= 0.35;
+        T.armLYaw += 0.3;
+        T.armRYaw += 0.3;
+        T.elbowL += 1.25;
+        T.elbowR += 1.25;
         T.eyesClosed += 1;
         O.lean += Math.sin(tt * 1.25) * 0.035;
         O.squash += Math.sin(tt * 1.25) * 0.03;
+        O.kneeL *= 0.3;
+        O.kneeR *= 0.3;
         break;
       }
       case 'idle': {
@@ -495,8 +560,8 @@ export class EmployeeChar implements Bumpable {
         if (yawn > 0) {
           T.armLRoll += 2.0 * yawn;
           T.armRRoll += 2.0 * yawn;
-          T.armLStretch += 0.35 * yawn;
-          T.armRStretch += 0.35 * yawn;
+          T.armLStretch += 0.25 * yawn;
+          T.armRStretch += 0.25 * yawn;
           T.lean -= 0.12 * yawn;
           T.headPitch -= 0.3 * yawn;
           T.squash += 0.06 * yawn;
@@ -506,36 +571,41 @@ export class EmployeeChar implements Bumpable {
         const rest = 1 - yawn;
         if (this.idleStyle === 0) {
           // Slumped back, arms dangling over the armrests.
-          T.armLRoll += 0.45 * rest;
-          T.armRRoll += 0.45 * rest;
-          T.armLPitch -= 0.3 * rest;
-          T.armRPitch -= 0.3 * rest;
-          O.armLRoll += Math.sin(tt * 1.7) * 0.08;
-          O.armRRoll += Math.sin(tt * 1.7 + 2) * 0.08;
+          T.armLRoll += 0.42 * rest;
+          T.armRRoll += 0.42 * rest;
+          T.armLPitch -= 0.25 * rest;
+          T.armRPitch -= 0.25 * rest;
+          O.armLRoll += Math.sin(tt * 1.7) * 0.07;
+          O.armRRoll += Math.sin(tt * 1.7 + 2) * 0.07;
           T.lean -= 0.08;
         } else if (this.idleStyle === 1) {
-          // Arms folded on the belly.
-          T.armLPitch += 0.95 * rest;
-          T.armRPitch += 0.95 * rest;
-          T.armLRoll -= 0.55 * rest;
-          T.armRRoll -= 0.55 * rest;
+          // Arms folded across the belly.
+          this.foldArms(T, rest);
+        } else if (this.idleStyle === 2) {
+          // Hands behind the head, leaning way back.
+          T.armLRoll += 1.25 * rest;
+          T.armRRoll += 1.25 * rest;
+          T.armLPitch += 1.0 * rest;
+          T.armRPitch += 1.0 * rest;
+          T.elbowL += 2.0 * rest;
+          T.elbowR += 2.0 * rest;
+          T.lean -= 0.1;
+          T.headPitch -= 0.1;
         } else {
           // Hands resting on the desk, drumming fingers.
-          T.armLPitch += 1.15 * rest;
-          T.armRPitch += 1.15 * rest;
-          O.armRPitch += Math.max(0, Math.sin(tt * 9)) * 0.04 * rest;
+          this.handsOnDesk(T, 'LR', rest);
+          O.elbowR += Math.max(0, Math.sin(tt * 9)) * 0.06 * rest;
         }
         // A lazy swivel and swinging feet.
         b.heading.setTarget(this.desk.yaw + Math.sin(tt * 0.45) * 0.28);
-        O.legLPitch += Math.sin(tt * 2.1) * 0.12;
-        O.legRPitch += Math.sin(tt * 2.1 + 1.6) * 0.12;
+        O.kneeL += Math.sin(tt * 2.1) * 0.12;
+        O.kneeR += Math.sin(tt * 2.1 + 1.6) * 0.12;
         T.headYaw += this.glance.yaw;
         T.headPitch += this.glance.pitch - 0.05;
         break;
       }
       case 'starting': {
-        T.armLPitch += 1.0;
-        T.armRPitch += 1.0;
+        this.handsOnDesk(T, 'LR');
         T.headYaw += Math.sin(tt * 0.8) * 0.65;
         T.brow += 0.4;
         break;
@@ -547,49 +617,75 @@ export class EmployeeChar implements Bumpable {
     }
   }
 
+  /** Forearms resting on the desk edge. */
+  private handsOnDesk(T: Pose, which: 'L' | 'R' | 'LR', k = 1): void {
+    if (which.includes('L')) {
+      T.armLPitch += 0.85 * k;
+      T.elbowL += 0.85 * k;
+    }
+    if (which.includes('R')) {
+      T.armRPitch += 0.85 * k;
+      T.elbowR += 0.85 * k;
+    }
+  }
+
+  /** Arms crossed over the belly. */
+  private foldArms(T: Pose, k = 1): void {
+    T.armLPitch += 0.5 * k;
+    T.armRPitch += 0.5 * k;
+    T.armLRoll -= 0.3 * k;
+    T.armRRoll -= 0.3 * k;
+    T.armLYaw += 0.35 * k;
+    T.armRYaw += 0.35 * k;
+    T.elbowL += 1.65 * k;
+    T.elbowR += 1.75 * k;
+  }
+
   private workingPose(tt: number, kind: ActivityKind): void {
     const b = this.body;
     const T = b.target;
     const O = b.over;
     const typing = (speed: number, amt: number) => {
       T.lean += 0.14;
-      T.armLPitch += 1.32;
-      T.armRPitch += 1.32;
-      T.armLRoll -= 0.08;
-      T.armRRoll -= 0.08;
+      T.armLPitch += 1.0;
+      T.armRPitch += 1.0;
+      T.armLRoll -= 0.06;
+      T.armRRoll -= 0.06;
+      T.elbowL += 0.8;
+      T.elbowR += 0.8;
       T.headPitch += 0.08;
-      // Little bursts with pauses, like real typing.
+      // Little bursts with pauses, like real typing; shoulders bob with it.
       const burst = Math.sin(tt * 0.9) > -0.6 ? 1 : 0.15;
-      O.armLPitch += Math.sin(tt * speed) * amt * burst;
-      O.armRPitch += Math.sin(tt * speed + Math.PI) * amt * burst;
+      O.elbowL += Math.sin(tt * speed) * amt * burst;
+      O.elbowR += Math.sin(tt * speed + Math.PI) * amt * burst;
       O.armLRoll += Math.sin(tt * speed * 0.7) * 0.03 * burst;
+      O.side += Math.sin(tt * speed * 0.5) * 0.012 * burst;
       O.headPitch += Math.sin(tt * speed * 0.5) * 0.012 * burst;
+      if (burst > 0.5 && Math.sin(tt * 0.31) > 0) b.say('flat', 0.1);
     };
     switch (kind) {
       case 'typing':
-        typing(19, 0.085);
+        typing(19, 0.12);
         T.brow += 0.15;
         break;
       case 'reading':
+        // Leaning in, nose to the screen, scrolling now and then.
         T.lean += 0.34;
         T.headPitch += 0.16;
-        T.armLPitch += 1.1;
-        T.armRPitch += 1.15;
+        this.handsOnDesk(T, 'LR');
         T.armLRoll -= 0.2;
         O.headYaw += Math.sin(tt * 1.7) * 0.11;
-        O.armRPitch += Math.max(0, Math.sin(tt * 2.4)) * 0.05;
+        O.elbowR += Math.max(0, Math.sin(tt * 2.4)) * 0.08;
         T.brow -= 0.3;
+        b.say('flat', 0.1);
         break;
       case 'running': {
-        // Type the command, lean back and watch it go.
+        // Type the command, lean back with arms folded and watch it go.
         const cyc = tt % 7;
-        if (cyc < 2.4) typing(17, 0.07);
+        if (cyc < 2.4) typing(17, 0.1);
         else {
           T.lean -= 0.2;
-          T.armLPitch += 0.9;
-          T.armRPitch += 0.9;
-          T.armLRoll -= 0.55;
-          T.armRRoll -= 0.55;
+          this.foldArms(T);
           T.headPitch -= 0.04;
           O.headPitch += Math.sin(tt * 3) * 0.02;
           T.brow += 0.35;
@@ -597,31 +693,37 @@ export class EmployeeChar implements Bumpable {
         break;
       }
       case 'browsing':
+        // Hand on the mouse, scroll scroll scroll.
         T.lean += 0.12;
-        T.armRPitch += 1.25;
-        T.armRRoll += 0.32;
-        T.armLPitch += 1.05;
+        T.armRPitch += 0.95;
+        T.armRRoll += 0.22;
+        T.elbowR += 0.8;
+        this.handsOnDesk(T, 'L');
         T.armLRoll -= 0.15;
-        O.armRPitch += (Math.sin(tt * 6.5) > 0.55 ? 1 : 0) * 0.05;
+        O.elbowR += (Math.sin(tt * 6.5) > 0.55 ? 1 : 0) * 0.08;
         O.headRoll += Math.sin(tt * 0.9) * 0.08;
         T.brow += 0.2;
         break;
       case 'thinking':
         // Hand on chin, eyes up, other arm across the belly.
-        T.armRPitch += 2.1;
-        T.armRRoll -= 0.48;
-        T.armRYaw += 0.3;
-        T.armLPitch += 0.95;
-        T.armLRoll -= 0.5;
+        T.armRPitch += 0.9;
+        T.armRRoll -= 0.32;
+        T.armRYaw += 0.35;
+        T.elbowR += 1.95;
+        T.armLPitch += 0.5;
+        T.armLRoll -= 0.3;
+        T.armLYaw += 0.35;
+        T.elbowL += 1.6;
         T.headRoll += 0.16;
         T.headPitch -= 0.14;
         T.headYaw += Math.sin(tt * 0.6) * 0.18;
         T.lean += 0.02;
         T.brow += 0.25;
-        O.armRPitch += Math.sin(tt * 2.2) * 0.03;
+        O.elbowR += Math.sin(tt * 2.2) * 0.04;
+        b.say(Math.sin(tt * 0.5) > 0.6 ? 'open' : 'flat', 0.1);
         break;
       case 'delegating': {
-        // Turn toward the interns and point.
+        // Turn toward the interns and point, arm straight, jabbing for emphasis.
         let rel = 0.9;
         if (this.internFocus) {
           const yawTo = Math.atan2(this.internFocus.x - this.position.x, this.internFocus.z - this.position.z);
@@ -629,20 +731,20 @@ export class EmployeeChar implements Bumpable {
         }
         T.twist += rel * 0.45;
         T.headYaw += rel * 0.55;
-        const pointL = rel > 0;
-        // Point at them, jabbing for emphasis.
         const jab = Math.pow(Math.max(0, Math.sin(tt * 2.6)), 3);
         const reach = 0.25 + Math.min(Math.abs(rel), 1.2) * 0.45;
-        if (pointL) {
-          T.armLPitch += 1.55;
+        if (rel > 0) {
+          T.armLPitch += 1.5;
           T.armLRoll += reach;
-          T.armLStretch += 0.25 + jab * 0.35;
-          T.armRPitch += 1.2;
+          T.elbowL -= 0.15;
+          O.elbowL += (1 - jab) * 0.25;
+          this.handsOnDesk(T, 'R');
         } else {
-          T.armRPitch += 1.55;
+          T.armRPitch += 1.5;
           T.armRRoll += reach;
-          T.armRStretch += 0.25 + jab * 0.35;
-          T.armLPitch += 1.2;
+          T.elbowR -= 0.15;
+          O.elbowR += (1 - jab) * 0.25;
+          this.handsOnDesk(T, 'L');
         }
         T.brow += 0.3;
         if (Math.sin(tt * 1.7) > 0.4) b.say('open', 0.1);
@@ -653,16 +755,17 @@ export class EmployeeChar implements Bumpable {
         // Scribbling on a pad.
         T.lean += 0.22;
         T.headPitch += 0.3;
-        T.armRPitch += 1.12;
-        T.armRRoll -= 0.05;
-        T.armLPitch += 1.0;
+        T.armRPitch += 0.85;
+        T.elbowR += 0.95;
+        this.handsOnDesk(T, 'L');
         T.armLRoll -= 0.25;
-        O.armRPitch += Math.sin(tt * 15) * 0.045;
-        O.armRRoll += Math.cos(tt * 15) * 0.045;
+        O.elbowR += Math.sin(tt * 15) * 0.07;
+        O.armRRoll += Math.cos(tt * 15) * 0.05;
         O.headYaw += Math.sin(tt * 0.7) * 0.06;
+        b.say('flat', 0.1);
         break;
       default:
-        typing(11, 0.06);
+        typing(11, 0.08);
         break;
     }
   }

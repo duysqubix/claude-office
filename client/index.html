@@ -4,18 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#5bb8ff" />
     <title>Claude Office</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='30' r='24' fill='%23FFDDBB' stroke='%232B2D42' stroke-width='4'/%3E%3Cellipse cx='24' cy='29' rx='4' ry='6' fill='%232B2D42'/%3E%3Cellipse cx='40' cy='29' rx='4' ry='6' fill='%232B2D42'/%3E%3Cpath d='M26 41q6 5 12 0' stroke='%232B2D42' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='17' cy='38' r='4' fill='%23FF9AA2'/%3E%3Ccircle cx='47' cy='38' r='4' fill='%23FF9AA2'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29.5' fill='%23D97757' stroke='%232B2D42' stroke-width='4'/%3E%3Ccircle cx='32' cy='33' r='17' fill='%23FFDDBB'/%3E%3Cellipse cx='26.4' cy='32' rx='2.6' ry='3.8' fill='%232B2D42'/%3E%3Cellipse cx='37.6' cy='32' rx='2.6' ry='3.8' fill='%232B2D42'/%3E%3Cpath d='M28.6 39.4Q32 42.4 35.4 39.4' fill='none' stroke='%232B2D42' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"
     />
   </head>
   <body>
-    <canvas id="scene"></canvas>
+    <canvas id="scene" aria-label="The office. Walk with W A S D, press E to talk to someone, Q to go to whoever needs you."></canvas>
     <div id="ui"></div>
     <div id="splash" aria-live="polite">
       <div class="splash-card">
-        <div class="splash-face"><i></i><i></i><b></b></div>
+        <svg class="splash-logo" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="29.5" fill="#D97757" stroke="#2B2D42" stroke-width="4" />
+          <circle cx="32" cy="33" r="17" fill="#FFDDBB" stroke="#B39B83" stroke-width="1.6" />
+          <ellipse cx="21.8" cy="37" rx="3.1" ry="2.1" fill="#FF9AA2" opacity=".7" />
+          <ellipse cx="42.2" cy="37" rx="3.1" ry="2.1" fill="#FF9AA2" opacity=".7" />
+          <ellipse cx="26.4" cy="32" rx="2.6" ry="3.8" fill="#2B2D42" />
+          <ellipse cx="37.6" cy="32" rx="2.6" ry="3.8" fill="#2B2D42" />
+          <circle cx="27.3" cy="30.5" r="1" fill="#fff" />
+          <circle cx="38.5" cy="30.5" r="1" fill="#fff" />
+          <path d="M28.6 39.4Q32 42.4 35.4 39.4" fill="none" stroke="#2B2D42" stroke-width="2" stroke-linecap="round" />
+        </svg>
         <div class="splash-title">Claude Office</div>
         <div class="splash-sub">Unlocking the front door…</div>
       </div>

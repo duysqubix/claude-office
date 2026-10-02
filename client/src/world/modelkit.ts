@@ -30,6 +30,7 @@ export async function instancedModel(
   group.name = `instanced:${id}`;
   const boxes = new Map<string, THREE.Box3>();
   const hidden = new THREE.MeshBasicMaterial({ visible: false });
+  hidden.userData.instanceOwned = true;
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -58,6 +59,20 @@ export async function instancedModel(
 /** Placement matrix for a prop at (x, y, z) turned by yaw. */
 export function placement(x: number, y: number, z: number, yaw: number): THREE.Matrix4 {
   return new THREE.Matrix4().makeRotationY(yaw).setPosition(x, y, z);
+}
+
+/**
+ * Remove an instancedModel() group and release what it owns: the instance buffers and its
+ * tinted material clones. Geometry and untinted materials are shared with the model cache.
+ */
+export function disposeInstanced(group: THREE.Object3D): void {
+  group.traverse((o) => {
+    const inst = o as THREE.InstancedMesh;
+    if (!inst.isInstancedMesh) return;
+    for (const m of Array.isArray(inst.material) ? inst.material : [inst.material]) if (m.userData.instanceOwned) m.dispose();
+    inst.dispose();
+  });
+  group.removeFromParent();
 }
 
 /** Dispose the geometries and materials a procedural group owns (not shared ones). */

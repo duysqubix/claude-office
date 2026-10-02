@@ -6,6 +6,7 @@ import type { DeskSlot, ScreenState } from './types';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Batch, CanvasTex, ellipsize, fitText, font, partMatrix, pickR, rng, shade } from './kit';
 import { DESK, type PodSlot } from './layout';
+import D from './dimensions.json';
 import { Screen, type ScreenView } from './screens';
 import { aabb, type WorldCtx } from './ctx';
 import type { Decor } from './decor';
@@ -57,22 +58,13 @@ export class DeskSystem {
     const b = new Batch();
     const r = rng(podIndex * 7919 + 13);
 
-    // Carpet with a darker border and a stitched inner line (a wooden deck for garden desks).
-    if (slot.outdoor) {
-      // Deck top sits ~1 cm above the lawn so chairs and feet stay on it.
-      b.slab(4.2, 4.8, 0.05, 0.35, PALETTE.wood, { at: [px, -0.015, pz], cast: false, finish: 'matte' });
-      for (let k = -5; k <= 5; k++) b.box(3.9, 0.006, 0.03, shade(PALETTE.wood, -0.08), { at: [px, 0.011, pz + k * 0.42], r: 0.003, seg: 1, cast: false, finish: 'matte' });
-    } else {
-      const carpet = podIndex % 2 === 0 ? PALETTE.carpet : PALETTE.carpetAlt;
-      b.slab(4.2, 4.8, 0.022, 0.55, shade(carpet, -0.07), { at: [px, 0.011, pz], cast: false, finish: 'matte' });
-      b.slab(3.86, 4.46, 0.026, 0.4, shade(carpet, 0.05), { at: [px, 0.013, pz], cast: false, finish: 'matte' });
-      b.slab(3.74, 4.34, 0.028, 0.34, carpet, { at: [px, 0.014, pz], cast: false, finish: 'matte' });
-    }
-
-    // Low divider between the two rows, with a rounded rail on top.
+    // Carpet (a wooden deck for garden desks) and the low divider between the two rows.
     const divider = pickR(r, ['#BFE6D8', '#CFE0FF', '#FFE2B8', '#F6D0E4']);
-    b.box(2.96, 0.36, 0.06, divider, { at: [px, DESK.top + 0.18, pz], r: 0.03, finish: 'matte' });
-    b.box(3.02, 0.05, 0.09, TRIM, { at: [px, DESK.top + 0.37, pz], r: 0.025 });
+    b.place(px, 0, pz, 0, () => {
+      if (slot.outdoor) buildPodDeck(b);
+      else buildPodCarpet(b, podIndex % 2 === 0 ? PALETTE.carpet : PALETTE.carpetAlt);
+      buildPodDivider(b, divider);
+    });
 
     for (let k = 0; k < 4; k++) this.addDesk(b, px, pz, k, slot.outdoor === true);
 
@@ -97,76 +89,62 @@ export class DeskSystem {
     const ox = col === 0 ? -1 : 1; // outward, toward the pod's side aisle
     const X = px + (col === 0 ? -DESK.pitch / 2 : DESK.pitch / 2);
     const Zc = pz + (row === 0 ? -DESK.depth / 2 - 0.025 : DESK.depth / 2 + 0.025);
-    const Zfront = Zc + front * (DESK.depth / 2);
-    const Zseat = Zfront + front * DESK.seatGap;
-    const rightX = -sz; // the sitter's right hand, along X
-    const topY = DESK.top;
+    const Zseat = Zc + front * (DESK.depth / 2 + DESK.seatGap);
+    // Desk frame: local +Z points toward the sitter; x mirrors with it.
+    const deskYaw = front > 0 ? 0 : Math.PI;
+    const oxLocal = ox * front;
+    const frame = new THREE.Matrix4().makeRotationY(deskYaw).setPosition(X, 0, Zc);
 
-    // Desk: chunky white top with a coloured lip, rounded slab legs, accent modesty panel.
-    b.box(DESK.width, 0.08, DESK.depth, PALETTE.deskTop, { at: [X, topY - 0.04, Zc], r: 0.038 });
-    b.box(DESK.width - 0.04, 0.05, 0.04, accent, { at: [X, topY - 0.05, Zfront + front * 0.008], r: 0.02 });
-    for (const s of [-1, 1]) b.box(0.07, topY - 0.08, DESK.depth - 0.12, LEG, { at: [X + s * (DESK.width / 2 - 0.08), (topY - 0.08) / 2, Zc], r: 0.03 });
-    b.box(DESK.width - 0.24, 0.36, 0.035, accent, { at: [X, 0.4, Zc - front * (DESK.depth / 2 - 0.08)], r: 0.017, finish: 'matte' });
-
-    // Monitor: chunky bezel, accent back cover, neck and foot.
-    const Zm = Zc - front * 0.13;
-    const bezel = PALETTE.monitorBezel;
-    b.puck(0.12, 0.022, bezel, { at: [X, topY + 0.011, Zm - front * 0.02], finish: 'gloss' });
-    b.box(0.06, 0.2, 0.04, bezel, { at: [X, topY + 0.11, Zm - front * 0.045], r: 0.02, finish: 'gloss' });
-    b.box(0.7, 0.48, 0.08, bezel, { at: [X, 1.0, Zm], r: 0.05, finish: 'gloss' });
-    b.box(0.48, 0.32, 0.06, accent, { at: [X, 1.0, Zm - front * 0.05], r: 0.03 });
-    // A sticky note on the bezel.
-    if (r() < 0.6) b.box(0.07, 0.07, 0.012, pickR(r, ['#FFE66D', '#9CF6C8', '#FFB3D1']), { at: [X + rightX * 0.31, 1.19, Zm + front * 0.045], rot: [0, 0, (r() - 0.5) * 0.4], r: 0.004, cast: false });
+    const mugSide = r() < 0.5 ? 1 : -1;
+    const sticky = r() < 0.6 ? pickR(r, ['#FFE66D', '#9CF6C8', '#FFB3D1']) : null;
+    const mug = pickR(r, MUGS);
+    b.place(X, 0, Zc, deskYaw, () => {
+      buildDesk(b, accent);
+      b.place(0, D.desk.h, -D.monitor.setBack, 0, () => buildMonitor(b, accent, sticky, (r() - 0.5) * 0.4));
+      b.place(0, D.desk.h, D.desk.d / 2 - 0.2, 0, () => buildKeyboard(b));
+      b.place(0.31, D.desk.h, D.desk.d / 2 - 0.2, 0, () => buildMouse(b));
+      b.place(mugSide * 0.5, D.desk.h, D.desk.d / 2 - 0.22, 0, () => buildMug(b, mug, mugSide));
+      b.place(-mugSide * 0.48, D.desk.h, -0.02, 0, () => buildDeskClutter(b, r, mugSide));
+      b.place(oxLocal * 0.5, D.desk.h, D.desk.d / 2 - 0.14, oxLocal * 0.25, () => buildNameplateCard(b));
+    });
 
     const screen = new Screen(index, accent);
-    const screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.38), screen.material);
+    const screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(D.monitor.screenW, D.monitor.screenH), screen.material);
     screenMesh.name = `screen-${index}`;
-    screenMesh.position.set(X, 1.0, Zm + front * 0.0415);
-    screenMesh.rotation.y = front > 0 ? 0 : Math.PI;
+    screenMesh.matrixAutoUpdate = false;
+    screenMesh.matrix.copy(frame).multiply(new THREE.Matrix4().makeTranslation(0, D.monitor.centerY, -D.monitor.setBack + D.monitor.d / 2 + 0.0015));
+    screenMesh.matrix.decompose(screenMesh.position, screenMesh.quaternion, screenMesh.scale);
+    screenMesh.matrixAutoUpdate = true;
     this.ctx.root.add(screenMesh);
     screen.attach(screenMesh);
 
-    // Keyboard and mouse.
-    const Zkb = Zfront - front * 0.2;
-    b.box(0.42, 0.024, 0.14, '#F7F4EE', { at: [X, topY + 0.012, Zkb], r: 0.011 });
-    b.box(0.38, 0.01, 0.1, '#D9E0EA', { at: [X, topY + 0.026, Zkb], r: 0.004, cast: false });
-    b.ball([0.034, 0.022, 0.05], '#F7F4EE', { at: [X + rightX * 0.31, topY + 0.012, Zkb] });
-
-    // Mug on one side, clutter on the other.
-    const mugSide = r() < 0.5 ? 1 : -1;
-    const mugX = X + rightX * mugSide * 0.5;
-    const mugZ = Zfront - front * 0.22;
-    const mug = pickR(r, MUGS);
-    b.cyl(0.042, 0.038, 0.1, mug, { at: [mugX, topY + 0.05, mugZ], seg: 20 });
-    b.cyl(0.034, 0.034, 0.005, PALETTE.coffee, { at: [mugX, topY + 0.098, mugZ], seg: 16, cast: false });
-    b.torus(0.028, 0.009, mug, { at: [mugX + 0.045 * mugSide * rightX, topY + 0.05, mugZ], rot: [0, 0, 0] });
-    this.clutter(b, r, X - rightX * mugSide * 0.48, Zc - front * 0.02, topY, mugSide, front);
-
-    // Tent-card nameplate at the outer front corner, readable from both sides. The card body
-    // goes into the pod batch; both printed faces share one mesh.
+    // Both printed faces of the tent card share one mesh, placed like the card body above.
     const plate = new Nameplate(index, accent);
-    const tent = new THREE.Object3D();
-    tent.position.set(X + ox * 0.5, topY, Zfront - front * 0.14);
-    tent.rotation.y = (front > 0 ? 0 : Math.PI) + ox * front * 0.25;
-    tent.updateMatrix();
     const faces: THREE.BufferGeometry[] = [];
     for (const s of [1, -1]) {
-      b.box(0.41, 0.155, 0.012, TRIM, { at: [0, 0.075, s * 0.022], rot: [-s * 0.36, 0, 0], r: 0.005, cast: false, parent: tent.matrix });
-      const face = new THREE.PlaneGeometry(0.38, 0.13);
-      face.applyMatrix4(partMatrix({ at: [0, 0.075, s * 0.0295], rot: [-s * 0.36, s > 0 ? 0 : Math.PI, 0] }));
+      const face = new THREE.PlaneGeometry(D.nameplate.w - 0.03, D.nameplate.h - 0.025);
+      face.applyMatrix4(partMatrix({ at: [0, D.nameplate.h / 2, s * 0.0295], rot: [-s * 0.36, s > 0 ? 0 : Math.PI, 0] }));
       faces.push(face);
     }
     const plateMesh = new THREE.Mesh(mergeGeometries(faces, false)!, plate.material);
     plateMesh.name = `nameplate-${index}`;
-    plateMesh.position.copy(tent.position);
-    plateMesh.rotation.copy(tent.rotation);
+    new THREE.Matrix4()
+      .copy(frame)
+      .multiply(new THREE.Matrix4().makeRotationY(oxLocal * 0.25).setPosition(oxLocal * 0.5, D.desk.h, D.desk.d / 2 - 0.14))
+      .decompose(plateMesh.position, plateMesh.quaternion, plateMesh.scale);
     plateMesh.receiveShadow = true;
     this.ctx.root.add(plateMesh);
 
-    // Chair (its own object: gameplay slides it along local +Z).
-    const chair = buildChair(pickR(r, PALETTE.chairs));
-    chair.position.set(X, 0, Zseat);
+    // Chair: its wrapper's local +Z points away from the desk (gameplay slides it along that);
+    // the chair itself is built facing +Z, so it sits turned around inside the wrapper.
+    const chair = new THREE.Group();
+    const cb = new Batch();
+    buildChair(cb, pickR(r, PALETTE.chairs));
+    const chairBody = cb.build({ name: 'chair-body' });
+    chairBody.rotation.y = Math.PI;
+    chair.add(chairBody);
     const yaw = sz > 0 ? 0 : Math.PI;
+    chair.position.set(X, 0, Zseat);
     chair.rotation.y = yaw + Math.PI;
     chair.name = `chair-${index}`;
     this.ctx.root.add(chair);
@@ -207,47 +185,105 @@ export class DeskSystem {
       deskIndex: index,
     });
   }
+}
 
-  private clutter(b: Batch, r: () => number, x: number, z: number, topY: number, side: number, front: number): void {
-    const kind = Math.floor(r() * 5);
-    switch (kind) {
-      case 0: {
-        // Potted succulent.
-        b.cyl(0.07, 0.055, 0.1, PALETTE.plantPot, { at: [x, topY + 0.05, z] });
-        for (let i = 0; i < 5; i++) {
-          const a = (i / 5) * Math.PI * 2 + r();
-          b.ball([0.045, 0.07, 0.045], i % 2 ? PALETTE.plantLeaf : shade(PALETTE.plantLeaf, 0.08), {
-            at: [x + Math.cos(a) * 0.035, topY + 0.15, z + Math.sin(a) * 0.035],
-            rot: [Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5],
-          });
-        }
-        break;
+// ---------------------------------------------------------------------------------------------
+// Builders (local frame: pivot at the floor or desk-surface contact point, front facing +Z)
+
+/** Pod carpet: darker border, a lighter stitched line, then the field. Centred on the pod. */
+export function buildPodCarpet(b: Batch, color: string, d = D.pod): void {
+  b.slab(d.carpetW, d.carpetD, 0.022, 0.55, shade(color, -0.07), { at: [0, 0.011, 0], cast: false, finish: 'matte', tex: 'carpet' });
+  b.slab(d.carpetW - 0.34, d.carpetD - 0.34, 0.026, 0.4, shade(color, 0.05), { at: [0, 0.013, 0], cast: false, finish: 'matte', tex: 'carpet' });
+  b.slab(d.carpetW - 0.46, d.carpetD - 0.46, 0.028, 0.34, color, { at: [0, 0.014, 0], cast: false, finish: 'matte', tex: 'carpet' });
+}
+
+/** Garden pod deck: wooden boards a centimetre above the lawn. */
+export function buildPodDeck(b: Batch, d = D.pod): void {
+  b.slab(d.carpetW, d.carpetD, 0.05, 0.35, PALETTE.wood, { at: [0, -0.015, 0], cast: false, finish: 'wood' });
+  for (let k = -5; k <= 5; k++) b.box(d.carpetW - 0.3, 0.006, 0.03, shade(PALETTE.wood, -0.08), { at: [0, 0.011, k * 0.42], r: 0.003, seg: 1, cast: false, finish: 'matte' });
+}
+
+/** Low fabric divider between the two rows of a pod, with a rounded rail. Runs along X. */
+export function buildPodDivider(b: Batch, color: string, d = D.divider): void {
+  const len = D.desk.pitch * 2 - 0.04;
+  b.box(len, d.h, d.t, color, { at: [0, D.desk.h + d.h / 2, 0], r: 0.03, finish: 'cloth' });
+  b.box(len + 0.06, 0.05, d.t + 0.03, TRIM, { at: [0, D.desk.h + d.h + 0.01, 0], r: 0.025 });
+}
+
+/** Desk: chunky white top with a coloured lip at the front, slab legs, accent modesty panel at the back. */
+export function buildDesk(b: Batch, accent: string, d = D.desk): void {
+  b.box(d.w, d.topT, d.d, '#FBF6EC', { at: [0, d.h - d.topT / 2, 0], r: 0.038, tex: 'speckle' });
+  b.box(d.w - 0.04, 0.05, 0.04, accent, { at: [0, d.h - 0.05, d.d / 2 + 0.008], r: 0.02 });
+  for (const s of [-1, 1]) b.box(d.legT, d.h - d.topT, d.d - 0.12, LEG, { at: [s * (d.w / 2 - 0.08), (d.h - d.topT) / 2, 0], r: 0.03 });
+  b.box(d.w - 0.24, 0.36, 0.035, accent, { at: [0, 0.4, -(d.d / 2 - 0.08)], r: 0.017, finish: 'matte' });
+}
+
+/** Chunky monitor standing on the desk: foot, neck, bezel and a coloured back. The screen faces +Z (drawn separately). */
+export function buildMonitor(b: Batch, accent: string, sticky: string | null = null, stickyTilt = 0, d = D.monitor): void {
+  const bezel = PALETTE.monitorBezel;
+  const cy = d.centerY - D.desk.h;
+  b.puck(0.12, 0.022, bezel, { at: [0, 0.011, -0.02], finish: 'plastic' });
+  b.box(0.06, d.standH, 0.04, bezel, { at: [0, d.standH / 2 + 0.01, -0.045], r: 0.02, finish: 'plastic' });
+  b.box(d.w, d.h, d.d, bezel, { at: [0, cy, 0], r: 0.05, finish: 'plastic' });
+  b.box(0.48, 0.32, 0.06, accent, { at: [0, cy, -0.05], r: 0.03, finish: 'plastic' });
+  if (sticky) b.box(0.07, 0.07, 0.012, sticky, { at: [0.31, cy + 0.19, d.d / 2 + 0.005], rot: [0, 0, stickyTilt], r: 0.004, cast: false });
+}
+
+export function buildKeyboard(b: Batch, d = D.keyboard): void {
+  b.box(d.w, d.h, d.d, '#F7F4EE', { at: [0, d.h / 2, 0], r: 0.011, finish: 'plastic' });
+  b.box(d.w - 0.04, 0.01, d.d - 0.04, '#D9E0EA', { at: [0, d.h + 0.002, 0], r: 0.004, cast: false });
+}
+
+export function buildMouse(b: Batch, d = D.mouse): void {
+  b.ball([d.w / 2, d.h / 2, d.d / 2], '#F7F4EE', { at: [0, d.h / 4, 0], finish: 'plastic' });
+}
+
+/** Mug with coffee; the handle points to +X (side = 1) or -X (side = -1). */
+export function buildMug(b: Batch, color: string, side = 1, d = D.mug): void {
+  b.cyl(d.r, d.r - 0.004, d.h, color, { at: [0, d.h / 2, 0], seg: 20, finish: 'plastic' });
+  b.cyl(d.r - 0.008, d.r - 0.008, 0.005, PALETTE.coffee, { at: [0, d.h - 0.002, 0], seg: 16, cast: false });
+  b.torus(0.028, 0.009, color, { at: [side * (d.r + 0.003), d.h / 2, 0], finish: 'plastic' });
+}
+
+/** The tent card's body: two leaning boards (the printed faces are a separate mesh). */
+export function buildNameplateCard(b: Batch, d = D.nameplate): void {
+  for (const s of [1, -1]) b.box(d.w, d.h, 0.012, TRIM, { at: [0, d.h / 2 - 0.0025, s * 0.022], rot: [-s * 0.36, 0, 0], r: 0.005, cast: false });
+}
+
+/** A random bit of desk clutter: succulent, rubber duck, papers, pencil cup or books. Faces +Z. */
+export function buildDeskClutter(b: Batch, r: () => number, side: number): void {
+  switch (Math.floor(r() * 5)) {
+    case 0: {
+      b.cyl(0.07, 0.055, 0.1, PALETTE.plantPot, { at: [0, 0.05, 0] });
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + r();
+        b.ball([0.045, 0.07, 0.045], i % 2 ? PALETTE.plantLeaf : shade(PALETTE.plantLeaf, 0.08), {
+          at: [Math.cos(a) * 0.035, 0.15, Math.sin(a) * 0.035],
+          rot: [Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5],
+        });
       }
-      case 1: {
-        // Rubber duck, of course.
-        const yaw = front > 0 ? 0 : Math.PI;
-        b.ball([0.06, 0.05, 0.075], '#FFD93D', { at: [x, topY + 0.045, z] });
-        b.ball(0.04, '#FFD93D', { at: [x, topY + 0.11, z + front * 0.03] });
-        b.ball([0.022, 0.01, 0.025], '#FF9F45', { at: [x, topY + 0.105, z + front * 0.07], rot: [0, yaw, 0] });
-        for (const s of [-1, 1]) b.ball(0.007, '#1E1B2E', { at: [x + s * 0.02, topY + 0.122, z + front * 0.062], cast: false });
-        break;
-      }
-      case 2: {
-        // Stack of papers.
-        for (let i = 0; i < 4; i++) b.box(0.22, 0.012, 0.28, i % 2 ? '#FFFFFF' : '#F4F1EA', { at: [x + (r() - 0.5) * 0.03, topY + 0.008 + i * 0.013, z], rot: [0, (r() - 0.5) * 0.3, 0], r: 0.004, cast: i === 3 });
-        break;
-      }
-      case 3: {
-        // Pencil cup.
-        b.cyl(0.045, 0.045, 0.1, pickR(r, ['#5CC8FF', '#FF7A6B', '#B48CFF']), { at: [x, topY + 0.05, z] });
-        for (let i = 0; i < 3; i++) b.cyl(0.008, 0.008, 0.14, pickR(r, ['#FFC94A', '#FF5A5F', '#3D7CFF']), { at: [x + (i - 1) * 0.018, topY + 0.12, z], rot: [(r() - 0.5) * 0.4, 0, (i - 1) * 0.25], cast: false });
-        break;
-      }
-      default: {
-        // Two books.
-        b.box(0.2, 0.04, 0.27, pickR(r, ['#3D7CFF', '#FF5A5F', '#2EC4B6']), { at: [x, topY + 0.02, z], r: 0.01 });
-        b.box(0.18, 0.035, 0.25, pickR(r, ['#FFC93C', '#9B5DE5', '#FF9DCB']), { at: [x, topY + 0.058, z], rot: [0, side * 0.2, 0], r: 0.01 });
-      }
+      break;
+    }
+    case 1: {
+      // Rubber duck, of course.
+      b.ball([0.06, 0.05, 0.075], '#FFD93D', { at: [0, 0.045, 0], finish: 'plastic' });
+      b.ball(0.04, '#FFD93D', { at: [0, 0.11, 0.03], finish: 'plastic' });
+      b.ball([0.022, 0.01, 0.025], '#FF9F45', { at: [0, 0.105, 0.07], finish: 'plastic' });
+      for (const s of [-1, 1]) b.ball(0.007, '#1E1B2E', { at: [s * 0.02, 0.122, 0.062], cast: false });
+      break;
+    }
+    case 2: {
+      for (let i = 0; i < 4; i++) b.box(0.22, 0.012, 0.28, i % 2 ? '#FFFDF8' : '#F4F1EA', { at: [(r() - 0.5) * 0.03, 0.008 + i * 0.013, 0], rot: [0, (r() - 0.5) * 0.3, 0], r: 0.004, cast: i === 3 });
+      break;
+    }
+    case 3: {
+      b.cyl(0.045, 0.045, 0.1, pickR(r, ['#5CC8FF', '#FF7A6B', '#B48CFF']), { at: [0, 0.05, 0], finish: 'plastic' });
+      for (let i = 0; i < 3; i++) b.cyl(0.008, 0.008, 0.14, pickR(r, ['#FFC94A', '#FF5A5F', '#3D7CFF']), { at: [(i - 1) * 0.018, 0.12, 0], rot: [(r() - 0.5) * 0.4, 0, (i - 1) * 0.25], cast: false });
+      break;
+    }
+    default: {
+      b.box(0.2, 0.04, 0.27, pickR(r, ['#3D7CFF', '#FF5A5F', '#2EC4B6']), { at: [0, 0.02, 0], r: 0.01 });
+      b.box(0.18, 0.035, 0.25, pickR(r, ['#FFC93C', '#9B5DE5', '#FF9DCB']), { at: [0, 0.058, 0], rot: [0, side * 0.2, 0], r: 0.01 });
     }
   }
 }
@@ -312,17 +348,16 @@ class Nameplate {
   }
 }
 
-function buildChair(color: string): THREE.Group {
-  const b = new Batch();
+/** Wheeled office chair facing +Z: five-star base, gas lift, plump seat, rounded backrest. */
+export function buildChair(b: Batch, color: string, d = D.chair): void {
   const base = PALETTE.chairBase;
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    b.box(0.06, 0.045, 0.3, base, { at: [Math.sin(a) * 0.15, 0.075, Math.cos(a) * 0.15], rot: [0, a, 0], r: 0.02 });
-    b.ball(0.042, '#2B2F3A', { at: [Math.sin(a) * 0.29, 0.042, Math.cos(a) * 0.29], ws: 12, hs: 8 });
+    b.box(0.06, 0.045, 0.3, base, { at: [Math.sin(a) * 0.15, 0.075, Math.cos(a) * 0.15], rot: [0, a, 0], r: 0.02, finish: 'plastic' });
+    b.ball(0.042, '#2B2F3A', { at: [Math.sin(a) * (d.baseR - 0.01), 0.042, Math.cos(a) * (d.baseR - 0.01)], ws: 12, hs: 8, finish: 'plastic' });
   }
-  b.cyl(0.03, 0.03, 0.3, PALETTE.metal, { at: [0, 0.24, 0], seg: 12, finish: 'gloss' });
-  b.box(0.54, 0.11, 0.52, color, { at: [0, DESK.seatH - 0.055, 0], r: 0.055 });
-  b.box(0.08, 0.28, 0.05, base, { at: [0, 0.56, 0.25], r: 0.02 });
-  b.box(0.5, 0.46, 0.11, color, { at: [0, 0.83, 0.27], rot: [0.1, 0, 0], r: 0.055 });
-  return b.build({ name: 'chair' });
+  b.cyl(0.03, 0.03, 0.3, PALETTE.metal, { at: [0, 0.24, 0], seg: 12, finish: 'plastic' });
+  b.box(d.seatW, d.seatT, d.seatD, color, { at: [0, d.seatH - d.seatT / 2, 0], r: 0.055, finish: 'plastic' });
+  b.box(0.08, 0.28, 0.05, base, { at: [0, 0.56, -0.25], r: 0.02, finish: 'plastic' });
+  b.box(d.backW, d.backH, 0.11, color, { at: [0, d.backY, -0.27], rot: [-0.1, 0, 0], r: 0.055, finish: 'plastic' });
 }

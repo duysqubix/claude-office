@@ -26,6 +26,19 @@ const _n = new THREE.Vector3();
 const _toCam = new THREE.Vector3();
 const _sphere = new THREE.Sphere();
 
+/**
+ * Whether a screen-like plane (geometry facing its local +Z, bounding sphere computed) is within
+ * `maxDistance` of the camera, facing it and inside the view frustum.
+ */
+export function inView(mesh: THREE.Mesh, view: ScreenView, maxDistance = PAINT_DISTANCE): boolean {
+  mesh.getWorldPosition(_p);
+  if (_p.distanceToSquared(view.camera) > maxDistance * maxDistance) return false;
+  _n.set(0, 0, 1).transformDirection(mesh.matrixWorld);
+  if (_n.dot(_toCam.subVectors(view.camera, _p)) <= 0) return false;
+  _sphere.copy(mesh.geometry.boundingSphere!).applyMatrix4(mesh.matrixWorld);
+  return view.frustum.intersectsSphere(_sphere);
+}
+
 interface CodeLine {
   indent: number;
   tokens: { w: number; c: string }[];
@@ -76,15 +89,7 @@ export class Screen {
   }
 
   private seen(view: ScreenView): boolean {
-    const mesh = this.mesh;
-    if (!mesh) return true;
-    mesh.getWorldPosition(_p);
-    if (_p.distanceToSquared(view.camera) > PAINT_DISTANCE * PAINT_DISTANCE) return false;
-    // Plane geometry faces its local +Z.
-    _n.set(0, 0, 1).transformDirection(mesh.matrixWorld);
-    if (_n.dot(_toCam.subVectors(view.camera, _p)) <= 0) return false;
-    _sphere.copy(mesh.geometry.boundingSphere!).applyMatrix4(mesh.matrixWorld);
-    return view.frustum.intersectsSphere(_sphere);
+    return !this.mesh || inView(this.mesh, view);
   }
 
   set(state: ScreenState, lines?: string[]): void {

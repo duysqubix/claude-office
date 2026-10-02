@@ -25,9 +25,9 @@ export function createSky(): Sky {
     new THREE.SphereGeometry(480, 48, 24),
     new THREE.ShaderMaterial({
       uniforms: {
-        top: { value: new THREE.Color(PALETTE.skyTop) },
-        horizon: { value: new THREE.Color(PALETTE.skyHorizon) },
-        ground: { value: new THREE.Color('#DDF3E4') },
+        top: { value: new THREE.Color(PALETTE.skyDayTop) },
+        horizon: { value: new THREE.Color(PALETTE.skyDayHorizon) },
+        ground: { value: new THREE.Color('#BFE6C8') },
       },
       vertexShader: /* glsl */ `
         varying vec3 vDir;
@@ -94,9 +94,9 @@ export function createSky(): Sky {
   const cloudMesh = new THREE.InstancedMesh(
     new THREE.SphereGeometry(1, 24, 16),
     new THREE.MeshStandardMaterial({
-      color: PALETTE.cloud,
+      color: PALETTE.cloudTint,
       emissive: '#EAF6FF',
-      emissiveIntensity: 0.55,
+      emissiveIntensity: 0.5,
       roughness: 1,
       metalness: 0,
       fog: false,

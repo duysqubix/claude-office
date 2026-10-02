@@ -80,6 +80,8 @@ export interface ChatView {
   update(employee: Employee): void;
   /** Put the cursor in the composer (only when the manager opened the chat themselves). */
   focus(): void;
+  /** Their session ended: say so, keep the history readable, drop the composer. */
+  end(text: string): void;
   close(): void;
 }
 
@@ -126,6 +128,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   let lastRole: ChatLine['role'] | 'system' | null = null;
   let steps: { lines: ChatLine[]; el: HTMLElement; open: boolean } | null = null;
   let emptyNote: HTMLElement | null = null;
+  let ended = false;
+  let faceHosted = e.hosted;
   const pending: Pending[] = [];
 
   // ---------------------------------------------------------------- frame
@@ -476,15 +480,21 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     const l = looks();
     shell.title.textContent = e.displayName;
     panel.style.setProperty('--band', l.shirt);
+    if (faceHosted !== e.hosted) {
+      // Brought into the office: the lanyard goes on.
+      faceHosted = e.hosted;
+      const face = panel.querySelector<HTMLElement>('.co-panel__face');
+      if (face) face.innerHTML = faceSvg(l, { size: 64 });
+    }
     renderState();
     where.replaceChildren(el('span', { class: 'co-tag', html: icon('folder', 18) }, e.project));
     if (e.branch) where.append(el('span', { class: 'co-tag', html: icon('branch', 18) }, e.branch));
-    interruptBtn.hidden = !e.hosted;
+    interruptBtn.hidden = !e.hosted || ended;
     interruptBtn.disabled = e.state !== 'working';
-    sitBtn.hidden = !e.hosted;
+    sitBtn.hidden = !e.hosted || ended;
 
     // Typing while they work.
-    const working = e.state === 'working';
+    const working = e.state === 'working' && !ended;
     typing.hidden = !working;
     typingLabel.textContent = working ? (e.activity?.label ?? 'Thinking…') : '';
 
@@ -507,7 +517,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       askView = null;
       askId = null;
     }
-    const waitingInTerminal = e.state === 'needs-you' && !e.ask;
+    const waitingInTerminal = e.state === 'needs-you' && !e.ask && !ended;
     waitNote.hidden = !waitingInTerminal;
     if (waitingInTerminal) {
       waitNote.replaceChildren(
@@ -518,8 +528,9 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     }
 
     // Footer: the composer for hosted sessions, the adopt card for the rest.
-    composer.hidden = !e.hosted;
-    adoptCard.hidden = e.hosted;
+    composer.hidden = !e.hosted || ended;
+    adoptCard.hidden = e.hosted || ended;
+    shell.foot.hidden = ended;
     if (!e.hosted) {
       adoptCard.classList.toggle('is-waiting', !!e.adopting);
       if (e.adopting) {
@@ -555,7 +566,16 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     update(next: Employee) {
       if (closed || next.sessionId !== id) return;
       e = next;
+      ended = false;
       render();
+    },
+    end(text: string) {
+      if (closed || ended) return;
+      ended = true;
+      askView?.settle('elsewhere');
+      waitNote.hidden = true;
+      render();
+      systemLine(text);
     },
     focus() {
       if (e.hosted) input.focus({ preventScroll: true });
@@ -566,7 +586,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       closed = true;
       window.clearTimeout(pollTimer);
       askView?.destroy();
-      panel.remove();
+      // A host animating it out (.is-out) removes it when that's done.
+      if (!panel.classList.contains('is-out')) panel.remove();
     },
   };
   return view;

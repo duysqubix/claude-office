@@ -11,7 +11,7 @@ import { Batch, CanvasTex, ellipsize, fitText, font, G, rng, shade } from './kit
 import { INITIAL_BENCH_PAIRS, INTERN_BENCHES, type BenchSlot } from './layout';
 import { Screen, type ScreenView } from './screens';
 import { tallProp } from './props';
-import { disposeGroup, instancedModel, placement } from './modelkit';
+import { disposeGroup, disposeInstanced, instancedModel, placement } from './modelkit';
 import { model } from '../models';
 import type { WorldCtx } from './ctx';
 
@@ -86,6 +86,30 @@ export class InternSystem {
     for (const b of this.benches) for (const s of b.stations) s.screen.update(dt, elapsed, view);
   }
 
+  /** Ground area of every bench spot in use, at its full length (for the sun's shadow fit). */
+  areas(): THREE.Box3[] {
+    return this.benches.map(({ spot }) => {
+      const len = spot.maxPairs * M.moduleW;
+      return new THREE.Box3(new THREE.Vector3(spot.x0 - 1.0, 0, spot.z - M.d - 1.0), new THREE.Vector3(spot.x0 + len + 0.6, 1.6, spot.z + M.d + 1.0));
+    });
+  }
+
+  /** Rug marking out the bench's spot (sized for its full length, so it grows into it). */
+  private buildRug(spot: BenchSlot): void {
+    const len = spot.maxPairs * M.moduleW + 0.9;
+    const d = M.d * 2 + 2.5;
+    // Its own batch: benches can be added after the world's static batch has been merged.
+    const b = new Batch();
+    const cx = spot.x0 + len / 2 - 0.45;
+    if (spot.outdoor) {
+      b.slab(len, d, 0.05, 0.4, PALETTE.wood, { at: [cx, -0.015, spot.z], cast: false, finish: 'wood' });
+    } else {
+      b.slab(len, d, 0.022, 0.6, '#9E86E8', { at: [cx, 0.011, spot.z], cast: false, finish: 'matte', tex: 'carpet' });
+      b.slab(len - 0.36, d - 0.36, 0.026, 0.45, '#C9B8FF', { at: [cx, 0.013, spot.z], cast: false, finish: 'matte', tex: 'carpet' });
+    }
+    this.ctx.root.add(b.build({ name: 'intern-rug' }));
+  }
+
   private addBench(spot: BenchSlot, pairs: number): void {
     const bench: Bench = {
       spot,
@@ -100,6 +124,7 @@ export class InternSystem {
     };
     this.benches.push(bench);
     this.ctx.colliders.push(bench.collider);
+    this.buildRug(spot);
     this.buildSign(bench);
     this.build(bench, pairs);
   }
@@ -123,7 +148,7 @@ export class InternSystem {
       if (g) disposeGroup(g);
       bench.parts[key] = null;
     }
-    for (const m of bench.models) m.removeFromParent();
+    for (const m of bench.models) disposeInstanced(m);
     bench.models = [];
     if (bench.decor) disposeGroup(bench.decor);
     bench.generation++;
@@ -244,16 +269,17 @@ export class InternSystem {
       });
       const len = spot.maxPairs * M.moduleW;
       const mat = new THREE.MeshStandardMaterial({ map: tex.tex, roughness: 0.7 });
-      const banner = tallProp(this.ctx, 'interns-banner', (b) => {
-        b.box(2.3, 0.74, 0.06, '#FFFDF7', { at: [0, 3.0, 0], r: 0.05, cast: false });
-        for (const s of [-1, 1]) b.cyl(0.008, 0.008, D.building.wallH - 3.37, '#3B4252', { at: [s * 0.9, (D.building.wallH + 3.37) / 2, 0], seg: 6, cast: false });
-      }, { at: [spot.x0 + Math.min(len, INITIAL_BENCH_PAIRS * M.moduleW) / 2, spot.z] });
-      for (const s of [1, -1]) {
+      // Both printed faces go in through `extra`, so the fader fades them with the board.
+      const faces = [1, -1].map((s) => {
         const face = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.69), mat);
         face.position.set(0, 3.0, s * 0.032);
         face.rotation.y = s > 0 ? 0 : Math.PI;
-        banner.add(face);
-      }
+        return face;
+      });
+      const banner = tallProp(this.ctx, 'interns-banner', (b) => {
+        b.box(2.3, 0.74, 0.06, '#FFFDF7', { at: [0, 3.0, 0], r: 0.05, cast: false });
+        for (const s of [-1, 1]) b.cyl(0.008, 0.008, D.building.wallH - 3.37, '#3B4252', { at: [s * 0.9, (D.building.wallH + 3.37) / 2, 0], seg: 6, cast: false });
+      }, { at: [spot.x0 + Math.min(len, INITIAL_BENCH_PAIRS * M.moduleW) / 2, spot.z], extra: faces });
       banner.userData.overhead = true;
     }
     const sx = spot.x0 - 0.55;

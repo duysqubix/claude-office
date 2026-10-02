@@ -1,13 +1,16 @@
 // Bootstrap + game loop: engine, world, characters, camera, input, network and UI.
 //
-// Debug URL params (handy for screenshots):
+// Debug URL params (handy for screenshots and filmstrips):
 //   demo=1                 pretend office, no server (quiet=1 freezes the cast)
-//   cam=closeup&focus=N    frame desk N's person up close (focus=<name> works too; cy/cd/ch tweak the angle)
+//   autowalk=1             the manager walks, runs, stops dead, turns and jumps on a loop
+//   cam=closeup&focus=N    frame desk N's person up close (focus=<name>|manager; cy/cd/ch tweak the angle)
 //   cam=overview|door      fixed wide shots
-//   panel=hire|archive|roster|help|employee   open a panel
+//   panel=hire|archive|roster|help|stats|interns|employee|ask   open a panel
 //   term=1                 sit at the focused person's computer
 //   pose=walk|run|jump     freeze the manager mid-motion
-//   at=x,z  yaw=deg pitch=deg dist=m           manager / camera placement
+//   near=N  at=x,z  yaw=deg pitch=deg dist=m   manager / camera placement
+//   view=first|third       camera mode
+//   debug=1                window.office = { manager, director, camera, world, panels }
 //   lineup=1               every look in a row (character tuning)
 import '@fontsource/fredoka/400.css';
 import '@fontsource/fredoka/600.css';
@@ -18,12 +21,13 @@ import { CameraRig, type CameraShot } from './camera';
 import { Director } from './chars/director';
 import type { EmployeeChar } from './chars/employee';
 import { createLineup } from './chars/lineup';
-import { Manager, type DebugPose } from './chars/manager';
+import { Manager, type DebugPose, type MoveIntent } from './chars/manager';
+import { ViewModel } from './chars/viewmodel';
 import { createDemoBackend } from './demo';
 import { createEngine } from './engine/index';
 import { Input } from './input';
 import { RosterStore, createBackend } from './net';
-import { truncate, waitingText } from './ui/dom';
+import { h, truncate, waitingText } from './ui/dom';
 import { Hud } from './ui/hud';
 import { LabelLayer } from './ui/labels';
 import { PanelHost, type PanelId } from './ui/panels';
@@ -57,19 +61,25 @@ function runOffice(): void {
   const backend = params.has('demo') ? createDemoBackend(params) : createBackend();
   const input = new Input();
   const manager = new Manager(world, scene);
-  const camera = new CameraRig(engine.camera, canvas);
+  const camera = new CameraRig(engine.camera, canvas, world);
   const terminal = new TerminalOverlay(uiRoot, backend);
+  const viewModel = new ViewModel(manager.rig.looks.skin);
+  // The camera carries the first-person hand + mug, so it has to be in the scene.
+  scene.add(engine.camera);
+  engine.camera.add(viewModel.group);
+  const crosshair = h('div', { id: 'crosshair', hidden: true });
+  document.body.append(crosshair);
   manager.onStep = (k) => sfx.step(k);
 
   const director = new Director(world, scene, {
     added(e, initial) {
       labels.attach(e);
       if (initial) return;
-      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800);
+      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800, undefined, { who: e.data });
       sfx.chime();
     },
     leaving(e) {
-      toasts.show(`${e.data.displayName} clocked out of ${e.data.project}`, 'leave', 3800);
+      toasts.show(`${e.data.displayName} clocked out of ${e.data.project}`, 'leave', 3800, undefined, { who: e.data });
     },
     removed(e) {
       labels.detach(e);
@@ -77,15 +87,26 @@ function runOffice(): void {
     stateChanged(e) {
       if (e.state !== 'needs-you') return;
       sfx.ding();
-      toasts.show(`${e.data.displayName} needs you`, 'warn', 4500, waitingText(e.data));
+      toasts.show(`${e.data.displayName} needs you`, 'warn', 6000, e.data.ask?.title ?? waitingText(e.data), {
+        who: e.data,
+        action: {
+          label: 'Go',
+          run: () => {
+            if (!sitting) walkTo(e.data.sessionId);
+          },
+        },
+      });
     },
     bumped(e) {
       labels.bumped(e);
       sfx.boing();
     },
+    internAdded: (i) => labels.attachIntern(i),
+    internRemoved: (i) => labels.detachIntern(i),
   });
 
   // Sitting at someone's computer: walk behind the chair → ease the camera → open the terminal.
+  // Until the bezel is open, Esc (or any move key) cancels.
   let sitting: { id: string; phase: 'walking' | 'easing' | 'open' } | null = null;
 
   const panels = new PanelHost(uiRoot, {
@@ -96,26 +117,42 @@ function runOffice(): void {
     actions: {
       walkTo: (id) => walkTo(id),
       sitAt: (id) => sitAt(id),
+      answered: (id) => {
+        director.employees.get(id)?.answered();
+        sfx.pop();
+      },
     },
   });
 
-  const hud = new Hud(uiRoot, {
-    needsYou: () => goToNextNeedsYou(),
-    roster: () => panels.toggle('roster'),
-    hire: () => panels.toggle('hire'),
-    mute: () => hud.setMuted(sfx.toggle()),
-    help: () => panels.toggle('help'),
-  });
+  const hud = new Hud(
+    uiRoot,
+    {
+      needsYou: () => goToNextNeedsYou(),
+      stats: () => panels.toggle('stats'),
+      roster: () => panels.toggle('roster'),
+      hire: () => panels.toggle('hire'),
+      mute: () => hud.setMuted(sfx.toggle()),
+      help: () => panels.toggle('help'),
+    },
+    store,
+  );
   hud.setMuted(sfx.muted);
   hud.setDemo(backend.demo);
   window.setInterval(() => hud.tick(), 1000);
 
   input.onMoveKey = () => {
     if (panels.openId) panels.close();
+    if (sitting && sitting.phase !== 'open') cancelSit();
   };
   panels.onChange = (open) => {
     camera.locked = open;
+    if (open) camera.releasePointer();
   };
+  camera.onMode = (mode) => {
+    crosshair.hidden = mode !== 'first';
+    toasts.show(mode === 'first' ? 'First person' : 'Third person', 'info', 1600, mode === 'first' ? 'Click to look around. V to switch back.' : undefined);
+  };
+  crosshair.hidden = camera.mode !== 'first';
 
   // --- network -------------------------------------------------------------------------
   const bootAt = Date.now();
@@ -127,15 +164,14 @@ function runOffice(): void {
     director.sync(list);
     hud.setStats(director.stats());
   };
-  backend.onNotice = (level, text) => toasts.show(text, level === 'warn' ? 'warn' : 'info', 5000);
-  let boardWarned = false;
+  backend.onNotice = (level, text) => toasts.show(text, level === 'warn' ? 'warn' : 'info', 6000);
   backend.onStats = (stats) => {
+    store.setStats(stats);
+    hud.setUsage(stats, store.now());
     try {
-      world.setTeamBoard(stats);
+      world.setTeamBoard?.(stats);
     } catch (err) {
-      // An older world build without the Team Room board shouldn't take the roster down with it.
-      if (!boardWarned) console.warn('Team board unavailable:', err);
-      boardWarned = true;
+      console.warn('Team board unavailable:', err);
     }
   };
   backend.onStatus = (online, retryAt) => {
@@ -152,17 +188,22 @@ function runOffice(): void {
   };
   backend.start();
 
-  // --- actions -------------------------------------------------------------------------
-  function yawToward(from: THREE.Vector3, to: THREE.Vector3): number {
-    return Math.atan2(to.x - from.x, to.z - from.z);
-  }
+  // --- going places ----------------------------------------------------------------------
+  const yawToward = (from: THREE.Vector3, to: THREE.Vector3) => Math.atan2(to.x - from.x, to.z - from.z);
 
   /** Who the current "go to" is heading for (Q again retargets to the next one). */
   let goingTo: string | null = null;
 
+  /** Their question if they have one, otherwise their panel. A go-to passes focus: false. */
+  function openFor(id: string, opts: { focus?: boolean } = {}): void {
+    if (store.get(id)?.ask) panels.openAsk(id, opts);
+    else panels.openEmployee(id, opts);
+  }
+
   /**
-   * Go to someone: hustle to their desk (any trip takes about 3.5 s), face them and open
-   * their panel. Used by Q, the needs-you chip and the roster.
+   * Go to someone: open their panel (or their question) as you set off, hustle to their
+   * desk (any trip takes about 3.5 s) and face them. Used by Q, the needs-you chip, toasts
+   * and the roster.
    */
   function walkTo(id: string): void {
     const e = director.employees.get(id);
@@ -180,7 +221,7 @@ function runOffice(): void {
       prev = p;
     }
     goingTo = id;
-    const speed = THREE.MathUtils.clamp(length / 3.5, 4.5, 9);
+    openFor(id, { focus: false });
     manager.walkPath(
       path,
       () => {
@@ -188,10 +229,9 @@ function runOffice(): void {
         const now = director.employees.get(id);
         if (!now) return;
         manager.face(yawToward(manager.position, now.position));
-        if (!panels.openId) panels.openEmployee(id);
       },
       undefined,
-      speed,
+      THREE.MathUtils.clamp(length / 3.5, 4.5, 9),
     );
   }
 
@@ -199,7 +239,7 @@ function runOffice(): void {
   function goToNextNeedsYou(): void {
     const waiting = director
       .list()
-      .filter((e) => e.state === 'needs-you' && e.phase !== 'leaving' && e.phase !== 'gone')
+      .filter((e) => e.handUp && e.phase !== 'leaving' && e.phase !== 'gone')
       .sort((a, b) => a.data.stateSince - b.data.stateSince);
     if (!waiting.length) {
       toasts.show('Nobody needs you right now', 'good', 2200);
@@ -215,16 +255,47 @@ function runOffice(): void {
     return e.desk.seat.clone().setY(0).add(new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)).multiplyScalar(0.95));
   }
 
+  /** Where the desk monitor is (its screen mesh when the world provides one). */
+  function monitorOf(e: EmployeeChar): THREE.Vector3 {
+    const screen = e.desk.screen as THREE.Object3D | undefined;
+    if (screen) return screen.getWorldPosition(new THREE.Vector3());
+    const yaw = e.desk.yaw;
+    return e.desk.seat.clone().add(new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(0.9)).setY(1.0);
+  }
+
+  /** Over the manager's shoulder, looking at the screen (UX.md §3.3). */
   function shoulderShot(e: EmployeeChar): CameraShot {
     const yaw = e.desk.yaw;
     const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const right = new THREE.Vector3(-Math.cos(yaw), 0, Math.sin(yaw));
     const head = manager.rig.head.getWorldPosition(new THREE.Vector3());
-    const monitor = e.desk.seat.clone().addScaledVector(fwd, 0.9).setY(1.0);
     return {
-      position: head.addScaledVector(fwd, -0.8).addScaledVector(right, 0.38).add(new THREE.Vector3(0, 0.32, 0)),
-      look: monitor,
+      position: head.addScaledVector(fwd, -0.5).addScaledVector(right, 0.35).add(new THREE.Vector3(0, 0.25, 0)),
+      look: monitorOf(e),
     };
+  }
+
+  /** The desk monitor's rectangle on screen, for the bezel to grow out of. */
+  function monitorRect(e: EmployeeChar): DOMRect | undefined {
+    const screen = e.desk.screen as THREE.Object3D | undefined;
+    if (!screen) return undefined;
+    const box = new THREE.Box3().setFromObject(screen);
+    if (box.isEmpty()) return undefined;
+    const r = canvas.getBoundingClientRect();
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      const p = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(engine.camera);
+      const x = r.left + ((p.x + 1) / 2) * r.width;
+      const y = r.top + ((1 - p.y) / 2) * r.height;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+    return new DOMRect(minX, minY, maxX - minX, maxY - minY);
   }
 
   function sitAt(id: string, instant = false): void {
@@ -235,6 +306,7 @@ function runOffice(): void {
       return;
     }
     panels.close();
+    camera.releasePointer();
     const spot = behindChair(e);
     const yaw = e.desk.yaw;
     sitting = { id, phase: 'walking' };
@@ -259,9 +331,10 @@ function runOffice(): void {
     sitting.phase = 'easing';
     manager.frozen = true;
     manager.face(e.desk.yaw);
+    hud.setPrompt(null);
     // Swing the follow camera round behind the manager too, so easing in and out never flips sides.
     camera.yaw = e.desk.yaw + Math.PI;
-    hud.setPrompt(null);
+    e.quip('Hey, boss!', 1.8);
     window.setTimeout(() => {
       const now = director.employees.get(id);
       if (!now || sitting?.id !== id) return;
@@ -272,12 +345,20 @@ function runOffice(): void {
         sitting.phase = 'open';
         input.blocked = true;
         input.clear();
-        terminal.open(now.data);
-      }, 850);
+        terminal.open(now.data, monitorRect(now));
+      }, 780);
     }, 250);
   }
 
-  terminal.onClose = () => {
+  /** Esc or a move key before the bezel opened: never mind. */
+  function cancelSit(): void {
+    if (!sitting || sitting.phase === 'open') return;
+    sitting = null;
+    manager.cancelWalk();
+    standUp();
+  }
+
+  function standUp(): void {
     sitting = null;
     manager.frozen = false;
     camera.setShot(null);
@@ -285,8 +366,19 @@ function runOffice(): void {
     input.blocked = false;
     input.clear();
     canvas.focus();
+  }
+
+  terminal.events = {
+    onClose: standUp,
+    onNotice: (text, kind) => toasts.show(text, kind, kind === 'bad' ? 7000 : 4000),
   };
 
+  labels.onBubbleClick = (e) => {
+    if (sitting) return;
+    openFor(e.data.sessionId);
+  };
+
+  // --- interacting -------------------------------------------------------------------------
   function interact(it: Interactable): void {
     switch (it.kind) {
       case 'reception':
@@ -298,6 +390,12 @@ function runOffice(): void {
       case 'whiteboard':
         panels.open('roster');
         break;
+      case 'teamboard':
+        panels.open('stats');
+        break;
+      case 'interns':
+        panels.open('interns');
+        break;
       case 'coffee':
         manager.sip(true);
         sfx.slurp();
@@ -305,27 +403,55 @@ function runOffice(): void {
         break;
       case 'desk': {
         const e = it.deskIndex !== undefined ? director.byDesk(it.deskIndex) : undefined;
-        if (e) panels.openEmployee(e.data.sessionId);
+        if (e) openFor(e.data.sessionId);
         break;
       }
     }
   }
 
+  function labelFor(it: Interactable): string | null {
+    if (it.kind !== 'desk') return it.label;
+    const e = it.deskIndex !== undefined ? director.byDesk(it.deskIndex) : undefined;
+    if (!e || !e.seated) return null;
+    const name = e.data.displayName;
+    if (e.handUp) return e.data.ask ? `Answer ${name}` : `Help ${name}`;
+    return e.state === 'idle' ? `Talk to ${name}` : `Check on ${name}`;
+  }
+
+  const _eye = new THREE.Vector3();
+  const _view = new THREE.Vector3();
+  const _to = new THREE.Vector3();
+  /**
+   * What E would use. First person: whatever the crosshair points at within 2.5 m (else the
+   * nearest thing in front). Third person: the nearest in reach, preferring what you face.
+   */
   function nearestInteractable(): { it: Interactable; label: string } | null {
+    const fp = camera.firstPerson > 0.5;
+    if (fp) {
+      engine.camera.getWorldPosition(_eye);
+      camera.viewDir(_view);
+    }
     let best: { it: Interactable; label: string } | null = null;
-    let bestD = Infinity;
+    let bestScore = Infinity;
     for (const it of world.interactables) {
       const d = manager.distanceTo(it.position);
-      if (d > it.radius || d >= bestD) continue;
-      let label = it.label;
-      if (it.kind === 'desk') {
-        const e = it.deskIndex !== undefined ? director.byDesk(it.deskIndex) : undefined;
-        if (!e || !e.seated) continue;
-        const name = e.data.displayName;
-        label = e.state === 'needs-you' ? `Help ${name}` : e.state === 'idle' ? `Talk to ${name}` : `Check on ${name}`;
+      const reach = fp ? Math.max(2.5, it.radius) : it.radius;
+      if (d > reach) continue;
+      const label = labelFor(it);
+      if (!label) continue;
+      let score: number;
+      if (fp) {
+        const angle = _to.copy(it.position).sub(_eye).normalize().angleTo(_view);
+        if (angle > 70 * DEG) continue;
+        score = angle < 22 * DEG ? angle : 1 + d;
+      } else {
+        const facing = Math.abs(THREE.MathUtils.euclideanModulo(yawToward(manager.position, it.position) - manager.yaw + Math.PI, Math.PI * 2) - Math.PI);
+        score = d + (facing > 100 * DEG ? 10 : 0);
       }
-      best = { it, label };
-      bestD = d;
+      if (score < bestScore) {
+        best = { it, label };
+        bestScore = score;
+      }
     }
     return best;
   }
@@ -335,10 +461,18 @@ function runOffice(): void {
   if (pose === 'walk' || pose === 'run' || pose === 'jump') manager.debugPose = pose;
   const at = params.get('at')?.split(',').map(Number);
   if (at && at.length === 2 && at.every(Number.isFinite)) manager.teleport(new THREE.Vector3(at[0], 0, at[1]), manager.yaw);
+  if (world.isInside?.(manager.position.clone().setY(1))) {
+    camera.pitch = camera.indoorDefaults.pitch;
+    camera.dist = camera.indoorDefaults.dist;
+  }
   if (params.has('yaw')) camera.yaw = Number(params.get('yaw')) * DEG;
   if (params.has('pitch')) camera.pitch = Number(params.get('pitch')) * DEG;
   if (params.has('dist')) camera.dist = Number(params.get('dist'));
+  const view = params.get('view');
+  if (view === 'first' || view === 'third') camera.setMode(view);
   const near = params.get('near');
+  const autowalk = params.has('autowalk');
+  if (params.has('debug')) Object.assign(window, { office: { manager, director, camera, world, panels, store } });
 
   const findFocus = (): EmployeeChar | undefined => {
     const f = params.get('focus');
@@ -349,7 +483,8 @@ function runOffice(): void {
   };
   const camMode = params.get('cam');
   const debugShot = (): CameraShot | null => {
-    if (camMode === 'overview') return { position: new THREE.Vector3(0, 25, 23), look: new THREE.Vector3(0, 0, 1.5) };
+    // The building has a roof now, so the wide shot looks up the room from just under the ceiling.
+    if (camMode === 'overview') return { position: new THREE.Vector3(0, 3.6, 9.6), look: new THREE.Vector3(0, 0.2, -3.5) };
     if (camMode === 'door') return { position: new THREE.Vector3(5.5, 4.2, 17.5), look: new THREE.Vector3(0, 1, 10) };
     if (camMode === 'closeup') {
       const isManager = params.get('focus') === 'manager';
@@ -370,25 +505,41 @@ function runOffice(): void {
     const desk = near !== null ? world.desks[Number(near)] : undefined;
     if (desk) manager.teleport(desk.approach.clone().add(new THREE.Vector3(Math.sin(desk.yaw), 0, Math.cos(desk.yaw)).multiplyScalar(-0.5)), desk.yaw);
     const p = params.get('panel') as PanelId | null;
-    const focus = findFocus() ?? director.list()[0];
+    const focus = findFocus() ?? director.list().find((e) => e.data.ask) ?? director.list()[0];
     if (p === 'employee' && focus) panels.openEmployee(focus.data.sessionId);
-    else if (p === 'hire' || p === 'archive' || p === 'roster' || p === 'help') panels.open(p);
+    else if (p === 'ask' && focus) panels.openAsk(focus.data.sessionId);
+    else if (p === 'chat' && focus) panels.openChat(focus.data.sessionId);
+    else if (p === 'hire' || p === 'archive' || p === 'roster' || p === 'help' || p === 'stats' || p === 'interns') panels.open(p);
     if (params.has('term')) {
       const hosted = focus?.data.hosted ? focus : director.list().find((e) => e.data.hosted && e.seated);
       if (hosted) sitAt(hosted.data.sessionId, true);
     }
   }, 600);
 
-  // `?debug=1`: poke at the game from the console.
-  if (params.has('debug')) Object.assign(window, { office: { manager, director, camera, world, panels } });
+  /** `?autowalk=1`: walk, run, stop dead, turn back, run, stop, jump, sidestep — on a loop. */
+  function autowalkIntent(t: number): MoveIntent {
+    const T = t % 12;
+    const go = (x: number, y: number, run = false, jump = false): MoveIntent => ({ x, y, run, jump });
+    if (T < 1.5) return go(0, 1);
+    if (T < 2.7) return go(0, 1, true);
+    if (T < 3.9) return go(0, 0);
+    if (T < 5.4) return go(0, -1);
+    if (T < 6.6) return go(0, -1, true);
+    if (T < 7.8) return go(0, 0);
+    if (T < 7.9) return go(0, 0, false, true);
+    if (T < 9.0) return go(0, 0);
+    if (T < 9.6) return go(1, 0);
+    if (T < 10.2) return go(-1, 0);
+    return go(0, 0);
+  }
 
   // --- loop ----------------------------------------------------------------------------
   const clock = new THREE.Clock();
-  const follow = new THREE.Vector3();
   const managerHead = new THREE.Vector3();
   let t = 0;
   let frames = 0;
   let lastStats = '';
+  let managerFade = 1;
 
   window.addEventListener('resize', () => {
     engine.resize();
@@ -406,8 +557,9 @@ function runOffice(): void {
     for (const a of input.drain()) {
       switch (a) {
         case 'interact': {
-          if (panels.openId) panels.close();
-          else if (!sitting) {
+          if (panels.openId) {
+            if (!panels.pressE()) panels.close();
+          } else if (!sitting) {
             const near = nearestInteractable();
             if (near) interact(near.it);
           }
@@ -425,12 +577,16 @@ function runOffice(): void {
         case 'mute':
           hud.setMuted(sfx.toggle());
           break;
+        case 'view':
+          camera.toggleMode();
+          break;
         case 'jump':
           jump = !panels.openId;
           break;
         case 'close':
-          if (panels.openId) panels.close();
-          else if (manager.autoWalking && !sitting) {
+          if (sitting && sitting.phase !== 'open') cancelSit();
+          else if (panels.openId) panels.close();
+          else if (manager.autoWalking) {
             manager.cancelWalk();
             goingTo = null;
           }
@@ -443,14 +599,22 @@ function runOffice(): void {
 
     const busy = !!panels.openId || !!sitting;
     const axis = busy ? { x: 0, y: 0 } : input.axis();
-    manager.update(dt, t, { x: axis.x, y: axis.y, run: input.running, jump }, camera.yaw, director.bumpables());
+    const intent: MoveIntent = autowalk && !busy ? autowalkIntent(t) : { x: axis.x, y: axis.y, run: input.running, jump };
+    manager.update(dt, t, intent, camera.yaw, director.bumpables());
     manager.rig.head.getWorldPosition(managerHead);
     director.update(dt, t, manager.position, managerHead);
 
-    follow.copy(manager.position).add(new THREE.Vector3(0, 1.0, 0));
     const shot = debugShot();
     if (shot) camera.snapShot(shot);
-    camera.update(dt, follow);
+    camera.update(dt, manager.position, manager.hop);
+    // First person hides your body and shows your hand + mug; a very close third-person
+    // camera fades you a little so you don't fill the screen.
+    const fp = camera.firstPerson;
+    manager.rig.root.visible = fp < 0.5 || camera.shotBlend > 0.5;
+    viewModel.update(dt, manager.speed, manager.sipping, fp > 0.5 && camera.shotBlend < 0.1 ? fp : 0);
+    const wantFade = fp > 0 ? 1 : THREE.MathUtils.clamp((camera.distance - 0.6) / 0.9, 0.45, 1);
+    managerFade += (wantFade - managerFade) * Math.min(1, dt * 8);
+    manager.rig.setOpacity(managerFade > 0.98 ? 1 : managerFade);
     world.update(dt, t);
     world.updateOcclusion(engine.camera, manager.position);
 
@@ -459,12 +623,11 @@ function runOffice(): void {
     if (sk !== lastStats) {
       lastStats = sk;
       hud.setStats(stats);
-      // While anyone waits, the tab says so.
-      document.title = stats.needsYou ? `(${stats.needsYou}) Claude Office` : 'Claude Office';
     }
     const near = busy ? null : nearestInteractable();
     hud.setPrompt(near ? truncate(near.label, 40) : null);
-    labels.update(director, manager.position, engine.camera);
+    crosshair.classList.toggle('aim', !!near && fp > 0.5);
+    labels.update(manager.position, engine.camera);
 
     engine.render();
     labels.render(scene, engine.camera);
@@ -477,10 +640,10 @@ function runOffice(): void {
 
 function runLineup(): void {
   const pose = (params.get('pose') as DebugPose | null) ?? null;
-  const centre = new THREE.Vector3(0, 0, 5.5);
+  const centre = new THREE.Vector3(0, 0, 0.5);
   const lineup = createLineup(scene, centre, 0, pose);
   const cam = engine.camera;
-  const dist = Number(params.get('dist') ?? 8);
+  const dist = Number(params.get('dist') ?? 6.5);
   const lx = Number(params.get('lx') ?? 0);
   const ly = Number(params.get('ly') ?? 0.75);
   cam.position.set(lx, ly + 0.6, centre.z + dist);
@@ -490,12 +653,13 @@ function runLineup(): void {
   window.addEventListener('resize', () => engine.resize());
   document.getElementById('splash')?.classList.add('gone');
   const frame = () => {
+    requestAnimationFrame(frame);
     const dt = Math.min(clock.getDelta(), 0.05);
+    if (dt <= 1e-5) return;
     t += dt;
     lineup.update(dt, t, cam.position);
     world.update(dt, t);
     engine.render();
-    requestAnimationFrame(frame);
   };
   frame();
 }

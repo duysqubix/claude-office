@@ -29,28 +29,67 @@ export class PlasticMaterial extends THREE.MeshStandardMaterial {
 
   override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms): void {
     shader.vertexShader =
-      'attribute float rough;\nattribute float glow;\nvarying float vRough;\nvarying float vGlow;\nvarying float vGround;\n' +
+      'attribute float rough;\nattribute float glow;\nattribute float tex;\nvarying float vRough;\nvarying float vGlow;\nvarying float vTex;\nvarying float vGround;\nvarying vec3 vPlasticPos;\n' +
       shader.vertexShader.replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
 	vRough = rough;
 	vGlow = glow;
+	vTex = tex;
 	vec4 groundWp = modelMatrix * vec4(transformed, 1.0);
+	vPlasticPos = groundWp.xyz;
 	float groundUp = abs(normalize(mat3(modelMatrix) * objectNormal).y);
 	vGround = 1.0 - (1.0 - smoothstep(0.35, 0.75, groundUp)) * 0.07 * (1.0 - smoothstep(0.0, 0.8, groundWp.y));`,
       );
     shader.fragmentShader =
-      'varying float vRough;\nvarying float vGlow;\nvarying float vGround;\n' +
+      'varying float vRough;\nvarying float vGlow;\nvarying float vTex;\nvarying float vGround;\nvarying vec3 vPlasticPos;\n' +
+      SURFACE_NOISE +
       shader.fragmentShader
-        .replace('#include <color_fragment>', '#include <color_fragment>\n\tdiffuseColor.rgb *= vGround;')
+        .replace('#include <color_fragment>', '#include <color_fragment>\n\tdiffuseColor.rgb *= vGround * surfaceDetail(vTex, vPlasticPos);')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor *= vRough;')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * vGlow;');
   }
 
   override customProgramCacheKey(): string {
-    return 'office-plastic-2';
+    return 'office-plastic-3';
   }
 }
+
+/**
+ * Subtle procedural surface detail, in world space so it never stretches: 1 = cloth (fine
+ * fuzz), 2 = speckle (desk tops), 3 = carpet pile. Fine octaves fade out by screen-space
+ * derivative before they get smaller than a pixel, so nothing shimmers at a distance.
+ */
+const SURFACE_NOISE = /* glsl */ `
+float plasticHash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float plasticNoise(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(plasticHash(i), plasticHash(i + vec3(1, 0, 0)), f.x), mix(plasticHash(i + vec3(0, 1, 0)), plasticHash(i + vec3(1, 1, 0)), f.x), f.y),
+    mix(mix(plasticHash(i + vec3(0, 0, 1)), plasticHash(i + vec3(1, 0, 1)), f.x), mix(plasticHash(i + vec3(0, 1, 1)), plasticHash(i + vec3(1, 1, 1)), f.x), f.y),
+    f.z);
+}
+float plasticOctave(vec3 p, float freq, float amp) {
+  float fw = length(fwidth(p)) * freq;
+  return (plasticNoise(p * freq) - 0.5) * amp * (1.0 - smoothstep(0.35, 0.9, fw));
+}
+float surfaceDetail(float kind, vec3 p) {
+  if (kind < 0.5) return 1.0;
+  if (kind < 1.5) return 1.0 + plasticOctave(p, 70.0, 0.08) + plasticOctave(p, 11.0, 0.05);
+  if (kind < 2.5) {
+    float fw = length(fwidth(p)) * 110.0;
+    float dots = step(0.86, plasticNoise(p * 110.0)) * (1.0 - smoothstep(0.35, 0.9, fw));
+    return 1.0 - dots * 0.07 + plasticOctave(p, 6.0, 0.025);
+  }
+  return 1.0 + plasticOctave(p, 55.0, 0.06) + plasticOctave(p, 5.0, 0.04);
+}
+`;
 
 let plastic: PlasticMaterial | null = null;
 
@@ -73,7 +112,11 @@ export interface PartOpts {
   glow?: number;
   /** Flat-shaded facets (nature: trees, bushes, rocks). */
   flat?: boolean;
+  /** Procedural surface detail; 'cloth' finishes get 'cloth' by default. */
+  tex?: 'none' | 'cloth' | 'speckle' | 'carpet';
 }
+
+const TEX_KIND = { none: 0, cloth: 1, speckle: 2, carpet: 3 } as const;
 
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -178,7 +221,7 @@ export const G = {
 
 const KEEP = new Set(['position', 'normal', 'uv']);
 
-function prepare(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color: THREE.Color, rough: number, glow: number, flat: boolean): THREE.BufferGeometry {
+function prepare(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color: THREE.Color, rough: number, glow: number, flat: boolean, tex: number): THREE.BufferGeometry {
   let g = new THREE.BufferGeometry();
   for (const name of KEEP) {
     const a = src.getAttribute(name);
@@ -217,6 +260,7 @@ function prepare(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color: THREE.
   g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
   g.setAttribute('rough', new THREE.BufferAttribute(new Float32Array(n).fill(rough), 1));
   g.setAttribute('glow', new THREE.BufferAttribute(new Float32Array(n).fill(glow), 1));
+  g.setAttribute('tex', new THREE.BufferAttribute(new Float32Array(n).fill(tex), 1));
   return g;
 }
 
@@ -252,7 +296,8 @@ export class Batch {
     if (o.parent) m.premultiply(o.parent);
     const frame = this.frames[this.frames.length - 1];
     if (frame) m.premultiply(frame);
-    const g = prepare(geo, m, _c.set(color), ROUGHNESS[o.finish ?? 'soft'], o.glow ?? 0, o.flat ?? false);
+    const tex = TEX_KIND[o.tex ?? (o.finish === 'cloth' ? 'cloth' : 'none')];
+    const g = prepare(geo, m, _c.set(color), ROUGHNESS[o.finish ?? 'soft'], o.glow ?? 0, o.flat ?? false, tex);
     const cast = o.cast !== false;
     let list = this.buckets.get(cast);
     if (!list) this.buckets.set(cast, (list = []));

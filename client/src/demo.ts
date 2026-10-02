@@ -1,7 +1,7 @@
 // `?demo=1`: a pretend office with no server. Exercises every state and activity, walks
 // people in and out, churns interns, and fakes every REST call plus a toy terminal.
 // `&quiet=1` freezes the cast (no arrivals, departures or state changes) for screenshots.
-import type { ActivityKind, ApiResult, ChatLine, Employee, EmployeeState, Intern, PastSession, ProjectInfo, TeamStats } from '../../shared/protocol';
+import type { ActivityKind, ApiResult, Ask, ChatLine, Employee, EmployeeState, Intern, PastSession, ProjectInfo, TeamStats } from '../../shared/protocol';
 import type { Backend, TermLink } from './net';
 
 const HOME = '/Users/you';
@@ -42,7 +42,7 @@ const LAST_TEXT = [
   'I found the bug: the spring was integrating with the wrong timestep. Fixed and verified.',
   "Here's the plan: refactor the roster diffing first, then the desk assignment.",
   'Shipped. Want me to write the changelog entry too?',
-  'The build is green. I left two TODOs for you to decide on.',
+  'The build is green. Two small calls are left for you to decide.',
 ];
 const PROMPTS = [
   'make the employees wobble more',
@@ -62,6 +62,69 @@ const INTERN_TYPES: [string, string][] = [
 ];
 
 const hashish = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+/** The three kinds of in-game question, shaped like the server's (server/asks.ts). */
+function demoAsk(kind: Ask['kind'], now: number): Ask {
+  const common = { id: `ask-${now.toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`, createdAt: now, expiresAt: now + 90_000 };
+  if (kind === 'question') {
+    return {
+      ...common,
+      kind,
+      tool: 'AskUserQuestion',
+      title: 'Which test runner should I set up?',
+      detail: 'Which test runner should I set up?\nShould I add a CI job too?',
+      questions: [
+        {
+          question: 'Which test runner should I set up?',
+          header: 'Test runner',
+          options: [
+            { label: 'Vitest', description: 'Fast, Vite-native, Jest-compatible API' },
+            { label: 'Node test runner', description: 'Built in, no dependencies' },
+            { label: 'Jest', description: 'The classic' },
+          ],
+        },
+        {
+          question: 'Should I add a CI job too?',
+          header: 'CI',
+          multiSelect: true,
+          options: [{ label: 'GitHub Actions' }, { label: 'Pre-commit hook' }],
+        },
+      ],
+      options: [
+        { id: 'answer', label: 'Send answers', style: 'primary' },
+        { id: 'terminal', label: 'Answer in their terminal', style: 'ghost' },
+      ],
+    };
+  }
+  if (kind === 'plan') {
+    return {
+      ...common,
+      kind,
+      tool: 'ExitPlanMode',
+      title: 'Approve this plan?',
+      detail:
+        '## Plan: make the door sensor reliable\n\n1. Measure distance on the XZ plane only\n2. Keep the door open while anyone is within 2.5 m\n3. Add a 0.4 s close delay so it never snaps shut on someone\n4. Write a test that walks three people through at once',
+      options: [
+        { id: 'approve', label: 'Approve plan', style: 'primary' },
+        { id: 'revise', label: 'Keep planning', hint: 'Add a note with what to change', style: 'secondary' },
+        { id: 'terminal', label: 'Answer in their terminal', style: 'ghost' },
+      ],
+    };
+  }
+  return {
+    ...common,
+    kind,
+    tool: 'Bash',
+    title: 'Run a command?',
+    detail: 'npm test -- --run src/roster.spec.ts\n— Run the roster tests once',
+    options: [
+      { id: 'allow', label: 'Allow', style: 'primary' },
+      { id: 'always:0', label: 'Always allow npm test:*', hint: 'For this project (.claude/settings.local.json)', style: 'secondary' },
+      { id: 'deny', label: 'Deny', hint: 'Optionally tell them why', style: 'danger' },
+      { id: 'terminal', label: 'Answer in their terminal', style: 'ghost' },
+    ],
+  };
+}
 
 /** Small deterministic PRNG so demo runs (and screenshots) repeat. */
 function mulberry32(seed: number) {
@@ -106,6 +169,8 @@ export function createDemoBackend(params: URLSearchParams): Backend {
   let internSerial = 0;
   const employees: Employee[] = [];
   const chatter = new Map<string, ChatLine[]>();
+  let chatSeq = 0;
+  const line = (role: ChatLine['role'], text: string, tool?: string): ChatLine => ({ role, text, seq: ++chatSeq, ...(tool ? { tool } : {}) });
   const archive: PastSession[] = [];
 
   const newId = () => {
@@ -170,11 +235,14 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       startedAt: at - Math.floor(rand() * 5_400_000),
     };
     if (seed.state === 'needs-you' && !seed.waitingFor) e.waitingFor = pickR(WAITING);
+    if (seed.state === 'needs-you') e.ask = demoAsk('permission', at);
     e.screen = screenFor(e);
     chatter.set(e.sessionId, [
-      { role: 'user', text: e.lastPrompt ?? 'hello' },
-      { role: 'assistant', text: "On it. I'll start by reading the relevant files." },
-      { role: 'assistant', text: e.lastText ?? 'Done.' },
+      line('user', e.lastPrompt ?? 'hello'),
+      line('assistant', "On it. I'll start by reading the relevant files."),
+      line('tool', 'Reading server/roster.ts', 'Read'),
+      line('tool', 'Editing roster.ts', 'Edit'),
+      line('assistant', e.lastText ?? 'Done.'),
     ]);
     return e;
   }
@@ -259,15 +327,35 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       if (!e) return { ok: false, error: 'Not here.' };
       if (!e.hosted) return { ok: false, error: 'Talk to them in their own terminal.' };
       e.lastPrompt = text.slice(0, 200);
-      chatter.get(sessionId)?.push({ role: 'user', text });
+      chatter.get(sessionId)?.push(line('user', text));
       setState(e, 'working', 'thinking');
       emit();
       window.setTimeout(() => {
-        chatter.get(sessionId)?.push({ role: 'assistant', text: 'Sure thing, boss! Done.' });
+        chatter.get(sessionId)?.push(line('assistant', 'Sure thing, boss! Done.'));
         e.lastText = 'Sure thing, boss! Done.';
         setState(e, 'idle');
         emit();
       }, 6000);
+      return { ok: true };
+    },
+    async answer(req): Promise<ApiResult> {
+      const e = employees.find((x) => x.sessionId === req.sessionId);
+      if (!e || !e.ask || e.ask.id !== req.askId) return { ok: false, error: 'That question was already answered or withdrawn' };
+      const said =
+        req.choice === 'deny'
+          ? `Denied${req.message ? `: ${req.message}` : ''}`
+          : req.choice === 'answer'
+            ? Object.entries(req.answers ?? {})
+                .map(([q, a]) => `${q} → ${a}`)
+                .join('; ')
+            : req.choice;
+      chatter.get(e.sessionId)?.push(line('user', `(answered in the office) ${said}`));
+      if (req.choice === 'terminal') {
+        e.ask = undefined;
+      } else {
+        setState(e, 'working', req.choice === 'revise' ? 'planning' : undefined);
+      }
+      window.setTimeout(emit, 250);
       return { ok: true };
     },
     terminal: (sessionId) => fakeTerminal(employees.find((e) => e.sessionId === sessionId)),
@@ -318,6 +406,12 @@ export function createDemoBackend(params: URLSearchParams): Backend {
     e.state = state;
     e.activity = state === 'working' ? activity(kind ?? pickR(WORK_KINDS)) : undefined;
     e.waitingFor = state === 'needs-you' ? pickR(WAITING) : undefined;
+    e.ask = undefined;
+    if (state === 'needs-you') {
+      const kind = pickR(['permission', 'permission', 'question', 'plan'] as const);
+      e.waitingFor = kind === 'permission' ? 'permission' : kind === 'question' ? 'question' : 'plan approval';
+      e.ask = demoAsk(kind, Date.now());
+    }
     if (state === 'working' && e.activity?.kind !== 'delegating') e.interns = e.interns.slice(0, 1);
     if (state !== 'working') e.interns = [];
     e.screen = screenFor(e);

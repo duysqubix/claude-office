@@ -1,0 +1,54 @@
+{
+  "_doc": "Character rig proportions and joint pivots, shared by chars/rig.ts and the Blender character kit. Metres at scale 1 (total height ~1.25). +Y up, +Z forward (characters face +Z), character-left = +X. Positions marked 'pelvis space' are relative to the pelvis joint in the rest pose; everything else is relative to its parent joint. Limbs hang straight down (-Y) from their pivot in the rest pose.",
+  "pelvisY": 0.42,
+  "torso": {
+    "_doc": "Bean lathe: [radius, height above pelvis] control points, Catmull-Rom smoothed, then scaled z by scaleZ and x/z by the per-character girth. Pants cover the profile below beltY (1.1 cm proud of the shirt). The chest joint splits the spine: everything above chestPivotY bends with the chest.",
+    "profile": [[0.0, -0.155], [0.12, -0.142], [0.205, -0.095], [0.243, 0.0], [0.24, 0.1], [0.214, 0.21], [0.165, 0.31], [0.09, 0.385], [0.0, 0.41]],
+    "scaleZ": 0.85,
+    "beltY": 0.015,
+    "pantsOffset": 0.011,
+    "chestPivotY": 0.12,
+    "girth": [0.94, 1.08]
+  },
+  "head": {
+    "shape": "sphere",
+    "r": 0.27,
+    "neckY": 0.34,
+    "centerAboveNeck": 0.21,
+    "centerAbovePelvis": 0.55,
+    "_doc": "neckY is pelvis space; the head pivots at the neck and its centre sits centerAboveNeck above it."
+  },
+  "face": {
+    "_doc": "Head-centre space; features sit on the sphere surface at (x, y) and face outward along the normal.",
+    "eyes": { "x": 0.088, "y": -0.005, "radii": [0.037, 0.055, 0.0225], "inset": 0.012 },
+    "brows": { "x": 0.092, "y": 0.094 },
+    "mouth": { "y": -0.093, "width": 0.08 },
+    "cheeks": { "x": 0.158, "y": -0.062, "radii": [0.046, 0.032, 0.012] }
+  },
+  "shoulder": { "x": 0.215, "y": 0.25, "scaledByGirth": true, "restSplayDeg": 17, "_doc": "pelvis space" },
+  "upperArm": { "len": 0.15, "r": 0.072 },
+  "forearm": { "len": 0.13, "r": 0.066 },
+  "hand": { "type": "mitten", "radii": [0.074, 0.084, 0.06], "offset": 0.045, "thumb": { "r": 0.032, "at": [0.0, -0.01, 0.045] }, "_doc": "Mitten centre sits offset below the wrist (end of the forearm). Thumb points forward; mirror x for the right hand." },
+  "hip": { "x": 0.105, "_doc": "pelvis space, at pelvis height" },
+  "thigh": { "len": 0.17, "r": 0.085 },
+  "shin": { "len": 0.15, "r": 0.078 },
+  "foot": {
+    "_doc": "Shoe = rounded ellipsoid of size [w, h, l]. Its centre is 'below' under the ankle (end of the shin) and 'forward' ahead of it, so the sole touches y = 0 in the rest pose. Toes turn out by toeOutDeg.",
+    "size": [0.188, 0.14, 0.27],
+    "below": 0.03,
+    "forward": 0.052,
+    "toeOutDeg": 7
+  },
+  "attach": {
+    "_doc": "Where accessories go. 'bone' is the joint they follow.",
+    "headTop": { "bone": "head", "at": [0.0, 0.27, 0.0] },
+    "hatBand": { "bone": "head", "at": [0.0, 0.1, 0.0], "r": 0.29, "tiltBackDeg": 17, "_doc": "a cap/beanie opening sits on this ring, tilted back so the front clears the brows" },
+    "glasses": { "bone": "head", "at": [0.0, -0.004, 0.296] },
+    "headphones": { "bone": "head", "cupX": 0.286, "bandR": 0.305 },
+    "handGrip": { "bone": "hand", "at": [0.0, -0.03, 0.06], "_doc": "held items (the manager's mug, a laptop corner)" },
+    "chestBadge": { "bone": "chest", "at": [0.0, 0.085, 0.216], "_doc": "pelvis space; lanyard badge centre" },
+    "tieKnot": { "bone": "chest", "at": [0.0, 0.272, 0.17], "_doc": "pelvis space" }
+  },
+  "scale": { "employee": [0.96, 1.04], "manager": 1.08, "intern": 0.7 },
+  "materials": ["Skin", "Shirt", "Pants", "Shoes", "Hair", "Accent"]
+}

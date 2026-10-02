@@ -36,6 +36,18 @@
     "w": 2.4,
     "d": 7.0
   },
+  "roofHut": {
+    "w": 2.4,
+    "d": 2.0,
+    "h": 2.3,
+    "doorW": 0.9,
+    "doorH": 1.9
+  },
+  "roofPlanter": {
+    "w": 2.2,
+    "d": 0.6,
+    "h": 0.42
+  },
   "pendantLamp": {
     "bottomY": 3.05,
     "shadeR": 0.3,

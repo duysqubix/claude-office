@@ -90,7 +90,8 @@ export function managerLooks(): Looks {
   };
 }
 
-export function internLooks(internId: string): Looks {
+/** Interns wear their boss's colour on their cap, so you can tell whose they are. */
+export function internLooks(internId: string, bossColor?: string): Looks {
   const shirt = pick(PALETTE.shirts, internId, 'shirt');
   return {
     role: 'intern',
@@ -100,7 +101,7 @@ export function internLooks(internId: string): Looks {
     shoes: pick(PALETTE.shoes, internId, 'shoes'),
     hair: pick(PALETTE.hair, internId, 'hairColor'),
     hairStyle: 'capBack',
-    hatColor: pickNot(HAT_COLORS, internId, 'hat', shirt),
+    hatColor: bossColor ?? pickNot(HAT_COLORS, internId, 'hat', shirt),
     glasses: roll(internId, 'glasses') < 0.2,
     glassesColor: pick(GLASSES_COLORS, internId, 'glassesColor'),
     sleeves: 'short',

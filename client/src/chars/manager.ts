@@ -110,6 +110,21 @@ export class Manager {
     return !this.grounded;
   }
 
+  /** Height off the floor (jumps). */
+  get hop(): number {
+    return this.height;
+  }
+
+  /** Measured ground speed, m/s. */
+  get speed(): number {
+    return this.moveSpeed;
+  }
+
+  /** How far into a sip the mug is (0..1), for the first-person view. */
+  get sipping(): number {
+    return this.body.sip / 0.95;
+  }
+
   /** Auto-walk along a path (from world.findPath). Any movement key cancels. `speed` overrides walk/run (hustle). */
   walkPath(path: THREE.Vector3[], onArrive?: () => void, faceYaw?: number, speed?: number): void {
     this.path = path.map((p) => p.clone().setY(0));
@@ -275,10 +290,11 @@ export class Manager {
     if (airborne) body.flail(t, vy);
     else body.locomote(dt, speed, this.run01, this.rig.root.scale.y);
 
-    // Holding the mug out in front; breathing.
-    body.target.armRPitch += 0.7;
+    // Holding the mug out in front (elbow bent); breathing and shifting weight when still.
+    body.target.armRPitch += 0.35;
     body.target.armRRoll -= 0.12;
-    body.over.squash += Math.sin(t * 2.3) * 0.01;
+    body.target.elbowR += 0.95;
+    if (speed < 0.2 && !airborne) body.idle(dt, t);
 
     this.still = speed < 0.2 && !airborne ? this.still + dt : 0;
     if (this.still > 1.5 && this.sipT < 0) {
@@ -294,7 +310,9 @@ export class Manager {
     if (this.sipT >= 0) {
       this.sipT += dt;
       const up = this.sipT < 0.35 ? this.sipT / 0.35 : this.sipT < 1.1 ? 1 : Math.max(0, 1 - (this.sipT - 1.1) / 0.35);
-      body.target.armRPitch += up * 1.55;
+      // Upper arm forward, forearm folded up: the mug arrives at the mouth.
+      body.target.armRPitch += up * 0.95;
+      body.target.elbowR += up * 0.7;
       body.target.armRRoll -= up * 0.38;
       body.target.armRYaw += up * 0.3;
       body.target.headPitch -= up * 0.22;

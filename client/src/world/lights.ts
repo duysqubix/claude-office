@@ -60,9 +60,10 @@ export function buildLights(ctx: WorldCtx): void {
     [-11.8, -6.9, '#6EDC9A'],
     [6.0, 7.6, '#FFC94A'],
     [10.8, -7.4, '#B48CFF'],
-    [-9.6, 7.6, '#FF9DCB'],
-    [-6.4, 7.6, '#FF9DCB'],
-    [-3.6, 7.6, '#FF9DCB'],
+    // Over the intern bench, clear of the INTERNS banner (x -9.95…-7.65).
+    [-10.6, 7.6, '#FF9DCB'],
+    [-7.0, 7.6, '#FF9DCB'],
+    [-4.4, 7.6, '#FF9DCB'],
     [12.6, 7.0, '#6EDC9A'],
   ];
   const pools: number[] = [];

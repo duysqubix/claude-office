@@ -10,7 +10,7 @@ export interface OfficeEngine extends Engine {
   hemi: THREE.HemisphereLight;
   /** Fit the sun's shadow frustum tightly around a world-space box. */
   fitShadows(box: THREE.Box3): void;
-  /** Screen-space ambient occlusion (N8AO). Persists in localStorage. */
+  /** Screen-space ambient occlusion (N8AO). Persists in localStorage. Bloom, grade and SMAA stay on either way. */
   setAO(on: boolean): void;
   readonly aoEnabled: boolean;
 }
@@ -19,12 +19,17 @@ export function isOfficeEngine(engine: Engine): engine is OfficeEngine {
   return typeof (engine as Partial<OfficeEngine>).fitShadows === 'function';
 }
 
-/** Direction the sunlight comes from: high, from the south-east, so faces toward a south camera are lit. */
-const SUN_FROM = new THREE.Vector3(0.42, 1.55, 0.62).normalize();
+/**
+ * Direction the sunlight comes from (art brief §3.2): 55° up, 40° east of the default camera
+ * axis, so faces toward the usual south-facing camera are lit and shadows fall diagonally.
+ */
+const SUN_FROM = new THREE.Vector3(Math.sin(0.7) * Math.cos(0.96), Math.sin(0.96), Math.cos(0.7) * Math.cos(0.96)).normalize();
 const AO_KEY = 'claude-office:ao';
 
 export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  // No MSAA backbuffer: the scene renders into the composer's targets and SMAA (post.ts) does
+  // the anti-aliasing, so a multisampled canvas would only cost memory and a resolve per frame.
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
@@ -34,17 +39,19 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(PALETTE.skyHorizon);
-  scene.fog = new THREE.Fog(PALETTE.skyHorizon, 70, 250);
+  scene.background = new THREE.Color(PALETTE.skyDayHorizon);
+  scene.fog = new THREE.Fog(PALETTE.skyDayHorizon, 60, 220);
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1200);
   camera.position.set(0, 9, 16);
   camera.lookAt(0, 0, 0);
 
-  const hemi = new THREE.HemisphereLight('#BFE3FF', '#E8D3B0', 1.5);
+  // Warm sun + cool sky fill: lit floors ~2.5× brighter than shadowed ones, so shadows sit at
+  // about 60 % brightness and stay saturated (never grey).
+  const hemi = new THREE.HemisphereLight('#CFE6FF', '#EED7B0', 1.35);
   hemi.name = 'hemi';
-  const ambient = new THREE.AmbientLight('#FFF6EA', 0.3);
-  const sun = new THREE.DirectionalLight('#FFF1D6', 2.3);
+  const ambient = new THREE.AmbientLight('#FFF6EA', 0.12);
+  const sun = new THREE.DirectionalLight('#FFF1D6', 2.8);
   sun.name = 'sun';
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -52,7 +59,7 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
   sun.shadow.normalBias = 0.025;
   sun.shadow.radius = 3.5;
   // Toy-box shadows: soft and never pitch black, the hemisphere light fills them in.
-  sun.shadow.intensity = 0.8;
+  sun.shadow.intensity = 0.85;
   scene.add(hemi, ambient, sun, sun.target);
 
   const sky = createSky();
@@ -93,24 +100,28 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
   let post: Post | null = null;
   let aoEnabled = readAOPref();
 
+  let postFailed = false;
   function ensurePost(): Post | null {
-    if (post) return post;
+    if (post || postFailed) return post;
     try {
-      post = createPost(renderer, scene, camera);
+      post = createPost(renderer, scene, camera, aoEnabled);
       post.setSize(size.w, size.h, renderer.getPixelRatio());
     } catch (err) {
-      console.warn('[engine] ambient occlusion unavailable, rendering without it', err);
-      aoEnabled = false;
+      console.warn('[engine] post-processing unavailable, rendering without it', err);
+      postFailed = true;
     }
     return post;
   }
 
+  // The canvas fills its container through CSS, so its drawing-buffer size (which grows with
+  // the pixel ratio) can never feed back into its layout size.
+  if (!canvas.style.width) canvas.style.width = '100%';
+  if (!canvas.style.height) canvas.style.height = '100%';
   function resize(): void {
-    const inDom = canvas.clientWidth > 0 && canvas.clientHeight > 0;
-    size.w = inDom ? canvas.clientWidth : window.innerWidth;
-    size.h = inDom ? canvas.clientHeight : window.innerHeight;
+    size.w = Math.max(1, canvas.clientWidth || window.innerWidth);
+    size.h = Math.max(1, canvas.clientHeight || window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(size.w, size.h, !inDom);
+    renderer.setSize(size.w, size.h, false);
     camera.aspect = size.w / size.h;
     camera.updateProjectionMatrix();
     post?.setSize(size.w, size.h, renderer.getPixelRatio());
@@ -136,6 +147,7 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
     },
     setAO(on: boolean) {
       aoEnabled = on;
+      post?.setAO(on);
       try {
         localStorage.setItem(AO_KEY, on ? '1' : '0');
       } catch {
@@ -144,7 +156,7 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
     },
     render() {
       sky.update((performance.now() - t0) / 1000, camera);
-      const p = aoEnabled ? ensurePost() : null;
+      const p = ensurePost();
       if (p) p.render();
       else renderer.render(scene, camera);
     },

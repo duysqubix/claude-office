@@ -65,6 +65,7 @@ const ICONS = {
   send: `<path d="M3 11.2 21 3l-6.4 18-3.2-7.6z" fill="${PAPER}" ${S}/><path d="M11.4 13.4 21 3" fill="none" ${S}/>`,
   copy: `<rect x="8" y="8" width="12" height="12" rx="2.5" fill="${PAPER}" ${S}/><path d="M16 5.5V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h.5" fill="none" ${S}/>`,
   plan: `<rect x="4" y="3" width="16" height="18" rx="3" fill="${PAPER}" ${S}/><path d="M8 8h8M8 12h8M8 16h5" fill="none" ${S}/>`,
+  chat: `<path d="M4 6.5A3.5 3.5 0 0 1 7.5 3h9A3.5 3.5 0 0 1 20 6.5v6a3.5 3.5 0 0 1-3.5 3.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" fill="${SKY}" ${S}/><circle cx="8.6" cy="9.6" r="1.2" fill="${INK}"/><circle cx="12" cy="9.6" r="1.2" fill="${INK}"/><circle cx="15.4" cy="9.6" r="1.2" fill="${INK}"/>`,
   question: `<path d="M4 6.5A3.5 3.5 0 0 1 7.5 3h9A3.5 3.5 0 0 1 20 6.5v6a3.5 3.5 0 0 1-3.5 3.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" fill="${PAPER}" ${S}/><path d="M10.2 8a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.2" fill="none" ${S}/><circle cx="12" cy="13.3" r="1" fill="${INK}"/>`,
   terminal: `<rect x="2.5" y="4" width="19" height="16" rx="3" fill="${INK}" ${S}/><path d="M6.5 9l3 3-3 3M11.5 15h5" fill="none" stroke="${PAPER}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
   pencil: `<path d="M4 20l1.2-4.6L15.6 5a2.1 2.1 0 0 1 3 0l.4.4a2.1 2.1 0 0 1 0 3L8.6 18.8z" fill="${YELLOW}" ${S}/><path d="M13.8 6.8l3.4 3.4" fill="none" ${S}/>`,

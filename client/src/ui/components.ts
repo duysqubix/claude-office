@@ -194,7 +194,7 @@ export function toastEl(req: ToastRequest, onAction?: () => void): HTMLElement {
   const kind = req.kind ?? 'info';
   return el(
     'div',
-    { class: `co-toast${kind === 'info' ? '' : ` co-toast--${kind}`}` },
+    { class: `co-toast${kind === 'info' ? '' : ` co-toast--${kind}`}${req.slam ? ' co-toast--slam' : ''}` },
     req.face ? el('span', { class: 'co-toast__face', html: req.face }) : null,
     el('span', { class: 'co-toast__text' }, req.text, req.sub ? el('span', { class: 'co-toast__sub' }, req.sub) : null),
     req.action
@@ -241,7 +241,7 @@ export class ToastStack {
       r.at = now;
       r.req = req;
       if (r.n >= 3) {
-        const merged: ToastRequest = { ...req, text: req.merged?.(r.n) ?? req.text, face: undefined };
+        const merged: ToastRequest = { ...req, text: req.merged?.(r.n) ?? req.text, face: req.mergedFace };
         const node = toastEl(merged, () => this.dismiss(node));
         if (r.merged?.isConnected) r.merged.replaceWith(node);
         else this.el.prepend(node);
@@ -349,13 +349,14 @@ export function panelShell(opts: PanelOptions) {
 }
 
 /** A roster / intern-desk row: portrait, name, one line, a right-hand detail. */
-export function personRow(opts: { face: Markup; name: string; line: string; side?: string; onClick?: () => void }): HTMLButtonElement {
+export function personRow(opts: { face: Markup; name: string; line: string; side?: Child | Child[]; onClick?: () => void }): HTMLButtonElement {
+  const side = Array.isArray(opts.side) ? opts.side : [opts.side ?? ''];
   const b = el(
     'button',
     { class: 'co-person', attrs: { type: 'button' } },
     el('span', { class: 'co-person__face', html: opts.face }),
     el('span', null, el('span', { class: 'co-person__name' }, opts.name), el('span', { class: 'co-person__line' }, opts.line)),
-    el('span', { class: 'co-person__side' }, opts.side ?? ''),
+    el('span', { class: 'co-person__side' }, ...side),
   );
   if (opts.onClick) b.addEventListener('click', opts.onClick);
   return b;

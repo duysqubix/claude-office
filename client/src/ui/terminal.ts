@@ -1,4 +1,4 @@
-// "Sit at their computer": a chunky monitor modal with a real xterm.js terminal on /term.
+// "Sit at their computer" (UX.md §3.4): a chunky monitor with a real xterm.js terminal on /term.
 // Every key goes to the terminal (Claude Code needs Esc) once the bezel has finished opening;
 // before that, Esc cancels the sit-down. Stand up with the button or Ctrl+].
 import { FitAddon } from '@xterm/addon-fit';
@@ -6,10 +6,16 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import type { Employee } from '../../../shared/protocol';
 import type { Backend, TermLink } from '../net';
-import { h } from './dom';
+import { button } from './components';
+import { el } from './el';
+import { employeeFace } from './faces';
 
 /** How long the bezel takes to grow in; keys reach the pty only after this. */
 const OPEN_MS = 460;
+/** Dropped connections retry after these delays, then wait for "Try again". */
+const RETRY_MS = [1000, 2000, 4000];
+/** After their session ends, the message stays this long before you stand up. */
+const ENDED_MS = 2000;
 
 export interface TerminalEvents {
   /** The overlay closed (stood up, cancelled, or the session went away). */
@@ -26,6 +32,7 @@ export class TerminalOverlay {
   private link: TermLink | null = null;
   private fit: FitAddon | null = null;
   private from: DOMRect | null = null;
+  private timers: number[] = [];
   private onResize = () => {
     try {
       this.fit?.fit();
@@ -48,30 +55,34 @@ export class TerminalOverlay {
     if (this.layer) this.close();
     this.from = from ?? null;
     let ready = false;
-    const screen = h('div', { class: 'term-screen' });
-    const status = h('span', { class: 'term-status' }, 'Connecting…');
-    const led = h('i', { class: 'term-led' });
-    const reconnect = h('button', { class: 'btn btn-small btn-plain', type: 'button', hidden: true }, 'Reconnect');
-    const stand = h('button', { class: 'btn btn-orange', type: 'button' }, 'Stand up', h('kbd', null, 'Ctrl ]'));
-    stand.addEventListener('click', () => this.close());
-    const monitor = h(
+    let attempt = 0;
+    const screen = el('div', { class: 'term-screen' });
+    const status = el('span', { class: 'term-status' }, 'Connecting…');
+    const led = el('i', { class: 'term-led', attrs: { 'aria-hidden': 'true' } });
+    const retry = button('Try again', { small: true });
+    retry.hidden = true;
+    const stand = button('Stand up', { key: 'Ctrl+]', onClick: () => this.close() });
+    stand.classList.add('term-stand');
+    const monitor = el(
       'div',
       { class: 'term-monitor' },
-      h('div', { class: 'term-bezel' }, screen),
-      h(
+      el('div', { class: 'term-bezel' }, screen),
+      el(
         'div',
         { class: 'term-chin' },
+        el('span', { class: 'term-face', html: employeeFace(who.sessionId, who.hosted, { size: 32 }) }),
+        el('span', { class: 'term-name' }, el('b', null, `${who.displayName}'s computer`), el('span', null, who.project)),
         led,
-        h('span', { class: 'term-name' }, h('b', null, `${who.displayName}'s computer`), ` · ${who.project}`),
         status,
-        h('span', { class: 'term-spacer' }),
-        reconnect,
+        el('span', { class: 'term-spacer' }),
+        el('span', { class: 'term-hint' }, 'Esc goes to Claude'),
+        retry,
         stand,
       ),
-      h('div', { class: 'term-neck' }),
-      h('div', { class: 'term-foot' }),
+      el('div', { class: 'term-neck' }),
+      el('div', { class: 'term-foot' }),
     );
-    const layer = h('div', { class: 'term-modal', role: 'dialog', 'aria-label': `${who.displayName}'s computer` }, monitor);
+    const layer = el('div', { class: 'term-modal', attrs: { role: 'dialog', 'aria-label': `${who.displayName}'s computer` } }, monitor);
     // Backdrop clicks refocus the terminal, never close it.
     layer.addEventListener('pointerdown', (ev) => {
       if (ev.target === layer) {
@@ -139,12 +150,14 @@ export class TerminalOverlay {
       return true;
     });
 
+    const later = (fn: () => void, ms: number) => this.timers.push(window.setTimeout(fn, ms));
     const connect = () => {
       const link = this.backend.terminal(who.sessionId, term.cols, term.rows);
       this.link = link;
-      status.textContent = 'Connecting…';
-      reconnect.hidden = true;
+      status.textContent = attempt ? 'Reconnecting…' : 'Connecting…';
+      retry.hidden = true;
       link.onOpen = () => {
+        attempt = 0;
         status.textContent = 'Connected';
         led.classList.add('on');
         link.send({ t: 'resize', cols: term.cols, rows: term.rows });
@@ -155,19 +168,29 @@ export class TerminalOverlay {
         led.classList.remove('on');
         if (code === 1000) {
           // 'detached': the session ended or was let go.
-          this.events.onNotice?.(`${who.displayName} went home`, 'leave');
-          this.close();
+          status.textContent = 'Session ended';
+          term.write(`\r\n\x1b[2m[${who.displayName}'s session has ended.]\x1b[0m\r\n`);
+          this.events.onNotice?.(`${who.displayName}'s session has ended.`, 'leave');
+          later(() => {
+            if (this.term === term) this.close();
+          }, ENDED_MS);
         } else if (code === 1008) {
           this.events.onNotice?.(`Can't use ${who.displayName}'s computer${reason ? `: ${reason}` : ''}`, 'bad');
           this.close();
+        } else if (attempt < RETRY_MS.length) {
+          status.textContent = 'Reconnecting…';
+          later(() => {
+            if (this.term === term && this.link === link) connect();
+          }, RETRY_MS[attempt++]);
         } else {
           status.textContent = 'Connection lost';
-          reconnect.hidden = false;
-          term.write(`\r\n\x1b[2m[Connection lost. Press Reconnect to try again.]\x1b[0m\r\n`);
+          retry.hidden = false;
+          term.write(`\r\n\x1b[2m[Connection lost. Press Try again to reconnect.]\x1b[0m\r\n`);
         }
       };
     };
-    reconnect.addEventListener('click', () => {
+    retry.addEventListener('click', () => {
+      attempt = 0;
       this.link?.close();
       connect();
       term.focus();
@@ -178,7 +201,7 @@ export class TerminalOverlay {
     });
     term.onResize(({ cols, rows }) => this.link?.send({ t: 'resize', cols, rows }));
     window.addEventListener('resize', this.onResize);
-    window.setTimeout(() => {
+    later(() => {
       if (this.term !== term) return;
       ready = true;
       this.onResize();
@@ -190,6 +213,8 @@ export class TerminalOverlay {
   close(): void {
     if (!this.layer) return;
     window.removeEventListener('resize', this.onResize);
+    for (const t of this.timers) window.clearTimeout(t);
+    this.timers = [];
     const layer = this.layer;
     const monitor = this.monitor;
     this.layer = null;

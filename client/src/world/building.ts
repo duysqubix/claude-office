@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
 import D from './dimensions.json';
-import { Batch, CanvasTex, fitText, shade, type Vec3 } from './kit';
+import { Batch, CanvasTex, fitText, pickR, rng, shade, type Vec3 } from './kit';
 import { OFFICE } from './layout';
 import { aabb, type WallSide, type WorldCtx } from './ctx';
 import { sparkle } from './screens';
@@ -24,6 +24,7 @@ const C_SILL = D.clerestory.sill;
 const C_HEAD = D.clerestory.head;
 const TRIM = '#FFF8EE';
 const SKIRT = '#D9B98F';
+const ROOF = '#C3CACE';
 /** Pieces that meet a neighbouring bay overlap it a little, which hides the rounded seam. */
 const SEAM = 0.05;
 
@@ -130,8 +131,6 @@ export function buildBuilding(ctx: WorldCtx): Building {
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   ctx.root.add(floor);
-  // A pale paving strip around the outside of the building.
-  b.slab(HW * 2 + T * 2 + 1.4, HD * 2 + T * 2 + 1.4, 0.06, 0.5, '#EFE4D2', { at: [0, -0.033, 0], cast: false, finish: 'matte' });
 
   // ---- Walls -------------------------------------------------------------------------------
   function bay(side: WallSide, u0: number, u1: number, win: BayWindows = {}): void {
@@ -222,6 +221,16 @@ export function buildBuilding(ctx: WorldCtx): Building {
     }
   }
   ctx.colliders.push(aabb(-HW - T, -OFFICE.doorHalf, HD, HD + T), aabb(OFFICE.doorHalf, HW + T, HD, HD + T));
+
+  // Exterior pilasters at the bay joints: a slightly deeper cream, they give the facade rhythm.
+  const pilaster = (side: WallSide, u: number) => {
+    const out = side === 'north' || side === 'west' ? -1 : 1;
+    const [w, h, d] = dims(side, 0.42, H, 0.1);
+    b.box(w, h, d, '#F3E3C8', { at: wallPoint(side, u, H / 2, out * (T / 2 + 0.05)), r: 0.04, finish: 'matte' });
+  };
+  for (const u of [-9.5, -4.8, 4.8, 9.5]) pilaster('north', u);
+  for (const u of [-9.6, -5.4, 5.4, 9.6]) pilaster('south', u);
+  for (const side of ['east', 'west'] as const) for (const u of [-6, -2, 2, 6]) pilaster(side, u);
 
   // ---- Entrance ----------------------------------------------------------------------------
   const door = buildDoor(ctx, DOOR);
@@ -403,15 +412,29 @@ function buildRoof(ctx: WorldCtx): void {
   const top = H + B.roofT;
   const ow = HW + T + 0.12;
   const od = HD + T + 0.12;
-  r.box(ow * 2, B.roofT, od * 2, '#B9C7CF', { at: [0, H + B.roofT / 2 + 0.02, 0], r: 0.08, finish: 'matte' });
+  r.box(ow * 2, B.roofT, od * 2, ROOF, { at: [0, H + B.roofT / 2 + 0.02, 0], r: 0.08, finish: 'matte', tex: 'speckle' });
+  // Membrane seams and a darker gutter inside the parapet, so the big flat roof reads as a
+  // surface from the street rather than a grey void.
+  for (let z = -od + 2.4; z < od - 1.5; z += 2.6) {
+    r.box(ow * 2 - 1.1, 0.014, 0.06, shade(ROOF, -0.045), { at: [0, top + 0.027, z], r: 0.007, cast: false, finish: 'matte' });
+  }
+  const gw = 0.34;
+  const gutter = shade(ROOF, -0.07);
+  for (const s of [-1, 1]) {
+    r.box(ow * 2 - B.parapetT * 2, 0.014, gw, gutter, { at: [0, top + 0.027, s * (od - B.parapetT - gw / 2)], r: 0.007, cast: false, finish: 'matte' });
+    r.box(gw, 0.014, od * 2 - B.parapetT * 2 - gw * 2, gutter, { at: [s * (ow - B.parapetT - gw / 2), top + 0.027, 0], r: 0.007, cast: false, finish: 'matte' });
+  }
   // A walkway of lighter tiles across the roof, and a row of chunky solar panels.
   r.slab(1.2, od * 2 - 1.2, 0.04, 0.2, '#D5DEE3', { at: [-5.5, top + 0.02, 0], cast: false, finish: 'matte' });
+  // Panels tilt up toward the south (the sun side), so they face the front of the building.
   for (let i = 0; i < 4; i++) {
-    for (const z of [-6.8, -4.9]) {
+    for (const z of [-6.8, -4.6]) {
       const x = 2.6 + i * 1.75;
-      r.box(1.6, 0.1, 1.7, '#3D6FD8', { at: [x, top + 0.32, z], rot: [-0.3, 0, 0], r: 0.04, finish: 'gloss' });
-      r.box(1.52, 0.02, 0.04, '#9CC2FF', { at: [x, top + 0.38, z], rot: [-0.3, 0, 0], r: 0.01, cast: false });
-      r.box(0.08, 0.3, 0.08, '#8A96A6', { at: [x, top + 0.15, z + 0.4], r: 0.03 });
+      r.box(1.66, 0.08, 1.76, '#E8ECF2', { at: [x, top + 0.42, z], rot: [0.32, 0, 0], r: 0.04, finish: 'plastic' });
+      r.box(1.56, 0.04, 1.66, '#2F5FC9', { at: [x, top + 0.465, z + 0.015], rot: [0.32, 0, 0], r: 0.02, finish: 'gloss' });
+      for (let k = -1; k <= 1; k++) r.box(1.5, 0.012, 0.02, '#8CB4FF', { at: [x, top + 0.49 + k * 0.17, z + 0.02 - k * 0.5], rot: [0.32, 0, 0], r: 0.006, cast: false });
+      r.box(0.08, 0.5, 0.08, '#8A96A6', { at: [x, top + 0.25, z - 0.55], r: 0.03 });
+      r.box(0.08, 0.2, 0.08, '#8A96A6', { at: [x, top + 0.1, z + 0.55], r: 0.03 });
     }
   }
   // Parapet: an orange rounded trim all the way round.
@@ -446,6 +469,10 @@ function buildRoof(ctx: WorldCtx): void {
     r.cyl(0.14, 0.16, 0.5, '#C8D0DC', { at: [x, top + 0.25, z], seg: 16, finish: 'plastic' });
     r.add(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), '#AEB8C6', { at: [x, top + 0.5, z], scale: [0.22, 0.14, 0.22], finish: 'plastic' });
   }
+  // Stair hut in the north-west corner, and planters either side of the rooftop sign.
+  r.place(-11.4, top + 0.02, -7.4, 0, () => buildRoofHut(r));
+  const pr = rng(31);
+  for (const x of [-3.6, 3.6]) r.place(x, top + 0.02, od - B.parapetT - 0.62, 0, () => buildRoofPlanter(r, pr));
   const roof = r.build({ name: 'roof', receive: true });
   roof.traverse((o) => (o.castShadow = false));
   roof.userData.overhead = true;
@@ -483,6 +510,51 @@ function buildRoof(ctx: WorldCtx): void {
   sign.traverse((o) => (o.castShadow = false));
   sign.userData.overhead = true;
   ctx.root.add(sign);
+}
+
+/** Rooftop stair hut: a cream box with an orange cap, a teal door and a satellite dish. Faces +Z. */
+export function buildRoofHut(b: Batch): void {
+  const d = D.roofHut;
+  const front = d.d / 2;
+  const doorX = 0.35;
+  b.box(d.w, d.h, d.d, PALETTE.wall, { at: [0, d.h / 2, 0], r: 0.1, finish: 'soft' });
+  b.box(d.w + 0.26, 0.18, d.d + 0.26, PALETTE.wallTrim, { at: [0, d.h + 0.06, 0], r: 0.08 });
+  b.box(d.w + 0.02, 0.12, d.d + 0.02, PALETTE.wallAccent, { at: [0, 0.06, 0], r: 0.04 });
+  // Door: trim frame, teal panel, porthole, knob, and a warm lamp over it.
+  b.box(d.doorW + 0.16, d.doorH + 0.08, 0.06, TRIM, { at: [doorX, (d.doorH + 0.08) / 2, front + 0.01], r: 0.03 });
+  b.box(d.doorW, d.doorH, 0.08, '#4FB3A9', { at: [doorX, d.doorH / 2, front + 0.02], r: 0.04, finish: 'plastic' });
+  b.torus(0.16, 0.035, TRIM, { at: [doorX, d.doorH * 0.72, front + 0.065] });
+  b.cyl(0.15, 0.15, 0.03, PALETTE.glass, { at: [doorX, d.doorH * 0.72, front + 0.06], rot: [Math.PI / 2, 0, 0], seg: 24, finish: 'gloss' });
+  b.ball(0.05, '#F6D365', { at: [doorX + d.doorW / 2 - 0.14, d.doorH * 0.48, front + 0.08], finish: 'gloss' });
+  b.box(0.24, 0.13, 0.14, '#FFE9B0', { at: [doorX, d.doorH + 0.2, front + 0.07], r: 0.05, glow: 1.4 });
+  // Satellite dish on the cap, tilted up toward the street.
+  const tilt = 0.75;
+  const n = new THREE.Vector3(0, Math.cos(tilt), Math.sin(tilt));
+  const c = new THREE.Vector3(-0.55, d.h + 0.58, -0.25);
+  b.cyl(0.035, 0.035, 0.42, '#8A96A6', { at: [c.x, d.h + 0.32, c.z], seg: 10 });
+  b.cyl(0.38, 0.09, 0.1, '#EEF1F5', { at: [c.x, c.y, c.z], rot: [tilt, 0, 0], seg: 28, finish: 'plastic' });
+  b.cyl(0.015, 0.015, 0.36, '#8A96A6', { at: [c.x + n.x * 0.2, c.y + n.y * 0.2, c.z + n.z * 0.2], rot: [tilt, 0, 0], seg: 8, cast: false });
+  b.ball(0.05, PALETTE.wallTrim, { at: [c.x + n.x * 0.4, c.y + n.y * 0.4, c.z + n.z * 0.4] });
+}
+
+/** Rooftop planter: a wooden trough of faceted bushes in flower. Long along X, faces +Z. */
+export function buildRoofPlanter(b: Batch, r: () => number): void {
+  const d = D.roofPlanter;
+  b.box(d.w, d.h, d.d, PALETTE.wood, { at: [0, d.h / 2, 0], r: 0.05, finish: 'wood' });
+  for (const z of [-1, 1]) b.box(d.w - 0.12, 0.018, 0.012, shade(PALETTE.wood, -0.14), { at: [0, d.h * 0.52, z * (d.d / 2 + 0.002)], cast: false });
+  b.box(d.w - 0.1, 0.04, d.d - 0.1, '#6B4A33', { at: [0, d.h - 0.015, 0], r: 0.015, cast: false, finish: 'matte' });
+  const n = 4;
+  for (let i = 0; i < n; i++) {
+    const x = -d.w / 2 + 0.3 + (i * (d.w - 0.6)) / (n - 1);
+    const s = 0.24 + r() * 0.08;
+    const leaf = shade(PALETTE.treeLeaf[i % PALETTE.treeLeaf.length], (r() - 0.5) * 0.08);
+    b.ball([s * 1.15, s * 0.9, s], leaf, { at: [x, d.h + s * 0.5, (r() - 0.5) * 0.08], rot: [r(), r() * 6, r()], ws: 8, hs: 5, flat: true, finish: 'matte' });
+    const bloom = pickR(r, ['#FF7EB6', '#FFD93D', '#FFFDF7', '#FF6B6B', '#B983FF']);
+    for (let k = 0; k < 4; k++) {
+      const a = r() * Math.PI * 2;
+      b.ball(0.05, bloom, { at: [x + Math.cos(a) * s * 0.75, d.h + s * (0.65 + r() * 0.45), Math.sin(a) * s * 0.55], cast: false, ws: 6, hs: 4, flat: true });
+    }
+  }
 }
 
 /** Floor material: the plank texture, plus a ±3 % world-space tint at ~4 m scale that hides repeats. */

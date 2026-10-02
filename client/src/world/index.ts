@@ -114,6 +114,7 @@ export function createWorld(engine: Engine): World {
       const view = lastCamera ? screenView(lastCamera) : undefined;
       deskSystem.update(step, elapsed, view);
       interns.update(step, elapsed, view);
+      teamRoom.update(view);
     },
     updateOcclusion(camera, target) {
       lastCamera = camera;
@@ -131,8 +132,11 @@ export function createWorld(engine: Engine): World {
     internSlots,
     ensureInternSlots(n) {
       if (interns.ensure(n)) {
+        // Garden benches widen the sun's shadow fit, like garden desk pods.
+        for (const area of interns.areas()) shadowBox.union(area);
         addBlobs();
         nav.rebuild(colliders);
+        fitShadows();
       }
       if (internSlots.length < n) warnOnce('interns', `intern desk is full: ${internSlots.length} stations (asked for ${n})`);
       return internSlots.length;

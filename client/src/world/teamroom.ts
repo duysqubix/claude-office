@@ -11,9 +11,9 @@ import { Batch, CanvasTex, ellipsize, fitText, font, G, shade } from './kit';
 import { OFFICE, TEAM_ROOM } from './layout';
 import { aabb, footprint, type WorldCtx } from './ctx';
 import { glassMaterial } from './building';
-import { sparkle } from './screens';
+import { inView, sparkle, type ScreenView } from './screens';
 import type { FadeItem } from './fader';
-import { instancedModel, placement } from './modelkit';
+import { disposeGroup, instancedModel, placement } from './modelkit';
 import { paint, swapIn } from '../models';
 
 const WS = D.wallScreen;
@@ -25,6 +25,8 @@ const CHAIR_COLORS = ['#FF7A6B', '#2EC4B6'];
 
 export interface TeamRoom {
   setStats(stats: TeamStats): void;
+  /** Per frame: repaints the wall screen when its contents changed and the camera can see it. */
+  update(view?: ScreenView): void;
 }
 
 export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
@@ -101,7 +103,7 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   ctx.root.add(chairGroup);
   void Promise.all(placements.map((p, k) => instancedModel('conference_chair', p, { tint: { Seat: CHAIR_COLORS[k] } }))).then((models) => {
     if (models.some((m) => !m)) return;
-    chairGroup.removeFromParent();
+    disposeGroup(chairGroup);
     for (const m of models) ctx.root.add(m!.group);
   });
 
@@ -199,16 +201,7 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
     label: 'Team stats',
   });
 
-  let lastSecond = -1;
-  ctx.tickers.push(() => {
-    const s = Math.floor(Date.now() / 1000);
-    if (s !== lastSecond) {
-      lastSecond = s;
-      board.tick();
-    }
-  });
-
-  return { setStats: (stats) => board.set(stats) };
+  return { setStats: (stats) => board.set(stats), update: (view) => board.update(view) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -347,6 +340,11 @@ function duration(ms: number): string {
   return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
+function clock(now: number): string {
+  const d = new Date(now);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 function ago(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
   if (s < 60) return `${s}s ago`;
@@ -354,11 +352,19 @@ function ago(ms: number): string {
   return `${Math.floor(s / 3600)}h ago`;
 }
 
+/** The wall screen is big and readable from across the office; past this it doesn't repaint. */
+const BOARD_DISTANCE = 24;
+
 class TeamBoard {
   readonly material: THREE.MeshBasicMaterial;
   private readonly tex: CanvasTex;
   private stats: TeamStats | null = null;
   private mesh: THREE.Mesh | null = null;
+  /** New stats arrived since the last paint. */
+  private stale = false;
+  /** The clock-driven text on the canvas now (clock, "updated … ago", countdowns). */
+  private shownTimes = '';
+  private lastSecond = -1;
 
   constructor() {
     this.tex = new CanvasTex(1280, 720, (c, w, h) => this.draw(c, w, h), 8);
@@ -367,17 +373,37 @@ class TeamBoard {
 
   attach(mesh: THREE.Mesh): void {
     this.mesh = mesh;
+    mesh.geometry.computeBoundingSphere();
   }
 
   set(stats: TeamStats): void {
     this.stats = stats;
+    this.stale = true;
+  }
+
+  /**
+   * Repaint (re-uploading 1280×720 with mipmaps) only when new stats arrived or a clock-driven
+   * text moved on (checked once a second), and only while the camera can see the screen.
+   */
+  update(view?: ScreenView): void {
+    const now = Date.now();
+    const second = Math.floor(now / 1000);
+    if (!this.stale && second === this.lastSecond) return;
+    this.lastSecond = second;
+    const times = this.timeTexts(now);
+    if (!this.stale && times === this.shownTimes) return;
+    if (view && this.mesh && !inView(this.mesh, view, BOARD_DISTANCE)) return;
+    this.stale = false;
     this.tex.redraw();
   }
 
-  /** Once a second: countdowns and "updated … ago" move on. */
-  tick(): void {
-    if (this.mesh && !this.mesh.visible) return;
-    this.tex.redraw();
+  /** Everything on the board that changes with the clock alone, as one comparable string. */
+  private timeTexts(now: number): string {
+    const s = this.stats;
+    const parts = [clock(now)];
+    if (s?.plan.updatedAt) parts.push(ago(now - s.plan.updatedAt));
+    for (const lim of s?.plan.limits.slice(0, 3) ?? []) parts.push(lim.resetsAt ? duration(lim.resetsAt - now) : '');
+    return parts.join('|');
   }
 
   private draw(c: CanvasRenderingContext2D, w: number, h: number): void {
@@ -397,10 +423,10 @@ class TeamBoard {
     c.font = font(700, 44);
     c.fillText('Team Room', 98, 54);
     const now = Date.now();
-    const d = new Date(now);
+    this.shownTimes = this.timeTexts(now);
     c.textAlign = 'right';
     c.font = font(700, 40);
-    c.fillText(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, w - 40, 50);
+    c.fillText(clock(now), w - 40, 50);
     const s = this.stats;
     if (s?.plan.updatedAt) {
       c.fillStyle = 'rgba(255,253,247,0.55)';

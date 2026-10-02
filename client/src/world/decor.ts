@@ -94,8 +94,8 @@ function buildRunner(ctx: WorldCtx): void {
   const len = z1 - z0;
   const zc = (z0 + z1) / 2;
   const b = ctx.statics;
-  b.slab(2.7, len, 0.022, 0.7, '#F4A07A', { at: [0, 0.011, zc], cast: false, finish: 'matte' });
-  b.slab(2.38, len - 0.32, 0.026, 0.55, '#FFC4A0', { at: [0, 0.013, zc], cast: false, finish: 'matte' });
+  b.slab(2.7, len, 0.022, 0.7, '#F4A07A', { at: [0, 0.011, zc], cast: false, finish: 'matte', tex: 'carpet' });
+  b.slab(2.38, len - 0.32, 0.026, 0.55, '#FFC4A0', { at: [0, 0.013, zc], cast: false, finish: 'matte', tex: 'carpet' });
   // A row of little diamonds down the middle.
   for (let z = z0 + 1.2; z < z1 - 0.9; z += 1.4) {
     b.box(0.26, 0.012, 0.26, '#FFE6D4', { at: [0, 0.03, z], rot: [0, Math.PI / 4, 0], r: 0.006, cast: false, finish: 'matte' });
@@ -105,17 +105,17 @@ function buildRunner(ctx: WorldCtx): void {
 /** Couch built in a local frame: seat faces +Z, backrest at -Z. */
 export function couch(b: Batch, parent: THREE.Matrix4, length: number, color: string, pillows: string[]): void {
   const o = { parent };
-  b.box(length, 0.36, 0.9, shade(color, -0.06), { ...o, at: [0, 0.22, 0], r: 0.12 });
-  for (const s of [-1, 1]) b.box(0.26, 0.6, 0.92, color, { ...o, at: [s * (length / 2 - 0.13), 0.36, 0], r: 0.12 });
-  b.box(length, 0.8, 0.3, color, { ...o, at: [0, 0.5, -0.32], r: 0.13 });
+  b.box(length, 0.36, 0.9, shade(color, -0.06), { ...o, at: [0, 0.22, 0], r: 0.12, finish: 'cloth' });
+  for (const s of [-1, 1]) b.box(0.26, 0.6, 0.92, color, { ...o, at: [s * (length / 2 - 0.13), 0.36, 0], r: 0.12, finish: 'cloth' });
+  b.box(length, 0.8, 0.3, color, { ...o, at: [0, 0.5, -0.32], r: 0.13, finish: 'cloth' });
   const n = Math.max(1, Math.round((length - 0.5) / 0.9));
   const cw = (length - 0.56) / n;
   for (let i = 0; i < n; i++) {
-    b.box(cw - 0.04, 0.16, 0.62, shade(color, 0.08), { ...o, at: [-length / 2 + 0.28 + cw * (i + 0.5), 0.45, 0.1], r: 0.08 });
+    b.box(cw - 0.04, 0.16, 0.62, shade(color, 0.08), { ...o, at: [-length / 2 + 0.28 + cw * (i + 0.5), 0.45, 0.1], r: 0.08, finish: 'cloth' });
   }
   pillows.forEach((c, i) => {
     const x = (i - (pillows.length - 1) / 2) * (length * 0.45);
-    b.box(0.38, 0.38, 0.16, c, { ...o, at: [x, 0.66, -0.12], rot: [-0.35, 0, 0], r: 0.08 });
+    b.box(0.38, 0.38, 0.16, c, { ...o, at: [x, 0.66, -0.12], rot: [-0.35, 0, 0], r: 0.08, finish: 'cloth' });
   });
   for (const s of [-1, 1]) for (const t of [-1, 1]) b.cyl(0.04, 0.03, 0.06, '#3B4252', { ...o, at: [s * (length / 2 - 0.15), 0.03, t * 0.35], seg: 10 });
 }
@@ -420,7 +420,7 @@ export function buildReservedSpot(ctx: WorldCtx, slot: PodSlot, seed: number): D
       group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
       face.geometry.dispose();
       (face.material as THREE.MeshStandardMaterial).dispose();
-      signTex.tex.dispose();
+      signTex.dispose();
     },
   };
 }

@@ -107,7 +107,10 @@ export interface World {
    * through: exterior and interior walls, ceiling, roof. The camera raycasts against these.
    */
   cameraBlockers: THREE.Object3D[];
-  /** Interior volume of the building (floor at y = 0). */
+  /**
+   * Interior volume of the building (floor at y = 0). `ceilingY` is the highest the camera
+   * should go indoors: just under the ceiling beams, below the ceiling itself.
+   */
   interior: { minX: number; maxX: number; minZ: number; maxZ: number; ceilingY: number };
   /** True if a point is inside the building (used to keep the camera on the manager's side of the walls). */
   isInside(p: THREE.Vector3): boolean;
@@ -115,7 +118,10 @@ export interface World {
   findPath(from: THREE.Vector3, to: THREE.Vector3): THREE.Vector3[] | null;
   /** Per-frame animation (door, screens, clock, plants swaying…). */
   update(dt: number, elapsed: number): void;
-  /** Fade walls and tall props that sit between the camera and `target` (the manager). */
+  /**
+   * Fade tall props (plants, shelves, partitions, lamps, signs) that sit between the camera and
+   * `target` (the manager). Walls never fade: the camera stays inside them (cameraBlockers).
+   */
   updateOcclusion(camera: THREE.Camera, target: THREE.Vector3): void;
   /** Animate the entrance door open/closed. Gameplay keeps it open while anyone is within ~2.5 m of it. */
   setDoorOpen(open: boolean): void;
@@ -124,7 +130,7 @@ export interface World {
   /**
    * Team Room wall display: plan usage gauges (5-hour, weekly, any extra limits) with reset
    * countdowns, team numbers, and a context-fill bar per employee. Called on every 'stats'
-   * message; the world redraws it (and ticks the countdowns once a second).
+   * message; the world repaints it while it's in view (countdowns tick once a second).
    */
   setTeamBoard(stats: TeamStats): void;
   /** Add desks until at least `n` exist (overflow pods). Returns the new desk count. */

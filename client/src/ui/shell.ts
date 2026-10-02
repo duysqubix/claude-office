@@ -1,23 +1,14 @@
-// The panel frame every panel shares: coloured header band, title, close button, body.
-import { h } from './dom';
+// What every docked panel hands the PanelHost. The frame itself is components.ts' panelShell.
 
-export type PanelId = 'employee' | 'hire' | 'archive' | 'roster' | 'help' | 'ask' | 'stats' | 'interns';
+export type PanelId = 'employee' | 'chat' | 'hire' | 'archive' | 'roster' | 'help' | 'ask' | 'stats' | 'interns';
 
 export interface Panel {
   id: PanelId;
   el: HTMLElement;
-  /** Focus something sensible when opened. */
-  focus?: HTMLElement;
+  /** Where keyboard focus goes when the manager opened it themselves (default: the title). */
+  focus?(): void;
+  /** `E` with the panel open: press its button marked E (or focus its ask card). False: it has none. */
+  pressE?(): boolean;
+  /** Stop timers and subscriptions. The host removes the element after its out animation. */
   dispose?(): void;
-}
-
-export function shell(title: string, color: string, body: HTMLElement[], onClose: () => void, extraHead: HTMLElement[] = [], cls = ''): HTMLElement {
-  const close = h('button', { class: 'panel-x', type: 'button', title: 'Close (Esc)', 'aria-label': 'Close' }, '×');
-  close.addEventListener('click', onClose);
-  return h(
-    'section',
-    { class: `panel ${cls}`, style: `--head:${color}`, role: 'dialog', 'aria-label': title },
-    h('header', { class: 'panel-head' }, h('h2', null, title), ...extraHead, close),
-    h('div', { class: 'panel-body' }, ...body),
-  );
 }

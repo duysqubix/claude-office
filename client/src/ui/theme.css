@@ -72,6 +72,7 @@
 
 /* ------------------------------------------------------------------ key caps */
 
+/* Key legends in the system's rounded face: Fredoka's small round Q reads as an "a" at 13 px. */
 .co-key {
   display: inline-flex;
   align-items: center;
@@ -86,7 +87,7 @@
   border-radius: 7px;
   background: var(--paper-2);
   color: var(--ink);
-  font: 700 13px/16px var(--co-font);
+  font: 700 13px/16px ui-rounded, 'SF Pro Rounded', var(--co-font);
   text-shadow: none;
   transition: transform 60ms linear, border-bottom-width 60ms linear;
 }
@@ -664,6 +665,10 @@
   -webkit-text-stroke: 5px var(--ink);
   paint-order: stroke fill;
   text-shadow: 0 3px 0 var(--shade);
+}
+/* The title is where focus lands when a panel opens; it isn't a control, so no ring. */
+.co-panel__title:focus {
+  outline: none;
 }
 .co-panel__face {
   position: absolute;
@@ -2011,6 +2016,225 @@ body.seated .co-edges {
   animation: co-tag-bob 900ms ease-in-out infinite;
 }
 
+/* ------------------------------------------------------------------ panel content: person, files, help */
+
+.co-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.co-panel__ask:empty {
+  display: none;
+}
+/* Needs you, no in-game question: the amber note with both lines. Ink only on amber. */
+.co-needsnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px 11px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--st-needs);
+  box-shadow: 0 3px 0 var(--st-needs-shade);
+  color: var(--ink);
+  animation: co-pop 300ms var(--spring-pop) both;
+}
+.co-needsnote__bang {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+  font: 700 20px/1 var(--co-font);
+}
+.co-needsnote__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.co-needsnote strong {
+  font: 700 18px/22px var(--co-font);
+}
+.co-needsnote .co-muted {
+  color: var(--ink);
+}
+/* Let go: the confirm takes the footer's first row. */
+.co-confirm {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.co-confirm strong {
+  font: 700 18px/22px var(--co-font);
+}
+.co-error {
+  margin: 0;
+  padding: 8px 12px;
+  border: 2px solid var(--danger);
+  border-radius: 12px;
+  background: #fbe9eb;
+  color: var(--danger-shade);
+  font: 600 15px/20px var(--co-font);
+}
+.co-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  border: 2px dashed var(--ink-2);
+  border-radius: 12px;
+}
+.co-empty strong {
+  font: 700 18px/22px var(--co-font);
+}
+.co-mini {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: 700 13px/16px var(--co-font);
+}
+.co-section--state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.co-person__side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.co-person.is-active {
+  box-shadow: inset 0 0 0 2px var(--ink);
+  background: var(--paper-2);
+}
+.co-person.is-chosen {
+  background: var(--primary-tint);
+  box-shadow: inset 0 0 0 2px var(--primary-shade);
+}
+.co-person.is-waiting .co-person__face {
+  opacity: 0.6;
+}
+.co-person__boss svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+.co-file {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 7px 10px 7px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper);
+}
+.co-file.is-live {
+  background: var(--paper-2);
+}
+.co-file__icon svg {
+  display: block;
+}
+.co-file__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.co-file__title {
+  overflow: hidden;
+  font: 600 16px/20px var(--co-font);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.co-keys .co-row,
+.co-legend .co-row {
+  grid-template-columns: 132px 1fr;
+  align-items: center;
+}
+.co-keys dt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.co-legend dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.co-choice--toggle {
+  align-items: center;
+}
+.co-btn__lead {
+  display: inline-flex;
+}
+
+/* Labels: interns, the thinking cloud, people on the move. */
+.co-pill--intern {
+  gap: 5px;
+  padding: 0 10px 0 1px;
+  font-size: 13px;
+  cursor: default;
+}
+.co-pill__face svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+.co-bubble--think {
+  padding: 8px 12px;
+}
+.co-tagstack.is-walking {
+  margin-bottom: 10px;
+}
+button.co-pill {
+  margin: 0;
+  font-family: var(--co-font);
+}
+button.co-pill:focus-visible {
+  outline: 3px solid transparent;
+  box-shadow: var(--focus-ring);
+}
+
+/* Big moments slam in; a calm chip that was never anything else just sits there. */
+.co-toast--slam {
+  animation: co-slam 350ms var(--ease-out) both;
+}
+.co-needs--calm.is-static {
+  animation: none;
+}
+.co-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+.co-confetti i {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+}
+
 @media (max-width: 899px) {
   .co-panel--dock {
     top: auto;
@@ -2194,7 +2418,8 @@ body.seated .co-edges {
   .co-coach,
   .co-edge__bob,
   .co-bang--bump,
-  .co-needs--calm {
+  .co-needs--calm,
+  .co-needsnote {
     animation: co-fade-in 150ms linear both !important;
   }
   .co-panel.is-out,
@@ -2238,7 +2463,8 @@ html.co-calm .co-bubble,
 html.co-calm .co-coach,
 html.co-calm .co-edge__bob,
 html.co-calm .co-bang--bump,
-html.co-calm .co-needs--calm {
+html.co-calm .co-needs--calm,
+html.co-calm .co-needsnote {
   animation: co-fade-in 150ms linear both !important;
 }
 html.co-calm .co-panel.is-out,

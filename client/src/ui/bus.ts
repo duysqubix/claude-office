@@ -18,8 +18,12 @@ export interface ToastRequest {
   ms?: number;
   /** Toasts with the same key within 2 s merge into one… */
   key?: string;
-  /** …whose text this gives for n merged toasts, e.g. n => `${n} people clocked in`. */
+  /** …whose text this gives for n merged toasts, e.g. n => `${n} people clocked in`… */
   merged?: (n: number) => string;
+  /** …with this icon instead of one person's face. */
+  mergedFace?: Markup;
+  /** Slam in (scale 1.4 → .95 → 1) for the big moments: "Interview went great!". */
+  slam?: boolean;
 }
 
 /** Sounds from UX.md §4.5. */
@@ -60,7 +64,8 @@ export interface OfficeEvents {
   'go-to': { id: string };
   toast: ToastRequest;
   sfx: { name: SfxName; /** Screen x in −1…1 for panning (P1). */ pan?: number };
-  panel: { name: string; open: boolean };
+  /** A docked panel opened or closed. `left`/`top`: its layout box, so edge faces stay clear of it. */
+  panel: { name: string; open: boolean; left?: number; top?: number };
   jump: undefined;
   land: undefined;
   bump: { id: string; hard: boolean };

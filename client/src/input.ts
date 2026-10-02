@@ -1,13 +1,14 @@
 // Keyboard state for the game. Never touches keys while you're typing into a form field
 // or the terminal (Claude Code needs Esc and everything else).
 
-export type Action = 'interact' | 'roster' | 'hire' | 'mute' | 'help' | 'jump' | 'close' | 'next';
+export type Action = 'interact' | 'roster' | 'hire' | 'mute' | 'help' | 'jump' | 'close' | 'next' | 'view';
 
 const ACTION_KEYS: Record<string, Action> = {
   KeyE: 'interact',
   KeyQ: 'next',
   KeyN: 'next',
-  Tab: 'roster',
+  KeyR: 'roster',
+  KeyV: 'view',
   KeyH: 'hire',
   KeyM: 'mute',
   Space: 'jump',
@@ -36,7 +37,8 @@ export class Input {
     window.addEventListener('keydown', (e) => {
       if (this.blocked || isTypingTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.code === 'Tab' || e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+      // Tab stays normal browser focus (the HUD is keyboard-reachable).
+      if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
       this.down.add(e.code);
       if (MOVE_CODES.has(e.code)) this.onMoveKey?.();
       if (e.repeat) return;

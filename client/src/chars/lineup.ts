@@ -44,17 +44,18 @@ export function createLineup(scene: THREE.Object3D, at: THREE.Vector3, yaw: numb
         } else if (pose) {
           b.locomote(dt, pose === 'run' ? 4.5 : 2.2, pose === 'run' ? 1 : 0, b.rig.root.scale.y);
         } else {
-          b.over.squash += Math.sin(t * 2.2 + p.phase) * 0.012;
+          b.idle(dt, t + p.phase);
           b.lookAt(look, 0.8);
           if (b.rig.laptop) {
-            b.target.armLPitch += 0.95;
-            b.target.armRPitch += 0.95;
-            b.target.armLRoll -= 0.05;
-            b.target.armRRoll -= 0.05;
+            b.target.armLPitch += 0.5;
+            b.target.armRPitch += 0.5;
+            b.target.elbowL += 0.9;
+            b.target.elbowR += 0.9;
           }
           if (b.rig.mug) {
-            b.target.armRPitch += 0.7;
+            b.target.armRPitch += 0.35;
             b.target.armRRoll -= 0.12;
+            b.target.elbowR += 0.95;
           }
         }
         b.update(dt);
