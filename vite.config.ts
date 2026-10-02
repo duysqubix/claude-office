@@ -17,6 +17,8 @@ export default defineConfig({
     },
   },
   server: {
-    fs: { allow: [here('.')] },
+    // One origin for page, assets and API; never answer other origins' reads of the source.
+    cors: false,
+    fs: { strict: true, allow: [here('.')] },
   },
 });

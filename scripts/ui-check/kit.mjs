@@ -8,10 +8,20 @@ const BASE = process.env.UI_KIT_BASE ?? 'http://127.0.0.1:4777';
 const executablePath = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean).find((p) => existsSync(p));
 
 const URL = BASE + '/ui-kit.html';
-const browser = await puppeteer.launch({
-  executablePath,
-  headless: true,
-});
+const browser = await puppeteer.launch({ executablePath, headless: true });
+// Never report presence: a test tab must not make the office hold real sessions' permission prompts.
+const newPage = browser.newPage.bind(browser);
+browser.newPage = async () => {
+  const p = await newPage();
+  await p.evaluateOnNewDocument(() => {
+    const send = WebSocket.prototype.send;
+    WebSocket.prototype.send = function (d) {
+      if (typeof d === 'string' && d.includes('"presence"')) return;
+      return send.call(this, d);
+    };
+  });
+  return p;
+};
 const results = [];
 const check = (name, ok, detail = "") => { const line = `${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  (" + detail + ")" : ""}`; results.push(line); console.log(line); };
 

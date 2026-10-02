@@ -17,7 +17,7 @@ import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
 import { run } from './exec';
-import { assertDirectory, hire, initTmux, interrupt, kill, newSessionId, rehire, say } from './tmux';
+import { assertDirectory, hire, initTmux, interrupt, kill, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -75,6 +75,8 @@ let vite: ViteDevServer | null = null;
 
 async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (!hostOk(req)) throw new HttpError(403, 'Unexpected Host header');
+  // Same-origin page loads send no Origin; a foreign one means another site is reading us.
+  if (!originOk(req)) throw new HttpError(403, 'Cross-origin request');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
@@ -186,7 +188,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     }
     case '/api/say': {
       const sessionId = uuidFrom(body.sessionId);
-      const text = typeof body.text === 'string' ? body.text.slice(0, MAX_TEXT).trim() : '';
+      const text = typeof body.text === 'string' ? pasteSafe(body.text.slice(0, MAX_TEXT)).trim() : '';
       if (!text) throw new HttpError(400, 'Say something');
       const tmuxName = roster.tmuxNameFor(sessionId);
       if (!tmuxName) throw new HttpError(400, 'They work in your own terminal; talk to them there');
@@ -278,6 +280,8 @@ const broadcast = (msg: ServerMessage) => {
 rosterSockets.on('connection', (ws) => {
   alive.set(ws, true);
   ws.on('pong', () => alive.set(ws, true));
+  // A malformed frame (bad UTF-8, unmasked) errors the socket; unhandled, it would take the office down.
+  ws.on('error', () => ws.terminate());
   ws.on('message', (raw) => {
     let msg: ClientMessage;
     try {

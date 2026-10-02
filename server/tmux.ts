@@ -152,11 +152,21 @@ export async function kill(tmuxName: string): Promise<void> {
   await tmux(['kill-session', '-t', `=${tmuxName}:`]);
 }
 
+/**
+ * Text as typed, minus anything that could act as a key inside the paste: control characters
+ * (an ESC could end the bracketed paste early with `ESC[201~`) and bare carriage returns.
+ */
+export function pasteSafe(text: string): string {
+  return text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
+}
+
 /** Type `text` into the session (bracketed paste) and press Enter. */
 export async function say(tmuxName: string, text: string): Promise<void> {
   if (!isOfficeName(tmuxName)) throw new Error('Not an office session');
+  const clean = pasteSafe(text);
+  if (!clean.trim()) throw new Error('Nothing to say');
   const buffer = `office-say-${process.pid}`;
-  const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: text });
+  const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: clean });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
   const paste = await tmux(['paste-buffer', '-p', '-d', '-b', buffer, '-t', `=${tmuxName}:`]);
   if (paste.code !== 0) throw new Error(paste.stderr.trim() || 'tmux paste-buffer failed');

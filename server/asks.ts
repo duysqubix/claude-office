@@ -263,7 +263,9 @@ function decide(p: Pending, req: AnswerRequest): HookOutput | undefined {
     if (req.choice === 'allow') return perm({ behavior: 'allow' });
     if (req.choice === 'deny') return perm({ behavior: 'deny', message: note || 'The manager declined this in Claude Office.' });
     const m = /^always:(\d)$/.exec(req.choice);
-    const suggestion = m ? hook.permission_suggestions?.[Number(m[1])] : undefined;
+    // Only a suggestion that was on screen as a button (the ask offers the first two).
+    const shown = m !== null && ask.options.some((o) => o.id === req.choice);
+    const suggestion = shown ? hook.permission_suggestions?.[Number(m[1])] : undefined;
     if (suggestion) return perm({ behavior: 'allow', updatedPermissions: [suggestion] });
     return undefined;
   }

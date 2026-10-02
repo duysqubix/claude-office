@@ -40,6 +40,7 @@ export function attachTerminal(ws: WebSocket, tmuxName: string, cols: number, ro
     if (ws.readyState === ws.OPEN) ws.close(1000, 'detached');
   });
 
+  ws.on('error', () => ws.terminate());
   ws.on('message', (raw) => {
     let msg: TermClientMessage;
     try {
@@ -47,8 +48,13 @@ export function attachTerminal(ws: WebSocket, tmuxName: string, cols: number, ro
     } catch {
       return;
     }
-    if (msg.t === 'in' && typeof msg.d === 'string') term.write(msg.d);
-    else if (msg.t === 'resize') term.resize(clampDim(msg.cols, 20, 400, 120), clampDim(msg.rows, 5, 200, 36));
+    if (!open || !msg || typeof msg !== 'object') return;
+    try {
+      if (msg.t === 'in' && typeof msg.d === 'string') term.write(msg.d);
+      else if (msg.t === 'resize') term.resize(clampDim(msg.cols, 20, 400, 120), clampDim(msg.rows, 5, 200, 36));
+    } catch {
+      // The pane exited between the check and the call (EBADF); onExit closes the socket.
+    }
   });
   ws.on('close', () => {
     if (open) {
