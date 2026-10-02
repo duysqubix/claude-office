@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clampTextures } from '../models';
 import { PALETTE } from '../style/palette';
 import { ICON } from './icons';
 import { artistOf, version, type CatalogItem } from './types';
@@ -210,6 +211,7 @@ export class ModelViewer {
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) clampTextures(m);
       for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
         if (seen.has(m) || !(m as THREE.MeshStandardMaterial).isMeshStandardMaterial) continue;
         seen.add(m);

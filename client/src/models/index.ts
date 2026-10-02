@@ -88,10 +88,25 @@ export async function model(id: string, opts: ModelOptions = {}): Promise<THREE.
     if (!mesh.isMesh) return;
     mesh.castShadow = shadows;
     mesh.receiveShadow = shadows;
+    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) clampTextures(mat);
   });
   if (opts.tint) tint(root, opts.tint);
   if (opts.fit) fit(root, opts.fit);
   return root;
+}
+
+/**
+ * Baked AO atlases have UV islands touching the texture border; with the exporter's default
+ * REPEAT wrap, edge texels filter in the opposite side and show thin dark lines. Clamp them.
+ */
+export function clampTextures(mat: THREE.Material): void {
+  const m = mat as THREE.MeshStandardMaterial;
+  for (const tex of [m.map, m.aoMap, m.emissiveMap, m.roughnessMap, m.metalnessMap]) {
+    if (!tex || (tex.wrapS === THREE.ClampToEdgeWrapping && tex.wrapT === THREE.ClampToEdgeWrapping)) continue;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.needsUpdate = true;
+  }
 }
 
 /** Recolour materials by name on this instance only (materials are cloned on first tint). */
