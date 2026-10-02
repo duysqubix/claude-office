@@ -18,6 +18,7 @@ import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
 import { run } from './exec';
+import { ThoughtService } from './thoughts';
 import { assertDirectory, hire, initTmux, interrupt, kill, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -300,13 +301,29 @@ rosterSockets.on('connection', (ws) => {
     } catch {
       return;
     }
-    if (msg?.type === 'presence') asks.setPresence(ws, Boolean(msg.visible), Number(msg.lastInputAt), msg.canAnswer === true);
+    if (msg?.type === 'presence') {
+      asks.setPresence(ws, Boolean(msg.visible), Number(msg.lastInputAt), msg.canAnswer === true);
+      viewers.set(ws, { visible: Boolean(msg.visible), lastInputAt: Number(msg.lastInputAt) || 0, thoughts: msg.thoughts === true });
+    }
   });
-  ws.on('close', () => asks.dropClient(ws));
+  ws.on('close', () => {
+    asks.dropClient(ws);
+    viewers.delete(ws);
+  });
   send(ws, { type: 'hello', version: VERSION, home: HOME });
   send(ws, { type: 'roster', employees: roster.employees, now: Date.now() });
   void stats.build(roster.employees, roster).then((s) => send(ws, { type: 'stats', stats: s }));
 });
+
+// Thought bubbles: only while someone is actually looking, with thoughts on, and was around lately.
+const viewers = new Map<WebSocket, { visible: boolean; lastInputAt: number; thoughts: boolean }>();
+const THOUGHT_AUDIENCE_MS = 10 * 60_000;
+const thoughts = new ThoughtService(
+  () => roster.employees,
+  () => [...viewers.values()].some((v) => v.visible && v.thoughts && Date.now() - v.lastInputAt < THOUGHT_AUDIENCE_MS),
+);
+thoughts.on('thought', (t) => broadcast({ type: 'thought', ...t }));
+thoughts.start();
 
 // Team Room numbers: re-check every 5 s (plan usage is cached inside), broadcast on change.
 let lastStats = '';

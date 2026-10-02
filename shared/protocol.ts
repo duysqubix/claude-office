@@ -121,6 +121,8 @@ export interface PresenceMessage {
   lastInputAt: number;
   /** This client can show and answer Asks. The server never holds a question for a client that can't. */
   canAnswer?: boolean;
+  /** This client shows thought bubbles and has them turned on (the server only thinks while one does). */
+  thoughts?: boolean;
 }
 
 export type ClientMessage = PresenceMessage;
@@ -205,7 +207,15 @@ export interface NoticeMessage {
   text: string;
 }
 
-export type ServerMessage = RosterMessage | HelloMessage | NoticeMessage | StatsMessage;
+/** A working employee thought something (one short line, plain text, written by Haiku). */
+export interface ThoughtMessage {
+  type: 'thought';
+  sessionId: string;
+  text: string;
+  at: number;
+}
+
+export type ServerMessage = RosterMessage | HelloMessage | NoticeMessage | StatsMessage | ThoughtMessage;
 
 /** A directory Claude Code has been used in (from ~/.claude/projects). */
 export interface ProjectInfo {

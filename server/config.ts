@@ -11,6 +11,11 @@ export const PROJECTS_DIR = join(CLAUDE_HOME, 'projects');
 export const HOST = '127.0.0.1';
 export const PORT = Number(process.env.PORT ?? DEFAULT_PORT);
 export const IS_PROD = process.env.NODE_ENV === 'production';
+/**
+ * Where thought-bubble calls (`claude -p`) run. Claude Code registers them as live sessions
+ * for a few seconds; the roster ignores this folder so they never walk into the office.
+ */
+export const THINK_DIR = join(HOME, '.claude-office', 'thinking');
 
 /** tmux sessions the office creates are named `office-<first 8 chars of session id>`. */
 export const TMUX_PREFIX = 'office-';

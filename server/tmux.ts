@@ -42,6 +42,10 @@ export function tmuxPath(): string {
   return tmuxBin;
 }
 
+export function claudePath(): string {
+  return claudeBin;
+}
+
 const tmux = (args: string[], opts: { input?: string } = {}) => run(tmuxBin, args, { ...opts, timeoutMs: 5000 });
 
 export function isOfficeName(name: string): boolean {

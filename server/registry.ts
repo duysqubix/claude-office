@@ -2,7 +2,7 @@
 // Never read the sibling *.key files: they are secrets.
 import { readdir, readFile } from 'node:fs/promises';
 import { join, basename } from 'node:path';
-import { SESSIONS_DIR } from './config';
+import { SESSIONS_DIR, THINK_DIR } from './config';
 import { run } from './exec';
 
 export interface RegistryEntry {
@@ -40,7 +40,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
       .map(async (f) => {
         try {
           const e = JSON.parse(await readFile(join(SESSIONS_DIR, f), 'utf8')) as RegistryEntry;
-          if (typeof e.pid === 'number' && typeof e.sessionId === 'string' && typeof e.cwd === 'string' && !e.spare) {
+          if (typeof e.pid === 'number' && typeof e.sessionId === 'string' && typeof e.cwd === 'string' && !e.spare && e.cwd !== THINK_DIR) {
             entries.push(e);
           }
         } catch {
