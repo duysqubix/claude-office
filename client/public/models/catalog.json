@@ -1,13 +1,13 @@
 {
-  "generated": "2026-10-02T21:36:57.260Z",
+  "generated": "2026-10-02T22:11:12.541Z",
   "totals": {
     "all": 232,
     "done": 232
   },
   "byArtist": {
-    "Claude Cézanne": 51,
+    "Claude Cézanne": 52,
     "Claude Lorrain": 46,
-    "Claude Monet": 93,
+    "Claude Monet": 92,
     "Claude Rodin": 42
   },
   "items": [
@@ -18,7 +18,7 @@
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P0",
-      "description": "Open moving box of desk stuff for someone being let go: wilting plant, red stapler, photo, poster roll and the duck peeking out",
+      "description": "Box of desk stuff for someone being let go, packed to the rim: binders, books, plant, photo, poster, mug of pens, trophy, snacks, cable, stapler and the duck",
       "tags": [
         "let-go",
         "carry",
@@ -47,43 +47,47 @@
       "thumb": "models/thumbs/cardboard_box.jpg",
       "dims": {
         "w": 0.66,
-        "h": 0.384,
-        "d": 0.563
+        "h": 6.368,
+        "d": 0.769
       },
       "bbox": {
         "min": [
           -0.327,
-          0,
-          -0.295
+          -5.895,
+          -0.501
         ],
         "max": [
           0.333,
-          0.384,
+          0.473,
           0.269
         ]
       },
-      "tris": 5559,
+      "tris": 11383,
       "materials": [
         "Cardboard",
         "Brown",
         "CardboardLight",
         "Ink",
         "Red",
+        "Paper",
+        "Blue",
+        "Manila",
+        "Sky",
+        "Teal",
+        "Gold",
+        "Yellow",
+        "Pink",
+        "Orange",
         "Pot",
         "Leaf",
         "LeafSad",
-        "Chrome",
-        "Sky",
-        "Yellow",
-        "Paper",
-        "Pink",
-        "Orange"
+        "Chrome"
       ],
       "nodes": [
         "cardboard_box"
       ],
       "textures": 1,
-      "bytes": 303516
+      "bytes": 542316
     },
     {
       "id": "clipboard",
@@ -206,6 +210,61 @@
       ],
       "textures": 1,
       "bytes": 70144
+    },
+    {
+      "id": "computer_mouse",
+      "name": "Computer mouse",
+      "category": "desk-item",
+      "artist": "Claude Cézanne",
+      "group": "furniture & appliances",
+      "priority": "P0",
+      "description": "Two-tone computer mouse (split buttons, scroll wheel, curved cord) on a rounded mouse pad",
+      "tags": [
+        "desk",
+        "computer"
+      ],
+      "tintable": [
+        "Accent"
+      ],
+      "anchors": {
+        "hand": [
+          0,
+          0.042,
+          0.016
+        ]
+      },
+      "status": "done",
+      "file": "models/computer_mouse.glb",
+      "thumb": "models/thumbs/computer_mouse.jpg",
+      "dims": {
+        "w": 0.22,
+        "h": 0.042,
+        "d": 0.19
+      },
+      "bbox": {
+        "min": [
+          -0.11,
+          0,
+          -0.095
+        ],
+        "max": [
+          0.11,
+          0.042,
+          0.095
+        ]
+      },
+      "tris": 2290,
+      "materials": [
+        "Accent",
+        "MouseGraphite",
+        "MouseShell",
+        "MouseWheel"
+      ],
+      "nodes": [
+        "computer_mouse"
+      ],
+      "textures": 1,
+      "bytes": 100016
     },
     {
       "id": "laptop",
@@ -5684,60 +5743,6 @@
       ],
       "textures": 1,
       "bytes": 227496
-    },
-    {
-      "id": "computer_mouse",
-      "name": "Computer mouse",
-      "category": "desk-item",
-      "artist": "Claude Monet",
-      "group": "furniture & appliances",
-      "priority": "P0",
-      "description": "Pebble mouse with a scroll wheel on a rounded mouse pad",
-      "tags": [
-        "desk",
-        "computer"
-      ],
-      "tintable": [
-        "Accent"
-      ],
-      "anchors": {
-        "hand": [
-          0,
-          0.045,
-          0
-        ]
-      },
-      "status": "done",
-      "file": "models/computer_mouse.glb",
-      "thumb": "models/thumbs/computer_mouse.jpg",
-      "dims": {
-        "w": 0.22,
-        "h": 0.063,
-        "d": 0.19
-      },
-      "bbox": {
-        "min": [
-          -0.11,
-          0,
-          -0.095
-        ],
-        "max": [
-          0.11,
-          0.063,
-          0.095
-        ]
-      },
-      "tris": 328,
-      "materials": [
-        "Accent",
-        "MouseShell",
-        "MouseWheel"
-      ],
-      "nodes": [
-        "computer_mouse"
-      ],
-      "textures": 1,
-      "bytes": 19484
     },
     {
       "id": "conference_chair",
