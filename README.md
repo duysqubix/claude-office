@@ -51,6 +51,7 @@ office only **reads** Claude Code's own files and changes nothing in your Claude
 | `claude --resume` | **Call someone back in** from the Personnel Files |
 | Typing into the session | Sit at their computer (real terminal, in-game) |
 | `/exit` | Pack up and walk out |
+| Thinking about the work | Now and then, a thought bubble about what they're really doing |
 
 <table>
   <tr>
@@ -74,14 +75,24 @@ that trails a beat behind the controls, bright colours, soft shadows.
   and plan approvals appear in the game: Allow, Deny, or pick an option.
 - **Sit at their computer.** Sessions you hire run in `tmux`, and sitting down attaches the
   real terminal (xterm.js) in-game.
-- **Chat with any employee.** Watch their tool steps as they happen ("Editing `auth.ts`"),
-  send a message, or interrupt a hosted session with `Esc`. A session you started in your own terminal
-  can be adopted: when it exits there, the office resumes it with the whole conversation.
+- **Chat with any employee.** Their replies render as real markdown (tables, highlighted
+  code with Copy), tool steps show as they happen ("Editing `auth.ts`"), and you can send a
+  message or interrupt a hosted session. A session you started in your own terminal can be
+  adopted: when it exits there, the office resumes it with the whole conversation.
+- **Quick terminal.** Press `T` near anyone to see their live terminal at once, without
+  walking over and sitting down.
 - **Interns.** Subagents walk in, sit at the intern bench, and go home 5 minutes after they
   go idle.
 - **Team Room.** A wall screen with your 5-hour and weekly plan usage, every employee's
   context window, and who's working or waiting.
 - **Triage in one key.** `Q` walks you to whoever has waited longest.
+- **A lively office.** NPC regulars fill free desks, take coffee breaks and chat, and give a
+  desk up to a real session when the room is full ("All yours!"). Mabel runs the front desk.
+  None of them are Claude sessions; real sessions wear the orange lanyard.
+- **Thought bubbles.** Now and then a working session thinks one short line about what it's
+  really doing (written by Haiku on your Claude login, at most 20 an hour, only while you're
+  watching); regulars daydream. Turn them off in Help.
+- **First person.** `V` puts you behind your own eyes, mug in hand.
 
 ## Optional extras
 
@@ -104,7 +115,8 @@ the normal terminal prompt. Each change to `~/.claude/settings.json` is backed u
 | `Space` | Jump |
 | `V` | First / third person |
 | Mouse drag / wheel | Orbit / zoom the camera (scroll all the way in for first person) |
-| `E` | Interact (employee, reception, filing cabinet, whiteboard, coffee) |
+| `E` | Interact (employee, reception, filing cabinet, whiteboard, coffee); chat with someone |
+| `T` | Quick look at someone's live terminal (`Esc` goes back) |
 | `R` | Roster |
 | `Q` | Walk to whoever needs you (longest wait first) |
 | `H` | Hire |
@@ -153,15 +165,21 @@ to browse them all at `http://127.0.0.1:4777/catalog.html`.
 ## Safety
 
 The server binds to `127.0.0.1` only and rejects requests whose `Host` or `Origin`
-isn't the office itself, because it can start Claude sessions and type into them.
+isn't the office itself, because it can start Claude sessions and type into them. Other
+sites can't frame it (`X-Frame-Options: DENY`), the production build only runs its own
+scripts, and everything a session writes is shown as text, never HTML. In-game answers
+need a deliberate click or key on the question itself. Thought-bubble calls run with no
+tools, no settings and no file attachments.
 
 ## Roadmap
 
 See [docs/SPEC.md](docs/SPEC.md) for the full design and [docs/GAMEPLAY.md](docs/GAMEPLAY.md)
-for the game layer. Next up:
+for the game layer. Next up ([v1.1](https://github.com/duysqubix/claude-office/milestone/2)):
 
-- Employees wander to the coffee machine when idle; break room chatter
-- Physics props you can knock over; office pets
-- Hire with a role (agent type / model / effort), team pods per project
-- A cosmetic shop: earn Beans for finished turns, commits and merged PRs, spend them on hats and decor
-- Sound design, day/night cycle synced to your clock
+- A Shell tab on every computer: a real shell in that employee's folder, next to Claude
+- Coffee-shop music, and Spotify on the manager's laptop
+- People step around each other (with a "sorry!")
+- First-run tips and interface sounds
+
+Later: hire with a role (agent type / model / effort), and a cosmetic shop: earn Beans for
+finished turns, commits and merged PRs, spend them on hats and decor.
