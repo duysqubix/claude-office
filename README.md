@@ -120,6 +120,10 @@ that trails a beat behind the controls, bright colours, soft shadows.
 - **Music and sounds.** Coffee-shop music made up as it plays (softer after 9 pm, a little
   quieter while you type to someone) and small interface sounds. Help → Music and sound has
   the volumes; `M` mutes everything.
+- **Your Spotify on the office speakers.** Press `E` at the laptop on the boss desk: Liked
+  Songs and your playlists, with play, pause, skip and seek. While it plays, the café band
+  steps aside and the laptop's screen shows the song from across the room. Needs Premium and
+  your own Spotify app ([setup](#spotify)).
 - **Thought bubbles.** Now and then a working session thinks one short line about what it's
   really doing (written by Haiku on your Claude login, at most 20 an hour, only while you're
   watching); regulars daydream. Turn them off in Help.
@@ -127,6 +131,14 @@ that trails a beat behind the controls, bright colours, soft shadows.
 - **First-run tips.** A few small cards teach the basics on your first visit.
 
 <table>
+  <tr>
+    <td width="50%"><img src="docs/media/spotify-laptop.jpg" alt="The Spotify app on the manager's laptop: Liked Songs, playlists down the side, a song playing"></td>
+    <td width="50%"><img src="docs/media/laptop-now-playing.jpg" alt="The laptop on the boss desk, its screen showing a NOW PLAYING band with the song and artist"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Your Spotify on the manager's laptop.</sub></td>
+    <td align="center"><sub>Now playing, on the laptop's own screen.</sub></td>
+  </tr>
   <tr>
     <td width="50%"><img src="docs/media/shell-tabs.jpg" alt="The quick look open on an employee's Shell tab: git status and ls in their project folder, next to the Claude tab"></td>
     <td width="50%"><img src="docs/media/hot-desk.jpg" alt="A hot desk's computer open: your own shell in your home folder, with Shut down and Stand up"></td>
@@ -163,11 +175,27 @@ that trails a beat behind the controls, bright colours, soft shadows.
 | --- | --- | --- |
 | Answer permission prompts, questions and plan approvals **in the game** (Allow / Deny / pick an option) | `npm run hooks:install` | `npm run hooks:uninstall` |
 | Plan-usage gauges (5-hour / weekly) on the Team Room board, if you don't use oh-my-claudecode's HUD | `npm run statusline:install` (wraps your current status line, which keeps working) | `npm run statusline:uninstall` |
+| Play your Spotify on the office speakers | Make your own Spotify app ([below](#spotify)), then press `E` at the laptop on the boss desk | **Sign out** on the laptop |
 | Develop the client with hot reload | `npm run dev` | |
 
 With the hooks installed, the office only steps in while you're looking at it (visible
 tab, recent input). After 90 s, or when the office is closed, the question goes back to
 the normal terminal prompt. Each change to `~/.claude/settings.json` is backed up.
+
+### Spotify
+
+The laptop walks you through this the first time. It takes a couple of minutes, once, and
+playing music needs Spotify Premium.
+
+1. At [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), create an
+   app (any name).
+2. Add the redirect URI `http://127.0.0.1:4777/callback` (your office's port; the laptop shows
+   the exact address). It must be `127.0.0.1`: Spotify refuses `localhost`.
+3. Tick **Web API** and **Web Playback SDK**, then save.
+4. Paste the app's **Client ID** into the laptop and press **Sign in with Spotify**.
+
+Your sign-in stays on the server in `~/.claude-office/spotify-<port>.json`, readable only by
+you. Each office has its own.
 
 ## Controls
 
@@ -180,6 +208,7 @@ the normal terminal prompt. Each change to `~/.claude/settings.json` is backed u
 | Mouse drag / wheel | Orbit / zoom the camera (scroll all the way in for first person) |
 | `E` | Interact (employee, reception, filing cabinet, whiteboard, coffee); chat with someone |
 | `E` at an empty desk | Hot desk: use its computer, your own shell (`Esc` goes to the shell) |
+| `E` at the boss desk | Your laptop: Spotify on the office speakers (`Space` plays and pauses) |
 | `T` | Quick look at someone's live terminal (`Esc` goes back) |
 | `R` | Roster |
 | `Q` | Walk to whoever needs you (longest wait first) |
@@ -213,7 +242,7 @@ Nothing is installed into your Claude Code config unless you opt into the hooks 
 
 ## The models
 
-The office is built from 232 chunky `.glb` models in `client/public/models`. Four AI
+The office is built from 253 chunky `.glb` models in `client/public/models`. Four AI
 artist sessions (Claude Monet, Cézanne, Lorrain and Rodin) made them in Blender from
 the build scripts in `assets/blender/`. You don't need Blender to run the office. See
 [docs/ASSETS.md](docs/ASSETS.md) to remake a model or add one, and run `npm run catalog`
@@ -237,15 +266,15 @@ scripts, and everything a session writes is shown as text, never HTML. In-game a
 need a deliberate click or key on the question itself. Thought-bubble calls run with no
 tools, no settings and no file attachments. An office only drives the tmux sessions it
 started itself: a second copy of the office never types into, attaches to or closes yours.
+Spotify's player script never runs in the office page: it runs in its own frame on a
+separate local port that the office refuses, and only once you've signed in and opened the
+laptop.
 
 ## Roadmap
 
 See [docs/SPEC.md](docs/SPEC.md) for the full design and [docs/GAMEPLAY.md](docs/GAMEPLAY.md)
-for the game layer. Next up ([v1.2](https://github.com/duysqubix/claude-office/milestone/3)):
+for the game layer. Next up:
 
-- Spotify on the manager's laptop
-- Lighter characters (fewer draw calls per person)
-- The follow-ups from the v1.1 server security review
-
-Later: hire with a role (agent type / model / effort), and a cosmetic shop: earn Beans for
-finished turns, commits and merged PRs, spend them on hats and decor.
+- Hire with a role (agent type / model / effort)
+- A cosmetic shop: earn Beans for finished turns, commits and merged PRs, spend them on hats
+  and decor
