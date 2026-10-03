@@ -10,6 +10,9 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    # ready_for_review too: the compat bot's PRs open as drafts, and GitHub starts no workflows
+    # for a PR a workflow opened; marking one ready is a person's event, so CI runs then.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
