@@ -8,6 +8,8 @@
 //   ?fade=1        fade in and out       ?mouth=smile|open|flat   hold a mouth shape
 //   ?girth=G       everyone this wide (looks girth runs 0.94–1.08)
 //   ?cam=px,py,pz,lx,ly,lz  free camera  ?hud=0     hide the overlay
+//   ?bake=0        every kit part its own draw (they're merged into one mesh, as in the game)
+//   ?lod=0         never the one-draw far look
 // Keys: K takes the kit off / puts it back on (front row), H toggles the HUD.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -16,7 +18,7 @@ import { PALETTE } from '../../style/palette';
 import { Body } from '../body';
 import { employeeLooks, internLooks, managerLooks, regularLooks, type HairStyle, type Looks } from '../looks';
 import { DIM, Rig } from '../rig';
-import { applyKit, keepProcedural, kitBackDepth, kitReport, planKit, stripKit, type KitPlan } from './index';
+import { applyKit, bakeRig, keepProcedural, kitBackDepth, kitFar, kitReport, planKit, stripKit, unbakeRig, updateKit, type KitPlan } from './index';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -219,7 +221,7 @@ window.addEventListener('keydown', (e) => {
   }
 });
 // For headless probes.
-(window as unknown as { __kit: unknown }).__kit = { people, camera, controls, scene, renderer: engine.renderer, THREE, Rig, Body, employeeLooks, managerLooks, internLooks, regularLooks, applyKit, stripKit, keepProcedural, kitReport, kitBackDepth };
+(window as unknown as { __kit: unknown }).__kit = { people, camera, controls, scene, renderer: engine.renderer, THREE, Rig, Body, employeeLooks, managerLooks, internLooks, regularLooks, applyKit, stripKit, keepProcedural, kitReport, kitBackDepth, bakeRig, unbakeRig, kitFar, updateKit };
 
 // ---- Motion -----------------------------------------------------------------------------------
 
@@ -320,6 +322,7 @@ function frame(now: number): void {
   const t = (now - t0) / 1000;
   for (const p of people) act(p, dt, t);
   controls.update();
+  updateKit(camera);
   engine.render();
   requestAnimationFrame(frame);
 }

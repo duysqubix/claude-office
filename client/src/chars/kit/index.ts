@@ -16,6 +16,7 @@ import { ditherOf, ditherable, setDither } from '../dither';
 import type { Looks } from '../looks';
 import type { Rig } from '../rig';
 import RD from '../rig-dimensions.json';
+import { bakeParts, disposeBaked, perVertexFinish, setFar, type BakePart, type Baked, type Look } from './bake';
 import { planKit, type KitPlan } from './plan';
 import { findSlots, type SlotName } from './slots';
 
@@ -86,9 +87,56 @@ interface Dress {
   worn: SlotName[];
   /** The rig's own setOpacity and dispose, put back by stripKit. */
   restore: () => void;
+  /** Every kit part with the slot it went into (for baking). */
+  pieces: { slot: SlotName; part: THREE.Object3D }[];
+  /** The parts merged into one skinned mesh (#57), and the parts' own materials while hidden. */
+  baked: { baked: Baked; swapped: Map<THREE.Mesh, THREE.Material> } | null;
 }
 
 const dressed = new WeakMap<Rig, Dress>();
+
+// Debug switches: ?bake=0 keeps every part a separate draw, ?lod=0 never draws far.
+const switches = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
+const BAKE = switches.get('bake') !== '0';
+const LOD = switches.get('lod') !== '0';
+/** Dressed, waiting to be baked. */
+const toBake = new Map<Rig, Dress>();
+/** Baked, for the distance switch. */
+const bakedRigs = new Map<Rig, Dress>();
+/** Bakes per frame (each takes a few milliseconds). */
+const BAKES_PER_FRAME = 2;
+/** One draw beyond FAR_AT metres from the camera, one per look again inside NEAR_AT. */
+const FAR_AT = 6;
+const NEAR_AT = 5.5;
+const _cam = new THREE.Vector3();
+const _at = new THREE.Vector3();
+
+/**
+ * Once a frame. Bakes newly dressed characters, a couple a frame, in view or not (a yard visitor
+ * is out of the scene while out of view, and shouldn't hitch the frame they walk into it), and
+ * draws baked characters far from `camera` as one draw. A rig whose parts were taken out of it
+ * (the first-person arm borrows the manager-look rig's shoulder) is left as it is.
+ */
+export function updateKit(camera: THREE.Camera): void {
+  let budget = BAKES_PER_FRAME;
+  for (const [rig, d] of toBake) {
+    if (budget <= 0) break;
+    toBake.delete(rig);
+    if (!intact(rig, d)) continue;
+    budget--;
+    if (bakeRig(rig) > 0) bakedRigs.set(rig, d);
+  }
+  if (!LOD) return;
+  camera.getWorldPosition(_cam);
+  for (const [rig, d] of bakedRigs) {
+    const b = d.baked?.baked;
+    if (!b) continue;
+    const dist = rig.root.getWorldPosition(_at).distanceTo(_cam);
+    const far = b.mesh.material === b.far;
+    if (!far && dist > FAR_AT) setFar(b, true);
+    else if (far && dist < NEAR_AT) setFar(b, false);
+  }
+}
 
 /** What a character is wearing (for previews and debugging), or null if no kit was applied. */
 export function kitReport(rig: Rig): { plan: KitPlan; worn: readonly SlotName[] } | null {
@@ -151,6 +199,8 @@ export function applyKit(rig: Rig, looks: Looks = rig.looks): Promise<boolean> {
     hadJiggle: rig.hasJiggle,
     worn: [],
     restore: () => {},
+    pieces: [],
+    baked: null,
   };
   dressed.set(rig, d);
   adapt(rig, d);
@@ -175,6 +225,9 @@ export function stripKit(rig: Rig): void {
 }
 
 function takeOff(d: Dress): void {
+  for (const map of [toBake, bakedRigs]) for (const [rig, dd] of map) if (dd === d) map.delete(rig);
+  unbake(d);
+  d.pieces.length = 0;
   d.cancelled = true;
   for (const o of d.added) o.removeFromParent();
   for (const m of d.mats) m.dispose();
@@ -217,6 +270,106 @@ function fade(d: Dress, a: number): void {
   d.opacity = v;
   for (const m of d.mats) setDither(m, v >= 0.999 ? 1 : v);
   for (const c of d.casters) c.castShadow = v >= 0.999;
+}
+
+// ---------------------------------------------------------------------------------------
+// Baking (#57): every part in one skinned mesh, a handful of draws instead of ~40
+
+const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
+
+const under = (rig: Rig, o: THREE.Object3D): boolean => {
+  for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p === rig.root) return true;
+  return false;
+};
+
+/** Every part still on the character (the first-person arm takes the shoulder out of its rig). */
+const intact = (rig: Rig, d: Dress): boolean => d.pieces.every(({ part }) => under(rig, part));
+
+/**
+ * Merge the rig's worn kit parts into one skinned mesh (chars/kit/bake.ts): one draw per
+ * texture and rim up close, one in all far away (kitFar). Parts moved out of the character (the
+ * first-person arm) stay as they are. Undone by unbakeRig, stripKit and dispose. updateKit does
+ * this for every dressed character; returns how many near draws it takes (0: none).
+ */
+export function bakeRig(rig: Rig, opts: { far?: boolean } = {}): number {
+  const d = dressed.get(rig);
+  if (!d) return 0;
+  unbake(d);
+  const skin = new THREE.Color(d.plan.colors.skin);
+  const parts: BakePart[] = [];
+  for (const { part } of d.pieces) {
+    if (!under(rig, part)) continue;
+    // Hidden mouth shapes and put-away mugs are baked too: their bones collapse while hidden.
+    part.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.visible) return;
+      const m = mesh.material as THREE.MeshStandardMaterial;
+      if (!m.visible || !m.isMeshStandardMaterial) return;
+      // The translucent blush goes in opaque, pre-blended over the skin it sits on.
+      const color = m.transparent && m.name === 'Cheek' ? skin.clone().lerp(m.color, m.opacity) : undefined;
+      parts.push({ mesh, color });
+    });
+  }
+  const own = (m: THREE.MeshStandardMaterial): THREE.Material => {
+    ditherable(m);
+    setDither(m, d.opacity >= 0.999 ? 1 : d.opacity);
+    d.mats.add(m);
+    return m;
+  };
+  const baked = bakeParts(rig.root, parts, {
+    near(look: Look) {
+      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, map: look.map, side: look.side });
+      m.name = `Baked ${look.map ? 'textured' : 'flat'}${look.rim ? '' : ' face'}`;
+      if (look.rim) addRim(m);
+      perVertexFinish(m);
+      return own(m);
+    },
+    far() {
+      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+      m.name = 'Baked far';
+      addRim(m);
+      perVertexFinish(m, true);
+      return own(m);
+    },
+  });
+  if (!baked) return 0;
+  const swapped = new Map<THREE.Mesh, THREE.Material>();
+  for (const { mesh } of parts) {
+    swapped.set(mesh, mesh.material as THREE.Material);
+    mesh.material = HIDDEN;
+  }
+  if (baked.mesh.castShadow) {
+    baked.mesh.castShadow = d.opacity >= 0.999;
+    d.casters.push(baked.mesh);
+  }
+  if (opts.far) setFar(baked, true);
+  d.baked = { baked, swapped };
+  return baked.near.length;
+}
+
+/** Draw a baked character as one draw (far away) or one per look (near). */
+export function kitFar(rig: Rig, far: boolean): void {
+  const b = dressed.get(rig)?.baked?.baked;
+  if (b) setFar(b, far);
+}
+
+/** Back to the separate parts. */
+export function unbakeRig(rig: Rig): void {
+  const d = dressed.get(rig);
+  if (d) unbake(d);
+}
+
+function unbake(d: Dress): void {
+  if (!d.baked) return;
+  const { baked, swapped } = d.baked;
+  for (const [mesh, mat] of swapped) mesh.material = mat;
+  for (const mat of [...baked.near, baked.far]) {
+    d.mats.delete(mat);
+    mat.dispose();
+  }
+  d.casters = d.casters.filter((c) => c !== baked.mesh);
+  disposeBaked(baked);
+  d.baked = null;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -403,6 +556,7 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
     hide(slot.procedural);
     slot.holder.add(part);
     d.added.push(part);
+    d.pieces.push({ slot: name, part });
     if (!d.worn.includes(name)) d.worn.push(name);
     return true;
   };
@@ -515,5 +669,7 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
   if (got.laptop) got.laptop.position.y = -0.012; // the procedural laptop is centred on its base
   put('laptop', got.laptop, { cast: true });
 
+  // Merged into one mesh by updateKit, once they stand in the scene.
+  if (BAKE && d.worn.length) toBake.set(rig, d);
   return d.worn.length > 0;
 }
