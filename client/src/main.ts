@@ -9,6 +9,7 @@
 //   cam=overview|door      fixed wide shots
 //   panel=hire|archive|roster|help|stats|interns|employee|ask   open a panel (dev)
 //   term=1                 sit at the focused person's computer (dev)
+//   laptop=1               sit at your laptop: Spotify (dev; spotify=new|free|refused with demo=1)
 //   pose=walk|run|jump     freeze the manager mid-motion (dev)
 //   near=N (dev)  at=x,z  yaw=deg pitch=deg dist=m   manager / camera placement
 //   view=first|third       camera mode
@@ -37,6 +38,7 @@ import { createEngine } from './engine/index';
 import { HotDesks, USE_COMPUTER } from './hotdesk';
 import { Input } from './input';
 import { RosterStore, createBackend } from './net';
+import { createSpotify, laptopShot, screenRect } from './spotify/index';
 import { DeskTerminal } from './ui/deskterm';
 import { h, truncate, waitingText } from './ui/dom';
 import { Hud } from './ui/hud';
@@ -90,6 +92,8 @@ function runOffice(): void {
   const terminal = new TerminalOverlay(uiRoot, backend, () => store.home);
   // An empty desk's computer: your own shell there (hotdesk.ts).
   const deskTerm = new DeskTerminal(uiRoot, backend);
+  // Your laptop on the boss desk: Spotify (spotify/, #28). The demo office has a pretend one.
+  const laptop = createSpotify({ demo: backend.demo, params, world, camera: engine.camera, root: uiRoot });
   const viewModel = new ViewModel(manager.rig.looks.skin);
   // The camera carries the first-person hand + mug, so it has to be in the scene.
   scene.add(engine.camera);
@@ -479,6 +483,48 @@ function runOffice(): void {
     }, 250);
   }
 
+  /** E at your desk: walk behind your chair and sit down at your laptop (Spotify, #28). */
+  function sitAtLaptop(instant = false): void {
+    const lap = world.laptop;
+    if (!lap) return;
+    panels.close();
+    camera.releasePointer();
+    const path = instant ? [] : world.findPath(manager.position.clone(), lap.stand);
+    if (!path) {
+      toasts.show("Can't get to your desk", 'bad');
+      return;
+    }
+    sitting = { id: 'laptop', phase: 'walking' };
+    if (instant) {
+      manager.teleport(lap.stand, lap.yaw);
+      beginLaptop();
+    } else manager.walkPath(path, { onArrive: () => beginLaptop(), faceYaw: lap.yaw });
+  }
+
+  function beginLaptop(): void {
+    const lap = world.laptop;
+    if (!lap || sitting?.id !== 'laptop') return;
+    // This sit-down only (see beginTerminal).
+    const me = sitting;
+    me.phase = 'easing';
+    manager.frozen = true;
+    manager.face(lap.yaw);
+    hud.setPrompt(null);
+    camera.yaw = lap.yaw + Math.PI;
+    window.setTimeout(() => {
+      if (sitting !== me) return;
+      camera.setShot(laptopShot(manager.rig.head.getWorldPosition(new THREE.Vector3()), lap));
+      labels.setVisible(false);
+      window.setTimeout(() => {
+        if (sitting !== me) return;
+        me.phase = 'open';
+        input.blocked = true;
+        input.clear();
+        laptop.open(screenRect(lap.screen, engine.camera, canvas));
+      }, 780);
+    }, 250);
+  }
+
   /** Esc or a move key before the bezel opened: never mind. */
   function cancelSit(): void {
     if (!sitting || sitting.phase === 'open') return;
@@ -503,6 +549,7 @@ function runOffice(): void {
     onNotice: (text, kind) => toasts.show(text, kind, kind === 'bad' ? 7000 : 4000),
   };
   deskTerm.events = terminal.events;
+  laptop.events = terminal.events;
 
   labels.onBubbleClick = (e) => {
     if (sitting) return;
@@ -528,6 +575,9 @@ function runOffice(): void {
         break;
       case 'interns':
         panels.open('interns');
+        break;
+      case 'laptop':
+        sitAtLaptop();
         break;
       case 'coffee':
         manager.sip(true);
@@ -631,7 +681,7 @@ function runOffice(): void {
   if (view === 'first' || view === 'third') camera.setMode(view);
   const near = devParam('near');
   const autowalk = params.has('autowalk');
-  if (devParam('debug') !== null) Object.assign(window, { office: { manager, director, camera, world, panels, store, regulars, engine, crowd } });
+  if (devParam('debug') !== null) Object.assign(window, { office: { manager, director, camera, world, panels, store, regulars, engine, crowd, laptop } });
 
   const findFocus = (): EmployeeChar | undefined => {
     const f = devParam('focus');
@@ -675,6 +725,7 @@ function runOffice(): void {
       const hosted = focus?.data.hosted ? focus : director.list().find((e) => e.data.hosted && e.seated);
       if (hosted) sitAt(hosted.data.sessionId, true);
     }
+    if (devParam('laptop') !== null) sitAtLaptop(true);
   }, 600);
 
   /** `?autowalk=1`: walk, run, stop dead, turn back, run, stop, jump, sidestep — on a loop. */

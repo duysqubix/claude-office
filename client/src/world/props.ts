@@ -5,8 +5,8 @@
 // ones go into the static batch.
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
-import type { OfficeStats } from './types';
-import { Batch, CanvasTex, ellipsize, fitText, font, G, rng, shade, type Vec3 } from './kit';
+import type { Laptop, OfficeStats } from './types';
+import { Batch, CanvasTex, ellipsize, fitText, font, G, rng, shade, type Draw2D, type Vec3 } from './kit';
 import { aabb, footprint, type WallSide, type WorldCtx } from './ctx';
 import { wallFacingYaw } from './building';
 import { OFFICE, TEAM_ROOM } from './layout';
@@ -33,6 +33,8 @@ const WALL_CLEAR = D.building.bandDepth + 0.006;
 export interface Props {
   setStats(stats: OfficeStats): void;
   reception: Reception;
+  /** The boss's laptop (Spotify, #28). */
+  laptop: Laptop;
 }
 
 /** The front desk: the receptionist's spot and the welcome display on the counter. */
@@ -45,14 +47,14 @@ export interface Reception {
 
 export function buildProps(ctx: WorldCtx): Props {
   const reception = buildReception(ctx);
-  buildManagerCorner(ctx);
+  const laptop = buildManagerCorner(ctx);
   buildBreakArea(ctx);
   buildLounge(ctx);
   const board = buildWhiteboard(ctx);
   buildPosters(ctx);
   buildClock(ctx);
   buildPlants(ctx);
-  return { setStats: board.setStats, reception };
+  return { setStats: board.setStats, reception, laptop };
 }
 
 export interface PropPlacement {
@@ -473,7 +475,7 @@ export function buildSandwichBoard(b: Batch, d = D.hiringBoard): void {
 // ---------------------------------------------------------------------------------------------
 // Manager's corner (north-east)
 
-function buildManagerCorner(ctx: WorldCtx): void {
+function buildManagerCorner(ctx: WorldCtx): Laptop {
   const dx = 10.8;
   const dz = -7.4;
   const MD = D.managerDesk;
@@ -507,6 +509,7 @@ function buildManagerCorner(ctx: WorldCtx): void {
   }, { extra: [sleeve], at: [dx, dz], yaw: Math.PI });
   ctx.colliders.push(footprint(dx, dz, MD.w, MD.d));
   ctx.blobs.add(dx, dz, 2.6, 1.4);
+  const screen = laptopScreen();
   void (async () => {
     // Per-axis fit: the footprint stays the collider, and the model's desk top lands at MD.h.
     const info = await catalogItem('manager_desk');
@@ -514,7 +517,7 @@ function buildManagerCorner(ctx: WorldCtx): void {
     if (!info?.dims || !top) return;
     const scale: Vec3 = [MD.w / info.dims.w, MD.h / top, MD.d / info.dims.d];
     if (!(await swapModel(ctx, desk, 'manager_desk', { scale }))) return;
-    void addModel(desk, 'laptop', { at: [0.12, MD.h, 0.1], paint: { Screen: laptopScreen() } });
+    void addModel(desk, 'laptop', { at: [0.12, MD.h, 0.1], paint: { Screen: screen.material } });
     void addModel(desk, 'desk_lamp', { at: [-0.8, MD.h, -0.18], yaw: 1.1, tint: { Accent: '#FFC94A' } });
     void addModel(desk, 'trophy_gold', { at: [0.8, MD.h, -0.24], yaw: Math.PI });
     void addModel(desk, 'mug_manager', { at: [-0.45, MD.h, -0.15], yaw: Math.PI });
@@ -566,6 +569,25 @@ function buildManagerCorner(ctx: WorldCtx): void {
     radius: 1.6,
     label: 'Personnel Files',
   });
+
+  // The laptop (Spotify, #28): you use it from behind the boss chair, like anyone's computer from
+  // behind theirs. An invisible stand-in for its screen (the laptop model's screenCenter, the lid
+  // leaning back) is what the camera frames and the app grows out of.
+  const marker = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.22), new THREE.MeshBasicMaterial());
+  marker.name = 'laptop-screen';
+  marker.visible = false;
+  marker.position.set(0.12, MD.h + 0.13, 0.002);
+  marker.rotation.x = -0.25;
+  marker.userData.keep = true;
+  desk.add(marker);
+  // Within reach from your chair, from behind it (where you stand up) and across the desk.
+  ctx.interactables.push({ id: 'laptop', kind: 'laptop', position: new THREE.Vector3(dx - 0.12, 1.3, dz), radius: 2.0, label: 'Use your laptop' });
+  return {
+    stand: new THREE.Vector3(dx - 0.1, 0, dz - 1.9),
+    yaw: 0,
+    screen: marker,
+    paint: (draw) => screen.canvas.redraw(draw ?? screen.dashboard),
+  };
 }
 
 /** The PERSONNEL FILES sign on its stand. Origin at the cabinet top; kept when the cabinet model swaps in. */
@@ -597,9 +619,9 @@ function filesSign(signYaw: number): THREE.Group {
   return sign;
 }
 
-/** The boss's laptop screen: a tiny dashboard where every number is going up. */
-function laptopScreen(): THREE.MeshStandardMaterial {
-  const tex = new CanvasTex(256, 160, (c, w, h) => {
+/** The boss's laptop screen: a tiny dashboard where every number is going up (Spotify draws over it, #28). */
+function laptopScreen(): { material: THREE.MeshStandardMaterial; canvas: CanvasTex; dashboard: Draw2D } {
+  const dashboard: Draw2D = (c, w, h) => {
     c.fillStyle = '#1C2546';
     c.fillRect(0, 0, w, h);
     c.fillStyle = '#FFFDF7';
@@ -613,10 +635,12 @@ function laptopScreen(): THREE.MeshStandardMaterial {
       c.roundRect(20 + i * 44, h - 18 - v * 100, 30, v * 100, 6);
       c.fill();
     });
-  });
+  };
+  const canvas = new CanvasTex(256, 160, dashboard);
   // Emissive only (black albedo), so the room's light doesn't push it into bloom; `map` stays set
   // so paint() flips the shared texture for the model's UVs.
-  return new THREE.MeshStandardMaterial({ color: 0x000000, map: tex.tex, emissive: '#FFFFFF', emissiveMap: tex.tex, emissiveIntensity: 1.0, roughness: 0.4 });
+  const material = new THREE.MeshStandardMaterial({ color: 0x000000, map: canvas.tex, emissive: '#FFFFFF', emissiveMap: canvas.tex, emissiveIntensity: 1.0, roughness: 0.4 });
+  return { material, canvas, dashboard };
 }
 
 /**

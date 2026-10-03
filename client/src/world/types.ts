@@ -75,7 +75,7 @@ export interface InternSlot {
   setLabel(name: string, subtitle?: string): void;
 }
 
-export type InteractableKind = 'reception' | 'archive' | 'whiteboard' | 'coffee' | 'desk' | 'teamboard' | 'interns';
+export type InteractableKind = 'reception' | 'archive' | 'whiteboard' | 'coffee' | 'desk' | 'teamboard' | 'interns' | 'laptop';
 
 export interface Interactable {
   /** Unique id: 'reception', 'archive', 'whiteboard', 'coffee', or `desk:<index>`. */
@@ -88,6 +88,18 @@ export interface Interactable {
   /** Default prompt text, e.g. "Hire someone". Gameplay may override for desks. */
   label: string;
   deskIndex?: number;
+}
+
+/** The manager's laptop on the boss desk: Spotify (#28). Interactable `{ id: 'laptop', kind: 'laptop' }`. */
+export interface Laptop {
+  /** Walkable floor point (y = 0) behind the boss chair, where you stand to use it. */
+  stand: THREE.Vector3;
+  /** The way you face there (toward the desk). */
+  yaw: number;
+  /** Where its screen is (invisible, screen-sized): the camera frames it, the app grows out of it. */
+  screen: THREE.Object3D;
+  /** Draw on its screen (a 256 × 160 canvas). null puts the usual dashboard back. */
+  paint(draw: ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | null): void;
 }
 
 export interface OfficeStats {
@@ -202,4 +214,6 @@ export interface World {
   ensureInternSlots(n: number): number;
   /** The garden's break spots (#48): the trail loop, seats, stands and the gate. */
   yard: Yard;
+  /** The manager's laptop (#28). */
+  laptop?: Laptop;
 }

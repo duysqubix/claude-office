@@ -71,7 +71,7 @@ function request(path, { method = 'GET', headers = {}, body } = {}) {
     const req = http.request(`${BASE}${path}`, { method, headers }, (res) => {
       let data = '';
       res.on('data', (c) => (data += c));
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
     });
     req.on('error', reject);
     if (body) req.write(body);
@@ -93,6 +93,140 @@ async function until(fn, ms) {
   return fn();
 }
 
+/**
+ * Spotify on the laptop (#28): the office's sign-in calls, the page Spotify sends you back to,
+ * and the player frame. Every call is a JSON POST from our own origin; /callback refuses a state
+ * it didn't hand out, and each state works once. The player frame (where Spotify's SDK runs) is
+ * its own origin: it serves only its page and glue, to its own Host, and the office refuses
+ * requests from it. It never signs anyone out and never saves anything: a sign-in it starts only
+ * lives in the office's memory, and its own callback uses it up. With a production build, the
+ * office's CSP frames only the player frame and runs no Spotify script.
+ */
+async function spotify() {
+  const post = (action, body = {}, headers = {}) =>
+    request(`/api/spotify/${action}`, { method: 'POST', headers: { Origin: BASE, 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  const status = await post('status');
+  const s = json(status);
+  check('POST /api/spotify/status: the redirect URI is 127.0.0.1 with this port', status.status === 200 && s?.ok === true && s.redirectUri === `http://127.0.0.1:${PORT}/callback` && typeof s.connected === 'boolean', JSON.stringify(s));
+
+  // The token endpoint: only a JSON POST from our own origin and host gets anywhere.
+  const gates = [
+    ['GET', await request('/api/spotify/token'), 404],
+    ['a foreign Origin', await post('token', {}, { Origin: 'http://evil.example' }), 403],
+    ['a foreign Host', await post('token', {}, { Host: `evil.example:${PORT}` }), 403],
+    ['a form post', await request('/api/spotify/token', { method: 'POST', headers: { Origin: BASE, 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'refresh=true' }), 415],
+  ];
+  const leaky = gates.filter(([, r, want]) => r.status !== want || /accessToken|refresh_?token/i.test(r.body));
+  check('POST /api/spotify/token refuses GET (404), a foreign Origin or Host (403) and a form (415), and says nothing', !leaky.length, leaky.map(([what, r]) => `${what} → ${r.status}`).join(', ') || gates.map(([what, r]) => `${what} ${r.status}`).join(', '));
+  if (!s?.connected) {
+    const t = await post('token');
+    check('POST /api/spotify/token while not signed in: 409, connected false', t.status === 409 && json(t)?.connected === false, `${t.status} ${t.body}`);
+  } else console.log('  (this office is signed in to Spotify: the not-signed-in token check is skipped)');
+  const badId = await post('login', { clientId: 'nope' });
+  check('POST /api/spotify/login refuses a malformed Client ID (400)', badId.status === 400, String(badId.status));
+  const unknown = await post('nope');
+  check('POST /api/spotify/<unknown> is 404', unknown.status === 404, String(unknown.status));
+
+  // /callback: no state, someone else's state, a foreign Host.
+  const cb = (query, headers = {}) => request(`/callback${query}`, { headers });
+  const none = await cb('');
+  const csp = none.headers?.['content-security-policy'] ?? '';
+  check("GET /callback without a state: 400, a page with CSP default-src 'none' and no-store", none.status === 400 && /<html/.test(none.body) && csp.startsWith("default-src 'none'") && none.headers?.['cache-control'] === 'no-store', `${none.status}; ${csp}`);
+  const forged = await cb(`?code=forged&state=${randomUUID()}`);
+  check('GET /callback with a state the office never handed out: 400, nothing exchanged', forged.status === 400 && /run out/.test(forged.body), String(forged.status));
+  const login = await post('login', { clientId: '0123456789abcdef0123456789abcdef' });
+  const url = json(login)?.url ? new URL(json(login).url) : null;
+  const q = url?.searchParams;
+  check(
+    'POST /api/spotify/login: Spotify’s /authorize, PKCE S256, this redirect URI and a fresh state',
+    login.status === 200 && url?.origin === 'https://accounts.spotify.com' && url.pathname === '/authorize' && q.get('code_challenge_method') === 'S256' && q.get('redirect_uri') === `http://127.0.0.1:${PORT}/callback` && (q.get('state') ?? '').length >= 32,
+    url ? `${url.origin}${url.pathname} state ${q.get('state')?.length} chars` : login.body,
+  );
+  const state = q?.get('state') ?? '';
+  const otherHost = await cb(`?error=access_denied&state=${state}`, { Host: `evil.example:${PORT}` });
+  check('GET /callback with a foreign Host: 403', otherHost.status === 403, String(otherHost.status));
+  // Saying no at Spotify uses the state up without exchanging anything (nothing is saved).
+  const no = await cb(`?error=access_denied&state=${state}`);
+  const again = await cb(`?error=access_denied&state=${state}`);
+  check('GET /callback with the right state: handled once, then that state is refused', no.status === 400 && /said no/.test(no.body) && again.status === 400 && /run out/.test(again.body), `${no.status}, then ${again.status}`);
+  const after = json(await post('status'));
+  check('…and the office says the same as before (nothing saved)', after?.connected === s?.connected && after?.clientId === s?.clientId, JSON.stringify(after));
+
+  // The player frame: its own loopback origin, only its page and glue, only to its own Host.
+  const frame = s?.player ?? '';
+  const fu = frame ? new URL(frame) : null;
+  check('the player frame has an origin of its own: 127.0.0.1, another port', !!fu && fu.protocol === 'http:' && fu.hostname === '127.0.0.1' && fu.port !== String(PORT) && fu.port !== '4777' && fu.pathname === '/', frame);
+  if (!fu) return;
+  const at = (path, { method = 'GET', headers = {} } = {}) =>
+    new Promise((resolve) => {
+      const req = http.request(`${frame}${path}`, { method, headers }, (res) => {
+        let data = '';
+        res.on('data', (c) => (data += c));
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
+      });
+      req.on('error', (e) => resolve({ status: 0, headers: {}, body: e.message }));
+      req.end();
+    });
+  const fpage = await at('/player');
+  const fcsp = Object.fromEntries((fpage.headers['content-security-policy'] ?? '').split(';').map((d) => d.trim().split(/\s+/)).map(([k, ...v]) => [k, v.join(' ')]));
+  check(
+    "the frame's page: CSP default-src 'none', scripts only its own and Spotify's SDK, frames only the SDK's, framed only by the office",
+    fpage.status === 200 &&
+      fcsp['default-src'] === "'none'" &&
+      fcsp['script-src'] === "'self' https://sdk.scdn.co" &&
+      fcsp['frame-src'] === 'https://sdk.scdn.co' &&
+      fcsp['frame-ancestors'] === `http://127.0.0.1:${PORT} http://localhost:${PORT}` &&
+      !fcsp['connect-src'] &&
+      /<script src="\/player\.js"><\/script>/.test(fpage.body) &&
+      !/<script>/.test(fpage.body),
+    fpage.headers['content-security-policy'],
+  );
+  const glue = await at('/player.js');
+  check('…and its glue script', glue.status === 200 && /javascript/.test(glue.headers['content-type'] ?? '') && /postMessage\(msg, parentOrigin\)/.test(glue.body), `${glue.status} ${glue.headers['content-type']}`);
+  const frameGates = [
+    ['/', await at('/'), 404],
+    ['/api/roster', await at('/api/roster'), 404],
+    ['/player/../server/index.ts', await at('/player/../server/index.ts'), 404],
+    ['a foreign Host', await at('/player', { headers: { Host: `evil.example:${fu.port}` } }), 403],
+    ['localhost', await at('/player', { headers: { Host: `localhost:${fu.port}` } }), 403],
+    ['POST', await at('/player', { method: 'POST' }), 405],
+  ];
+  const open = frameGates.filter(([, r, want]) => r.status !== want);
+  check('the frame serves nothing else (404), to no other Host (403), and no writes (405)', !open.length, open.map(([what, r]) => `${what} → ${r.status}`).join(', ') || frameGates.map(([what, r]) => `${what} ${r.status}`).join(', '));
+
+  // The office refuses the frame's origin: no hiring, no terminals, no roster feed.
+  const hire = await request('/api/hire', { method: 'POST', headers: { Origin: frame, 'Content-Type': 'application/json' }, body: JSON.stringify({ cwd: '/' }) });
+  const fromFrame = (path) =>
+    new Promise((resolve) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${PORT}${path}`, { headers: { Origin: frame } });
+      ws.on('open', () => {
+        ws.terminate();
+        resolve('opened');
+      });
+      ws.on('error', () => resolve('refused'));
+    });
+  const term = await fromFrame('/term?kind=desk&desk=3&cols=80&rows=24');
+  const feed = await fromFrame('/ws');
+  const token = await post('token', {}, { Origin: frame });
+  check('the office refuses the frame’s origin: /api/hire 403, /term and /ws refused, no token', hire.status === 403 && term === 'refused' && feed === 'refused' && token.status === 403, `hire ${hire.status}, term ${term}, ws ${feed}, token ${token.status}`);
+  const cookies = [...(status.headers['set-cookie'] ?? []), ...((await request('/')).headers['set-cookie'] ?? [])];
+  check('the office sets no cookies (127.0.0.1 shares cookies across ports)', !cookies.length, cookies.join('; '));
+
+  // A production office: frames only the player frame, runs no Spotify script.
+  const page = await request('/');
+  const prod = page.headers?.['content-security-policy'] ?? '';
+  if (!prod.includes('default-src')) {
+    console.log('  (dev office: the production CSP check is skipped)');
+    return;
+  }
+  const dir = Object.fromEntries(prod.split(';').map((d) => d.trim().split(/\s+/)).map(([k, ...v]) => [k, v]));
+  const loose = prod.split(/[\s;]+/).filter((t) => t.includes('*') || t === "'unsafe-eval'" || t === 'https:' || t === 'http:');
+  check(
+    'production CSP: frames only the player frame; Spotify’s Web API and cover art hosts; no Spotify script, no wildcards or eval',
+    dir['frame-src']?.join(' ') === frame && dir['script-src']?.join(' ') === "'self'" && !prod.includes('scdn.co/') && !prod.includes('sdk.scdn.co') && dir['connect-src']?.includes('https://api.spotify.com') && dir['img-src']?.includes('https://i.scdn.co') && !loose.length,
+    prod,
+  );
+}
 /**
  * Hot desks: your login shell in your home folder at an empty desk, named for this office's
  * port. An echo round-trips; standing up keeps it and sitting again finds it; `exit` and Shut
@@ -465,6 +599,7 @@ try {
     console.log(shells ? '  (nobody to open a shell for: shell check skipped)' : '  (this office has no Shell tab: shell check skipped)');
   }
 
+  await spotify();
   await hotDesks(termClose);
 } catch (err) {
   check('server reachable', false, err.message);
