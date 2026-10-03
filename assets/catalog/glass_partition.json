@@ -19,5 +19,6 @@
     "length": 2.0,
     "height": 2.3,
     "axis": "x"
-  }
+  },
+  "notes": "Fixed by flicker: the top rail sits 3 mm inside the posts, so the frame's top corners no longer flicker with black specks."
 }

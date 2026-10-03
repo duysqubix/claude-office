@@ -11,6 +11,8 @@ META = dict(
     description="Frosted glass wall module (2 m) with a chunky frame; tiles along its length",
     tags=["team-room", "wall", "glass"], tintable=["Accent"],
     anchors_bl={}, module=dict(length=L, height=H, axis="x"),
+    notes="Fixed by flicker: the top rail sits 3 mm inside the posts, so the frame's top corners "
+          "no longer flicker with black specks.",
 )
 
 
@@ -29,7 +31,12 @@ def frame(M):
     for s in (-1, 1):
         lib.rbox(f"GP_Post{s}", (p, T, H), (s * (L / 2 - p / 2), 0, H / 2), M["frame"], r=0.03,
                  seg=2)
-    lib.rbox("GP_Top", (L, T, p), (0, 0, H - p / 2), M["frame"], r=0.03, seg=2)
+    # The top rail sits 3 mm inside the posts on every face they share (front, back, top and
+    # ends): flush, the faces fought for depth at the corners and showed each other's baked
+    # shadow as black specks.
+    g = 0.003
+    lib.rbox("GP_Top", (L - 2 * g, T - 2 * g, p), (0, 0, H - p / 2 - g), M["frame"], r=0.03,
+             seg=2)
     lib.rbox("GP_Kick", (L - 0.02, T + 0.01, 0.14), (0, 0, 0.07), M["accent"], r=0.03, seg=2)
 
 

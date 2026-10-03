@@ -19,5 +19,6 @@
       0.01
     ]
   },
-  "mount": "wall: origin is the back centre"
+  "mount": "wall: origin is the back centre",
+  "notes": "Fixed by flicker: the printed layers stand 2.5 mm apart (were 0.3 mm), so the page and the sky no longer shimmer through the print from across the office."
 }

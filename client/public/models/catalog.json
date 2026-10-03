@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-03T04:21:45.023Z",
+  "generated": "2026-10-03T05:02:39.690Z",
   "totals": {
     "all": 253,
     "done": 253
@@ -1149,7 +1149,7 @@
         "calendar_wall"
       ],
       "textures": 1,
-      "bytes": 187720
+      "bytes": 194932
     },
     {
       "id": "cookie_jar",
@@ -2204,7 +2204,7 @@
         "poster_tokens"
       ],
       "textures": 1,
-      "bytes": 266132
+      "bytes": 266084
     },
     {
       "id": "rug_rect",
@@ -7155,7 +7155,7 @@
         "glass_partition"
       ],
       "textures": 1,
-      "bytes": 30672
+      "bytes": 30384
     },
     {
       "id": "glasses_round",
