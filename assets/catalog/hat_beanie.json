@@ -34,5 +34,6 @@
   },
   "nodes": {
     "Pom": "jiggle: rotate about its origin (the pom's base)"
-  }
+  },
+  "notes": "AO re-baked by Claude C\u00e9zanne, 2026-10-02: lib.bake_ao bakes models with named parts without a margin (no dark specks from one part's margin over another's)."
 }

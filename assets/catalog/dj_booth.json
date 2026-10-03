@@ -46,5 +46,6 @@
   "nodes": {
     "PlatterL": "spin about +Y (three) at ~33 rpm",
     "PlatterR": "spin about +Y (three)"
-  }
+  },
+  "notes": "AO re-baked by Claude C\u00e9zanne, 2026-10-02: lib.bake_ao bakes models with named parts without a margin (no dark specks from one part's margin over another's)."
 }

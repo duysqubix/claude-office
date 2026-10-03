@@ -561,9 +561,47 @@ def _set_engine(scene, *names):
     raise RuntimeError("no render engine from %s" % (names,))
 
 
+def _fill_margin(src, dst):
+    """Copy the texels a margin-free bake wrote into `src` (alpha 1) to `dst`, and fill the
+    rest from their baked neighbours, ring by ring outwards."""
+    import numpy as np
+    w, h = src.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    src.pixels.foreach_get(px)
+    px = px.reshape(h, w, 4)
+    done = px[..., 3] > 0.5
+    px[..., 3] = 1.0
+    rgb = px[..., :3]
+
+    def shift(a, dy, dx):
+        out = np.zeros_like(a)
+        out[max(dy, 0):h + min(dy, 0), max(dx, 0):w + min(dx, 0)] = \
+            a[max(-dy, 0):h + min(-dy, 0), max(-dx, 0):w + min(-dx, 0)]
+        return out
+
+    for _ in range(w + h):
+        if done.all():
+            break
+        acc = np.zeros_like(rgb)
+        cnt = np.zeros((h, w), np.float32)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy or dx:
+                    f = shift(done, dy, dx)
+                    acc += shift(rgb, dy, dx) * f[..., None]
+                    cnt += f
+        new = ~done & (cnt > 0)
+        if not new.any():
+            break
+        rgb[new] = acc[new] / cnt[new][:, None]
+        done |= new
+    dst.pixels.foreach_set(px.ravel())
+
+
 def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=None, ground="floor"):
     """Bake AO on a dedicated UV map 'AO' (shared atlas across the root and its node
-    children) and multiply it into every non-emissive base colour."""
+    children) and multiply it into every non-emissive base colour. Models with node
+    children bake without a margin and fill around the islands afterwards."""
     scene = bpy.context.scene
     objs = asset_objects(ob)
     for o in objs:
@@ -629,7 +667,22 @@ def bake_ao(ob, res=512, distance=0.35, strength=1.0, samples=None, ground="floo
     # EXTEND fills the margin by stretching edge pixels; ADJACENT_FACES left dark notches
     # along diagonal island borders (dashed lines on rounded edges).
     scene.render.bake.margin_type = "EXTEND"
+    # With node children, Blender bakes each object with its own margin and lays it over
+    # texels the others already baked (a dark wedge, black cage wires): bake those with no
+    # margin into a scratch image with alpha, then fill around the islands from it.
+    scratch = None
+    if len(objs) > 1:
+        scratch = bpy.data.images.new(img_name + "_bake", res, res, alpha=True)
+        scratch.generated_color = (0, 0, 0, 0)
+        for m, t in tex_nodes:
+            t.image = scratch
+        scene.render.bake.margin = 0
     bpy.ops.object.bake(type="AO", use_clear=True)
+    if scratch is not None:
+        for m, t in tex_nodes:
+            t.image = img
+        _fill_margin(scratch, img)
+        bpy.data.images.remove(scratch)
     bpy.data.objects.remove(floor, do_unlink=True)
     bpy.data.meshes.remove(floor_me)
     _set_engine(scene, prev_engine)
