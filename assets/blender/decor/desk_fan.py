@@ -120,4 +120,4 @@ def build():
 
 
 def finalize(id):
-    return D.finalize(id, AO_RES, AO_DISTANCE, meta=META)
+    return D.finalize(id, AO_RES, AO_DISTANCE, meta=META, rebake=True)
