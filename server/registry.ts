@@ -49,15 +49,36 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
       }),
   );
   const live = await liveProcesses(entries.map((e) => e.pid));
+  const ticks = new Map(
+    await Promise.all(entries.filter((e) => /^\d+$/.test(String(e.procStart ?? ''))).map(async (e) => [e.pid, await startTicks(e.pid)] as const)),
+  );
   return withGrace(entries.filter((e) => {
     const p = live.get(e.pid);
     if (!p) return false;
-    // Registry files can outlive their process, and pids get recycled. Claude records the
-    // process start time (in UTC) as procStart; a match proves it's the same process.
-    // Otherwise accept anything that is still a claude binary.
-    if (e.procStart && squash(e.procStart) === squash(p.lstart)) return true;
+    // Registry files can outlive their process, and pids get recycled. Claude records when the
+    // process started as procStart. On Linux that's clock ticks since boot, exact: only that
+    // very process is this session. On macOS it's ps's lstart (in UTC): a match proves it's
+    // the same process. Otherwise accept anything that is still a claude binary.
+    const start = String(e.procStart ?? '');
+    const t = ticks.get(e.pid);
+    if (t) return t === start;
+    if (start && squash(start) === squash(p.lstart)) return true;
     return /claude/i.test(basename(p.comm));
   }));
+}
+
+/**
+ * When `pid` started, in clock ticks since boot (field 22 of /proc/<pid>/stat), the way
+ * Claude Code writes procStart on Linux. Null without /proc (macOS) or if it can't be read.
+ */
+async function startTicks(pid: number): Promise<string | null> {
+  try {
+    const stat = await readFile(`/proc/${pid}/stat`, 'utf8');
+    // Field 2 is the command in parentheses, which can hold spaces and ')': count from the last ')'.
+    return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Sessions on the last poll, and the ones missing from it for the first time. */
