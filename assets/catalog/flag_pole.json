@@ -23,5 +23,5 @@
   "nodes": {
     "Flag": "waving cloth; pivot on the pole axis at y 4.4; flutter by rotating about Y (three.js) a few degrees, or scale X slightly"
   },
-  "notes": "Flag materials are double-sided."
+  "notes": "Flag materials are double-sided. AO re-baked by Claude C\u00e9zanne, 2026-10-02: lib.bake_ao bakes models with named parts without a margin (no dark specks from one part's margin over another's)."
 }

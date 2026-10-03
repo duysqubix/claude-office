@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-03T04:02:49.392Z",
+  "generated": "2026-10-03T04:21:45.023Z",
   "totals": {
     "all": 253,
     "done": 253
@@ -4207,7 +4207,7 @@
         "Flag"
       ],
       "textures": 1,
-      "bytes": 79660
+      "bytes": 79144
     },
     {
       "id": "grass_tuft",
@@ -8261,7 +8261,7 @@
         "MinuteHand"
       ],
       "textures": 1,
-      "bytes": 104520
+      "bytes": 103756
     },
     {
       "id": "wall_screen",
@@ -9946,7 +9946,7 @@
         "Propeller"
       ],
       "textures": 1,
-      "bytes": 76148
+      "bytes": 74084
     },
     {
       "id": "headband",
