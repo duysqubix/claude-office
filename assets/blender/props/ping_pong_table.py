@@ -51,7 +51,8 @@ def table(M):
             lib.cyl(f"PP_Wheel{s}{t}", 0.05, 0.04, (x, t * 0.48, 0.05), M["frame"], r=0.015,
                     seg=1, verts=14, rot=(0, math.pi / 2, 0))
         lib.rbox(f"PP_Brace{s}", (0.05, 0.96, 0.05), (x, 0, 0.3), M["frame"], r=0.02, seg=1)
-        lib.rbox(f"PP_Under{s}", (0.06, W - 0.15, 0.05), (x, 0, TOP - 0.075), M["frame"],
+        # 4 mm wider than the legs it caps: sides flush with the legs' fought for depth.
+        lib.rbox(f"PP_Under{s}", (0.064, W - 0.15, 0.05), (x, 0, TOP - 0.075), M["frame"],
                  r=0.02, seg=1)
 
 
