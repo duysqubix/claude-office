@@ -1,0 +1,510 @@
+# Keeps the office working with each new Claude Code release. Once a day it compares the newest
+# @anthropic-ai/claude-code on npm with .github/claude-code-version. If there's a newer one, it
+# runs scripts/compat.mjs against it (no login needed), then:
+#   - with a CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret, Claude reads the release
+#     notes and the compat results and adapts the code (job "adapt", read-only token). A
+#     separate job ("publish") re-runs every check itself, bumps the tracked version and opens
+#     a draft PR from compat/claude-code-<version> saying what changed and why. If nothing
+#     needed changing, the PR is only the version bump. Marking it ready for review starts CI;
+#   - without a secret, it opens or updates a single issue saying a new version is out and
+#     automatic updates are off until the secret is added.
+# A dry run (Run workflow → dry run, or any PR that edits this workflow) does all of that except
+# writing to GitHub and asking Claude: it shows the issue or PR it would open instead, and with
+# no newer release it pretends the office tracks the one before the newest.
+# The secret: CONTRIBUTING.md.
+name: Claude Code compat
+
+on:
+  schedule:
+    - cron: '41 6 * * *' # every day, 06:41 UTC
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Claude Code version to move to (blank = the newest on npm)
+        required: false
+        type: string
+      dry-run:
+        description: Dry run (no issue, branch or PR, no Claude; show what it would post)
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - .github/workflows/claude-compat.yml
+      - scripts/ci/release-notes.mjs
+
+permissions: {}
+
+concurrency:
+  group: claude-compat-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+
+env:
+  LABEL: claude-compat
+  DRY_RUN: ${{ inputs.dry-run == true || github.event_name == 'pull_request' }}
+
+jobs:
+  look:
+    name: Is there a newer Claude Code?
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      tracked: ${{ steps.version.outputs.tracked }}
+      latest: ${{ steps.version.outputs.latest }}
+      newer: ${{ steps.version.outputs.newer }}
+      open-pr: ${{ steps.pr.outputs.number }}
+      can-update: ${{ steps.secret.outputs.ok }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - id: version
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
+          tracked=$(tr -d '[:space:]' < .github/claude-code-version)
+          latest=${WANT:-$(npm view @anthropic-ai/claude-code@latest version)}
+          for v in "$tracked" "$latest"; do
+            [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Not a version: '$v'"; exit 1; }
+          done
+          ahead() { node -e 'const [a, b] = process.argv.slice(1).map((v) => v.split(".").map(Number)); console.log(b[0] - a[0] || b[1] - a[1] || b[2] - a[2])' "$1" "$2"; }
+          if [ "$DRY_RUN" = true ] && [ "$(ahead "$tracked" "$latest")" -le 0 ]; then
+            tracked=$(npm view @anthropic-ai/claude-code versions --json | node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => { const v = JSON.parse(s).filter((x) => /^\d+\.\d+\.\d+$/.test(x)); console.log(v[v.indexOf(process.argv[1]) - 1] ?? process.argv[1]); });' "$latest")
+            echo "Dry run: pretending the office tracks $tracked." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          { echo "tracked=$tracked"; echo "latest=$latest"; echo "newer=$([ "$(ahead "$tracked" "$latest")" -gt 0 ] && echo true || echo false)"; } >> "$GITHUB_OUTPUT"
+          echo "The office tracks Claude Code $tracked; the newest is $latest." >> "$GITHUB_STEP_SUMMARY"
+      - id: pr
+        if: steps.version.outputs.newer == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: compat/claude-code-${{ steps.version.outputs.latest }}
+        run: echo "number=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')" >> "$GITHUB_OUTPUT"
+      - id: secret
+        env:
+          OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$OAUTH_TOKEN" ] || [ -n "$API_KEY" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
+
+  check:
+    name: Compat check against Claude Code ${{ needs.look.outputs.latest }}
+    needs: look
+    # One PR per version: once it's open, leave it to its reviewer.
+    if: needs.look.outputs.newer == 'true' && needs.look.outputs.open-pr == ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      outcome: ${{ steps.compat.outcome }}
+    env:
+      VERSION: ${{ needs.look.outputs.latest }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install tmux
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends tmux
+      - run: npm ci
+      - name: Install Claude Code ${{ env.VERSION }}
+        run: |
+          npm install --prefix "$RUNNER_TEMP/claude-code" --no-fund --no-audit "@anthropic-ai/claude-code@$VERSION"
+          echo "CLAUDE_BIN=$RUNNER_TEMP/claude-code/node_modules/.bin/claude" >> "$GITHUB_ENV"
+      - id: compat
+        name: Compat check (a pretend Anthropic API; no login, nothing sent to Anthropic)
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/compat"
+          node scripts/compat.mjs --json "$RUNNER_TEMP/compat/before.json" --markdown "$RUNNER_TEMP/compat/before.md"
+      - name: Release notes ${{ needs.look.outputs.tracked }} → ${{ env.VERSION }}
+        env:
+          TRACKED: ${{ needs.look.outputs.tracked }}
+        run: |
+          node scripts/ci/release-notes.mjs "$TRACKED" "$VERSION" > "$RUNNER_TEMP/compat/release-notes.md" ||
+            echo "Couldn't fetch the release notes: read https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md for $TRACKED → $VERSION." > "$RUNNER_TEMP/compat/release-notes.md"
+      - name: Report
+        if: always()
+        run: if [ -f "$RUNNER_TEMP/compat/before.md" ]; then cat "$RUNNER_TEMP/compat/before.md" >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: compat-before
+          path: ${{ runner.temp }}/compat/
+          retention-days: 30
+
+  no-secret:
+    name: Say a new version is out (automatic updates are off)
+    needs: [look, check]
+    if: needs.look.outputs.can-update != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: compat-before
+          path: ${{ runner.temp }}/compat
+      - name: Open or update the one issue about it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACKED: ${{ needs.look.outputs.tracked }}
+          LATEST: ${{ needs.look.outputs.latest }}
+          OUTCOME: ${{ needs.check.outputs.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ "$DRY_RUN" = true ] || gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color D97757 --description "Keeping up with Claude Code releases" 2>/dev/null || true
+          if [ "$OUTCOME" = success ]; then
+            verdict="The compat check passed against $LATEST: nothing the office relies on seems to have changed."
+          else
+            verdict="**The compat check failed against $LATEST**: something the office relies on changed. Details below."
+          fi
+          {
+            echo "Claude Code **$LATEST** is out. The office tracks **$TRACKED** (\`.github/claude-code-version\`)."
+            echo
+            echo "$verdict"
+            echo
+            echo "Automatic compatibility updates are **off** until the repository has a Claude secret. With one, the daily [Claude Code compat](../actions/workflows/claude-compat.yml) run has Claude adapt the code to each new release and opens a PR for review. To turn them on:"
+            echo
+            echo "1. On a computer where you're signed in to Claude Code with a Pro or Max plan, run \`claude setup-token\` and copy the token it prints."
+            echo "2. In this repository, go to Settings → Secrets and variables → Actions → New repository secret. Name it \`CLAUDE_CODE_OAUTH_TOKEN\` and paste the token. An Anthropic API key works too, saved as \`ANTHROPIC_API_KEY\`."
+            echo "3. Start [Claude Code compat](../actions/workflows/claude-compat.yml) with Run workflow, or wait for tomorrow's run. This issue closes once its PR is open."
+            echo
+            echo "Last checked by [this run]($RUN_URL)."
+            echo
+            echo "<details><summary>Compat check against $LATEST</summary>"
+            echo
+            cat "$RUNNER_TEMP/compat/before.md" 2>/dev/null || echo "(no report: see the run)"
+            echo
+            echo "</details>"
+            echo
+            echo "<details><summary>Release notes $TRACKED → $LATEST</summary>"
+            echo
+            cat "$RUNNER_TEMP/compat/release-notes.md" 2>/dev/null || echo "(none)"
+            echo
+            echo "</details>"
+          } > "$RUNNER_TEMP/issue.md"
+          node -e 'const fs = require("fs"); const f = process.argv[1]; const s = fs.readFileSync(f, "utf8"); if (s.length > 65000) fs.writeFileSync(f, s.slice(0, 64000) + "\n\n(cut short: the full report is in the run)\n");' "$RUNNER_TEMP/issue.md"
+          title="Claude Code $LATEST is out: automatic compat updates are off"
+          if [ "$DRY_RUN" = true ]; then
+            { echo "### Dry run: the issue it would open or update"; echo; echo "**$title**"; echo; cat "$RUNNER_TEMP/issue.md"; } | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/issue.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/issue.md" --label "$LABEL"
+          fi
+
+  adapt:
+    name: Claude adapts the code to ${{ needs.look.outputs.latest }}
+    needs: [look, check]
+    if: needs.look.outputs.can-update == 'true' || inputs.dry-run == true || github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # Read-only: whatever happens in Claude's session, it can't push, comment or open anything.
+    # It hands its changes to "publish" as a patch.
+    permissions:
+      contents: read
+    env:
+      TRACKED: ${{ needs.look.outputs.tracked }}
+      VERSION: ${{ needs.look.outputs.latest }}
+      # Keep the Claude secret out of every command Claude runs.
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install tmux
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends tmux
+      - run: npm ci
+      - name: Install Claude Code ${{ env.VERSION }} (the version under test)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/claude-code" --no-fund --no-audit "@anthropic-ai/claude-code@$VERSION"
+          echo "CLAUDE_BIN=$RUNNER_TEMP/claude-code/node_modules/.bin/claude" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v8
+        with:
+          name: compat-before
+          path: ${{ runner.temp }}/compat
+      - name: Claude adapts the code
+        if: env.DRY_RUN != 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # This job's read-only token, so no Claude GitHub App is needed and nothing can be written.
+          github_token: ${{ github.token }}
+          classify_inline_comments: 'false'
+          prompt: |
+            Claude Code ${{ env.VERSION }} is out. This repository is Claude Office, a 3D office
+            where the user's live Claude Code sessions are the employees. It was last checked
+            against Claude Code ${{ env.TRACKED }}. Your job: keep the office working with
+            ${{ env.VERSION }}.
+
+            Read these first:
+            - ${{ runner.temp }}/compat/release-notes.md: every release note after ${{ env.TRACKED }}
+              up to ${{ env.VERSION }}, from the official changelog. The lines that touch what the
+              office relies on come first.
+            - ${{ runner.temp }}/compat/before.md: scripts/compat.mjs run against ${{ env.VERSION }}
+              before any change. Each FAIL line is an integration point that broke.
+
+            The integration points (scripts/compat.mjs checks each one):
+            - CLI flags the server passes. server/tmux.ts hire() and rehire() pass --session-id,
+              -n, --permission-mode (the modes in shared/protocol.ts HIRE_PERMISSION_MODES),
+              --resume and the prompt after --. server/thoughts.ts think() passes -p --model haiku
+              --no-session-persistence --tools "" --setting-sources "" --strict-mcp-config
+              --system-prompt.
+            - The session registry, ~/.claude/sessions/<pid>.json: server/registry.ts. Never read
+              the *.key files next to those; they are secrets.
+            - Transcripts, ~/.claude/projects/<cwd>/<id>.jsonl: server/transcript.ts and
+              server/archive.ts. Subagents, <id>/subagents/agent-*.jsonl and .meta.json:
+              server/interns.ts.
+            - Hooks: scripts/hooks.mjs (the installer), scripts/office-hook.mjs and server/asks.ts
+              (PermissionRequest and PreToolUse payloads in, decisions out).
+            - The status line: scripts/statusline.mjs, scripts/statusline-tap.mjs, server/stats.ts.
+            - The terminal: the trust-dialog text in server/roster.ts; tmux in server/tmux.ts.
+
+            Then:
+            1. For each release note or FAIL line that affects one of those points, change the code
+               so the office keeps working. Make the smallest change that does it, keep older
+               Claude Code releases working where that's cheap, and leave the rest of the code alone.
+            2. Run these until they pass: npm run typecheck, npm run typecheck:server, npm run build,
+               node scripts/ci/smoke.mjs and node scripts/compat.mjs (CLAUDE_BIN already points at
+               ${{ env.VERSION }}). If a compat.mjs check itself looks for the old behaviour, update
+               the check rather than the office.
+            3. Write the pull request description to ${{ runner.temp }}/compat/summary.md. Say what
+               you changed and why, quoting the release note behind each change. If nothing needed
+               changing, say so, and list the release notes you looked at and why they don't
+               matter to the office. Use plain, short sentences.
+
+            Don't edit anything under .github/ (the workflow bumps the version file), and don't
+            commit, push or open the pull request: a later job re-runs every check and does that.
+          claude_args: |
+            --max-turns 80
+            --add-dir ${{ runner.temp }}/compat
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm run typecheck),Bash(npm run typecheck:server),Bash(npm run build),Bash(node scripts/ci/smoke.mjs),Bash(node scripts/compat.mjs),Bash(node scripts/compat.mjs:*),Bash(git diff:*),Bash(git status:*)"
+      - name: Hand the changes over as a patch
+        run: |
+          git add -A -- . ':!snaps' ':!dist'
+          git diff --cached --binary > "$RUNNER_TEMP/compat/changes.patch"
+          git diff --cached --stat
+      - uses: actions/upload-artifact@v7
+        with:
+          name: compat-adapt
+          path: |
+            ${{ runner.temp }}/compat/changes.patch
+            ${{ runner.temp }}/compat/summary.md
+          retention-days: 30
+          if-no-files-found: warn
+
+  publish:
+    name: Re-check and open the PR for ${{ needs.look.outputs.latest }}
+    needs: [look, check, adapt]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      TRACKED: ${{ needs.look.outputs.tracked }}
+      VERSION: ${{ needs.look.outputs.latest }}
+      BRANCH: compat/claude-code-${{ needs.look.outputs.latest }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install tmux
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends tmux
+      - run: npm ci
+      - name: Install Claude Code ${{ env.VERSION }}
+        run: |
+          npm install --prefix "$RUNNER_TEMP/claude-code" --no-fund --no-audit "@anthropic-ai/claude-code@$VERSION"
+          echo "CLAUDE_BIN=$RUNNER_TEMP/claude-code/node_modules/.bin/claude" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v8
+        with:
+          name: compat-before
+          path: ${{ runner.temp }}/compat
+      - uses: actions/download-artifact@v8
+        with:
+          name: compat-adapt
+          path: ${{ runner.temp }}/compat
+      - name: Apply Claude's changes
+        run: |
+          patch="$RUNNER_TEMP/compat/changes.patch"
+          git switch -q -c "$BRANCH"
+          if [ -s "$patch" ]; then
+            # Never workflows or the version file (that's this job's), and never anything that looks like a credential.
+            if git apply --numstat "$patch" | cut -f3 | grep -q '^\.github/'; then echo "::error::The changes touch .github/; not applying them."; exit 1; fi
+            if grep -qE '(gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-ant-[A-Za-z0-9_-]{20,})' "$patch"; then echo "::error::The changes contain something that looks like a token; not applying them."; exit 1; fi
+            git apply --index "$patch"
+          fi
+          git diff --cached --stat
+      - name: Typecheck (client)
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck
+      - name: Typecheck (server)
+        id: typecheck-server
+        continue-on-error: true
+        run: npm run typecheck:server
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: npm run build
+      - name: Smoke test
+        id: smoke
+        continue-on-error: true
+        run: node scripts/ci/smoke.mjs
+      - name: Compat check
+        id: compat
+        continue-on-error: true
+        run: node scripts/compat.mjs --json "$RUNNER_TEMP/compat/after.json" --markdown "$RUNNER_TEMP/compat/after.md"
+
+      - name: Commit and push ${{ env.BRANCH }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s\n' "$VERSION" > .github/claude-code-version
+          git add .github/claude-code-version
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # --allow-empty: a dry run pretends the office tracks an older release than the file says.
+          git commit -q --allow-empty -m "Claude Code $VERSION: compat" -m "Tracked version $TRACKED → $VERSION. What changed and why is in the pull request."
+          if [ "$DRY_RUN" = true ]; then echo "Dry run: not pushing $BRANCH."; exit 0; fi
+          gh auth setup-git
+          git push --force -q origin "HEAD:refs/heads/$BRANCH"
+
+      - name: Open the pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          R_TYPECHECK: ${{ steps.typecheck.outcome }}
+          R_TYPECHECK_SERVER: ${{ steps.typecheck-server.outcome }}
+          R_BUILD: ${{ steps.build.outcome }}
+          R_SMOKE: ${{ steps.smoke.outcome }}
+          R_COMPAT: ${{ steps.compat.outcome }}
+        run: |
+          changed=$(git diff --name-only HEAD~1 HEAD -- . ':!.github/claude-code-version' | sed "s/^/- \`/; s/\$/\`/")
+          passed=true
+          for r in "$R_TYPECHECK" "$R_TYPECHECK_SERVER" "$R_BUILD" "$R_SMOKE" "$R_COMPAT"; do [ "$r" = success ] || passed=false; done
+          mark() { if [ "$1" = success ]; then echo pass; else echo "**$1**"; fi; }
+          {
+            echo "Claude Code **$VERSION** is out; the office tracked **$TRACKED**."
+            echo
+            echo "### What changed and why"
+            echo
+            if [ -s "$RUNNER_TEMP/compat/summary.md" ]; then cat "$RUNNER_TEMP/compat/summary.md"; else echo "(Claude left no summary: see [the run]($RUN_URL).)"; fi
+            echo
+            echo "Files changed besides \`.github/claude-code-version\`:"
+            echo
+            if [ -n "$changed" ]; then echo "$changed"; else echo "- none: this PR only moves the tracked version to $VERSION"; fi
+            echo
+            echo "### Checks after the changes"
+            echo
+            echo "Run by [the workflow]($RUN_URL) itself, after Claude was done:"
+            echo
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| \`npm run typecheck\` | $(mark "$R_TYPECHECK") |"
+            echo "| \`npm run typecheck:server\` | $(mark "$R_TYPECHECK_SERVER") |"
+            echo "| \`npm run build\` | $(mark "$R_BUILD") |"
+            echo "| Smoke test (\`scripts/ci/smoke.mjs\`) | $(mark "$R_SMOKE") |"
+            echo "| Compat check against $VERSION (\`scripts/compat.mjs\`) | $(mark "$R_COMPAT") |"
+            echo
+            echo "This PR opens as a draft, and CI hasn't run on it: GitHub starts no workflows for a PR that a workflow's own token opened. Read it, then mark it ready for review (\`gh pr ready <number>\`). That starts CI, and Fast checks must pass before it can merge."
+            echo
+            echo "<details><summary>Compat check against $VERSION, after the changes</summary>"
+            echo
+            cat "$RUNNER_TEMP/compat/after.md" 2>/dev/null || echo "(no report)"
+            echo
+            echo "</details>"
+            echo
+            echo "<details><summary>Compat check against $VERSION, before any change</summary>"
+            echo
+            cat "$RUNNER_TEMP/compat/before.md" 2>/dev/null || echo "(no report)"
+            echo
+            echo "</details>"
+            echo
+            echo "<details><summary>Release notes $TRACKED → $VERSION</summary>"
+            echo
+            cat "$RUNNER_TEMP/compat/release-notes.md" 2>/dev/null || echo "(none)"
+            echo
+            echo "</details>"
+          } > "$RUNNER_TEMP/pr.md"
+          # GitHub caps a PR description at 65536 characters; the release notes come last.
+          node -e 'const fs = require("fs"); const f = process.argv[1]; const s = fs.readFileSync(f, "utf8"); if (s.length > 65000) fs.writeFileSync(f, s.slice(0, 64000) + "\n\n(cut short: the full notes are in the run'"'"'s compat-before artifact)\n");' "$RUNNER_TEMP/pr.md"
+          if [ "$DRY_RUN" = true ]; then
+            { echo "### Dry run: the PR it would open ($([ "$passed" = true ] && echo 'every check passed' || echo 'a check failed'))"; echo; echo "**Claude Code $VERSION: compat**"; echo; cat "$RUNNER_TEMP/pr.md"; } | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color D97757 --description "Keeping up with Claude Code releases" 2>/dev/null || true
+          # Always a draft: marking it ready (a person's event) is what starts CI on it.
+          if url=$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "Claude Code $VERSION: compat" --body-file "$RUNNER_TEMP/pr.md" --label "$LABEL" --draft 2>&1); then
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+            echo "Opened $url" >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Usually "GitHub Actions is not permitted to create or approve pull requests"
+            # (Settings → Actions → General). The branch is pushed; a person opens the PR.
+            echo "::warning::Couldn't open the PR: $url"
+            echo "compare=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$BRANCH?expand=1" >> "$GITHUB_OUTPUT"
+            echo "Couldn't open the PR ($url). The branch $BRANCH is pushed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Close older compat PRs; update the issue
+        if: env.DRY_RUN != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.pr.outputs.url }}
+          COMPARE: ${{ steps.pr.outputs.compare }}
+        run: |
+          if [ -n "$URL" ]; then
+            for n in $(gh pr list --repo "$GITHUB_REPOSITORY" --state open --label "$LABEL" --json number,headRefName --jq ".[] | select(.headRefName != \"$BRANCH\" and (.headRefName | startswith(\"compat/claude-code-\"))) | .number"); do
+              gh pr close "$n" --repo "$GITHUB_REPOSITORY" --delete-branch --comment "Superseded by $URL, which covers every release up to $VERSION."
+            done
+          fi
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$URL" ]; then
+            [ -z "$number" ] || gh issue close "$number" --repo "$GITHUB_REPOSITORY" --comment "Automatic updates are on: $URL moves the office to Claude Code $VERSION."
+          else
+            body="The update to Claude Code $VERSION is ready on the branch \`$BRANCH\`, but this workflow isn't allowed to open pull requests. Open it here: $COMPARE. To let the workflow open them itself, turn on Settings → Actions → General → Workflow permissions → \"Allow GitHub Actions to create and approve pull requests\"."
+            if [ -n "$number" ]; then gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"; else gh issue create --repo "$GITHUB_REPOSITORY" --title "Claude Code $VERSION: the compat update is ready on $BRANCH" --label "$LABEL" --body "$body"; fi
+          fi
+
+  failed:
+    name: Say the compat run failed
+    needs: [look, check, adapt, publish]
+    if: failure() && inputs.dry-run != true && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ needs.look.outputs.latest }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color D97757 --description "Keeping up with Claude Code releases" 2>/dev/null || true
+          body="The compat run for Claude Code ${LATEST:-?} failed before it could open a PR: $RUN_URL. If it failed in \"Claude adapts the code\", check that the CLAUDE_CODE_OAUTH_TOKEN (or ANTHROPIC_API_KEY) secret is still valid: \`claude setup-token\` makes a new one."
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"; else gh issue create --repo "$GITHUB_REPOSITORY" --title "Claude Code ${LATEST:-?}: the compat run failed" --label "$LABEL" --body "$body"; fi
