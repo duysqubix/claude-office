@@ -378,15 +378,19 @@ export function pasteSafe(text: string): string {
   return text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 }
 
-/** How far say() got: all of it; stopped before the paste (a question open, or unsent text already in their box); or stopped before Enter. */
-export type Said = 'sent' | 'not-pasted' | 'draft' | 'not-sent';
+/**
+ * How far say() got: all of it; stopped before the paste (a question open, their terminal away
+ * from its prompt, or unsent text already in their box); stopped before Enter; or Enter didn't
+ * send, leaving the text in their box.
+ */
+export type Said = 'sent' | 'not-pasted' | 'draft' | 'not-sent' | 'held';
 
 /**
  * Type `text` into the session's input box (bracketed paste) and press Enter. Claude can raise a
  * question at any moment, and Enter on one of its dialogs would answer it (a permission prompt's
  * first choice is Yes), so `asking` (what the office knows) and the screen are checked right
  * before the paste, and again right before Enter, which waits until the box shows the text: a
- * dialog hides the box (keeping the text in it for later).
+ * dialog hides the box (keeping the text in it for later). Sent, the text leaves the box.
  */
 export async function say(tmuxName: string, text: string, asking: (stage: 'paste' | 'enter') => Promise<boolean> = async () => false): Promise<Said> {
   if (!isOfficeName(tmuxName)) throw new Error('Not an office session');
@@ -395,9 +399,12 @@ export async function say(tmuxName: string, text: string, asking: (stage: 'paste
   if (await asking('paste')) return 'not-pasted';
   const box = await inputBox(tmuxName);
   if (box === null) return 'not-pasted';
-  if (box) return 'draft';
+  if (!box.empty) return 'draft';
+  // A last word starting with : or @ opens an emoji or file menu, whose pick Enter would take,
+  // and after a last \ Enter starts a new line: a space after either keeps Enter for sending.
+  const typing = /(^|\s)[:@]\S*$|\\$/.test(clean) ? `${clean} ` : clean;
   const buffer = `office-say-${process.pid}-${randomUUID()}`;
-  const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: clean });
+  const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: typing });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
   const paste = await tmux(['paste-buffer', '-p', '-d', '-b', buffer, '-t', `=${tmuxName}:`]);
   if (paste.code !== 0) throw new Error(paste.stderr.trim() || 'tmux paste-buffer failed');
@@ -409,39 +416,51 @@ export async function say(tmuxName: string, text: string, asking: (stage: 'paste
     if (look === 8) return 'not-sent';
   }
   await tmux(['send-keys', '-t', `=${tmuxName}:`, 'Enter']);
-  return 'sent';
+  // Sent, the box empties (or gives way to what a command opens). Still holding the text a
+  // second later, Enter did something else there.
+  for (let look = 0; look < 10; look++) {
+    await new Promise((r) => setTimeout(r, 100));
+    const after = await inputBox(tmuxName);
+    if (after === null || after.empty) return 'sent';
+  }
+  return 'held';
 }
 
-/** The input box's top and bottom edges: a rule across (2.x, with their name in it) or a ╭─╮ box (1.x). */
-const TOP_EDGE = /^\s*[╭┌]?─{8,}/;
-const BOTTOM_EDGE = /^\s*[╰└]?─{8,}/;
-/** A line led by Claude Code's prompt glyph: its input box, a dialog's highlighted choice, or a sent message's echo. */
-const PROMPT = /^\s*│?\s*[❯>](?=\s|$)/;
-/** The input box's first line: the prompt glyph, or ! once a typed "!" has put it in shell mode. */
-const BOX_HEAD = /^\s*│?\s*([❯>]|!)(?=\s|$)/;
+/**
+ * The input box's edges: rules across (2.x: the top one with their name in it, or only the name
+ * once the pane is narrow) or a ╭─╮ box (1.x).
+ */
+const TOP_EDGE = /^\s*[╭┌]?─{2,}|─$/;
+const BOTTOM_EDGE = /^\s*[╰└]?─{8,}[╯┘]?$/;
+/** The input box's first line starts with the prompt glyph (1.x: past the box's side), or what a typed ! (shell mode) or # (memory mode, before 2.1) turns it into. */
+const BOX_HEAD = /^(?:│\s*)?([❯>!#])(?=\s|$)/;
+/** A hint under the box that Enter does something else for now: a focused footer pill ("Enter to view tasks"), the agents view ("enter to return"). */
+const ENTER_ELSEWHERE = /\benter to \w/i;
 
 /**
  * Would Enter answer one of Claude Code's dialogs rather than send `typing` from its input box?
- * Yes while the box isn't on screen (a dialog or menu has the keys: it hides the box), and yes
- * if the box doesn't show `typing`: its start, however the box wraps it, or "[Pasted text #N]",
- * how Claude Code shows a long paste. With no `typing`, only whether the box is hidden.
+ * Yes while the box isn't on screen (a dialog or menu has the keys: it hides the box) or Enter
+ * does something else under it, and yes if the box doesn't show `typing`: its start, however
+ * the box wraps it, or "[Pasted text #N]", how Claude Code shows a long paste. With no `typing`,
+ * only whether the box is out of reach.
  */
 export async function dialogOnScreen(tmuxName: string, typing = ''): Promise<boolean> {
   const box = await inputBox(tmuxName);
   if (box === null) return true;
   const flat = (s: string) => s.replace(/\s+/g, '');
-  return !!typing && !/\[(Pasted|\.\.\.Truncated) text #\d/.test(box) && !flat(box).startsWith(flat(typing).slice(0, 16));
+  return !!typing && !/\[(Pasted|\.\.\.Truncated) text #\d/.test(box.typed) && !flat(box.typed).startsWith(flat(typing).slice(0, 16));
 }
 
 /**
- * What's typed in Claude Code's input box on `tmuxName`'s screen: '' if nothing, null if the box
- * isn't on screen. The box is the last prompt line right under a rule, down to the next rule
- * (the lines under the box, like "! for shell mode", have none), with no prompt line below it:
- * a dialog's choices and the echoes of sent messages never sit right under a rule. Its ghost
- * text ("Try …", a suggested reply) is drawn dim and the cursor inverse: neither was typed. In
- * shell mode, the ! was.
+ * Claude Code's input box on `tmuxName`'s screen: what's in it as drawn (`typed`), and whether
+ * that's nothing but ghost text (`empty`). Null if the box isn't on screen, or a hint under it
+ * says Enter does something else. The box is the last prompt line right under a rule, down to
+ * the next plain rule: a dialog's choices and the echoes of sent messages never sit right under
+ * a rule. Ghost text ("Try …", a suggested reply) follows the cursor when nothing is typed, and
+ * is drawn dim; without any styles (NO_COLOR) it's drawn plain, and with their terminal
+ * unfocused the cursor isn't drawn.
  */
-async function inputBox(tmuxName: string): Promise<string | null> {
+async function inputBox(tmuxName: string): Promise<{ typed: string; empty: boolean } | null> {
   const r = await tmux(['capture-pane', '-p', '-e', '-t', `=${tmuxName}:`]);
   if (r.code !== 0) return null;
   const rows = screenRows(r.stdout);
@@ -449,50 +468,69 @@ async function inputBox(tmuxName: string): Promise<string | null> {
     if (!BOX_HEAD.test(rows[top].text) || !TOP_EDGE.test(rows[top - 1].text)) continue;
     const bottom = rows.findIndex((row, i) => i > top && BOTTOM_EDGE.test(row.text));
     if (bottom < 0) continue;
-    if (rows.slice(bottom + 1).some((row) => PROMPT.test(row.text))) return null;
-    const typed = rows
-      .slice(top, bottom)
-      .map((row) => row.typed.replace(/\s*│$/, ''))
-      .join('\n')
-      .replace(BOX_HEAD, '')
-      .trim();
-    return BOX_HEAD.exec(rows[top].text)?.[1] === '!' ? `!${typed}` : typed;
+    if (rows.slice(bottom + 1).some((row) => ENTER_ELSEWHERE.test(row.text))) return null;
+    const box = rows.slice(top, bottom);
+    // A row without the prompt glyph or a 1.x box's sides. In shell mode, the ! was typed.
+    const inside = (s: string, i: number) => (i ? s.replace(/^\s*│/, '') : s.replace(BOX_HEAD, '')).replace(/\s*│$/, '').trim();
+    const glyph = BOX_HEAD.exec(box[0].text)?.[1];
+    const mode = glyph === '!' || glyph === '#' ? glyph : '';
+    const typed = mode + box.map((row, i) => inside(row.typed, i)).join('\n').trim();
+    // With the cursor at the very start, or not drawn, the first row may be ghost text. Claude
+    // Code draws the box's edge in a colour, unless it draws no styles at all.
+    const cursor = box.findIndex((row) => row.cursor >= 0);
+    const ghost = cursor < 0 || (cursor === 0 && !inside(box[0].text.slice(0, box[0].cursor), 0));
+    const first = ghost ? (rows[top - 1].styled ? inside(box[0].plain, 0) : '') : inside(box[0].typed, 0);
+    return { typed, empty: !mode && !first && box.every((row, i) => !i || !inside(row.typed, i)) };
   }
   return null;
 }
 
 /**
- * `capture-pane -e` output as rows: `text` as drawn, and `typed`, without the cells drawn dim or
- * inverse. Attributes carry over from one row to the next, as tmux writes them.
+ * `capture-pane -e` output as rows: `text` as drawn; `typed`, without the cells drawn dim or
+ * inverse; `plain`, only the cells in the default style; `cursor`, where the first inverse cell
+ * is (-1 for none); `styled`, whether any cell is dim or coloured. Attributes carry over from
+ * one row to the next, as tmux writes them.
  */
-function screenRows(out: string): { text: string; typed: string }[] {
-  const rows: { text: string; typed: string }[] = [];
+function screenRows(out: string): { text: string; typed: string; plain: string; cursor: number; styled: boolean }[] {
+  const rows: { text: string; typed: string; plain: string; cursor: number; styled: boolean }[] = [];
   let text = '';
   let typed = '';
+  let plain = '';
+  let cursor = -1;
+  let styled = false;
   let dim = false;
   let inverse = false;
+  let colour = false;
   for (const [token, sgr] of out.matchAll(/\x1b\[([\d;:]*)m|\x1b\[[\d;:?<=>]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b.?|\n|[^\x1b\n]+/g)) {
     if (token === '\n') {
-      rows.push({ text: text.trimEnd(), typed: typed.trimEnd() });
-      text = typed = '';
+      rows.push({ text: text.trimEnd(), typed: typed.trimEnd(), plain: plain.trimEnd(), cursor, styled });
+      text = typed = plain = '';
+      cursor = -1;
+      styled = false;
     } else if (sgr !== undefined) {
       const codes = sgr.split(';');
       for (let i = 0; i < codes.length; i++) {
         const c = codes[i];
-        if (c === '' || c === '0') dim = inverse = false;
-        else if (c === '2') dim = true;
-        else if (c === '22') dim = false;
-        else if (c === '7') inverse = true;
-        else if (c === '27') inverse = false;
-        // 38;5;n and 38;2;r;g;b (and 48, 58): colors, whose numbers aren't attributes.
-        else if (c === '38' || c === '48' || c === '58') i += codes[i + 1] === '5' ? 2 : codes[i + 1] === '2' ? 4 : 0;
+        if (c === '' || c === '0') dim = inverse = colour = false;
+        else if (c === '2' || c === '22') dim = c === '2';
+        else if (c === '7' || c === '27') inverse = c === '7';
+        else if (/^(3[0-7]|39|9[0-7])$/.test(c)) colour = c !== '39';
+        // 38;5;n and 38;2;r;g;b (and 48, 58 for the background and underline): colours, whose
+        // numbers aren't attributes.
+        else if (c === '38' || c === '48' || c === '58') {
+          colour ||= c === '38';
+          i += codes[i + 1] === '5' ? 2 : codes[i + 1] === '2' ? 4 : 0;
+        }
       }
     } else if (token[0] !== '\x1b') {
+      if (inverse && cursor < 0) cursor = text.length;
+      if (dim || colour) styled = true;
       text += token;
       if (!dim && !inverse) typed += token;
+      if (!dim && !inverse && !colour) plain += token;
     }
   }
-  rows.push({ text: text.trimEnd(), typed: typed.trimEnd() });
+  rows.push({ text: text.trimEnd(), typed: typed.trimEnd(), plain: plain.trimEnd(), cursor, styled });
   return rows;
 }
 
