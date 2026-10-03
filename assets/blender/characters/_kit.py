@@ -459,6 +459,12 @@ def dome(name, material, u=20, v=10, keep=0.15):
     buried in a surface (eyes, cheeks), so no triangles are wasted inside the head."""
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(bm, u_segments=u, v_segments=v, radius=1.0)
+    # create_uvsphere returns its faces in a different order on each call: sort them so
+    # every build exports the same bytes.
+    bm.faces.index_update()
+    order = sorted(bm.faces, key=lambda f: tuple(f.calc_center_median()))
+    rank = {f.index: i for i, f in enumerate(order)}
+    bm.faces.sort(key=lambda f: rank[f.index])
     back = [f for f in bm.faces if all(vv.co.y > keep for vv in f.verts)]
     bmesh.ops.delete(bm, geom=back, context="FACES")
     return lib._link(name, bm, material)

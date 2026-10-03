@@ -205,6 +205,12 @@ def sphere(name, radius, loc=(0, 0, 0), material=None, scale=(1, 1, 1), u=24, v=
            rot=(0, 0, 0)):
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(bm, u_segments=u, v_segments=v, radius=radius)
+    # create_uvsphere returns its faces in a different order on each call: sort them so
+    # every build exports the same bytes.
+    bm.faces.index_update()
+    order = sorted(bm.faces, key=lambda f: tuple(f.calc_center_median()))
+    rank = {f.index: i for i, f in enumerate(order)}
+    bm.faces.sort(key=lambda f: rank[f.index])
     ob = _link(name, bm, material, loc, rot)
     ob.scale = scale
     return ob
