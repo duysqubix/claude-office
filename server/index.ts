@@ -19,6 +19,7 @@ import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
 import { run } from './exec';
 import { ShellKeeper } from './shells';
+import { SpotifyLink } from './spotify';
 import { ThoughtService } from './thoughts';
 import { assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
 
@@ -43,22 +44,26 @@ const MAX_TERMINALS = 32;
  * to the host it was loaded from. Model textures are blob: URLs that three.js fetches or loads
  * as images; faces and icons are data: SVGs, and the build inlines small font files as data:.
  * Inline styles stay: the UI sets style attributes and xterm.js adds <style> elements.
+ * Spotify on the laptop (#28): the page calls the Web API (api.spotify.com) and shows cover art
+ * from Spotify's image hosts. Spotify's player SDK never runs here: it plays in a frame on its
+ * own loopback port (spotify-frame.ts), the one frame the page may hold (cspProd).
  */
+const SPOTIFY_IMAGES = 'https://i.scdn.co https://mosaic.scdn.co https://image-cdn-ak.spotifycdn.com https://image-cdn-fa.spotifycdn.com';
 const CSP_PROD = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob: ${SPOTIFY_IMAGES}`,
   "font-src 'self' data:",
-  // Spotify (v1.2): its Web API host goes here too (https://api.spotify.com); cover art and its
-  // player SDK would need img-src, script-src and frame-src entries as well.
-  `connect-src 'self' blob: ${[...ALLOWED_HOSTS].map((h) => `ws://${h}`).join(' ')}`,
+  `connect-src 'self' blob: https://api.spotify.com ${[...ALLOWED_HOSTS].map((h) => `ws://${h}`).join(' ')}`,
   "object-src 'none'",
   "base-uri 'none'",
   // The game has no forms that submit anywhere; default-src doesn't cover this one.
   "form-action 'none'",
   "frame-ancestors 'none'",
 ].join('; ');
+/** The production CSP, framing only Spotify's player frame (its exact origin, once it listens). */
+const cspProd = () => (spotify.playerOrigin ? `${CSP_PROD}; frame-src ${spotify.playerOrigin}` : CSP_PROD);
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -101,6 +106,10 @@ const roster = new Roster(asks);
 asks.on('change', () => roster.refresh());
 const stats = new StatsService();
 const shells = new ShellKeeper();
+// Spotify on the manager's laptop (#28): the sign-in, and its tokens in ~/.claude-office (0600).
+// One per office, by port (like desks, shells and hires): each signs in at its own redirect URI,
+// and one office signing out (or being signed out by Spotify) never touches another's.
+const spotify = new SpotifyLink({ port: PORT, file: join(HOME, '.claude-office', `spotify-${PORT}.json`) });
 const server = http.createServer((req, res) => {
   handle(req, res).catch((err: unknown) => {
     const status = err instanceof HttpError ? err.status : 500;
@@ -121,10 +130,12 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   // Nobody may frame the office: an invisible frame over a decoy button could click Allow for
   // you. Production also pins scripts, fetches and sockets to our origin (CSP_PROD).
   res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Content-Security-Policy', IS_PROD ? CSP_PROD : "frame-ancestors 'none'");
+  res.setHeader('Content-Security-Policy', IS_PROD ? cspProd() : "frame-ancestors 'none'");
   const url = urlOf(req, `http://${req.headers.host}`);
   if (!url) throw new HttpError(400, 'Bad request target');
   if (url.pathname.startsWith('/api/')) return api(req, res, url);
+  // Spotify sends you back here after you sign in on the laptop; the sign-in's state is checked there.
+  if (url.pathname === '/callback' && req.method === 'GET') return spotify.callback(url, res);
   if (vite) {
     vite.middlewares(req, res, () => sendJson(res, 404, { ok: false, error: 'Not found' }));
     return;
@@ -172,6 +183,12 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   }
 
   const body = await readJson(req);
+
+  // Spotify on the laptop (#28): its own calls, past the same Origin and JSON-only checks.
+  if (path.startsWith('/api/spotify/')) {
+    const r = await spotify.api(path.slice('/api/spotify/'.length), body);
+    return sendJson(res, r.status, r.body);
+  }
 
   switch (path) {
     case '/api/hire': {
@@ -608,6 +625,8 @@ async function main(): Promise<void> {
     });
   }
 
+  // Spotify's player frame gets a port of its own (#28), before the first page asks for the CSP.
+  await spotify.startPlayer([...ALLOWED_ORIGINS]).catch((err: unknown) => console.warn('[spotify] no player frame:', err));
   roster.start();
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') console.error(`[office] Port ${PORT} is busy. Is the office already open? Try PORT=4778 npm run dev`);

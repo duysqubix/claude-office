@@ -1075,6 +1075,7 @@ export class PanelHost {
       [['V'], 'First or third person'],
       [['E'], 'Talk to someone, answer them, use reception, the files, the boards, the coffee'],
       [['E'], 'At an empty desk: use the computer, your own shell in your home folder'],
+      [['E'], 'At the boss desk: your laptop plays your Spotify on the office speakers'],
       [['Q'], 'Go to whoever has needed you longest'],
       [['T'], "Look at someone's live terminal, right where you stand"],
       [['R'], 'Roster'],

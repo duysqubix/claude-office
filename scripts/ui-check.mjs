@@ -5,7 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const suites = ['kit', 'asks', 'chat', 'markdown', 'game', 'regulars', 'desks', 'crowd', 'yard', 'shell', 'hotdesk', 'audio', 'camera'];
+const suites = ['kit', 'asks', 'chat', 'markdown', 'game', 'regulars', 'desks', 'crowd', 'yard', 'shell', 'hotdesk', 'audio', 'camera', 'spotify'];
 let failed = 0;
 for (const s of suites) {
   const file = fileURLToPath(new URL(`./ui-check/${s}.mjs`, import.meta.url));

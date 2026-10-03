@@ -157,6 +157,7 @@ export function createWorld(engine: Engine): World {
     cameraBlockers: ctx.cameraBlockers,
     reception: { seat: props.reception.seat, yaw: props.reception.yaw, approach: props.reception.approach },
     yard: outdoor.yard,
+    laptop: props.laptop,
     interior: building.interior,
     isInside(p) {
       const r = building.interior;
