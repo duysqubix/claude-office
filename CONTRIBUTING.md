@@ -44,7 +44,11 @@ sessions or your Claude Code login, and nothing they do shows up in your office.
   login, nothing sent to Anthropic, no cost. It hires, answers questions, calls an intern, lets
   go and calls back through the office's own API, and checks every place the office reads or
   drives Claude Code (command-line flags, `~/.claude/sessions`, transcripts, hooks, the status
-  line). `--markdown report.md` writes the results as a table.
+  line, the input box Say types into). `--markdown report.md` writes the results as a table.
+  The input-box checks in `scripts/ci/say/` take a few minutes, and `COMPAT_SAY=0` skips them.
+  To run them on their own: `node --import tsx scripts/ci/say/synthetic.mjs` (server/tmux.ts
+  on drawn screens, no Claude Code needed) and
+  `CLAUDE_BIN=$(command -v claude) node --import tsx scripts/ci/say/live.mjs` (a real one).
 
 ## The Claude Code compat bot
 

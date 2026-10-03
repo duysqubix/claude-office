@@ -50,7 +50,8 @@ jobs:
   compat:
     name: Claude Code compat
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # About 5 minutes, nearly 4 of them the Say checks (scripts/ci/say/).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
