@@ -17,6 +17,8 @@ META = dict(
     description="Framed yellow poster with a raised rocket and big \"SHIP IT\" lettering",
     tags=["wall", "poster", "joke"], tintable=["Accent"],
     anchors_bl={"center": (0, -0.03, 0)}, mount="wall: origin is the back centre",
+    notes="Fixed by flicker: the cloud puffs are 2.5 mm flatter, so the rocket's flame sits in "
+          "front of them instead of sharing a plane with one and flickering.",
 )
 
 
@@ -78,9 +80,11 @@ def sky(M, face):
                                    (0.25, 0.02, 0.02), (-0.06, 0.4, 0.014))):
         D.prism(f"Star{k}", D.rounded_pts(D.star_pts(4, r, r * 0.35), r * 0.12, steps=2), 0.006,
                 M["cream"], loc=(x, face, z), rot=D.FRONT)
+    # The two puffs the flame (10 mm) trails across sit at least 2.5 mm under it: level with
+    # it, cream and orange shared a plane and flickered.
     for k, (x, z, r) in enumerate(((-0.215, -0.14, 0.05), (-0.145, -0.165, 0.04),
                                    (-0.265, -0.18, 0.035), (-0.08, -0.18, 0.03))):
-        D.prism(f"Puff{k}", D.circle_pts(r, 18), 0.009 + k * 0.001, M["cream"],
+        D.prism(f"Puff{k}", D.circle_pts(r, 18), 0.0065 + k * 0.001, M["cream"],
                 loc=(x, face, z), rot=D.FRONT, r=0.004, seg=1)
 
 

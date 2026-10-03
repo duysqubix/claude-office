@@ -13,6 +13,8 @@ META = dict(
     description="Blue ping pong table with net, paddles and a ball",
     tags=["game-room", "fun"], tintable=["Accent"],
     anchors_bl={"top": (0, 0, TOP), "playerA": (-1.5, 0, 0), "playerB": (1.5, 0, 0)},
+    notes="Fixed by flicker: the centre and side lines butt up to the end lines instead of "
+          "overlapping them, so the line crossings no longer flicker with dark specks.",
 )
 
 
@@ -33,12 +35,14 @@ def table(M):
     lib.rbox("PP_Top", (L, W, th), (0, 0, TOP - th / 2), M["top"], r=0.02, seg=2)
     z = TOP + 0.001
     lw = 0.025
-    lib.rbox("PP_LineC", (L - 0.06, lw, 0.004), (0, 0, z), M["line"], r=0.0015, seg=1)
+    # The centre and side lines stop at the end lines instead of running on under them: where
+    # they crossed, the two tops shared a plane and their baked shading showed as dark specks.
+    lib.rbox("PP_LineC", (L - 0.04 - lw, lw, 0.004), (0, 0, z), M["line"], r=0.0015, seg=1)
     for s in (-1, 1):
-        lib.rbox(f"PP_LineS{s}", (L - 0.02, lw, 0.004), (0, s * (W / 2 - 0.02), z), M["line"],
-                 r=0.0015, seg=1)
-        lib.rbox(f"PP_LineE{s}", (lw, W - 0.02, 0.004), (s * (L / 2 - 0.02), 0, z), M["line"],
-                 r=0.0015, seg=1)
+        lib.rbox(f"PP_LineS{s}", (L - 0.04 - lw, lw, 0.004), (0, s * (W / 2 - 0.02), z),
+                 M["line"], r=0.0015, seg=1)
+        lib.rbox(f"PP_LineE{s}", (lw, W - 0.04 + lw, 0.004), (s * (L / 2 - 0.02), 0, z),
+                 M["line"], r=0.0015, seg=1)
     for s in (-1, 1):
         x = s * 0.75
         for t in (-1, 1):
