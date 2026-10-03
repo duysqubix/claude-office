@@ -16,8 +16,8 @@ Walk to the boss desk and your laptop plays your own Spotify through the office 
 **Lighter and faster**
 - **Characters cost a fraction to draw:**
   - Once dressed, each person is merged into a single mesh, and people far away are drawn in one go.
-  - A full office floor went from 1,386 draw calls to 419.
-  - Over the garden with everyone in view, draw calls went from 2,275 to 690, and frame time halved (10.2 ms → 5.2 ms).
+  - A busy office makes about 3× fewer draw calls: 1,440 → 478 in the demo office.
+  - People still look the same up close, cast their shadows and shade correctly in any pose.
 - **The garden draws only what's in view:** from inside the office, the meadow costs 75% fewer triangles.
 - **Adding desks no longer stutters** if a desk model fails to load.
 
@@ -32,6 +32,7 @@ Walk to the boss desk and your laptop plays your own Spotify through the office 
 - **Spotify is walled off:**
   - Spotify's player runs in its own frame on its own local port, and only once you've signed in and opened the laptop. It has no way to reach the office's terminals or hiring.
   - Your Spotify sign-in stays on the server, one per office, in a file only you can read.
+- **Chat never answers for you:** a message you send can't land on a permission prompt or question Claude just raised, and text someone is typing at their computer is left alone.
 - **Clear rehire errors:** rehiring a name that another office or a live session already holds tells you how to free it, instead of showing a raw tmux error.
 - **Big pastes arrive whole:** large pastes into a terminal arrive intact (tested with 9 MB).
 - **Signal deaths are reported:** a session killed by a signal says so ("stopped by SIGKILL").
@@ -45,7 +46,7 @@ Walk to the boss desk and your laptop plays your own Spotify through the office 
   </tr>
   <tr>
     <td align="center"><sub>Now playing, on the laptop's own screen.</sub></td>
-    <td align="center"><sub>The garden, now about half the cost to draw.</sub></td>
+    <td align="center"><sub>The garden draws only the parts in view.</sub></td>
   </tr>
 </table>
 

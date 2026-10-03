@@ -32,15 +32,17 @@ sound effects (Sfx voices)        → sfx bus (0.55 × volume²)   ├→ master
 ```ts
 const handBack = audio.handOver({
   name: 'Spotify',
-  setLevel(level) { /* 0–1: music volume with mute, Music off and ducking applied; called on every change */ },
-  release() { /* the office wants the speakers back: Music turned off, or another source took over */ },
+  setLevel(level) { /* 0–1: music volume with mute, another tab's turn and ducking applied; called on every change */ },
+  release() { /* the office wants the speakers back: Music switched off, another source or another office tab took over */ },
 });
 // …later, when the source stops:
 handBack(); // the café band fades back in
 ```
 
 While a source holds the speakers the band is stopped, `audio.nowPlaying` is `{ by: 'external', label: name }`
-and Help says "Playing from Spotify".
+and Help says "Playing from Spotify". Help's Music switch is the band's: a source you start plays with Music off,
+and leaves the switch as it was. Mute and the one-tab rule silence it (handOver() claims the music for this tab, and
+a tab that gives way releases its source), and switching Music off pauses it through `release()`.
 
 ## The café band (`client/src/audio/`)
 
