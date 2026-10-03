@@ -1,0 +1,19 @@
+{
+  "id": "rock_small",
+  "name": "Small rock",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "A small faceted warm-grey rock, half-sunk in the lawn",
+  "tags": [
+    "rock",
+    "garden",
+    "lawn",
+    "faceted",
+    "scatter"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "About 80 tris; instance it with random yaw and a little scale variation."
+}

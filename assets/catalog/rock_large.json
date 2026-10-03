@@ -1,0 +1,25 @@
+{
+  "id": "rock_large",
+  "name": "Large rock",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "A big faceted boulder with a flat top at seat height and moss on its ledges",
+  "tags": [
+    "rock",
+    "garden",
+    "lawn",
+    "faceted",
+    "seating"
+  ],
+  "tintable": [],
+  "anchors": {
+    "seat": [
+      0.0,
+      0.46,
+      0.05
+    ]
+  },
+  "notes": "Sit a character's pelvis at the seat anchor, facing +Z (or any way: it's round)."
+}

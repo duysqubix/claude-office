@@ -255,6 +255,60 @@ def flower(prefix, loc, petal_mat, centre_mat, r=0.06, lobes=5, face=(0.0, 0.0),
                rot=rot)
 
 
+def star_flower(name, loc, r, material, petals=5, normal=(0, 0, 1), spin=0.0):
+    """Budget flower head for scatter (wildflowers, blossoms): a flat flower of round petals
+    (narrow at the root, widest near the tip), 6 triangles per petal, facing `normal`. Give it
+    a double-sided material."""
+    n = Vector(normal).normalized()
+    R = n.to_track_quat("Z", "Y").to_matrix() @ Matrix.Rotation(spin, 3, "Z")
+    c0 = Vector(loc)
+    bm = bmesh.new()
+    centre = bm.verts.new(tuple(c0 + R @ Vector((0, 0, r * 0.12))))
+    ring = []
+    step = 2 * math.pi / petals
+    for i in range(petals):
+        a = step * i
+        for da, rr in ((-0.2, 0.36), (-0.44, 0.78), (-0.24, 1.0), (0.24, 1.0), (0.44, 0.78),
+                       (0.2, 0.36)):
+            da *= step
+            b = a + da
+            ring.append(bm.verts.new(tuple(c0 + R @ Vector((r * rr * math.cos(b),
+                                                            r * rr * math.sin(b), 0.0)))))
+    for i in range(len(ring)):
+        bm.faces.new((centre, ring[i], ring[(i + 1) % len(ring)]))
+    return lib._link(name, bm, material, smooth=False)
+
+
+def paver(name, rx, ry, material, seed=0, sides=9, top=0.025, depth=0.03, chamfer=0.012):
+    """Flat faceted stepping stone: an irregular rounded outline (rx × ry), a gently domed top
+    with a chamfered rim, and sides sunk `depth` into the lawn (no bottom face): 5 tris per
+    side. Centred on the origin, top `top` above the ground."""
+    r = rng(seed)
+    pts = []
+    for i in range(sides):
+        a = 2 * math.pi * i / sides + r.uniform(-0.2, 0.2)
+        k = 1 + r.uniform(-0.16, 0.1)
+        pts.append((rx * k * math.cos(a), ry * k * math.sin(a)))
+    bm = bmesh.new()
+    centre = bm.verts.new((0.0, 0.0, top + 0.006))
+    inner = [bm.verts.new((x * 0.92, y * 0.92, top)) for x, y in pts]
+    outer = [bm.verts.new((x, y, top - chamfer)) for x, y in pts]
+    foot = [bm.verts.new((x * 1.02, y * 1.02, -depth)) for x, y in pts]
+    for i in range(sides):
+        j = (i + 1) % sides
+        bm.faces.new((centre, inner[i], inner[j]))
+        bm.faces.new((inner[i], outer[i], outer[j], inner[j]))
+        bm.faces.new((outer[i], foot[i], foot[j], outer[j]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return lib._link(name, bm, material, smooth=False)
+
+
+def double_sided(m):
+    """A thin cloth / petal material, visible from both sides."""
+    m.use_backface_culling = False
+    return m
+
+
 def _orient(yaw, pitch, roll=0.0):
     """Local frame for leaves: +Y along the leaf, tipped up by `pitch`, headed by `yaw`."""
     return (Matrix.Rotation(yaw, 3, "Z") @ Matrix.Rotation(pitch, 3, "X")
@@ -633,7 +687,8 @@ def finalize(name, ao_res=512, ao_distance=0.35, meta=None, strength=1.0, ground
     """lib.finalize with three more knobs: AO `strength`; the AO contact `ground` ("floor",
     "wall", or None for things that touch nothing: sky decor, wall openings, baked 50 m up
     clear of lib's AO plane); and `preview_lift` to float sky things over the preview floor.
-    Animated parts are lib.node() tags; `meta` (sidecar() kwargs) writes the sidecar."""
+    Animated parts are lib.node() tags; `meta` (sidecar() kwargs) writes the sidecar, credited
+    to meta["artist"] if given, else to me."""
     ob = lib.join_asset(name)
     tris = lib.tri_count(ob)
     lift = 0.0 if ground else 50.0
@@ -656,5 +711,6 @@ def finalize(name, ao_res=512, ao_distance=0.35, meta=None, strength=1.0, ground
     report = {"object": ob.name, "nodes": nodes, "tris": tris, "glb": glb, "png": png,
               "kb": os.path.getsize(glb) // 1024}
     if meta:
-        report["sidecar"] = lib.sidecar(name, artist=ARTIST, **meta)
+        # Other artists use this finalize too: their META names them; mine default to me.
+        report["sidecar"] = lib.sidecar(name, **dict({"artist": ARTIST}, **meta))
     return report

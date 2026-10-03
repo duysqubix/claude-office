@@ -1,0 +1,19 @@
+{
+  "id": "tall_grass",
+  "name": "Tall grass",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Ornamental grass clump: long arching faceted blades with three feathery plumes",
+  "tags": [
+    "grass",
+    "garden",
+    "lawn",
+    "scatter",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "About 450 tris; tall enough to fade like a wall when it stands between camera and manager."
+}

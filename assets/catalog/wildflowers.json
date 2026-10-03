@@ -1,0 +1,19 @@
+{
+  "id": "wildflowers",
+  "name": "Wildflowers",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Instancing-friendly clump of little mixed flowers rising out of a leafy mound",
+  "tags": [
+    "flowers",
+    "garden",
+    "lawn",
+    "scatter",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "Petal materials are double-sided. About 400 tris: scatter in drifts along the trail."
+}

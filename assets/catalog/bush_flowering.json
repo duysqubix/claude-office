@@ -1,0 +1,19 @@
+{
+  "id": "bush_flowering",
+  "name": "Flowering bush",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Round faceted bush dotted with pink, cream and coral blossoms",
+  "tags": [
+    "bush",
+    "garden",
+    "flowers",
+    "foliage",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "Blossom materials are double-sided."
+}

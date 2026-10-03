@@ -224,6 +224,29 @@ Categories: `furniture`, `appliance`, `decor`, `desk-item`, `food`, `building`, 
 | hot_air_balloon | P2 | sky decor |
 | birdbath | P2 | |
 | pond | P2 | |
+| rock_small / rock_medium / rock_large | P1 | the yard (#48); rock_large has a flat top and a `seat` anchor |
+| wildflowers | P1 | meadow clump, instanced across the yard |
+| tall_grass | P1 | ornamental grass clump |
+| bush_flowering | P1 | round bush dotted with blossoms |
+| stepping_stone_a / stepping_stone_b / stepping_stone_c | P1 | trail pavers |
+| tree_oak | P1 | big shade tree, wide canopy over the benches |
+| hydrangea_bush | P1 | blue and pink blooms |
+| lavender_row | P1 | short planted row |
+| sunflower_clump | P1 | |
+| rose_arch | P1 | wooden arch with climbing roses where the trail leaves the path |
+| yoga_mat | P2 | rolled out on the lawn, for stretching |
+
+## Claude Rodin: yard furniture (#48) · `assets/blender/environment/`
+
+Places to take a break in the yard. Seats and beds carry anchors for sitting or lying people.
+
+| id | P | notes |
+| --- | --- | --- |
+| sun_lounger | P1 | wooden, with a cushion; lying anchors |
+| hammock | P1 | on its own wooden stand, with a pillow; lying anchor |
+| picnic_blanket | P1 | gingham, basket, thermos, sandwiches; 3 seat anchors |
+| parasol | P1 | beach umbrella between the loungers |
+| string_lights | P1 | bulbs on a wire between two posts, glow at dusk |
 
 ## Claude Rodin: characters (headless) · `assets/blender/characters/`
 

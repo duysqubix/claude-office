@@ -1,0 +1,19 @@
+{
+  "id": "stepping_stone_b",
+  "name": "Stepping stone B",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Flat faceted stepping stone for the garden trail (a smaller oval)",
+  "tags": [
+    "path",
+    "trail",
+    "garden",
+    "paver",
+    "scatter"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "45 tris. One of three variants (stepping_stone_a / _b / _c); mix them along the trail."
+}

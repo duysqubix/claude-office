@@ -1,14 +1,15 @@
 {
-  "generated": "2026-10-02T23:44:14.237Z",
+  "generated": "2026-10-03T00:57:22.869Z",
   "totals": {
-    "all": 232,
-    "done": 232
+    "all": 252,
+    "done": 241,
+    "planned": 11
   },
   "byArtist": {
     "Claude Cézanne": 52,
-    "Claude Lorrain": 46,
+    "Claude Lorrain": 61,
     "Claude Monet": 92,
-    "Claude Rodin": 42
+    "Claude Rodin": 47
   },
   "items": [
     {
@@ -4008,6 +4009,58 @@
       "bytes": 102104
     },
     {
+      "id": "bush_flowering",
+      "name": "Flowering bush",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Round faceted bush dotted with pink, cream and coral blossoms",
+      "tags": [
+        "bush",
+        "garden",
+        "flowers",
+        "foliage",
+        "faceted"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/bush_flowering.glb",
+      "thumb": "models/thumbs/bush_flowering.jpg",
+      "dims": {
+        "w": 1.31,
+        "h": 0.944,
+        "d": 1.205
+      },
+      "bbox": {
+        "min": [
+          -0.645,
+          -0.023,
+          -0.592
+        ],
+        "max": [
+          0.664,
+          0.921,
+          0.613
+        ]
+      },
+      "tris": 888,
+      "materials": [
+        "Leaf",
+        "LeafDark",
+        "LeafLight",
+        "BlossomPink",
+        "BlossomCream",
+        "BlossomCoral"
+      ],
+      "nodes": [
+        "bush_flowering"
+      ],
+      "textures": 1,
+      "bytes": 113588
+    },
+    {
       "id": "fence_picket",
       "name": "Picket fence",
       "category": "outdoor",
@@ -5169,6 +5222,349 @@
       "bytes": 47144
     },
     {
+      "id": "rock_large",
+      "name": "Large rock",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "A big faceted boulder with a flat top at seat height and moss on its ledges",
+      "tags": [
+        "rock",
+        "garden",
+        "lawn",
+        "faceted",
+        "seating"
+      ],
+      "tintable": [],
+      "anchors": {
+        "seat": [
+          0,
+          0.46,
+          0.05
+        ]
+      },
+      "status": "done",
+      "file": "models/rock_large.glb",
+      "thumb": "models/thumbs/rock_large.jpg",
+      "dims": {
+        "w": 1.192,
+        "h": 0.588,
+        "d": 0.983
+      },
+      "bbox": {
+        "min": [
+          -0.61,
+          -0.124,
+          -0.458
+        ],
+        "max": [
+          0.582,
+          0.465,
+          0.524
+        ]
+      },
+      "tris": 320,
+      "materials": [
+        "Rock",
+        "RockLight",
+        "Moss"
+      ],
+      "nodes": [
+        "rock_large"
+      ],
+      "textures": 1,
+      "bytes": 39196
+    },
+    {
+      "id": "rock_medium",
+      "name": "Medium rock",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "A faceted warm-grey boulder with a pebble beside it and moss on top",
+      "tags": [
+        "rock",
+        "garden",
+        "lawn",
+        "faceted",
+        "scatter"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/rock_medium.glb",
+      "thumb": "models/thumbs/rock_medium.jpg",
+      "dims": {
+        "w": 0.761,
+        "h": 0.358,
+        "d": 0.634
+      },
+      "bbox": {
+        "min": [
+          -0.388,
+          -0.039,
+          -0.311
+        ],
+        "max": [
+          0.373,
+          0.319,
+          0.323
+        ]
+      },
+      "tris": 160,
+      "materials": [
+        "Rock",
+        "Moss",
+        "RockLight"
+      ],
+      "nodes": [
+        "rock_medium"
+      ],
+      "textures": 1,
+      "bytes": 27088
+    },
+    {
+      "id": "rock_small",
+      "name": "Small rock",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "A small faceted warm-grey rock, half-sunk in the lawn",
+      "tags": [
+        "rock",
+        "garden",
+        "lawn",
+        "faceted",
+        "scatter"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/rock_small.glb",
+      "thumb": "models/thumbs/rock_small.jpg",
+      "dims": {
+        "w": 0.35,
+        "h": 0.182,
+        "d": 0.314
+      },
+      "bbox": {
+        "min": [
+          -0.177,
+          -0.021,
+          -0.153
+        ],
+        "max": [
+          0.172,
+          0.161,
+          0.161
+        ]
+      },
+      "tris": 80,
+      "materials": [
+        "Rock"
+      ],
+      "nodes": [
+        "rock_small"
+      ],
+      "textures": 1,
+      "bytes": 11604
+    },
+    {
+      "id": "stepping_stone_a",
+      "name": "Stepping stone A",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Flat faceted stepping stone for the garden trail (a rounded pentagon-ish slab)",
+      "tags": [
+        "path",
+        "trail",
+        "garden",
+        "paver",
+        "scatter"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/stepping_stone_a.glb",
+      "thumb": "models/thumbs/stepping_stone_a.jpg",
+      "dims": {
+        "w": 0.599,
+        "h": 0.061,
+        "d": 0.48
+      },
+      "bbox": {
+        "min": [
+          -0.294,
+          -0.03,
+          -0.253
+        ],
+        "max": [
+          0.305,
+          0.031,
+          0.228
+        ]
+      },
+      "tris": 45,
+      "materials": [
+        "Paver"
+      ],
+      "nodes": [
+        "stepping_stone_a"
+      ],
+      "textures": 1,
+      "bytes": 5852
+    },
+    {
+      "id": "stepping_stone_b",
+      "name": "Stepping stone B",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Flat faceted stepping stone for the garden trail (a smaller oval)",
+      "tags": [
+        "path",
+        "trail",
+        "garden",
+        "paver",
+        "scatter"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/stepping_stone_b.glb",
+      "thumb": "models/thumbs/stepping_stone_b.jpg",
+      "dims": {
+        "w": 0.48,
+        "h": 0.061,
+        "d": 0.343
+      },
+      "bbox": {
+        "min": [
+          -0.242,
+          -0.03,
+          -0.175
+        ],
+        "max": [
+          0.239,
+          0.031,
+          0.168
+        ]
+      },
+      "tris": 45,
+      "materials": [
+        "Paver"
+      ],
+      "nodes": [
+        "stepping_stone_b"
+      ],
+      "textures": 1,
+      "bytes": 6036
+    },
+    {
+      "id": "stepping_stone_c",
+      "name": "Stepping stone C",
+      "category": "outdoor",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Flat faceted stepping stone for the garden trail (a broad irregular slab)",
+      "tags": [
+        "path",
+        "trail",
+        "garden",
+        "paver",
+        "scatter"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/stepping_stone_c.glb",
+      "thumb": "models/thumbs/stepping_stone_c.jpg",
+      "dims": {
+        "w": 0.607,
+        "h": 0.061,
+        "d": 0.48
+      },
+      "bbox": {
+        "min": [
+          -0.276,
+          -0.03,
+          -0.228
+        ],
+        "max": [
+          0.331,
+          0.031,
+          0.252
+        ]
+      },
+      "tris": 45,
+      "materials": [
+        "Paver"
+      ],
+      "nodes": [
+        "stepping_stone_c"
+      ],
+      "textures": 1,
+      "bytes": 5924
+    },
+    {
+      "id": "tall_grass",
+      "name": "Tall grass",
+      "category": "plant",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Ornamental grass clump: long arching faceted blades with three feathery plumes",
+      "tags": [
+        "grass",
+        "garden",
+        "lawn",
+        "scatter",
+        "faceted"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/tall_grass.glb",
+      "thumb": "models/thumbs/tall_grass.jpg",
+      "dims": {
+        "w": 0.578,
+        "h": 0.898,
+        "d": 0.655
+      },
+      "bbox": {
+        "min": [
+          -0.264,
+          -0.012,
+          -0.361
+        ],
+        "max": [
+          0.314,
+          0.886,
+          0.295
+        ]
+      },
+      "tris": 404,
+      "materials": [
+        "GrassDark",
+        "Grass",
+        "GrassLight",
+        "Stalk",
+        "Plume"
+      ],
+      "nodes": [
+        "tall_grass"
+      ],
+      "textures": 1,
+      "bytes": 47956
+    },
+    {
       "id": "toy_car",
       "name": "Toy car",
       "category": "outdoor",
@@ -5278,6 +5674,59 @@
       ],
       "textures": 1,
       "bytes": 200756
+    },
+    {
+      "id": "wildflowers",
+      "name": "Wildflowers",
+      "category": "plant",
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "Instancing-friendly clump of little mixed flowers rising out of a leafy mound",
+      "tags": [
+        "flowers",
+        "garden",
+        "lawn",
+        "scatter",
+        "faceted"
+      ],
+      "tintable": [],
+      "anchors": {},
+      "status": "done",
+      "file": "models/wildflowers.glb",
+      "thumb": "models/thumbs/wildflowers.jpg",
+      "dims": {
+        "w": 0.411,
+        "h": 0.258,
+        "d": 0.41
+      },
+      "bbox": {
+        "min": [
+          -0.218,
+          -0.007,
+          -0.199
+        ],
+        "max": [
+          0.193,
+          0.252,
+          0.211
+        ]
+      },
+      "tris": 476,
+      "materials": [
+        "Leaf",
+        "Stem",
+        "Petal0",
+        "Petal1",
+        "Petal2",
+        "Petal3",
+        "Petal4"
+      ],
+      "nodes": [
+        "wildflowers"
+      ],
+      "textures": 1,
+      "bytes": 66420
     },
     {
       "id": "birdbath",
@@ -5680,6 +6129,96 @@
       ],
       "textures": 1,
       "bytes": 267396
+    },
+    {
+      "id": "hydrangea_bush",
+      "name": "Hydrangea bush",
+      "category": null,
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "blue and pink blooms",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "lavender_row",
+      "name": "Lavender row",
+      "category": null,
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "short planted row",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "rose_arch",
+      "name": "Rose arch",
+      "category": null,
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "wooden arch with climbing roses where the trail leaves the path",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "sunflower_clump",
+      "name": "Sunflower clump",
+      "category": null,
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "tree_oak",
+      "name": "Tree oak",
+      "category": null,
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P1",
+      "description": "big shade tree, wide canopy over the benches",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "yoga_mat",
+      "name": "Yoga mat",
+      "category": null,
+      "artist": "Claude Lorrain",
+      "group": "building, outdoors, plants",
+      "priority": "P2",
+      "description": "rolled out on the lawn, for stretching",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
     },
     {
       "id": "coffee_machine",
@@ -13785,6 +14324,81 @@
       ],
       "textures": 1,
       "bytes": 59904
+    },
+    {
+      "id": "hammock",
+      "name": "Hammock",
+      "category": null,
+      "artist": "Claude Rodin",
+      "group": "yard furniture",
+      "priority": "P1",
+      "description": "on its own wooden stand, with a pillow; lying anchor",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "parasol",
+      "name": "Parasol",
+      "category": null,
+      "artist": "Claude Rodin",
+      "group": "yard furniture",
+      "priority": "P1",
+      "description": "beach umbrella between the loungers",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "picnic_blanket",
+      "name": "Picnic blanket",
+      "category": null,
+      "artist": "Claude Rodin",
+      "group": "yard furniture",
+      "priority": "P1",
+      "description": "gingham, basket, thermos, sandwiches; 3 seat anchors",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "string_lights",
+      "name": "String lights",
+      "category": null,
+      "artist": "Claude Rodin",
+      "group": "yard furniture",
+      "priority": "P1",
+      "description": "bulbs on a wire between two posts, glow at dusk",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
+    },
+    {
+      "id": "sun_lounger",
+      "name": "Sun lounger",
+      "category": null,
+      "artist": "Claude Rodin",
+      "group": "yard furniture",
+      "priority": "P1",
+      "description": "wooden, with a cushion; lying anchors",
+      "tags": [],
+      "tintable": [],
+      "anchors": {},
+      "status": "planned",
+      "file": null,
+      "thumb": null
     }
   ]
 }
