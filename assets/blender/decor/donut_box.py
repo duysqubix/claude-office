@@ -10,7 +10,7 @@ from decor import _decor as D
 from decor import _food as F
 
 NAME = "donut_box"
-AO_RES = 256
+AO_RES = 512  # medium (3.6k tris): at 256 the walls' 2.5 mm bottom bevels were under a texel wide
 AO_DISTANCE = 0.04
 W, DP, H, T = 0.30, 0.21, 0.058, 0.006
 FLOOR = 0.0075  # top of the paper liner
@@ -47,7 +47,9 @@ def materials():
 
 
 def box(M):
-    lib.rbox("Box_Bottom", (W, DP, T), (0, 0, T / 2), M["box"], r=0.0025, seg=1)
+    # The base sits inside the walls: full size, its underside and outer faces lay flush with
+    # the walls' and shimmered pink on pink (follow-up to #68).
+    lib.rbox("Box_Bottom", (W - 2 * T, DP - 2 * T, T), (0, 0, T / 2), M["box"], r=0.0025, seg=1)
     for sy in (-1, 1):
         lib.rbox(f"Box_Wall{sy}", (W, T, H), (0, sy * (DP / 2 - T / 2), H / 2), M["box"],
                  r=0.0025, seg=1)
