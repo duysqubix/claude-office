@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-03T12:22:19.840Z",
+  "generated": "2026-10-03T12:36:04.252Z",
   "totals": {
     "all": 253,
     "done": 253
@@ -1442,8 +1442,10 @@
       "materials": [
         "Accent",
         "Paper",
-        "IcingPink",
+        "LidPrint",
+        "LabelInk",
         "Dough",
+        "IcingPink",
         "Sprinkle",
         "IcingBlue",
         "IcingChoc",
@@ -1453,7 +1455,7 @@
         "donut_box"
       ],
       "textures": 1,
-      "bytes": 173840
+      "bytes": 175676
     },
     {
       "id": "energy_drink",
