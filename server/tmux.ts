@@ -161,12 +161,14 @@ export async function readOfficeMeta(tmuxName: string): Promise<OfficeMeta | nul
 }
 
 /**
- * Is hire session `tmuxName` running but not this office's (another office's, or stamped by
- * none)? The roster's map can be a poll old, so this is checked again right before acting.
+ * Is hire session `tmuxName` running but not this office's (another office's, stamped by none,
+ * or there but unreadable just now)? The roster's map can be a poll old, so this is checked
+ * again right before acting.
  */
 export async function hireTakenElsewhere(tmuxName: string): Promise<boolean> {
   const env = await stamps(tmuxName);
-  return !!env && Number(env.get('CLAUDE_OFFICE_PORT')) !== PORT;
+  if (!env) return (await tmux(['has-session', '-t', `=${tmuxName}`])).code === 0;
+  return Number(env.get('CLAUDE_OFFICE_PORT')) !== PORT;
 }
 
 export async function assertDirectory(cwd: string): Promise<void> {
@@ -326,25 +328,38 @@ export async function hire(opts: {
 /** Someone else's tmux session holds the name a call-back needs (rehire). */
 export class NameTaken extends Error {}
 
-/** Every pane of `tmuxName` has exited and it carries no office's port: nobody's, with nothing running. */
-async function deadAndUnstamped(tmuxName: string): Promise<boolean> {
-  const r = await tmux(['list-panes', '-s', '-t', `=${tmuxName}`, '-F', '#{pane_dead}']);
+/** This office's own hire is running under that name: they're here already. */
+export class AlreadyHere extends Error {}
+
+/**
+ * Who holds tmux session `tmuxName`, read once: the port of the office that stamped it (null
+ * when none did, undefined when the stamp can't be read right now), and whether everything in
+ * it has exited. Null when there's no such session.
+ */
+async function holder(tmuxName: string): Promise<{ port: number | null | undefined; dead: boolean } | null> {
+  const panes = await tmux(['list-panes', '-s', '-t', `=${tmuxName}`, '-F', '#{pane_dead}']);
+  if (panes.code !== 0) return null;
   const env = await stamps(tmuxName);
-  return r.code === 0 && r.stdout.split('\n').filter(Boolean).every((d) => d === '1') && !!env && !env.has('CLAUDE_OFFICE_PORT');
+  return { port: env ? Number(env.get('CLAUDE_OFFICE_PORT')) || null : undefined, dead: panes.stdout.split('\n').filter(Boolean).every((d) => d === '1') };
 }
 
 /** `claude --resume <id>` in `cwd`. */
 export async function rehire(opts: { sessionId: string; cwd: string; displayName: string }): Promise<{ tmuxName: string }> {
   const tmuxName = TMUX_PREFIX + opts.sessionId.slice(0, 8);
   const existing = (await listHosted()).panes;
-  if (existing.some((p) => p.tmuxName === tmuxName && !p.dead)) throw new Error('Already in the office');
+  if (existing.some((p) => p.tmuxName === tmuxName && !p.dead)) throw new AlreadyHere('Already in the office');
   if (existing.some((p) => p.tmuxName === tmuxName)) await kill(tmuxName);
-  else if ((await tmux(['has-session', '-t', `=${tmuxName}`])).code === 0) {
-    // Not ours: another office's hire, or a dead one from before the port stamp, which can go.
-    if (!(await deadAndUnstamped(tmuxName))) {
-      throw new NameTaken(`They're still in another office's tmux session ${tmuxName}: let them go there (or tmux kill-session -t ${tmuxName}), then try again`);
+  else {
+    // Not in this office's list: whose is it? (Never advise killing a session someone's running in.)
+    const held = await holder(tmuxName);
+    if (held && held.port === PORT && !held.dead) throw new AlreadyHere('Already in the office');
+    if (held && held.port === undefined) throw new NameTaken(`tmux session ${tmuxName} is in the way, and whose it is can't be read right now: try again in a moment`);
+    if (held && held.port && held.port !== PORT) {
+      throw new NameTaken(held.dead ? `An old session from the office on port ${held.port} is still there: tmux kill-session -t ${tmuxName}` : `They're in the office on port ${held.port} right now: let them go there first`);
     }
-    await kill(tmuxName);
+    if (held && held.port === null && !held.dead) throw new NameTaken(`They're running in tmux session ${tmuxName}, which no office started: let them finish there first`);
+    // Left: this office's own dead hire, or a dead one from before the port stamp. Nothing runs in it.
+    if (held) await kill(tmuxName);
   }
   await newSession(tmuxName, opts.cwd, ['--resume', opts.sessionId], { sessionId: opts.sessionId, displayName: opts.displayName });
   return { tmuxName };
@@ -363,11 +378,19 @@ export function pasteSafe(text: string): string {
   return text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 }
 
-/** Type `text` into the session (bracketed paste) and press Enter. */
-export async function say(tmuxName: string, text: string): Promise<void> {
+/** How far say() got: all of it, or stopped by a question before the paste or before Enter. */
+export type Said = 'sent' | 'not-pasted' | 'not-sent';
+
+/**
+ * Type `text` into the session (bracketed paste) and press Enter. `asking` is checked right
+ * before the paste and again right before Enter: Claude can raise a question at any moment, and
+ * that Enter would answer it (a permission prompt's first choice is Yes).
+ */
+export async function say(tmuxName: string, text: string, asking: (stage: 'paste' | 'enter') => Promise<boolean> = async () => false): Promise<Said> {
   if (!isOfficeName(tmuxName)) throw new Error('Not an office session');
   const clean = pasteSafe(text);
   if (!clean.trim()) throw new Error('Nothing to say');
+  if (await asking('paste')) return 'not-pasted';
   const buffer = `office-say-${process.pid}-${randomUUID()}`;
   const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: clean });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
@@ -375,7 +398,34 @@ export async function say(tmuxName: string, text: string): Promise<void> {
   if (paste.code !== 0) throw new Error(paste.stderr.trim() || 'tmux paste-buffer failed');
   // Give Claude Code's input a beat to take the paste before submitting.
   await new Promise((r) => setTimeout(r, 150));
+  if (await asking('enter')) return 'not-sent';
   await tmux(['send-keys', '-t', `=${tmuxName}:`, 'Enter']);
+  return 'sent';
+}
+
+/** How Claude Code words its permission and plan prompts. Its replies can ask the same in passing. */
+const DIALOG_HEAD = /Do you want to (proceed|make this edit|create|allow)|Would you like to proceed/i;
+/** Words only its own dialogs use: the folder-trust prompt, old (1.x) and new (2.1: unnumbered choices). */
+const DIALOG_ONLY = /Do you trust the files in this folder|Accessing workspace:|Quick safety check/i;
+/** One of a select list's numbered choices, the highlighted one marked ❯ (inside a box or not). */
+const CHOICE = /^\s*[│|]?\s*(❯\s*)?\d+\.\s+\S/;
+/** A highlighted choice, numbered or not. */
+const PICKED = /^\s*[│|]?\s*❯\s+\S/;
+
+/**
+ * Is one of Claude Code's dialogs on `tmuxName`'s screen, so that Enter would answer it? Its
+ * question with a highlighted (❯) choice below, or a highlighted numbered choice among others.
+ * Claude's replies can ask "Do you want to proceed?" or list options too, but never highlight
+ * one: after words like those, only a highlighted numbered choice counts (your own typing sits
+ * after a ❯ too). `typing`: text in their box right now, so a numbered list in it isn't a dialog.
+ */
+export async function dialogOnScreen(tmuxName: string, typing = ''): Promise<boolean> {
+  const lines = await capture(tmuxName, 40, 400);
+  const highlighted = (l: string) => CHOICE.test(l) && l.includes('❯');
+  const below = (i: number, test: (l: string) => boolean) => lines.slice(i + 1, i + 14).some(test);
+  if (lines.some((l, i) => (DIALOG_ONLY.test(l) && below(i, (c) => PICKED.test(c))) || (DIALOG_HEAD.test(l) && below(i, highlighted)))) return true;
+  if (/^\s*\d+\.\s/m.test(typing)) return false;
+  return lines.filter((l) => CHOICE.test(l)).length >= 2 && lines.some(highlighted);
 }
 
 /** Press Esc in the session (Claude Code's interrupt). */
