@@ -17,6 +17,7 @@ POLE_TOP = 5.0
 FLAG_W, FLAG_H = 1.4, 0.9
 FLAG_TOP = 4.85
 HOIST = (0.0, 0.0, FLAG_TOP - FLAG_H / 2)
+SPARKLE = (0.05 + FLAG_W * 0.42, FLAG_TOP - FLAG_H / 2)  # centre (x, z)
 
 
 def materials():
@@ -54,6 +55,74 @@ def pole(M):
     lib.rbox("Cleat", (0.04, 0.03, 0.14), (0.06, -0.02, 1.2), M["gold"], r=0.012, seg=2)
 
 
+def sparkle_arm(k):
+    """Arm k of the 10-arm sparkle (long and short in turn, widest a quarter of the way out)
+    as its two edges in flag (x, z), hub to tip: right faces arm k-1, left faces arm k+1."""
+    cx, cz = SPARKLE
+    a = math.radians(k * 36 + 8)
+    length = 0.27 if k % 2 == 0 else 0.19
+    w = 0.045
+    edges = {-1: [], 1: []}
+    for s in range(5):
+        f = length * s / 4
+        half = w * (1 - 0.5 * s / 4) * (0.7 if s == 0 else 1.0)
+        for e in (-1, 1):
+            edges[e].append((cx + math.sin(a) * f + math.cos(a) * half * e,
+                             cz + math.cos(a) * f - math.sin(a) * half * e))
+    return edges[-1], edges[1]
+
+
+def notch(left, right):
+    """Where one arm's left edge crosses the next arm's right edge: (s along the left edge,
+    s along the right edge, point)."""
+    for i in range(4):
+        for j in range(4):
+            (px, pz), (qx, qz) = left[i], left[i + 1]
+            (ax, az), (bx, bz) = right[j], right[j + 1]
+            den = (qx - px) * (bz - az) - (qz - pz) * (bx - ax)
+            if abs(den) < 1e-12:
+                continue
+            t = ((ax - px) * (bz - az) - (az - pz) * (bx - ax)) / den
+            u = ((ax - px) * (qz - pz) - (az - pz) * (qx - px)) / den
+            if 0 <= t <= 1 and 0 <= u <= 1:
+                return i + t, j + u, (px + t * (qx - px), pz + t * (qz - pz))
+    raise ValueError("sparkle arms don't meet")
+
+
+def sparkle_tris():
+    """The sparkle as one outline with nothing overlapping: a hub through the notches between
+    neighbouring arms, plus each arm's tail beyond them. (Ten whole arms overlapping flush at
+    the hub fought for depth there.) Triangles in flag (x, z), counter-clockwise."""
+    arms = [sparkle_arm(k) for k in range(10)]
+    notches = [notch(arms[k][1], arms[(k + 1) % 10][0]) for k in range(10)]
+    c = SPARKLE
+
+    def half_way(p):
+        return ((c[0] + p[0]) / 2, (c[1] + p[1]) / 2)
+
+    tris = []
+    for k, (right, left) in enumerate(arms):
+        _, s_a, a = notches[k - 1]  # on this arm's right edge
+        s_b, _, b = notches[k]  # on its left edge
+        tris += [(c, half_way(a), half_way(b)), (half_way(a), a, b), (half_way(a), b, half_way(b))]
+        # The tail: zip its two edges from the notches out to the tip.
+        rs = [(s_a, a)] + [(s, right[s]) for s in range(5) if s > s_a]
+        ls = [(s_b, b)] + [(s, left[s]) for s in range(5) if s > s_b]
+        i = j = 0
+        while i < len(rs) - 1 or j < len(ls) - 1:
+            if j == len(ls) - 1 or (i < len(rs) - 1 and rs[i + 1][0] <= ls[j + 1][0]):
+                tris.append((rs[i][1], rs[i + 1][1], ls[j][1]))
+                i += 1
+            else:
+                tris.append((rs[i][1], ls[j + 1][1], ls[j][1]))
+                j += 1
+    ccw = []
+    for p, q, r in tris:
+        turn = (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+        ccw.append((p, q, r) if turn > 0 else (p, r, q))
+    return ccw
+
+
 def cloth(M):
     nx, nz = 20, 12
     bm = bmesh.new()
@@ -69,25 +138,18 @@ def cloth(M):
         for i in range(nx):
             bm.faces.new((grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]))
     lib._link("Flag_Cloth", bm, M["flag"])
-    # Sparkle on both faces, following the ripple.
-    cx, cz = 0.05 + FLAG_W * 0.42, FLAG_TOP - FLAG_H / 2
+    # Sparkle on both faces, following the ripple. Counter-clockwise in (x, z) faces -Y.
+    tris = sparkle_tris()
     for side in (-1, 1):
         bm = bmesh.new()
-        for k in range(10):
-            a = math.radians(k * 36 + 8)
-            length = 0.27 if k % 2 == 0 else 0.19
-            w = 0.045
-            strip = []
-            for s in range(5):
-                f = length * s / 4
-                half = w * (1 - 0.5 * s / 4) * (0.7 if s == 0 else 1.0)
-                for e in (-1, 1):
-                    x = cx + math.sin(a) * f + math.cos(a) * half * e
-                    z = cz + math.cos(a) * f - math.sin(a) * half * e
-                    strip.append(bm.verts.new((x, wave(x, z) + side * 0.004, z)))
-            for s in range(4):
-                q = (strip[2 * s], strip[2 * s + 1], strip[2 * s + 3], strip[2 * s + 2])
-                bm.faces.new(q if side < 0 else q[::-1])
+        verts = {}
+        for tri in tris:
+            for x, z in tri:
+                key = (round(x, 6), round(z, 6))
+                if key not in verts:
+                    verts[key] = bm.verts.new((x, wave(x, z) + side * 0.004, z))
+            f = [verts[round(x, 6), round(z, 6)] for x, z in tri]
+            bm.faces.new(f if side < 0 else f[::-1])
         lib._link(f"Flag_Mark{side}", bm, M["mark"])
     for o in lib.coll().objects:
         if o.name.startswith("Flag_"):
