@@ -17,6 +17,8 @@ META = dict(
     description="Framed lilac poster with a git graph: \"Tokens are temporary, commits are forever\"",
     tags=["wall", "poster", "joke"], tintable=["Accent"],
     anchors_bl={"center": (0, -0.03, 0)}, mount="wall: origin is the back centre",
+    notes="Fixed by flicker: the commit dots stand 2.5 mm off their rims (were 0.3 mm), so the "
+          "cream rims no longer shimmer through them from across the office.",
 )
 
 
@@ -44,7 +46,8 @@ def graph(M, face):
                                      (mx + 0.14, 0.12, "coral"), (mx, -0.03, "mint"))):
         D.prism(f"Commit{k}_Rim", D.circle_pts(0.036, 22), 0.018, M["cream"], loc=(x, face, z),
                 rot=D.FRONT, r=0.005, seg=1)
-        D.face(f"Commit{k}", D.circle_pts(0.025, 20), M[key], loc=(x, face - 0.0183, z),
+        # The dot stands 2.5 mm off its rim: closer, the rim shimmers through it from afar.
+        D.face(f"Commit{k}", D.circle_pts(0.025, 20), M[key], loc=(x, face - 0.0205, z),
                rot=D.FRONT)
 
 

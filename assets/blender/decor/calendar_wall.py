@@ -11,11 +11,17 @@ NAME = "calendar_wall"
 AO_RES = 512
 AO_DISTANCE = 0.03
 W, H, T = 0.34, 0.5, 0.006
+# The print stands off the page in layers this far apart: the picture, cells and month on the
+# page, then the hill, sun, today ring, events and heart on top of those. Any closer and the
+# game can't tell the layers apart from across the office, so the page shimmers through.
+PRINT = 0.0025
 META = dict(
     name="Wall calendar", category="decor", priority="P1",
     description="Wire-bound wall calendar with a pumpkin picture and an OCTOBER page",
     tags=["wall", "time", "paper"], tintable=[],
     anchors_bl={"center": (0, -0.01, 0)}, mount="wall: origin is the back centre",
+    notes="Fixed by flicker: the printed layers stand 2.5 mm apart (were 0.3 mm), so the page "
+          "and the sky no longer shimmer through the print from across the office.",
 )
 
 
@@ -40,36 +46,36 @@ def page(M):
     face = -T
     # Top picture: autumn hill with a pumpkin.
     pz, pw, ph = 0.115, W - 0.03, 0.2
-    D.face("Pic_Sky", D.rrect_pts(pw, ph, 0.006), M["sky"], loc=(0, face - 0.0003, pz),
+    D.face("Pic_Sky", D.rrect_pts(pw, ph, 0.006), M["sky"], loc=(0, face - PRINT, pz),
            rot=D.FRONT)
     D.face("Pic_Hill", [(-pw / 2, pz - ph / 2), (pw / 2, pz - ph / 2), (pw / 2, pz - 0.035),
                         (0.06, pz - 0.02), (-0.05, pz - 0.045), (-pw / 2, pz - 0.03)], M["hill"],
-           loc=(0, face - 0.0006, 0), rot=D.FRONT)
+           loc=(0, face - 2 * PRINT, 0), rot=D.FRONT)
     for k, (dx, sx) in enumerate(((-0.022, 0.75), (0.022, 0.75), (0.0, 1.0))):
         D.prism(f"Pumpkin{k}", D.circle_pts(0.042, 24, sx=sx, sy=0.78), 0.008 + 0.002 * k,
                 M["pumpkin"], loc=(dx, face - 0.0006, pz - 0.04), rot=D.FRONT, r=0.003)
     D.prism("Pumpkin_Stem", D.rrect_pts(0.011, 0.024, 0.004), 0.008, M["stem"],
             loc=(0.002, face - 0.0006, pz + 0.002), rot=(math.pi / 2, math.radians(-12), 0),
             r=0.002)
-    D.face("Sun", D.circle_pts(0.018, 16), M["paper"], loc=(0.1, face - 0.0006, pz + 0.06),
+    D.face("Sun", D.circle_pts(0.018, 16), M["paper"], loc=(0.1, face - 2 * PRINT, pz + 0.06),
            rot=D.FRONT)
     # Month page.
-    D.text("Month", "OCTOBER", 0.03, M["red"], loc=(0, face - 0.0004, -0.03), depth=0, res=2)
+    D.text("Month", "OCTOBER", 0.03, M["red"], loc=(0, face - PRINT, -0.03), depth=0, res=2)
     cw, ch, gx, gz = 0.036, 0.03, 0.043, 0.037
     for row in range(5):
         for col in range(7):
             x = (col - 3) * gx
             z = -0.075 - row * gz
             D.face(f"Cell{row}{col}", D.rrect_pts(cw, ch, 0.004, steps=1), M["cell"],
-                   loc=(x, face - 0.0003, z), rot=D.FRONT)
+                   loc=(x, face - PRINT, z), rot=D.FRONT)
     # Today's circled, some events, a birthday heart.
-    D.ring("Today", 0.022, 0.0175, M["red"], n=20, loc=(1 * gx, face - 0.0007, -0.075 - 1 * gz),
-           rot=D.FRONT)
+    D.ring("Today", 0.022, 0.0175, M["red"], n=20,
+           loc=(1 * gx, face - 2 * PRINT, -0.075 - 1 * gz), rot=D.FRONT)
     for k, (r, c, key) in enumerate(((0, 4, "dotA"), (2, 1, "dotB"), (3, 5, "dotA"), (4, 2, "dotB"))):
         D.face(f"Event{k}", D.circle_pts(0.006, 10), M[key],
-               loc=((c - 3) * gx, face - 0.0006, -0.075 - r * gz), rot=D.FRONT)
+               loc=((c - 3) * gx, face - 2 * PRINT, -0.075 - r * gz), rot=D.FRONT)
     D.face("Birthday", D.heart_pts(0.018, 20), M["red"],
-           loc=(-1 * gx, face - 0.0006, -0.075 - 3 * gz), rot=D.FRONT)
+           loc=(-1 * gx, face - 2 * PRINT, -0.075 - 3 * gz), rot=D.FRONT)
 
 
 def binding(M):

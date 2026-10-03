@@ -21,5 +21,6 @@
       0.03
     ]
   },
-  "mount": "wall: origin is the back centre"
+  "mount": "wall: origin is the back centre",
+  "notes": "Fixed by flicker: the commit dots stand 2.5 mm off their rims (were 0.3 mm), so the cream rims no longer shimmer through them from across the office."
 }
