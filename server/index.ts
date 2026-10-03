@@ -266,11 +266,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const tmuxName = await hiredHere(sessionId, 'They work in your own terminal; talk to them there');
       // With a question open, the Enter after the paste would answer it, and a permission
       // prompt's first choice is Yes. Claude can ask at any moment, so say() looks right before
-      // it pastes and again right before Enter.
-      const said = await say(tmuxName, text, () => asking(sessionId));
-      if (said === 'not-pasted') throw new HttpError(409, 'They have a question open. Sit at their computer to answer it.');
+      // it pastes and again right before Enter. `asked`: whether a question is what stopped it.
+      let asked = false;
+      const said = await say(tmuxName, text, async () => (asked = await asking(sessionId)));
+      if (said === 'not-pasted') throw new HttpError(409, asked ? 'They have a question open. Sit at their computer to answer it.' : "Their terminal isn't at the prompt. Sit at their computer to see what's on it.");
       if (said === 'draft') throw new HttpError(409, "There's unsent text in their box. Sit at their computer to send or clear it.");
-      if (said === 'not-sent') throw new HttpError(409, 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.');
+      if (said === 'not-sent') throw new HttpError(409, asked ? 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.' : "Your message didn't show up in their box. Sit at their computer to check it.");
+      if (said === 'held') throw new HttpError(409, "Enter didn't send your message: it's still in their box. Sit at their computer to send it.");
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/desk/close': {
