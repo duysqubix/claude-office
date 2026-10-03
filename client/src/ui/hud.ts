@@ -66,9 +66,10 @@ export class Hud {
   private soundLocked = false;
   /** The Sound button's glyph on show (swapped only when it changes: a swap mid-click loses the click). */
   private soundGlyph: 'sound' | 'soundOff' = 'sound';
-  /** When the speakers unlocked, and when the Sound button was last pressed: the press that unlocked them. */
-  private unlockedAt = -1e9;
-  private pressedAt = -2e9;
+  /** The speakers unlocked during the event being handled right now (cleared once its task ends). */
+  private unlocking = false;
+  /** The Sound button's current press is the one that unlocks the speakers: its click doesn't mute. */
+  private pressUnlocks = false;
 
   constructor(
     host: HTMLElement,
@@ -92,10 +93,19 @@ export class Hud {
 
     this.soundBtn = hudButton('sound', 'Sound', 'M', () => {
       // The press that unlocked the speakers turns sound on, as the dot promised: it doesn't mute.
-      if (Math.abs(this.unlockedAt - this.pressedAt) < 100) return;
+      if (this.pressUnlocks) {
+        this.pressUnlocks = false;
+        return;
+      }
       this.on.mute();
     });
-    this.soundBtn.addEventListener('pointerdown', (ev) => (this.pressedAt = ev.timeStamp));
+    // Is this press the one that unlocks them? The speakers wake in a capture listener on window,
+    // so they're unlocked by this very event already (unlocking), or not yet (still locked). No
+    // clock involved: a busy main thread can hold the event back for any length of time. Muted,
+    // there's no dot and no promise: the button says "Sound is off" and the press turns it on.
+    const press = () => (this.pressUnlocks = (this.unlocking || this.soundLocked) && !this.muted);
+    this.soundBtn.addEventListener('pointerdown', press);
+    this.soundBtn.addEventListener('keydown', (ev) => (ev.key === 'Enter' || ev.key === ' ') && press());
     const right = el(
       'div',
       { class: 'co-hud__right' },
@@ -133,7 +143,10 @@ export class Hud {
     // The speakers (audio/): the dot until the browser lets the page play, and M or another
     // tab's mute showing on the button.
     const sound = () => {
-      if (this.soundLocked && audio.unlocked) this.unlockedAt = performance.now();
+      if (this.soundLocked && audio.unlocked) {
+        this.unlocking = true;
+        window.setTimeout(() => (this.unlocking = false));
+      }
       if (this.soundLocked !== !audio.unlocked) this.setSoundLocked(!audio.unlocked);
       if (this.muted !== audio.muted) this.setMuted(audio.muted);
     };
