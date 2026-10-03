@@ -24,7 +24,10 @@ const LOOP = 7200;
 const CYCLES = [300, 340, 260, 380];
 const RADII = [0.0135, 0.0115, 0.016, 0.0105];
 
-/** The lamp's glass from its sidecar: the inside wall as (radius, height) pairs, bottom to top. */
+/** How many points of the glass's inside wall the shader holds (uWall). */
+const WALL_POINTS = 8;
+
+/** The lamp's glass from its sidecar: the inside wall as (radius, height) pairs, bottom to top, at most WALL_POINTS. */
 let glass: { bottom: number; top: number; wall: THREE.Vector2[] } | null = null;
 void catalogItem('lava_lamp').then((item) => {
   const a = item?.anchors as Record<string, Vec3> | undefined;
@@ -32,8 +35,44 @@ void catalogItem('lava_lamp').then((item) => {
     .filter(([k]) => k.startsWith('glass_wall_'))
     .map(([, v]) => new THREE.Vector2(Math.hypot(v[0], v[2]), v[1]))
     .sort((p, q) => p.y - q.y);
-  if (a?.glass_bottom && a.glass_top && wall.length >= 2) glass = { bottom: a.glass_bottom[1], top: a.glass_top[1], wall };
+  if (a?.glass_bottom && a.glass_top && wall.length >= 2) glass = { bottom: a.glass_bottom[1], top: a.glass_top[1], wall: shaderWall(wall, a.glass_bottom[1], a.glass_top[1]) };
 });
+
+/** Radius of the wall polyline `w` (sorted by height) at height y, held flat past either end. */
+function radiusAt(w: readonly THREE.Vector2[], y: number): number {
+  if (y <= w[0].y) return w[0].x;
+  for (let i = 1; i < w.length; i++) {
+    const a = w[i - 1];
+    const b = w[i];
+    if (y <= b.y) return a.x + (b.x - a.x) * ((y - a.y) / Math.max(b.y - a.y, 1e-6));
+  }
+  return w[w.length - 1].x;
+}
+
+/**
+ * The wall as at most WALL_POINTS points for the shader. A longer profile is resampled evenly from
+ * the glass's bottom to its top. Where the glass curves in between two samples, the straight segment
+ * would cut outside it, so both its ends are pulled in until it clears every wall point it spans:
+ * the wax still keeps MARGIN clear of the glass.
+ */
+function shaderWall(wall: THREE.Vector2[], bottom: number, top: number): THREE.Vector2[] {
+  if (wall.length <= WALL_POINTS) return wall;
+  console.warn(`[lava] the lava lamp's glass profile has ${wall.length} points; the wax shader holds ${WALL_POINTS}, so it is resampled`);
+  const pts = Array.from({ length: WALL_POINTS }, (_, i) => {
+    const y = bottom + ((top - bottom) * i) / (WALL_POINTS - 1);
+    return new THREE.Vector2(radiusAt(wall, y), y);
+  });
+  for (const w of wall) {
+    if (w.y <= bottom || w.y >= top) continue;
+    const i = Math.min(Math.floor(((w.y - bottom) / (top - bottom)) * (WALL_POINTS - 1)), WALL_POINTS - 2);
+    const over = radiusAt(pts, w.y) - w.x;
+    if (over > 0) {
+      pts[i].x -= over;
+      pts[i + 1].x -= over;
+    }
+  }
+  return pts;
+}
 
 const vertexShader = /* glsl */ `
   varying vec3 vLocal;
@@ -60,7 +99,7 @@ const fragmentShader = /* glsl */ `
   // three declares it for the vertex stage only; the wax's own depth needs it here too.
   uniform mat4 projectionMatrix;
   uniform float uTime;
-  uniform vec2 uWall[8];
+  uniform vec2 uWall[${WALL_POINTS}];
   uniform int uWalls;
   uniform vec2 uSpan;
   uniform float uRmax;
@@ -85,7 +124,7 @@ const fragmentShader = /* glsl */ `
   /** Inside radius of the glass at height y (straight lines between the sidecar's points). */
   float wallR(float y) {
     float r = uWall[0].x;
-    for (int i = 1; i < 8; i++) {
+    for (int i = 1; i < ${WALL_POINTS}; i++) {
       if (i >= uWalls) break;
       vec2 a = uWall[i - 1];
       vec2 b = uWall[i];
@@ -229,7 +268,7 @@ export function lavaWax(lamps: InstancedModel | null | undefined, tints: readonl
   if (!glassMesh || !local || !glass) return null;
   const y0 = glass.bottom + 0.003;
   const y1 = glass.top - 0.004;
-  const wall = glass.wall.slice(0, 8);
+  const wall = glass.wall;
   const rMax = Math.max(...wall.map((w) => w.x)) - MARGIN / 2;
 
   const geometry = new THREE.CylinderGeometry(rMax, rMax, y1 - y0 + 0.001, 28, 1, false).translate(0, (y0 + y1) / 2, 0);
@@ -240,7 +279,7 @@ export function lavaWax(lamps: InstancedModel | null | undefined, tints: readonl
     fragmentShader,
     uniforms: {
       uTime: { value: 0 },
-      uWall: { value: Array.from({ length: 8 }, (_, i) => wall[Math.min(i, wall.length - 1)].clone()) },
+      uWall: { value: Array.from({ length: WALL_POINTS }, (_, i) => wall[Math.min(i, wall.length - 1)].clone()) },
       uWalls: { value: wall.length },
       uSpan: { value: new THREE.Vector2(y0, y1) },
       uRmax: { value: rMax },
