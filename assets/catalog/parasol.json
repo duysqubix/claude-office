@@ -1,0 +1,24 @@
+{
+  "id": "parasol",
+  "name": "Parasol",
+  "category": "outdoor",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Beach umbrella in orange and cream stripes on a weighted base, canopy tilted",
+  "tags": [
+    "garden",
+    "shade",
+    "lounge",
+    "umbrella"
+  ],
+  "tintable": [],
+  "anchors": {
+    "top": [
+      0.0,
+      2.2922,
+      0.1113
+    ]
+  },
+  "notes": "Stands between the two sun loungers; the canopy leans 8\u00b0 toward +Z, its hem about 1.7 m up at the lowest point."
+}

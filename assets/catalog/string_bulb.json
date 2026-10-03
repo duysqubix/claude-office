@@ -1,0 +1,18 @@
+{
+  "id": "string_bulb",
+  "name": "String light bulb",
+  "category": "outdoor",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "One warm globe bulb on a socket, to hang along a wire",
+  "tags": [
+    "garden",
+    "light",
+    "night",
+    "party"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "Origin = top of the socket (sits on the wire); hangs 9 cm down. Glass is emissive 'Bulb' (strength 2): brighten it in the evening."
+}

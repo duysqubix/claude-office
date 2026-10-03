@@ -1,0 +1,39 @@
+{
+  "id": "string_lights",
+  "name": "String lights",
+  "category": "outdoor",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Warm globe bulbs on a sagging wire between two wooden posts, glowing at dusk",
+  "tags": [
+    "garden",
+    "light",
+    "night",
+    "party"
+  ],
+  "tintable": [],
+  "anchors": {
+    "start": [
+      -1.84,
+      2.43,
+      0
+    ],
+    "end": [
+      1.84,
+      2.43,
+      0
+    ],
+    "postL": [
+      -2.0,
+      0,
+      0
+    ],
+    "postR": [
+      2.0,
+      0,
+      0
+    ]
+  },
+  "notes": "Glass is emissive 'Bulb' (strength 2) in node 'Bulbs': brighten it at dusk. Wire and sockets are node 'Strand'. The wire hangs from 'start' to 'end' (the hooks) and dips to 2.1 m; the bulbs' bottoms are ~1.98 m up."
+}

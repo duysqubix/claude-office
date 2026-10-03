@@ -1,0 +1,44 @@
+{
+  "id": "hammock",
+  "name": "Hammock",
+  "category": "outdoor",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Striped hammock on spreader bars and rope fans, hung from its own wooden stand",
+  "tags": [
+    "garden",
+    "lounge",
+    "lying",
+    "hammock"
+  ],
+  "tintable": [],
+  "anchors": {
+    "lie": [
+      0.1,
+      0.7252,
+      0
+    ],
+    "head": [
+      -0.45,
+      0.9279,
+      0
+    ],
+    "bedPivot": [
+      0,
+      1.1,
+      0
+    ],
+    "lieBed": [
+      0.1,
+      -0.3749,
+      -0.0
+    ],
+    "headBed": [
+      -0.45,
+      -0.1721,
+      -0.0
+    ]
+  },
+  "notes": "'lie' = the pelvis joint of someone lying along X, 'head' = their head centre on the pillow (-X). Node 'Bed' (bed, bars, ropes, pillow) pivots at 'bedPivot' on the hook line: rotate it about X to sway; 'lieBed'/'headBed' are the same points in its frame, so a body parented to Bed rides along."
+}

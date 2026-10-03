@@ -247,6 +247,7 @@ Places to take a break in the yard. Seats and beds carry anchors for sitting or 
 | picnic_blanket | P1 | gingham, basket, thermos, sandwiches; 3 seat anchors |
 | parasol | P1 | beach umbrella between the loungers |
 | string_lights | P1 | bulbs on a wire between two posts, glow at dusk |
+| string_bulb | P2 | one globe bulb, for lights strung anywhere else |
 
 ## Claude Rodin: characters (headless) · `assets/blender/characters/`
 

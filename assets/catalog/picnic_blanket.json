@@ -1,0 +1,39 @@
+{
+  "id": "picnic_blanket",
+  "name": "Picnic blanket",
+  "category": "outdoor",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Red gingham picnic blanket with a wicker basket, a thermos and a plate of sandwiches",
+  "tags": [
+    "garden",
+    "picnic",
+    "seating",
+    "lunch"
+  ],
+  "tintable": [],
+  "anchors": {
+    "sitA": [
+      -0.56,
+      0.0121,
+      0.38
+    ],
+    "sitB": [
+      0.5,
+      0.012,
+      0.4
+    ],
+    "sitC": [
+      0.64,
+      0.0122,
+      -0.38
+    ],
+    "plate": [
+      0.1,
+      0.012,
+      -0.02
+    ]
+  },
+  "notes": "Three sitters on the blanket (sitA, sitB, sitC: on its top face, like the bench's seats), each facing the 'plate' in the middle."
+}
