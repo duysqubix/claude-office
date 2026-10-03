@@ -12,7 +12,6 @@ import os
 
 import bmesh
 import bpy
-import numpy as np
 from mathutils import Euler, Matrix, Vector
 
 import lib
@@ -672,84 +671,8 @@ def _drop(ob):
     bpy.data.meshes.remove(me)
 
 
-def _shift(a, dy, dx):
-    """`a` moved by (dy, dx) texels; what moves in from outside is zero."""
-    out = np.zeros_like(a)
-    h, w = a.shape[:2]
-    out[max(dy, 0):h + min(dy, 0), max(dx, 0):w + min(dx, 0)] = \
-        a[max(-dy, 0):h + min(-dy, 0), max(-dx, 0):w + min(-dx, 0)]
-    return out
-
-
-def rebake_ao(objs, img, distance, ground="floor"):
-    """Bake lib's AO atlas again without a margin, keep only the texels Cycles wrote, and fill
-    the rest from their baked neighbours, ring by ring outwards. lib bakes every node object
-    into one atlas with an 8 px margin, and Blender lays each object's margin over texels the
-    other objects already baked: a Glass island's flat grey margin covered the edge column of
-    the lava lamp's Base, a dark wedge up from the floor where the cone's strip cut is."""
-    w, h = img.size
-    tmp = bpy.data.images.new("_ao_rebake", w, h, alpha=True)
-    tmp.generated_color = (0, 0, 0, 0)
-    # Faces that never sample the AO (glass, glow, planar-UV faces the game paints, which now
-    # span the whole atlas) bake into a throwaway image instead.
-    skip = bpy.data.images.new("_ao_skip", 8, 8)
-    nodes = []
-    for m in {m for o in objs for m in o.data.materials}:
-        own = not (m.get("emissive") or m.get("no_ao") or m.name.split("@")[0] in lib.UV_PLANAR)
-        for n in m.node_tree.nodes:
-            if n.get("ao") and n.type == "TEX_IMAGE":
-                n.image = tmp if own else skip
-                m.node_tree.nodes.active = n
-                nodes.append(n)
-    floor = _plane("_ao_floor", 5, (0, 0, 0), (math.pi / 2, 0, 0) if ground == "wall"
-                   else (0, 0, 0), lib.coll())
-    scene = bpy.context.scene
-    prev = scene.render.engine
-    lib._set_engine(scene, "CYCLES")
-    scene.cycles.samples = 1024 if w <= 512 else 256
-    scene.cycles.device = "CPU"
-    scene.world.light_settings.distance = distance
-    scene.render.bake.margin = 0
-    lib._deselect()
-    for o in objs:
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = objs[0]
-    bpy.ops.object.bake(type="AO", use_clear=True)
-    _drop(floor)
-    lib._set_engine(scene, prev)
-    for n in nodes:
-        n.image = img
-    px = np.empty(w * h * 4, dtype=np.float32)
-    tmp.pixels.foreach_get(px)
-    bpy.data.images.remove(tmp)
-    bpy.data.images.remove(skip)
-    px = px.reshape(h, w, 4)
-    done = px[..., 3] > 0.5
-    px[..., 3] = 1.0
-    rgb = px[..., :3]
-    for _ in range(w + h):
-        if done.all():
-            break
-        acc = np.zeros_like(rgb)
-        cnt = np.zeros((h, w), np.float32)
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                if dy or dx:
-                    f = _shift(done, dy, dx)
-                    acc += _shift(rgb, dy, dx) * f[..., None]
-                    cnt += f
-        new = ~done & (cnt > 0)
-        if not new.any():
-            break
-        rgb[new] = acc[new] / cnt[new][:, None]
-        done |= new
-    img.pixels.foreach_set(px.ravel())
-    img.update()
-    img.pack()
-
-
 def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=False,
-             preview=None, rebake=False):
+             preview=None):
     """lib.finalize plus decor extras (animated parts: tag them with lib.node in build()).
 
     planar  material names whose faces get per-direction planar 0..1 UVs (two-sided `Label`,
@@ -759,17 +682,13 @@ def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=Fals
     meta    lib.sidecar kwargs (artist defaults to Claude Cézanne).
     preview callable that adds preview-only parts after export (e.g. a sample name on a
             blank Label); they are removed again after the render.
-    rebake  bake the AO again without lib's margin and fill around the islands (rebake_ao):
-            for animated-node models where one node's margin covers another node's texels.
     """
     c = lib.coll()
     ob = lib.join_asset(name)
     objs = lib.asset_objects(ob)
     tris = lib.tri_count(ob)
 
-    img = lib.bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
-    if rebake:
-        rebake_ao(objs, img, ao_distance, ground="wall" if wall else "floor")
+    lib.bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
     # The unwrap scales islands to the atlas bounds; with the default REPEAT wrap, texels on
     # the border filter in the opposite edge (a thin dark seam). Clamp instead.
     for o in objs:

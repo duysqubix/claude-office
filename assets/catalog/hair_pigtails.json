@@ -36,5 +36,6 @@
   "nodes": {
     "PigtailL": "bounce: rotate about its origin (the character-left tie)",
     "PigtailR": "bounce: rotate about its origin (the character-right tie)"
-  }
+  },
+  "notes": "AO re-baked by Claude C\u00e9zanne, 2026-10-02: lib.bake_ao bakes models with named parts without a margin (no dark specks from one part's margin over another's)."
 }
