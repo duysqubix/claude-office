@@ -19,6 +19,8 @@ META = dict(
     description="Open pink bakery box of iced donuts with one already gone",
     tags=["break-room", "snack", "treat", "party"], tintable=["Accent"],
     anchors_bl={"emptySlot": (0.095, -0.048, FLOOR)},
+    notes="#68: the DONUTS and YUM! print never samples the AO atlas. Its letters are far "
+          "smaller than an AO texel, so some baked near-black (the S) and sparkled as you moved.",
 )
 # (slot x, slot y, icing, sprinkles?) — front-right slot is the empty one
 DONUTS = [(-0.095, -0.048, "pink", 7), (0.0, -0.048, "choc", 7), (-0.095, 0.048, "vanilla", 7),
@@ -30,12 +32,17 @@ def materials():
     pink = D.mat("IcingPink", "#FF8FB1", rough=0.45)
     blue = D.mat("IcingBlue", "sky", rough=0.45)
     yellow = D.mat("Sprinkle", "duck", rough=0.5)
+    # The print never samples the AO: its letters are far smaller than an AO texel, so they
+    # bake whatever lands next to them in the atlas (the S came out near-black, #68).
+    ink = D.mat("LabelInk", "#FF8FB1", rough=0.45)
+    lid_print = D.mat("LidPrint", "white", rough=0.7)
+    ink["no_ao"] = lid_print["no_ao"] = True
     return dict(
         box=D.mat("Accent", "pink", rough=0.7),
         paper=white, dough=D.mat("Dough", F.DOUGH, rough=0.65),
         pink=pink, choc=D.mat("IcingChoc", F.CHOC, rough=0.4),
         vanilla=D.mat("IcingVanilla", "cream", rough=0.45), blue=blue,
-        sprinkles=[yellow, blue, white, pink],
+        sprinkles=[yellow, blue, white, pink], ink=ink, lid_print=lid_print,
     )
 
 
@@ -53,14 +60,14 @@ def box(M):
     part = D.snapshot()
     lib.rbox("Lid", (W, DP, T), (0, 0, H + T / 2), M["box"], r=0.0025, seg=1)
     lib.rbox("Lid_Lip", (W, T, 0.02), (0, -DP / 2 + T / 2, H - 0.007), M["box"], r=0.0025, seg=1)
-    D.text("Lid_Yum", "YUM!", 0.06, M["paper"], loc=(0, 0.005, H - 0.0002), depth=0, res=2,
+    D.text("Lid_Yum", "YUM!", 0.06, M["lid_print"], loc=(0, 0.005, H - 0.0002), depth=0, res=2,
            rot=(math.pi, 0, 0))
     D.turn(D.since(part), (0, DP / 2, H + T / 2), (math.radians(-104), 0, 0))
     # Front label.
     y = -DP / 2 - 0.0004
     D.face("Label", D.rrect_pts(0.15, 0.03, 0.012, steps=3), M["paper"], loc=(0, y, H * 0.5),
            rot=D.FRONT)
-    D.text("Label_Text", "DONUTS", 0.019, M["pink"], loc=(0, y - 0.0004, H * 0.5), depth=0, res=2)
+    D.text("Label_Text", "DONUTS", 0.019, M["ink"], loc=(0, y - 0.0004, H * 0.5), depth=0, res=2)
 
 
 def crumbs(M):

@@ -21,5 +21,6 @@
       0.0075,
       0.048
     ]
-  }
+  },
+  "notes": "#68: the DONUTS and YUM! print never samples the AO atlas. Its letters are far smaller than an AO texel, so some baked near-black (the S) and sparkled as you moved."
 }
