@@ -43,8 +43,21 @@ const CLUTTER: { id: string; fit?: Fit; tint?: readonly string[]; glass?: number
 ];
 /** The lava lamp's kind: its wax moves (lava.ts). */
 const LAVA_LAMP = CLUTTER.findIndex((c) => c.id === 'lava_lamp');
+/** The models every desk uses (the clutter kinds come on top, one per desk). */
+const CORE_IDS = ['desk', 'desk_divider', 'monitor', 'keyboard', 'computer_mouse', 'mug', 'nameplate'];
 /** Every model a desk's items use. All must have loaded before a new pod skips its stand-ins. */
-const ITEM_IDS = ['desk', 'desk_divider', 'monitor', 'keyboard', 'computer_mouse', 'mug', 'nameplate', ...CLUTTER.map((c) => c.id)];
+const ITEM_IDS = [...CORE_IDS, ...CLUTTER.map((c) => c.id)];
+
+/** Whether a catalog model loads at all, checked once per id (a GLB that failed stays failed for the session). */
+const loads = new Map<string, Promise<boolean>>();
+function modelLoads(id: string): Promise<boolean> {
+  let p = loads.get(id);
+  if (!p) {
+    p = model(id).then((m) => m !== null);
+    loads.set(id, p);
+  }
+  return p;
+}
 
 /** The chair model sits inside the wrapper turned around, like the procedural chair. */
 const CHAIR_TURN = new THREE.Matrix4().makeRotationY(Math.PI);
@@ -202,6 +215,15 @@ export class DeskSystem {
     const gen = ++this.itemsGen;
     const desks = [...this.runtimes];
     const pods = [...this.pods];
+    // Every model these desks use must load before anything is merged: a GLB that failed stays
+    // failed, and merging the rest only to throw it away would cost a hitch on every pod add.
+    const needed = [...CORE_IDS, ...CLUTTER.filter((_, k) => desks.some((d) => d.clutter === k)).map((c) => c.id)];
+    const ok = (await Promise.all(needed.map(modelLoads))).every(Boolean);
+    if (gen !== this.itemsGen) return; // a newer swap is on its way
+    if (!ok) {
+      this.keepProcedural();
+      return;
+    }
     const accents = desks.map((d) => d.slot.accent);
     const [desk, divider, monitor, keyboard, mouse, mug, plate, ...clutter] = await Promise.all([
       instancedModel('desk', desks.map((d) => d.frame), { fit: { w: D.desk.w, h: D.desk.h, d: D.desk.d }, colors: { Accent: accents } }),
@@ -228,14 +250,9 @@ export class DeskSystem {
     const missing = core.some((m) => !m) || clutter.some((m, k) => !m && desks.some((d) => d.clutter === k));
     if (gen !== this.itemsGen || missing) {
       for (const m of loaded) disposeInstanced(m.group);
-      // Stale: a newer swap is on its way. Missing: every pod the models on show don't cover gets
-      // its procedural stand-ins back, and new pods keep theirs from now on.
-      if (gen === this.itemsGen) {
-        warnOnce('desk models missing: keeping the procedural desks');
-        this.itemsBroken = true;
-        this.itemsReady = false;
-        for (const p of this.pods) if (!p.fallback && p.desks.some((d) => !this.shown.has(d))) this.buildFallback(p);
-      }
+      // Stale: a newer swap is on its way. Missing can't happen after the check above (a model that
+      // loaded stays loaded), but would fall back the same way.
+      if (gen === this.itemsGen) this.keepProcedural();
       return;
     }
     for (const g of this.models) disposeInstanced(g);
@@ -280,11 +297,22 @@ export class DeskSystem {
   }
 
   /**
+   * A model the desks use is missing: every pod the models on show don't cover gets its procedural
+   * stand-ins back, and new pods keep theirs from now on.
+   */
+  private keepProcedural(): void {
+    warnOnce('desk models missing: keeping the procedural desks');
+    this.itemsBroken = true;
+    this.itemsReady = false;
+    for (const p of this.pods) if (!p.fallback && p.desks.some((d) => !this.shown.has(d))) this.buildFallback(p);
+  }
+
+  /**
    * Load every desk-item model, each clutter kind too (even those no desk uses yet). Only once all
    * of them have does a new pod skip its stand-ins: its swap then needs no loading at all.
    */
   private async preloadItems(): Promise<void> {
-    const ok = (await Promise.all(ITEM_IDS.map((id) => model(id)))).every((m) => m !== null);
+    const ok = (await Promise.all(ITEM_IDS.map(modelLoads))).every(Boolean);
     if (ok && !this.itemsBroken) this.itemsReady = true;
     else this.itemsBroken = true;
   }
