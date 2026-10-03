@@ -14,6 +14,7 @@ import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, Serve
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
 import { HOME, HOST, IS_PROD, PORT, ROOT, THINK_DIR } from './config';
+import { sessionStatus } from './registry';
 import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
@@ -21,7 +22,7 @@ import { run } from './exec';
 import { ShellKeeper } from './shells';
 import { SpotifyLink } from './spotify';
 import { ThoughtService } from './thoughts';
-import { assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
+import { AlreadyHere, assertDirectory, closeDesk, dialogOnScreen, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -224,7 +225,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       });
       const displayName = roster.nameForNewHire(sessionId);
       const { tmuxName } = await rehire({ sessionId, cwd: past.digest.cwd, displayName }).catch((err: unknown) => {
-        throw err instanceof NameTaken ? new HttpError(409, err.message) : err;
+        throw err instanceof NameTaken || err instanceof AlreadyHere ? new HttpError(409, err.message) : err;
       });
       roster.addPendingHire({ sessionId, tmuxName, cwd: past.digest.cwd, displayName });
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
@@ -263,9 +264,12 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const text = typeof body.text === 'string' ? pasteSafe(body.text.slice(0, MAX_TEXT)).trim() : '';
       if (!text) throw new HttpError(400, 'Say something');
       const tmuxName = await hiredHere(sessionId, 'They work in your own terminal; talk to them there');
-      // With a dialog open, the Enter after the paste would pick the dialog's default answer.
-      if (roster.find(sessionId)?.state === 'needs-you') throw new HttpError(409, 'They have a question open. Sit at their computer to answer it.');
-      await say(tmuxName, text);
+      // With a question open, the Enter after the paste would answer it, and a permission
+      // prompt's first choice is Yes. Claude can ask at any moment, so say() looks right before
+      // it pastes and again right before Enter.
+      const said = await say(tmuxName, text, (stage) => asking(sessionId, tmuxName, stage === 'enter' ? text : ''));
+      if (said === 'not-pasted') throw new HttpError(409, 'They have a question open. Sit at their computer to answer it.');
+      if (said === 'not-sent') throw new HttpError(409, 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.');
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/desk/close': {
@@ -282,6 +286,18 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
 function uuidFrom(v: unknown): string {
   if (typeof v !== 'string' || !UUID.test(v)) throw new HttpError(400, 'Bad session id');
   return v.toLowerCase();
+}
+
+/**
+ * Has Claude asked something that Enter would answer, right now? An in-game ask, the roster (a
+ * poll old), Claude Code's own status read fresh from its registry file, then its screen for a
+ * dialog. `typing`: text in their box, so a list in it isn't taken for a dialog.
+ */
+async function asking(sessionId: string, tmuxName: string, typing: string): Promise<boolean> {
+  const e = roster.find(sessionId);
+  if (asks.forSession(sessionId) || e?.state === 'needs-you') return true;
+  if (e?.pid && (await sessionStatus(e.pid, sessionId)) === 'waiting') return true;
+  return dialogOnScreen(tmuxName, typing);
 }
 
 /** The tmux session of someone this office hired, else 400 `refused`. Its stamp is read again here: the roster's map can be a poll old. */
