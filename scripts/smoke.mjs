@@ -1,6 +1,7 @@
-// Smoke test against a running office server (read-only: never hires or fires anyone; it
-// opens one Shell-tab shell and closes it again, and on a dev office one hot desk's shell).
-//   npm run smoke            (expects the server on 127.0.0.1:4777, or set PORT)
+// Smoke test against a running dev office. It never hires or fires anyone, but it opens a
+// Shell-tab shell and a hot desk's shell and closes them again, so it never runs against your
+// own game (4777).
+//   PORT=4778 npm run smoke
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
@@ -8,10 +9,14 @@ import http from 'node:http';
 import { homedir } from 'node:os';
 import WebSocket from 'ws';
 
-const PORT = Number(process.env.PORT ?? 4777);
+const PORT = Number(process.env.PORT);
 const BASE = `http://127.0.0.1:${PORT}`;
-/** Your own office: the hot desk checks never open or close a shell there. */
+/** Your own office: never smoke-tested, since this opens real shells. */
 const YOUR_GAME = 4777;
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535 || PORT === YOUR_GAME) {
+  console.error(PORT === YOUR_GAME ? 'Refusing: 4777 is your own game. Smoke-test a dev office, e.g. PORT=4778 npm run smoke' : 'Set PORT to a dev office, e.g. PORT=4778 npm run smoke');
+  process.exit(2);
+}
 let failed = 0;
 
 function check(name, ok, detail = '') {
@@ -27,6 +32,29 @@ const hasSession = (name) => {
     return true;
   } catch {
     return false;
+  }
+};
+const sessions = () => {
+  try {
+    return tmux('list-sessions', '-F', '#{session_name}').split('\n').sort();
+  } catch {
+    return [];
+  }
+};
+/** Running tmux sessions: id ($N, which a rename keeps) → name. */
+const sessionsById = () => {
+  try {
+    return new Map(tmux('list-sessions', '-F', '#{session_id}:#{session_name}').split('\n').map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 1)]));
+  } catch {
+    return new Map();
+  }
+};
+/** A tmux format for session `name` ('' if it isn't running). */
+const show = (name, format) => {
+  try {
+    return tmux('display-message', '-p', '-t', `=${name}:`, format);
+  } catch {
+    return '';
   }
 };
 const real = (p) => {
@@ -65,20 +93,14 @@ async function until(fn, ms) {
 }
 
 /**
- * Hot desks (dev offices only): your login shell in your home folder at an empty desk, named
- * for this office's port. An echo round-trips; standing up keeps it and sitting again finds
- * it; `exit` and Shut down close it; bad desks and other sites are refused. It uses desk 3, or
- * the next desk with no shell (never anyone else's), and closes whatever it opened.
+ * Hot desks: your login shell in your home folder at an empty desk, named for this office's
+ * port. An echo round-trips; standing up keeps it and sitting again finds it; `exit` and Shut
+ * down close it; bad desks and other sites are refused. It uses desk 3, or the next desk with
+ * no shell. Others share a dev office, so it checks the desk is still free right before each
+ * sit, and only ever types into, exits, shuts down or cleans up a shell it started itself.
  */
 async function hotDesks(termClose) {
   const deskName = (n) => `office-desk${PORT}-${String(n).padStart(2, '0')}`;
-  const sessions = () => {
-    try {
-      return tmux('list-sessions', '-F', '#{session_name}').split('\n').sort();
-    } catch {
-      return [];
-    }
-  };
   // The office's feed: every hot desk list it pushes.
   const pushes = [];
   const feed = new WebSocket(`ws://127.0.0.1:${PORT}/ws`, { headers: { Origin: BASE } });
@@ -88,6 +110,18 @@ async function hotDesks(termClose) {
   });
   feed.on('error', () => {});
   const latest = () => pushes.at(-1);
+  /** No shell at desk `n` right now: not hot, and no tmux session. */
+  const free = (n) => !latest()?.includes(n) && !hasSession(deskName(n));
+  /** The shell at `name` is the one a sit-down at `since` (epoch s) started, not someone else's; if not, says why. */
+  const startedHere = (name, since) => {
+    if (!hasSession(name)) {
+      check(`desk ${desk}: your shell opens`, false, 'no tmux session');
+      return false;
+    }
+    if (Number(show(name, '#{session_created}')) >= since) return true;
+    console.log(`  (someone else sat down at desk ${desk} first: the rest of the hot desk checks are skipped)`);
+    return false;
+  };
   /** Sit at `desk` the way the game does: its output so far, and how it closed. */
   const sit = (desk) => {
     const ws = new WebSocket(`ws://127.0.0.1:${PORT}/term?kind=desk&desk=${desk}&cols=100&rows=30`, { headers: { Origin: BASE } });
@@ -99,12 +133,12 @@ async function hotDesks(termClose) {
   };
   const shut = (body, origin = BASE) => request('/api/desk/close', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   let desk = 3;
-  /** The tmux session this check sat down at (it had no shell before). */
-  let mine = '';
+  /** The shell this check started (its session and pane pid): the only one it ever cleans up. */
+  let mine = null;
   try {
     check('/ws sends the hot desks on connect', await until(() => Array.isArray(latest()), 3000), JSON.stringify(latest()));
     // Desk 3, or the next one without a shell: someone may be sitting at 3.
-    while (desk <= 99 && (latest()?.includes(desk) || hasSession(deskName(desk)))) desk++;
+    while (desk <= 99 && !free(desk)) desk++;
     if (desk > 99) {
       console.log('  (every desk has a shell: hot desk checks skipped)');
       return;
@@ -142,10 +176,20 @@ async function hotDesks(termClose) {
     const crossClose = await shut({ desk }, 'http://evil.example');
     check('POST /api/desk/close refuses a foreign Origin', crossClose.status === 403, String(crossClose.status));
 
-    // Sit down: a login shell in your home folder, and an echo round-trips.
-    mine = name;
+    // Sit down: a login shell in your home folder, and an echo round-trips. Only at a desk that's
+    // still free, and only in a shell this sit started.
+    if (!free(desk)) {
+      console.log(`  (desk ${desk} was taken meanwhile: the rest of the hot desk checks are skipped)`);
+      return;
+    }
+    const sat = Math.floor(Date.now() / 1000);
     const a = sit(desk);
     const up = await until(() => a.out.length > 0 || a.closed, 8000);
+    if (!startedHere(name, sat)) {
+      a.ws.close(1000, 'stood up');
+      return;
+    }
+    mine = { name, pid: show(name, '#{pane_pid}') };
     await wait(600);
     const marker = randomUUID().slice(0, 8);
     a.type(`echo $((6*7))-${marker}\r`);
@@ -181,27 +225,46 @@ async function hotDesks(termClose) {
       // not running
     }
     check('sitting down again: the same shell, output and all', back && !!pid && pid === pidAgain, `pane pid ${pid} → ${pidAgain}`);
+    if (pidAgain !== mine.pid) {
+      b.ws.close(1000, 'stood up');
+      return;
+    }
 
-    // `exit` closes it; Shut down closes a new one.
+    // `exit` closes it; Shut down closes a new one (again only at a free desk, and only its own).
     b.type('exit\r');
     const exited = await until(() => b.closed, 6000);
     check('`exit` closes it: the terminal ends (1000) and the tmux session is gone', !!exited && b.closed.code === 1000 && !hasSession(name), JSON.stringify(b.closed));
     check(`/ws pushes desk ${desk} as free again`, await until(() => latest() && !latest().includes(desk), 3000), JSON.stringify(latest()));
+    if (!free(desk)) {
+      console.log(`  (desk ${desk} was taken meanwhile: the rest of the hot desk checks are skipped)`);
+      return;
+    }
+    const satAgain = Math.floor(Date.now() / 1000);
     const c = sit(desk);
     await until(() => c.out.length > 0 || c.closed, 8000);
+    if (!startedHere(name, satAgain)) {
+      c.ws.close(1000, 'stood up');
+      return;
+    }
+    mine = { name, pid: show(name, '#{pane_pid}') };
     const fresh = hasSession(name);
     const res = await shut({ desk });
     const ended = await until(() => c.closed, 5000);
     check('a new shell opens there, and Shut down (POST /api/desk/close) ends it and its terminal', fresh && res.status === 200 && json(res)?.ok === true && !hasSession(name) && !!ended && c.closed.code === 1000, `${res.status} ${res.body}; ${JSON.stringify(c.closed)}`);
     check(`/ws pushes desk ${desk} as free once more`, await until(() => latest() && !latest().includes(desk), 3000), JSON.stringify(latest()));
+    // Someone may have sat down there meanwhile, and Shut down would end their shell.
+    if (!free(desk)) {
+      console.log(`  (desk ${desk} was taken meanwhile: the empty-desk Shut down check is skipped)`);
+      return;
+    }
     const twice = await shut({ desk });
     check('shutting down a desk with no shell is fine', twice.status === 200 && json(twice)?.ok === true, String(twice.status));
   } finally {
     feed.terminate();
-    // Whatever happened above, the shell this opened is closed.
-    if (mine && hasSession(mine)) {
+    // Whatever happened above, the shell this started is closed, and never one started since.
+    if (mine?.pid && show(mine.name, '#{pane_pid}') === mine.pid) {
       try {
-        tmux('kill-session', '-t', `=${mine}`);
+        tmux('kill-session', '-t', `=${mine.name}`);
       } catch {
         // closed meanwhile
       }
@@ -343,7 +406,7 @@ try {
   const who = shells ? (employees ?? []).find((e) => !e.hosted && e.cwd && !portOf.has(e.pid)) ?? (employees ?? []).find((e) => e.cwd && !portOf.has(e.pid)) : undefined;
   if (who) {
     const name = `office-${who.sessionId.slice(0, 8)}-sh${PORT}`;
-    const had = hasSession(name);
+    const before = sessionsById();
     const opened = await new Promise((resolve) => {
       const ws = new WebSocket(`ws://127.0.0.1:${PORT}/term?id=${who.sessionId}&kind=shell&cols=100&rows=30`, { headers: { Origin: BASE } });
       let settled = false;
@@ -366,9 +429,13 @@ try {
       // not running
     }
     check(`a shell opens in ${who.displayName}'s folder, in ${name} (this office's port is in the name)`, opened.ok && !!at && real(at) === real(who.cwd), `${opened.why ?? 'opened'}; ${at || 'no session'} vs ${who.cwd}`);
-    if (!had) {
+    // Close what this check opened, whatever the office named it: a session that wasn't running
+    // before (by tmux id, so an older shell the office renamed isn't new), is this person's
+    // shell, and carries this office's stamp. Never one it found.
+    for (const [id, s] of sessionsById()) {
+      if (before.has(id) || !s.startsWith(`office-${who.sessionId.slice(0, 8)}-sh`) || stampedPort(s) !== String(PORT)) continue;
       try {
-        tmux('kill-session', '-t', `=${name}`);
+        tmux('kill-session', '-t', id);
       } catch {
         // already gone
       }
@@ -377,8 +444,7 @@ try {
     console.log(shells ? '  (nobody to open a shell for: shell check skipped)' : '  (this office has no Shell tab: shell check skipped)');
   }
 
-  if (PORT === YOUR_GAME) console.log('  (your game: hot desk checks skipped; run them on a dev office, e.g. PORT=4778)');
-  else await hotDesks(termClose);
+  await hotDesks(termClose);
 } catch (err) {
   check('server reachable', false, err.message);
 }

@@ -225,7 +225,7 @@ to browse them all at `http://127.0.0.1:4777/catalog.html`.
 | --- | --- |
 | `npm run dev` | Server with hot reload |
 | `npm run typecheck` | Type-check the client (`npm run typecheck:server` for the server) |
-| `npm run smoke` | Read-only smoke test of the office server |
+| `PORT=4778 npm run smoke` | Smoke test of a running dev office. It opens and closes real shells, so it refuses your own game (4777) |
 | `npm run catalog` | Rebuild the model catalog from the GLBs |
 
 ## Safety

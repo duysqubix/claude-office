@@ -32,7 +32,9 @@ const MAX_BODY = 64 * 1024;
 /** Hook payloads carry full tool input (a Write can hold a whole file). */
 const MAX_HOOK_BODY = 4 * 1024 * 1024;
 const MAX_TEXT = 8000;
-/** Biggest terminal message (a paste), and most a terminal may send while its shell starts. */
+/** Biggest terminal message: a paste arrives whole, so this is the biggest paste that gets through. */
+const MAX_TERM_MESSAGE = 8 * 1024 * 1024;
+/** Most a terminal may send while its shell starts. */
 const MAX_TERM_INPUT = 1024 * 1024;
 /** Terminals open at once, each a tmux client in a pty: far more than anyone sits at. */
 const MAX_TERMINALS = 32;
@@ -74,6 +76,14 @@ const MIME: Record<string, string> = {
 const hostOk = (req: IncomingMessage) => ALLOWED_HOSTS.has(String(req.headers.host ?? '').toLowerCase());
 /** Browsers always send Origin on cross-site writes and WebSocket handshakes; local tools may omit it. */
 const originOk = (req: IncomingMessage) => req.headers.origin === undefined || ALLOWED_ORIGINS.has(String(req.headers.origin).toLowerCase());
+/** The request's URL, or null when its target can't be one (`//a:99999`: `new URL` throws). */
+function urlOf(req: IncomingMessage, base: string): URL | null {
+  try {
+    return new URL(req.url ?? '/', base);
+  } catch {
+    return null;
+  }
+}
 
 class HttpError extends Error {
   constructor(
@@ -110,7 +120,8 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   // you. Production also pins scripts, fetches and sockets to our origin (CSP_PROD).
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Content-Security-Policy', IS_PROD ? CSP_PROD : "frame-ancestors 'none'");
-  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+  const url = urlOf(req, `http://${req.headers.host}`);
+  if (!url) throw new HttpError(400, 'Bad request target');
   if (url.pathname.startsWith('/api/')) return api(req, res, url);
   if (vite) {
     vite.middlewares(req, res, () => sendJson(res, 404, { ok: false, error: 'Not found' }));
@@ -324,7 +335,7 @@ async function serveStatic(res: ServerResponse, pathname: string): Promise<void>
 // A bigger message closes its socket: the game sends small presence JSON on /ws, and keys,
 // pastes and resizes on /term.
 const rosterSockets = new WebSocketServer({ noServer: true, maxPayload: MAX_BODY });
-const termSockets = new WebSocketServer({ noServer: true, maxPayload: MAX_TERM_INPUT });
+const termSockets = new WebSocketServer({ noServer: true, maxPayload: MAX_TERM_MESSAGE });
 const alive = new WeakMap<WebSocket, boolean>();
 
 const send = (ws: WebSocket, msg: ServerMessage) => {
@@ -425,7 +436,12 @@ const heartbeat = setInterval(() => {
 }, 30_000);
 
 server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
-  const url = new URL(req.url ?? '/', 'http://localhost');
+  // Nothing catches a throw in this listener: a target no URL can hold is dropped right here.
+  const url = urlOf(req, 'http://localhost');
+  if (!url) {
+    socket.destroy();
+    return;
+  }
   const ours = url.pathname === '/ws' || url.pathname === '/term';
   if (!ours) {
     if (!vite) socket.destroy(); // in dev, Vite's HMR listener handles its own upgrades
@@ -503,19 +519,25 @@ function openShell(ws: WebSocket, start: () => Promise<string>, cols: number, ro
     else early.push([data, binary]);
   };
   ws.on('message', hold);
-  start().then(
-    (tmuxName) => {
-      ws.off('message', hold);
-      if (ws.readyState !== ws.OPEN) return;
-      attachTerminal(ws, tmuxName, cols, rows);
-      for (const [data, binary] of early) ws.emit('message', data, binary);
-    },
-    (err: unknown) => {
-      // Close reasons are capped at 123 bytes.
-      const why = `No shell: ${err instanceof Error ? err.message : String(err)}`;
-      ws.close(1008, Buffer.from(why).subarray(0, 120).toString());
-    },
-  );
+  start()
+    .then(
+      (tmuxName) => {
+        ws.off('message', hold);
+        if (ws.readyState !== ws.OPEN) return;
+        attachTerminal(ws, tmuxName, cols, rows);
+        for (const [data, binary] of early) ws.emit('message', data, binary);
+      },
+      (err: unknown) => {
+        // Close reasons are capped at 123 bytes.
+        const why = `No shell: ${err instanceof Error ? err.message : String(err)}`;
+        ws.close(1008, Buffer.from(why).subarray(0, 120).toString());
+      },
+    )
+    // Anything else that fails while attaching closes this terminal, never the office.
+    .catch((err: unknown) => {
+      console.error('[term]', err);
+      ws.close(1011, 'No terminal');
+    });
 }
 
 // ── Live model catalog (dev) ─────────────────────────────────────────────────

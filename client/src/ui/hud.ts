@@ -64,6 +64,11 @@ export class Hud {
   private hadNeeds = false;
   private muted = false;
   private soundLocked = false;
+  /** The Sound button's glyph on show (swapped only when it changes: a swap mid-click loses the click). */
+  private soundGlyph: 'sound' | 'soundOff' = 'sound';
+  /** When the speakers unlocked, and when the Sound button was last pressed: the press that unlocked them. */
+  private unlockedAt = -1e9;
+  private pressedAt = -2e9;
 
   constructor(
     host: HTMLElement,
@@ -85,7 +90,12 @@ export class Hud {
     this.meterSlot = el('span', { class: 'co-hud__meter', attrs: { hidden: true } });
     const left = el('div', { class: 'co-hud__left' }, badge, this.needsSlot, el('div', { class: 'co-hud__row' }, this.counts, this.meterSlot));
 
-    this.soundBtn = hudButton('sound', 'Sound', 'M', () => this.on.mute());
+    this.soundBtn = hudButton('sound', 'Sound', 'M', () => {
+      // The press that unlocked the speakers turns sound on, as the dot promised: it doesn't mute.
+      if (Math.abs(this.unlockedAt - this.pressedAt) < 100) return;
+      this.on.mute();
+    });
+    this.soundBtn.addEventListener('pointerdown', (ev) => (this.pressedAt = ev.timeStamp));
     const right = el(
       'div',
       { class: 'co-hud__right' },
@@ -123,6 +133,7 @@ export class Hud {
     // The speakers (audio/): the dot until the browser lets the page play, and M or another
     // tab's mute showing on the button.
     const sound = () => {
+      if (this.soundLocked && audio.unlocked) this.unlockedAt = performance.now();
       if (this.soundLocked !== !audio.unlocked) this.setSoundLocked(!audio.unlocked);
       if (this.muted !== audio.muted) this.setMuted(audio.muted);
     };
@@ -162,7 +173,11 @@ export class Hud {
     const locked = this.soundLocked && !m;
     this.soundBtn.classList.toggle('is-locked', locked);
     const label = m ? 'Sound is off (M)' : locked ? 'Sound (M): click anywhere to turn it on' : 'Sound is on (M)';
-    this.soundBtn.firstElementChild!.innerHTML = icon(m ? 'soundOff' : 'sound', 24);
+    const glyph = m ? 'soundOff' : 'sound';
+    if (glyph !== this.soundGlyph) {
+      this.soundGlyph = glyph;
+      this.soundBtn.firstElementChild!.innerHTML = icon(glyph, 24);
+    }
     this.soundBtn.setAttribute('aria-label', label);
     this.soundBtn.setAttribute('data-co-tip', label);
     this.soundBtn.setAttribute('aria-pressed', String(m));

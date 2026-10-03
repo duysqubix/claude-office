@@ -21,6 +21,8 @@ interface Visit {
   v: YardVisitor;
   /** Crew clock (s) when their break is over and they head for the gate. */
   leaveAt: number;
+  /** Told to go early because there were too many (counted out from then on). */
+  trimmed?: boolean;
 }
 
 interface Chat {
@@ -29,6 +31,9 @@ interface Chat {
   until: number;
   turnAt: number;
 }
+
+/** Two settled side by side get chatting at this rate (per second). */
+const CHAT_START = 0.6;
 
 /** The most people the yard ever has (frame budget: #48 allows about 1 ms for all of them). */
 export const MAX_VISITORS = 10;
@@ -77,6 +82,8 @@ export class Yardfolk {
   private gate: THREE.Vector3 | null = null;
   private source: Yard | null = null;
   private chats: Chat[] = [];
+  /** Seats and stands that belong together (a bench, the picnic table, a chat spot), by group. */
+  private groups: { by: RegularChar | null }[][] = [];
   private clock = 0;
   private arriveIn = 0;
   private started = false;
@@ -108,12 +115,20 @@ export class Yardfolk {
     this.want = Math.min(MAX_VISITORS, n);
     this.night = night;
     if (!this.started) return;
-    // Too many (the setting went down, or it got late): the extras head for the gate.
-    const extra = this.visits.length - this.want;
-    if (extra > 0) {
-      const going = this.visits.filter((s) => s.leaveAt > this.clock + 3);
-      for (let k = 0; k < Math.min(extra, going.length); k++) going[k].leaveAt = this.clock + 0.5 + k * (0.8 + this.rand());
+    // Too many (the setting went down, or it got late): the extras head for the gate. Only
+    // those staying count: someone already on their way out isn't one too many (counting them
+    // sent one more home every frame until the yard was empty).
+    const staying = this.staying();
+    for (let k = 0; k < staying.length - this.want; k++) {
+      const s = staying[staying.length - 1 - k];
+      s.trimmed = true;
+      s.leaveAt = Math.min(s.leaveAt, this.clock + 0.5 + k * (0.8 + this.rand()));
     }
+  }
+
+  /** On their break and staying a while yet (not on their way out, nor told to go). */
+  private staying(): Visit[] {
+    return this.visits.filter((s) => s.v.holdsDesk && !s.trimmed && s.leaveAt > this.clock);
   }
 
   /** E near a visitor: a yard line. */
@@ -153,6 +168,7 @@ export class Yardfolk {
       }
       if (v.phase === 'gone') {
         this.visits.splice(i, 1);
+        for (const sp of [...this.seats, ...this.stands]) if (sp.by === v) sp.by = null;
         this.hooks.removed?.(v);
         v.dispose();
         continue;
@@ -164,7 +180,7 @@ export class Yardfolk {
     }
     // Stands borrowed by regulars on a coffee break come back when they go back in.
     for (const st of this.stands) if (st.by && !(st.by instanceof YardVisitor) && !st.by.usingSpot(st)) st.by = null;
-    this.tendChats();
+    this.tendChats(dt);
     this.arrivals(dt);
   }
 
@@ -204,6 +220,9 @@ export class Yardfolk {
     for (const s of seats) s.lit ??= s.kind === 'picnic' || s.kind === 'blanket';
     this.seats = seats;
     this.stands = yard.stands.map((st) => ({ at: st.position, yaw: st.yaw, group: st.group, lit: st.lit ?? false, by: null }));
+    const groups = new Map<string, { by: RegularChar | null }[]>();
+    for (const sp of [...this.seats, ...this.stands]) if (sp.group) groups.set(sp.group, [...(groups.get(sp.group) ?? []), sp]);
+    this.groups = [...groups.values()].filter((g) => g.length > 1);
     this.gate = yard.gate;
     return true;
   }
@@ -220,7 +239,7 @@ export class Yardfolk {
     this.arriveIn -= dt;
     if (this.arriveIn > 0) return;
     this.arriveIn = 12 + this.rand() * 25;
-    if (this.visits.filter((s) => s.leaveAt > this.clock).length < this.want) this.spawn(false);
+    if (this.staying().length < this.want) this.spawn(false);
   }
 
   /** Someone new: already out here (page load), or walking in by the gate. */
@@ -249,7 +268,7 @@ export class Yardfolk {
   /** What they do next (or home, once their break is over). */
   private next(s: Visit): void {
     const v = s.v;
-    if (this.visits.length > this.want + 1) {
+    if (this.staying().length > this.want) {
       v.goHomeByGate();
       return;
     }
@@ -257,7 +276,8 @@ export class Yardfolk {
     if (a) {
       v.go(a);
       // Off for a stroll: someone else at a loose end close by comes along.
-      if (a.kind === 'stroll' && !this.night) this.strollBuddy(v, a);
+      // (Not when they're still getting out of a seat: by the time they're up, the pair is off.)
+      if (a.kind === 'stroll' && !this.night && !v.atDesk) this.strollBuddy(v, a);
     }
   }
 
@@ -319,14 +339,19 @@ export class Yardfolk {
   }
 
   /** Neighbours on a bench, at the table, on the blanket or at a chat spot get chatting, a pair at a time. */
-  private tendChats(): void {
-    // Settled next to someone in the same group (and neither already chatting): now and then, a chat.
-    const spots: { group?: string; by: RegularChar | null }[] = [...this.seats, ...this.stands];
-    for (const s of spots) {
-      const a = s.by;
-      if (!(a instanceof YardVisitor) || !s.group || !a.settled || a.buddy) continue;
-      const b = spots.find((o) => o !== s && o.group === s.group && o.by instanceof YardVisitor && o.by.settled && !o.by.buddy)?.by;
-      if (!(b instanceof YardVisitor) || this.rand() > 0.02) continue;
+  private tendChats(dt: number): void {
+    // Two settled in the same group (and neither chatting already): before long, a chat (the
+    // same chance a second at any frame rate).
+    for (const g of this.groups) {
+      let a: YardVisitor | null = null;
+      let b: YardVisitor | null = null;
+      for (const sp of g) {
+        const v = sp.by;
+        if (!(v instanceof YardVisitor) || !v.settled || v.buddy) continue;
+        if (!a) a = v;
+        else if (!b && v !== a) b = v;
+      }
+      if (!a || !b || this.rand() >= CHAT_START * dt) continue;
       a.buddy = b;
       b.buddy = a;
       this.chats.push({ a, b, until: this.clock + 12 + this.rand() * 16, turnAt: this.clock + 0.5 });

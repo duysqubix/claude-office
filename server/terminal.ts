@@ -1,6 +1,6 @@
 // "Sit at their computer": a tmux attach client in a pty, bridged to an xterm.js WebSocket.
 // Closing the socket kills only the attach client; the session keeps running in tmux.
-import pty from 'node-pty';
+import pty, { type IPty } from 'node-pty';
 import type { WebSocket } from 'ws';
 import type { TermClientMessage } from '../shared/protocol';
 import { HOME } from './config';
@@ -24,13 +24,22 @@ export function attachTerminal(ws: WebSocket, tmuxName: string, cols: number, ro
   env.TERM = 'xterm-256color';
   env.COLORTERM = 'truecolor';
 
-  const term = pty.spawn(tmuxPath(), ['attach-session', '-t', `=${tmuxName}`], {
-    name: 'xterm-256color',
-    cols: clampDim(cols, 20, 400, 120),
-    rows: clampDim(rows, 5, 200, 36),
-    cwd: HOME,
-    env: env as Record<string, string>,
-  });
+  let term: IPty;
+  try {
+    term = pty.spawn(tmuxPath(), ['attach-session', '-t', `=${tmuxName}`], {
+      name: 'xterm-256color',
+      cols: clampDim(cols, 20, 400, 120),
+      rows: clampDim(rows, 5, 200, 36),
+      cwd: HOME,
+      env: env as Record<string, string>,
+    });
+  } catch (err) {
+    // node-pty throws when it can't start one (forkpty or posix_spawnp failed): this terminal
+    // closes, never the office. Close reasons are capped at 123 bytes.
+    const why = `No terminal: ${err instanceof Error ? err.message : String(err)}`;
+    ws.close(1011, Buffer.from(why).subarray(0, 120).toString());
+    return;
+  }
 
   let open = true;
   term.onData((data) => {

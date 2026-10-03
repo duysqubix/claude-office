@@ -16,6 +16,14 @@ mkdirSync(SNAPS, { recursive: true });
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const check = (name, ok, detail = '') => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
+/**
+ * How to wait out a throttled page's reload. Network-idle only counts time its main thread sits
+ * idle, and a throttled render loop leaves it none (the reload is done in 2 s; the wait never is).
+ * Each reload then waits for the office itself.
+ */
+const RELOADED = THROTTLE > 1 ? 'load' : 'networkidle2';
 
 /** A page that never reports presence and (live) never POSTs. */
 async function open(url, { live = false } = {}) {
@@ -58,8 +66,12 @@ async function open(url, { live = false } = {}) {
       } else void req.continue();
     });
   }
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
-  await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  // Pages already open (and throttled) slow a new one's load down too.
+  const slow = Math.max(1, THROTTLE);
+  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 * slow });
+  await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * slow });
+  // Once it's loaded (with request interception on, a throttled load never goes network-idle).
+  if (THROTTLE > 1) await (await page.target().createCDPSession()).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   await wait(1200);
   return { page, logs, posts };
 }
@@ -815,7 +827,7 @@ try {
         },
       });
     });
-    await page2.goto(`${BASE}/?demo=1&quiet=1&debug=1`, { waitUntil: 'networkidle2', timeout: 30_000 });
+    await page2.goto(`${BASE}/?demo=1&quiet=1&debug=1`, { waitUntil: 'networkidle2', timeout: 30_000 * Math.max(1, THROTTLE) });
     await page2.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
     await wait(600);
     const snd = await page2.evaluate(() => {
@@ -837,6 +849,43 @@ try {
     });
     check('opening and closing Help leaves no sound listener behind', subs.before >= 0 && subs.after === subs.before, JSON.stringify(subs));
     await page2.close();
+  }
+  // The very first click, on the Sound button's glyph: it turns sound on (as the dot promised) and
+  // doesn't mute; the next click on the glyph mutes.
+  {
+    const page3 = await browser.newPage();
+    await page3.setViewport({ width: 1440, height: 900 });
+    await page3.evaluateOnNewDocument(() => {
+      try {
+        localStorage.removeItem('claude-office:muted');
+      } catch {
+        // storage unavailable
+      }
+      window.WebSocket = new Proxy(WebSocket, {
+        construct(target, args) {
+          const p = args[1];
+          if (p === 'vite-hmr' || (Array.isArray(p) && p.includes('vite-hmr'))) return { addEventListener() {}, removeEventListener() {}, send() {}, close() {}, readyState: 0 };
+          return Reflect.construct(target, args);
+        },
+      });
+    });
+    await page3.goto(`${BASE}/?demo=1&quiet=1&debug=1`, { waitUntil: 'networkidle2', timeout: 30_000 });
+    await page3.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+    await wait(600);
+    const glyph = async () => {
+      const r = await page3.evaluate(() => {
+        const b = document.querySelector('.co-hud__right button[aria-pressed] svg').getBoundingClientRect();
+        return [b.left + b.width / 2, b.top + b.height / 2];
+      });
+      await page3.mouse.click(r[0], r[1]);
+      await wait(400);
+      return page3.evaluate(() => ({ label: document.querySelector('.co-hud__right button[aria-pressed]')?.getAttribute('aria-label'), saved: localStorage.getItem('claude-office:muted') }));
+    };
+    const before = await page3.evaluate(() => document.querySelector('.co-hud__right button[aria-pressed]')?.getAttribute('aria-label'));
+    const first = await glyph();
+    const second = await glyph();
+    check('the first click on the Sound button turns sound on; the next one mutes', /click anywhere/.test(before ?? '') && first.label === 'Sound is on (M)' && first.saved !== '1' && second.label === 'Sound is off (M)' && second.saved === '1', JSON.stringify({ before, first, second }));
+    await page3.close();
   }
 
   // First-run tips (#32): one card at a time, gone when you do the thing; Skip, and Help → Show
@@ -912,8 +961,8 @@ try {
     await cp.evaluate(() => [...document.querySelectorAll('.co-coach .co-btn')].find((b) => b.textContent.trim() === 'Skip tips')?.click());
     await wait(300);
     const skipped = await tipNow();
-    await cp.reload({ waitUntil: 'networkidle2' });
-    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+    await cp.reload({ waitUntil: RELOADED, timeout: 30_000 * Math.max(1, THROTTLE) });
+    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * Math.max(1, THROTTLE) });
     await wait(2500);
     const nextVisit = await tipNow();
     check('Skip tips ends them, this visit and the next', skipped === null && nextVisit === null, JSON.stringify({ skipped, nextVisit }));
@@ -926,8 +975,8 @@ try {
     await cp.evaluate(() => window.office.panels.close());
     // An empty desk: its tip the first time you stand at one with no other card up, said once.
     await cp.evaluate(() => localStorage.setItem('claude-office:tips', JSON.stringify({ done: ['walk', 'talk', 'peek', 'q', 'v'] })));
-    await cp.reload({ waitUntil: 'networkidle2' });
-    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+    await cp.reload({ waitUntil: RELOADED, timeout: 30_000 * Math.max(1, THROTTLE) });
+    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * Math.max(1, THROTTLE) });
     await wait(2500);
     const before = await tipNow();
     const standAt = () =>
@@ -962,6 +1011,32 @@ try {
       before === null && desk1 !== null && atDesk.prompt === 'Use the computer' && atDesk.tip?.id === 'desk' && /This desk is free/.test(atDesk.tip.title ?? '') && walkedOn === null && desk2 !== null && nextDesk === null && saved.includes('desk'),
       JSON.stringify({ before, desk1, atDesk, walkedOn, desk2, nextDesk, saved }),
     );
+    // The talk tip stays put while the roster updates (about once a second in a working office):
+    // it changes only when the office goes from empty to someone, or back.
+    await cp.evaluate(() => localStorage.setItem('claude-office:tips', JSON.stringify({ done: ['walk', 'q'] })));
+    await cp.reload({ waitUntil: RELOADED, timeout: 30_000 * Math.max(1, THROTTLE) });
+    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * Math.max(1, THROTTLE) });
+    await wait(2500);
+    const talk = await cp.evaluate(async () => {
+      const wrap = document.querySelector('.co-coachwrap');
+      const tip = wrap.firstElementChild?.dataset.tip ?? null;
+      let swaps = 0;
+      new MutationObserver(() => swaps++).observe(wrap, { childList: true });
+      const s = window.office.store;
+      const all = s.employees.map((e) => ({ ...e }));
+      for (let i = 0; i < 5; i++) {
+        s.set(all.map((e) => ({ ...e })), Date.now());
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      const quiet = swaps;
+      s.set([], Date.now());
+      await new Promise((r) => setTimeout(r, 300));
+      const empty = wrap.querySelector('.co-coach h3')?.textContent ?? '';
+      s.set(all, Date.now());
+      await new Promise((r) => setTimeout(r, 300));
+      return { tip, quiet, empty, back: wrap.querySelector('.co-coach h3')?.textContent ?? '', swaps };
+    });
+    check('the talk tip stays put while the roster updates, and changes when the office empties', talk.tip === 'talk' && talk.quiet === 0 && /Nobody's in yet/.test(talk.empty) && /Claude Code sessions/.test(talk.back), JSON.stringify(talk));
     check('no page errors (tips)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
     await cp.close();
   }
@@ -987,7 +1062,8 @@ try {
             const cam = of.engine.camera;
             let worst = 0;
             let n = 0;
-            let frames = 0;
+            // 0.75 s, however many frames that is (45 frames at 3–5 fps would walk him into a wall).
+            const t0 = performance.now();
             const tick = () => {
               for (const e of of.director.list()) {
                 const pill = [...document.querySelectorAll('.co-tagstack .co-pill')].find((p) => p.textContent.trim() === e.data.displayName);
@@ -1001,7 +1077,7 @@ try {
                 worst = Math.max(worst, Math.abs((r.left + r.right) / 2 - x), Math.abs(r.bottom - y));
                 n++;
               }
-              if (++frames < 45) requestAnimationFrame(tick);
+              if (performance.now() - t0 < 750) requestAnimationFrame(tick);
               else done({ worst: Math.round(worst * 10) / 10, n });
             };
             requestAnimationFrame(tick);

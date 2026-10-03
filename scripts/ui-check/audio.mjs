@@ -16,6 +16,15 @@ const browser = await puppeteer.launch({ executablePath, headless: true, args: [
 const check = (name, ok, detail = '') => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
+/** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
+/** Each page's DevTools session: a throttle set through one session is only lifted through it. */
+const sessions = new WeakMap();
+const throttle = async (page, rate) => {
+  if (THROTTLE <= 1) return;
+  if (!sessions.has(page)) sessions.set(page, await page.target().createCDPSession());
+  await sessions.get(page).send('Emulation.setCPUThrottlingRate', { rate });
+};
 
 /** A demo office page that never reports presence, with rAF callbacks timed for the frame check. */
 async function open(query = '') {
@@ -57,8 +66,18 @@ async function open(query = '') {
   const hour = /[?&]hour=/.test(query) ? '' : '&hour=12';
   await page.goto(`${BASE}/?demo=1&quiet=1&debug=1${hour}${query}`, { waitUntil: 'networkidle2', timeout: 30_000 });
   await page.waitForFunction(() => window.office && window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  // Once it's loaded: a throttled load takes ages to go network-idle.
+  await throttle(page, THROTTLE);
   await wait(800);
   return page;
+}
+
+/** Reload, the way open() loads: unthrottled until the office is up, then slow again. */
+async function reload(page) {
+  await throttle(page, 1);
+  await page.reload({ waitUntil: 'networkidle2' });
+  await page.waitForFunction(() => window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  await throttle(page, THROTTLE);
 }
 
 const state = (page) => page.evaluate(() => window.officeAudio.state());
@@ -145,8 +164,7 @@ try {
   check('muted, the band stops and the audio context sleeps', !s.playing && s.context === 'suspended', `playing ${s.playing}, context ${s.context}`);
   check('mute is saved', (await stored(page)).muted === '1', JSON.stringify(await stored(page)));
 
-  await page.reload({ waitUntil: 'networkidle2' });
-  await page.waitForFunction(() => window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  await reload(page);
   await wait(600);
   await gesture(page);
   await wait(1200);
@@ -160,8 +178,7 @@ try {
   // Muted, reload, and the very first key is M (unmute): the speakers must wake for real.
   await pressM(page);
   await wait(300);
-  await page.reload({ waitUntil: 'networkidle2' });
-  await page.waitForFunction(() => window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  await reload(page);
   await wait(600);
   await pressM(page);
   await wait(1500);
@@ -202,9 +219,14 @@ try {
     await setRange(0, 20);
     await setRange(1, 50);
     await wait(1500);
+    // Nothing is playing through the effects bus now, and a bus nothing plays through isn't
+    // processed: its gain still reads the old value. The next sound must get the new level from
+    // its first moment, so play one (a tick) and read the gain it got.
+    await page.evaluate(async () => (await import('/src/ui/bus.ts')).bus.emit('sfx', { name: 'tick' }));
+    await wait(300);
     s = await state(page);
     check('the music slider sets the music level', Math.abs(s.musicBus - 0.04) < 0.01, `music bus ${s.musicBus?.toFixed(3)} (want 0.040)`);
-    check('the sound-effects slider sets the effects level', Math.abs(s.sfxBus - 0.55 * 0.25) < 0.01, `sfx bus ${s.sfxBus?.toFixed(3)} (want 0.138)`);
+    check('the sound-effects slider sets the level the next effect plays at', Math.abs(s.sfxBus - 0.55 * 0.25) < 0.01, `sfx bus ${s.sfxBus?.toFixed(3)} (want 0.138)`);
     await page.evaluate(() => {
       const c = document.querySelector('.co-panel--help .co-sound input[type=checkbox]');
       c.click();
@@ -215,8 +237,7 @@ try {
     const saved = await stored(page);
     check('music, volumes and mute are saved per browser', saved.music === '0' && saved['music-volume'] === '0.2' && saved['sfx-volume'] === '0.5' && saved.muted === '0', JSON.stringify(saved));
 
-    await page.reload({ waitUntil: 'networkidle2' });
-    await page.waitForFunction(() => window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+    await reload(page);
     await wait(600);
     await gesture(page);
     await page.evaluate(() => window.office.panels.open('help'));
@@ -381,7 +402,9 @@ try {
     band.p95 <= base.p95 * 1.1 + 1 && band.fps >= base.fps * 0.93,
     `p95 ${base.p95.toFixed(1)} → ${band.p95.toFixed(1)} ms, ${base.fps.toFixed(0)} → ${band.fps.toFixed(0)} fps, game JS ${base.busy.toFixed(2)} → ${band.busy.toFixed(2)} ms`,
   );
-  check('frame budget: the scheduler uses under 2 ms of main thread per second', perSecond < 2 && worst < 8, `${perSecond.toFixed(2)} ms/s, worst pump ${worst.toFixed(1)} ms`);
+  // Milliseconds of main thread scale with the CPU: on a 4× slower one, 4× the budget.
+  const slow = Math.max(1, THROTTLE);
+  check(`frame budget: the scheduler uses under ${2 * slow} ms of main thread per second`, perSecond < 2 * slow && worst < 8 * slow, `${perSecond.toFixed(2)} ms/s, worst pump ${worst.toFixed(1)} ms${slow > 1 ? ` (CPU ${slow}× slower)` : ''}`);
   check('no late (dropped) notes', dropped === 0, `${dropped} dropped`);
   // (The last turn above was music off: back on, and the murmur comes with it.)
   await page.evaluate(() => window.officeAudio.setPref('music', true));

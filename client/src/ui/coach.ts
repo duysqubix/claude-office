@@ -75,6 +75,8 @@ class Coach {
   private walked = 0;
   private last: { x: number; z: number } | null = null;
   private started = false;
+  /** Whether the talk tip on show was the one for an office with people in it. */
+  private talkSomeone = false;
   /** Standing at an empty desk (its E prompt is showing). */
   private atDesk = false;
 
@@ -93,7 +95,9 @@ class Coach {
     store.subscribe(() => {
       if (!this.started) return;
       if (!this.current) this.next();
-      else if (this.current === 'talk') this.show('talk');
+      // The talk tip only changes when the office goes from empty to someone, or back: rebuilding
+      // it on every roster update would re-animate it, take its buttons' focus and re-announce it.
+      else if (this.current === 'talk' && this.store.employees.length > 0 !== this.talkSomeone) this.show('talk');
     });
     window.setInterval(() => this.place(), 250);
   }
@@ -166,6 +170,7 @@ class Coach {
 
   private show(id: TipId): void {
     this.current = id;
+    if (id === 'talk') this.talkSomeone = this.store.employees.length > 0;
     const { title, body } = tip(id, this.store.employees);
     const card = coachCard(title, body, {
       done: 'Got it',

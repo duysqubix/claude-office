@@ -10,7 +10,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import type { DeskSlot, World } from '../world/types';
 import { angleDelta, clamp, damp, smoothstep } from './spring';
 import { Chair } from './employee';
-import { kitBackDepth } from './kit';
+import { kitBackDepth, kitReport } from './kit';
 import { RegularChar, pulse, type RegularProfile } from './npc';
 import { DIM } from './rig';
 
@@ -109,6 +109,9 @@ export class YardVisitor extends RegularChar {
   /** Lying back counts as asleep to EmployeeChar (no look up at the boss: a gaze assumes an upright body). */
   private lyingState = false;
   private blobHidden = false;
+  /** kitBackDepth for what they wear, and what that was (so it's measured once per outfit). */
+  private backM = 0;
+  private backKey: string | null = null;
   private recline = RECLINE_LOUNGER;
   /** Strolling: where they are on the trail and how many points are left. */
   private trailAt = 0;
@@ -170,15 +173,14 @@ export class YardVisitor extends RegularChar {
     this.done = false;
     this.actT = 0;
     // Theirs from now on, even while they're still getting up (nobody else gets sent there).
-    if (a.kind === 'seat') a.seat.by = this;
-    if (a.kind === 'stand') a.stand.by = this;
+    // `pending` holds it until they're on their way, so whatever happens next, it's given back.
+    if (this.pending && this.pending !== a) this.free(this.pending);
+    this.reserve(a);
     if (this.atDesk) {
-      if (this.phase === 'standing-up') {
-        this.pending = a;
-        return;
-      }
+      this.pending = a;
+      // Already getting up: stoodUp starts it.
+      if (this.phase === 'standing-up') return;
       this.upFirst(() => {
-        this.pending = a;
         this.release();
         this.leave();
       });
@@ -188,11 +190,11 @@ export class YardVisitor extends RegularChar {
     this.begin(a);
   }
 
-  /** Off home by the gate, from wherever they are. */
+  /** Off home by the gate, from wherever they are (giving back where they were, and where they were off to). */
   goHomeByGate(): void {
     this.upFirst(() => {
-      this.release();
-      this.activity = this.pending = null;
+      this.releaseAll();
+      this.activity = null;
       this.setPlan('home');
       this.leave();
     });
@@ -245,7 +247,7 @@ export class YardVisitor extends RegularChar {
   }
 
   override dispose(): void {
-    this.release();
+    this.releaseAll();
     this.book.removeFromParent();
     this.book.geometry.dispose();
     this.bookMat.dispose();
@@ -289,14 +291,29 @@ export class YardVisitor extends RegularChar {
     else then();
   }
 
-  /** Give back the seat or stand they're using (the crew hands it out again). */
+  /** Give back the seat or stand they're using (the crew hands it out again), and end any chat. */
   private release(): void {
-    const a = this.activity;
-    if (a?.kind === 'seat' && a.seat.by === this) a.seat.by = null;
-    if (a?.kind === 'stand' && a.stand.by === this) a.stand.by = null;
+    this.free(this.activity);
     if (this.buddy?.buddy === this) this.buddy.buddy = null;
     this.buddy = null;
     this.talking = false;
+  }
+
+  /** release(), and the spot they were about to go to as well. */
+  private releaseAll(): void {
+    this.release();
+    this.free(this.pending);
+    this.pending = null;
+  }
+
+  private reserve(a: YardActivity): void {
+    if (a.kind === 'seat') a.seat.by = this;
+    if (a.kind === 'stand') a.stand.by = this;
+  }
+
+  private free(a: YardActivity | null): void {
+    if (a?.kind === 'seat' && a.seat.by === this) a.seat.by = null;
+    if (a?.kind === 'stand' && a.stand.by === this) a.stand.by = null;
   }
 
   // -------------------------------------------------------------------------------------
@@ -579,13 +596,24 @@ export class YardVisitor extends RegularChar {
     this.body.over.side += Math.sin(tt * 0.6) * 0.03;
   }
 
+  /** How far their hair or hat reaches behind the skull (the kit measures it; again only when what they wear changes). */
+  private backDepth(): number {
+    const kit = kitReport(this.rig);
+    const key = kit ? `${kit.worn.length}|${kit.plan.hair}|${kit.plan.hat}` : '';
+    if (key !== this.backKey) {
+      this.backKey = key;
+      this.backM = kitBackDepth(this.rig);
+    }
+    return this.backM;
+  }
+
   /** Lying back: legs out straight, arms folded behind the head, the odd toe wiggle. */
   private liePose(tt: number): void {
     const T = this.body.target;
     const k = smoothstep(this.lieK);
     // A big hairdo (or a backwards cap) props the head up off the seat (the kit measures how
     // far whatever they're wearing reaches behind the skull).
-    T.headPitch += clamp(kitBackDepth(this.rig) * 2.5, 0, 0.55) * k;
+    T.headPitch += clamp(this.backDepth() * 2.5, 0, 0.55) * k;
     // Legs out along the seat (undoing EmployeeChar's bent sitting legs), knees soft.
     T.legLPitch -= 1.4 * k;
     T.legRPitch -= 1.4 * k;

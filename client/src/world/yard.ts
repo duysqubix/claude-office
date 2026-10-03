@@ -1102,6 +1102,9 @@ function buildHammock(ctx: WorldCtx, at: [number, number]): { carrier: THREE.Obj
     disposeGroup(cloth);
     const bed = findNode(m, 'Bed');
     if (!bed) return;
+    // Hang it at rest: attach() keeps the bed's world pose, so a swing caught mid-rock would stay
+    // baked into it. The ticker picks the rocking back up next frame.
+    carrier.rotation.x = 0;
     g.updateMatrixWorld(true);
     carrier.attach(bed);
   });

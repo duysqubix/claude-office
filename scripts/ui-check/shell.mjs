@@ -16,6 +16,8 @@ const executablePath = [process.env.CHROME_PATH, '/Applications/Google Chrome.ap
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const check = (name, ok, detail = '') => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
 
 /** A demo page that never reports presence, never hot-reloads and never POSTs. */
 async function open(url) {
@@ -46,6 +48,8 @@ async function open(url) {
   });
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
   await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  // Once it's loaded (with request interception on, a throttled load never goes network-idle).
+  if (THROTTLE > 1) await (await page.target().createCDPSession()).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   await wait(1200);
   return { page, logs };
 }
@@ -64,6 +68,20 @@ const look = (page, root) =>
     const bar = [...r.querySelectorAll('.term-tabbar, .term-chin, .co-chat__termbar')].map((b) => b.textContent).join(' ');
     return { pressed, shown: screens.length, text, note, bar: bar.replace(/\s+/g, ' ').trim() };
   }, root);
+
+/**
+ * `look` until `ok(view)` (a terminal's first words arrive after its pretend connection opens,
+ * later on a slow machine), at most `ms`. Returns the last view either way.
+ */
+async function settle(page, root, ok, ms = 8000) {
+  const t0 = Date.now();
+  let v = await look(page, root);
+  while (!ok(v) && Date.now() - t0 < ms) {
+    await wait(100);
+    v = await look(page, root);
+  }
+  return v;
+}
 
 async function ctrlBackquote(page, { held = 0 } = {}) {
   await page.keyboard.down('Control');
@@ -200,9 +218,9 @@ try {
   const M = '.term-modal';
   await page.evaluate((id) => window.office.panels.deps.actions.sitAt(id), external.id);
   await page.waitForSelector(M, { timeout: 15000 });
-  await wait(900);
-  let m = await look(page, M);
-  check('sitting at the computer of someone in your own terminal opens their Shell', m?.pressed === 'shell' && /you@office/.test(m.text) && m.bar.includes(`${external.name}'s computer`) && m.bar.includes(`Shell in ~/${external.project}`), m?.bar);
+  const externalShell = (v) => v?.pressed === 'shell' && /you@office/.test(v.text) && v.bar.includes(`${external.name}'s computer`) && v.bar.includes(`Shell in ~/${external.project}`);
+  let m = await settle(page, M, externalShell);
+  check('sitting at the computer of someone in your own terminal opens their Shell', externalShell(m), m?.bar);
   await ctrlBackquote(page);
   m = await look(page, M);
   check('at their computer: Ctrl+` to their Claude tab, which says why it is empty', m?.pressed === 'claude' && /runs in their own terminal/.test(m.note), m?.note.slice(0, 80));
@@ -214,13 +232,14 @@ try {
 
   await page.evaluate((id) => window.office.panels.deps.actions.sitAt(id), hosted.id);
   await page.waitForSelector(M, { timeout: 15000 });
-  await wait(900);
-  m = await look(page, M);
-  check('sitting down where you left off (their Shell)', m?.pressed === 'shell' && /you@office/.test(m.text) && /Esc goes to the shell/.test(m.bar), m?.bar);
+  const leftOff = (v) => v?.pressed === 'shell' && /you@office/.test(v.text) && /Esc goes to the shell/.test(v.bar);
+  m = await settle(page, M, leftOff);
+  check('sitting down where you left off (their Shell)', leftOff(m), m?.bar);
   await page.click(`${M} .term-tabs [data-tab="claude"]`);
-  await wait(400);
-  m = await look(page, M);
-  check('the Claude tab at their computer: their session, "Esc goes to Claude"', m?.pressed === 'claude' && /Welcome to Claude Code/.test(m.text) && /Esc goes to Claude/.test(m.bar), m?.bar);
+  // Their Claude terminal opens on this first visit: its welcome arrives once it's connected.
+  const claudeTab = (v) => v?.pressed === 'claude' && /Welcome to Claude Code/.test(v.text) && /Esc goes to Claude/.test(v.bar);
+  m = await settle(page, M, claudeTab);
+  check('the Claude tab at their computer: their session, "Esc goes to Claude"', claudeTab(m), m?.bar);
   const g3 = await geo(M);
   check('at their computer too, the tabs stand on the top edge of the screen', !!g3 && Math.abs(g3.gap) <= 1 && g3.inside, JSON.stringify(g3));
   // A click on the monitor itself (their name on the chin, not a button) leaves the keyboard in
@@ -370,6 +389,88 @@ try {
   await wait(2600);
   const gone = !(await page.$(M));
   check('on their ended Claude tab you stand up, but only once the keyboard goes quiet', typing && gone, JSON.stringify({ typing, gone }));
+
+  // Claude ends while you're on their Claude tab, and you go to their Shell: a pause there never
+  // stands you up (the next key, T say, would open someone's quick look).
+  const sitOnClaude = async () => {
+    await page.evaluate((id) => {
+      const all = JSON.parse(localStorage.getItem('claude-office:term-tabs') ?? '{}');
+      all[id] = 'claude';
+      localStorage.setItem('claude-office:term-tabs', JSON.stringify(all));
+      window.office.panels.deps.actions.sitAt(id);
+    }, hosted.id);
+    await page.waitForSelector(M, { timeout: 15000 });
+    await wait(1200);
+  };
+  const endClaude = (code, reason) =>
+    page.evaluate(
+      (id, code, reason) => window.office.panels.deps.backend.__links.filter((x) => x.id === id && x.kind === 'claude').pop()?.l.onClose?.(code, reason),
+      hosted.id,
+      code,
+      reason,
+    );
+  await sitOnClaude();
+  await endClaude(1000, 'detached');
+  await wait(300);
+  await ctrlBq();
+  await page.keyboard.type('echo still working', { delay: 40 });
+  await page.keyboard.press('Enter');
+  await wait(3200);
+  const paused = !!(await page.$(`${M}:not(.out)`));
+  await page.keyboard.press('KeyT');
+  await wait(600);
+  const afterT = await page.evaluate(() => ({ seated: !!document.querySelector('.term-modal:not(.out)'), quickLook: window.office.panels.openId }));
+  check('Claude ends, you go to their Shell and pause: still seated, and T goes to the shell', paused && afterT.seated && afterT.quickLook === null, JSON.stringify({ paused, ...afterT }));
+  await page.keyboard.down('Control');
+  await page.keyboard.press('BracketRight');
+  await page.keyboard.up('Control');
+  await wait(800);
+
+  // The office refuses their Claude screen while you're in their Shell: you stay, and their Claude
+  // tab says why.
+  await sitOnClaude();
+  await ctrlBq();
+  await wait(400);
+  await endClaude(1008, 'Not in the office');
+  await wait(400);
+  const stay = !!(await page.$(`${M}:not(.out)`));
+  await ctrlBq();
+  const refused = await look(page, M);
+  check('their Claude screen refused while you are in their Shell: you stay, and the Claude tab says why', stay && !!refused && refused.pressed === 'claude' && /Can't show Claude/.test(refused.bar), JSON.stringify({ stay, bar: refused?.bar }));
+  await page.keyboard.down('Control');
+  await page.keyboard.press('BracketRight');
+  await page.keyboard.up('Control');
+  await wait(800);
+
+  // Someone in your own terminal moves into the office while you look: "Bring into the office"
+  // had the keyboard; their new Claude screen never takes it by itself.
+  const ext2 = await page.evaluate(() => window.office.store.employees.find((e) => !e.hosted && !e.otherOffice)?.sessionId);
+  await page.evaluate((id) => window.office.panels.openChat(id, { mode: 'terminal' }), ext2);
+  await wait(900);
+  await page.click(`${Q} .term-tabs [data-tab="claude"]`);
+  await wait(400);
+  await page.evaluate(() => [...document.querySelectorAll('.co-chat__termnote button')].find((b) => /Bring/.test(b.textContent))?.focus());
+  const moveIn = (patch) =>
+    page.evaluate(
+      (id, patch) => {
+        const s = window.office.store;
+        s.set(s.employees.map((e) => (e.sessionId === id ? { ...e, ...patch } : e)), Date.now());
+      },
+      ext2,
+      patch,
+    );
+  await moveIn({ adopting: true });
+  await wait(300);
+  const waiting = await active();
+  await moveIn({ adopting: false, hosted: true });
+  await wait(900);
+  const movedIn = await page.evaluate(() => {
+    const a = document.activeElement;
+    return { inScreen: !!a?.closest('.term-screen'), tab: a?.dataset?.tab ?? null, body: a === document.body };
+  });
+  check('they move in: the keyboard stays on the tabs, never in their new Claude screen', waiting.tab === 'claude' && !movedIn.inScreen && !movedIn.body && movedIn.tab === 'claude', JSON.stringify({ waiting, movedIn }));
+  await page.evaluate(() => window.office.panels.close());
+  await wait(400);
 
   check('no page errors', !errors(logs).length, errors(logs).join(' | '));
   await page.close();

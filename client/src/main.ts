@@ -159,7 +159,7 @@ function runOffice(): void {
   });
   director.regulars = regulars;
   // Hot desks: any desk nobody is using has a computer you can sit at, your own shell (hotdesk.ts).
-  const hotDesks = new HotDesks(director, regulars);
+  const hotDesks = new HotDesks(world, director, regulars);
   director.hotDesks = hotDesks;
 
   // Sitting at someone's computer: walk behind the chair → ease the camera → open the terminal.
@@ -205,6 +205,8 @@ function runOffice(): void {
   panels.onChange = (open) => {
     camera.locked = open;
     if (open) camera.releasePointer();
+    // A panel (R, H, the chip) on the way to a computer: never mind the computer.
+    if (open && sitting && sitting.phase !== 'open') cancelSit();
   };
   camera.onMode = (mode) => {
     crosshair.hidden = mode !== 'first';
@@ -267,6 +269,8 @@ function runOffice(): void {
   function walkTo(id: string): void {
     const e = director.employees.get(id);
     if (!e) return;
+    // Off somewhere else on the way to a computer: never mind the computer (and its desk).
+    if (sitting) cancelSit();
     const target = e.atDesk ? e.desk.approach : e.position;
     // In first person, half a step further back: their head and screen in view, not the back of their head.
     const back = e.atDesk && camera.firstPerson > 0.5 ? target.clone().sub(e.position).setY(0).normalize().multiplyScalar(0.55).add(target).setY(0) : null;
@@ -407,7 +411,10 @@ function runOffice(): void {
   function beginTerminal(id: string): void {
     const e = director.employees.get(id);
     if (!e || sitting?.id !== id) return;
-    sitting.phase = 'easing';
+    // This sit-down only: Esc mid-ease and E again starts another one (same id), and these
+    // timers must leave that one alone.
+    const me = sitting;
+    me.phase = 'easing';
     manager.frozen = true;
     manager.face(e.desk.yaw);
     hud.setPrompt(null);
@@ -416,12 +423,12 @@ function runOffice(): void {
     e.quip('Hey, boss!', 1.8);
     window.setTimeout(() => {
       const now = director.employees.get(id);
-      if (!now || sitting?.id !== id) return;
+      if (!now || sitting !== me) return;
       camera.setShot(shoulderShot(now));
       labels.setVisible(false);
       window.setTimeout(() => {
-        if (sitting?.id !== id) return;
-        sitting.phase = 'open';
+        if (sitting !== me) return;
+        me.phase = 'open';
         input.blocked = true;
         input.clear();
         terminal.open(now.data, monitorRect(now));
@@ -450,19 +457,21 @@ function runOffice(): void {
     const desk = world.desks[index];
     const id = `desk:${index}`;
     if (!desk || sitting?.id !== id) return;
-    sitting.phase = 'easing';
+    // This sit-down only (see beginTerminal).
+    const me = sitting;
+    me.phase = 'easing';
     manager.frozen = true;
     manager.face(desk.yaw);
     hud.setPrompt(null);
     // As at someone's computer: the follow camera swings round behind you, so easing never flips sides.
     camera.yaw = desk.yaw + Math.PI;
     window.setTimeout(() => {
-      if (sitting?.id !== id) return;
+      if (sitting !== me) return;
       camera.setShot(shoulderShot({ desk }));
       labels.setVisible(false);
       window.setTimeout(() => {
-        if (sitting?.id !== id) return;
-        sitting.phase = 'open';
+        if (sitting !== me) return;
+        me.phase = 'open';
         input.blocked = true;
         input.clear();
         deskTerm.open(index, monitorRect({ desk }));
@@ -797,12 +806,15 @@ function runOffice(): void {
     // (hide under 1.05 m, back over 1.25 m) so a camera hovering near 1 m can't flicker.
     // Shots frame you from their own place, so they never hide you.
     const fp = camera.firstPerson;
-    manager.rig.root.visible = fp < 0.5 || camera.shotBlend > 0.5;
     viewModel.update(elapsed, manager.speed, manager.sipping, fp > 0.5 && camera.shotBlend < 0.1 ? fp : 0);
-    if (fp > 0 || camera.shotBlend > 0.5 || camera.distance > 1.25) managerHidden = false;
+    // Coming back out of first person brings you back; going into it doesn't (from a crowded
+    // camera he'd fade in right in front of the lens on the way to your eyes).
+    if ((fp > 0 && camera.mode === 'third') || camera.shotBlend > 0.5 || camera.distance > 1.25) managerHidden = false;
     else if (camera.distance < 1.05) managerHidden = true;
     managerFade = THREE.MathUtils.clamp(managerFade + (managerHidden ? -elapsed : elapsed) / 0.15, 0, 1);
     manager.rig.setOpacity(managerFade);
+    // After the fade: setOpacity shows him whenever it changes, and first person must still win.
+    manager.rig.root.visible = fp < 0.5 || camera.shotBlend > 0.5;
     // Fully dissolved: skip drawing altogether (every pixel would be discarded anyway).
     if (managerFade <= 0) manager.rig.root.visible = false;
     world.updateOcclusion(engine.camera, manager.position);

@@ -566,7 +566,10 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
             : needsServer(button('Bring into the office', { kind: 'primary', onClick: () => void adopt() }))
           : null,
       ];
+      // Its button was the keyboard's (Bring into the office, now waiting): the tabs take it, not the page.
+      const hadFocus = termNote.contains(document.activeElement);
       termNote.replaceChildren(...parts.filter((n): n is HTMLElement => n !== null));
+      if (hadFocus) termTabsCtl.focus();
     }
     if (canAttach) termNote.dataset.key = '';
     termChrome();

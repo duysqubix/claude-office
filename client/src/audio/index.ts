@@ -366,27 +366,35 @@ class Speakers {
     this.emit();
   }
 
-  /** Every gain follows prefs and ducking. */
-  private levels(instant = false): void {
+  /** Every gain follows prefs and ducking. `musicRamp`: how long the music takes to get there. */
+  private levels(instant = false, musicRamp = 0.2): void {
     const music = volumeGain(this.p.musicVolume) * (this.ducked ? DUCK : 1);
     this.external?.setLevel(this.musicOn() ? music : 0);
     const ctx = this.ctx;
     if (!ctx || !this.master || !this.musicBus || !this.sfxBus) return;
     const now = ctx.currentTime;
-    const set = (g: AudioParam, v: number, tau: number) => {
+    // Linear ramps, which follow the clock. (A bus with nothing playing through it isn't
+    // processed, and setTargetAtTime only moves while it is: a change made then would wait for
+    // the next sound, which would start at the old level and slide to the new one.)
+    const set = (g: AudioParam, v: number, seconds: number) => {
+      g.cancelScheduledValues(now);
       if (instant) g.setValueAtTime(v, now);
-      else g.setTargetAtTime(v, now, tau);
+      else {
+        g.setValueAtTime(g.value, now);
+        g.linearRampToValueAtTime(v, now + seconds);
+      }
     };
-    // Mute: master to 0 in about 50 ms (UX.md §4.5).
-    set(this.master.gain, this.p.muted ? 0 : 1, 0.015);
-    set(this.sfxBus.gain, SFX_MASTER * volumeGain(this.p.sfxVolume), 0.03);
-    set(this.musicBus.gain, music, this.ducked ? 0.15 : 0.35);
+    // Mute: master to 0 in 50 ms (UX.md §4.5).
+    set(this.master.gain, this.p.muted ? 0 : 1, 0.05);
+    set(this.sfxBus.gain, SFX_MASTER * volumeGain(this.p.sfxVolume), 0.05);
+    set(this.musicBus.gain, music, musicRamp);
   }
 
   private setDucked(on: boolean): void {
     if (on === this.ducked) return;
     this.ducked = on;
-    this.levels();
+    // Down quickly when you start typing, back up gently.
+    this.levels(false, on ? 0.4 : 1);
   }
 
   private startMusic(): void {

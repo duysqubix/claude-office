@@ -362,7 +362,10 @@ export class Crowd {
       m.blockedT += this.dt;
       if (m.blockedT > 0.5) {
         m.blockedT = 0;
-        if (blocker.boss) this.say(a, EXCUSE_BOSS, 12);
+        // (The boss in the way gets an "'Scuse me": same family as a "Sorry!", same shared pause.)
+        if (blocker.boss) {
+          if (this.clock - this.lastSorry >= 2.5 && this.say(a, EXCUSE_BOSS, 12)) this.lastSorry = this.clock;
+        }
         else if (blocker.role !== 'fixed' && a.prio < blocker.prio && this.memo(blocker.who).yieldFor !== a) {
           m.yieldFor = blocker;
           m.yieldUntil = this.clock + YIELD;
@@ -624,6 +627,8 @@ export class Crowd {
     out.length = 0;
     const cx = Math.floor(p.x / CELL);
     const cz = Math.floor(p.z / CELL);
+    // (Someone flung to infinity would never leave this loop.)
+    if (!Number.isFinite(cx) || !Number.isFinite(cz)) return out;
     for (let ix = cx - 1; ix <= cx + 1; ix++) {
       for (let iz = cz - 1; iz <= cz + 1; iz++) {
         const list = this.cells.get(ix * 4096 + iz);

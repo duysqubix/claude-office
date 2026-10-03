@@ -213,8 +213,16 @@ function loginShell(env: NodeJS.ProcessEnv): string {
  * started the first time someone opens it. Named and stamped with this office's port, so two
  * offices never share one and each closes only its own (see listShells). Returns the tmux name.
  */
-export function ensureShell(sessionId: string, cwd: string): Promise<string> {
-  return ensureLoginShell(shellName(sessionId), cwd, `CLAUDE_OFFICE_SHELL=${sessionId}`);
+export async function ensureShell(sessionId: string, cwd: string): Promise<string> {
+  const name = shellName(sessionId);
+  // Their shell from before shells were named per office (1.0.1), if this office opened it:
+  // it carries on under the new name instead of being left behind.
+  const old = TMUX_PREFIX + sessionId.slice(0, 8).toLowerCase() + '-sh';
+  const env = await stamps(old);
+  if (Number(env?.get('CLAUDE_OFFICE_PORT')) === PORT && env?.get('CLAUDE_OFFICE_SHELL')?.toLowerCase() === sessionId.toLowerCase()) {
+    await tmux(['rename-session', '-t', `=${old}`, name]);
+  }
+  return ensureLoginShell(name, cwd, `CLAUDE_OFFICE_SHELL=${sessionId}`);
 }
 
 /**

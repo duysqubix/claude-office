@@ -271,7 +271,88 @@ try {
     check('busy yard: nobody overlaps more than 10 cm for more than 0.3 s', !busy.over.length, `${busy.over.slice(0, 4).join(' | ')} worst ${(busy.worst * 100) | 0} cm`);
     check('busy yard: nobody walks in place', !busy.inPlace.length, busy.inPlace.join(', '));
     check('busy yard: nobody stuck on their way somewhere (40 s+)', !busy.long.length, JSON.stringify(busy.long));
-    check('busy yard: neighbours get chatting (side by side, at a table, on the move)', busy.chats.length > 0, busy.chats.slice(0, 4).join(', '));
+    console.log(`      busy yard: chats ${busy.chats.slice(0, 4).join(', ') || 'none'}`);
+
+    // Two people on one bench (or at the table, on the blanket): before long, they're chatting.
+    // Up to 90 office seconds (walking there and sitting down included), so it never just
+    // misses a window, and it still fails if chats never start.
+    const chat = await page.evaluate(async () => {
+      const o = window.office;
+      const y = o.regulars.yard;
+      const sleep = (x) => new Promise((r) => setTimeout(r, x));
+      // A bench (or table, blanket) nobody's at: the two of them are its only neighbours.
+      const groups = new Map();
+      for (const st of y.seats) if (st.group && st.pose !== 'lie') groups.set(st.group, [...(groups.get(st.group) ?? []), st]);
+      const empty = (g) => [...y.seats, ...y.stands].every((sp) => sp.group !== g || !sp.by);
+      const pair = [...groups.entries()].find(([g, seats]) => seats.length >= 2 && empty(g)) ?? [...groups.entries()].find(([, seats]) => seats.filter((st) => !st.by).length >= 2);
+      for (let i = 0; i < 2 && y.list().filter((v) => v.holdsDesk).length < 2; i++) y.spawn(true);
+      const people = y.list().filter((v) => v.holdsDesk && !v.buddy).slice(0, 2);
+      if (!pair || people.length < 2) return { error: 'no free pair of seats, or not two people', pair: !!pair, people: people.length };
+      const [group, seats] = pair;
+      const [s1, s2] = seats.filter((st) => !st.by);
+      // Not off home halfway through.
+      for (const vis of y.visits) if (people.includes(vis.v)) vis.leaveAt = Math.max(vis.leaveAt, y.clock + 1000);
+      people[0].go({ kind: 'seat', seat: s1, seconds: 600 });
+      people[1].go({ kind: 'seat', seat: s2, seconds: 600 });
+      const c0 = o.regulars.clock;
+      while (o.regulars.clock - c0 < 90) {
+        // (Usually with each other; someone else turning up at the same table counts too.)
+        const talking = people.find((v) => v.buddy && (v.quipping || v.buddy.quipping));
+        if (talking) return { group, names: people.map((v) => v.name), chatted: true, with: [talking.name, talking.buddy.name], after: +(o.regulars.clock - c0).toFixed(1) };
+        await sleep(100);
+      }
+      return { group, names: people.map((v) => v.name), chatted: false, seated: people.map((v) => v.seated) };
+    });
+    check('neighbours get chatting (two side by side, within 90 s of being sent there)', chat.chatted === true, JSON.stringify(chat));
+
+    // A full yard, one of them off home and someone new on the way in: nobody else gets sent
+    // home (counting the one walking out as one too many used to empty the whole yard).
+    const churn = await page.evaluate(async () => {
+      const o = window.office;
+      const y = o.regulars.yard;
+      const sleep = (x) => new Promise((r) => setTimeout(r, x));
+      for (let i = 0; i < 10 && y.staying().length < y.want; i++) y.spawn(true);
+      // Nobody's break ends by itself during the check.
+      for (const s of y.visits) s.leaveAt = Math.max(s.leaveAt, y.clock + 1000);
+      const one = y.list().find((v) => v.holdsDesk);
+      one.goHomeByGate();
+      y.arriveIn = 0;
+      const c0 = o.regulars.clock;
+      while (o.regulars.clock - c0 < 8) await sleep(100);
+      return { want: y.want, staying: y.staying().length, alsoLeaving: y.list().filter((v) => v !== one && !v.holdsDesk).map((v) => v.name) };
+    });
+    check('a full yard: one off home and one new in, and nobody else is sent home', churn.alsoLeaving.length === 0 && churn.staying === churn.want, JSON.stringify(churn));
+
+    // Sent somewhere, then straight home (the 9 pm trim, Lively → Some): every spot comes back,
+    // the one they were in and the one they'd been sent to, lying down or not.
+    const leak = await page.evaluate(async () => {
+      const o = window.office;
+      const y = o.regulars.yard;
+      const sleep = (x) => new Promise((r) => setTimeout(r, x));
+      const out = [];
+      for (const pose of ['lie', 'sit']) {
+        // Seat someone (lying down on a lounger or the hammock, or sitting) and let them settle.
+        const v = y.list().find((x) => x.holdsDesk && !x.atDesk && x.phase === 'away') ?? y.list().find((x) => x.holdsDesk);
+        const seat = y.seats.find((st) => !st.by && st.pose === pose);
+        const stand = y.stands.find((st) => !st.by);
+        if (!v || !seat || !stand) {
+          out.push({ pose, error: 'nobody free, or no free seat or stand' });
+          continue;
+        }
+        v.go({ kind: 'seat', seat, seconds: 300 });
+        let c0 = o.regulars.clock;
+        while (!(v.seated && (pose !== 'lie' || v.lying > 0.9)) && o.regulars.clock - c0 < 60) await sleep(100);
+        const settled = v.seated;
+        // Off somewhere else, and in the same breath, home.
+        v.go({ kind: 'stand', stand, task: 'look', seconds: 30 });
+        v.goHomeByGate();
+        c0 = o.regulars.clock;
+        while (o.regulars.visitors().includes(v) && o.regulars.clock - c0 < 60) await sleep(200);
+        out.push({ pose, settled, gone: !o.regulars.visitors().includes(v), held: [...y.seats, ...y.stands].filter((st) => st.by === v).length });
+      }
+      return out;
+    });
+    check('sent somewhere and then home at once, they give every spot back (lying down and sitting)', leak.length === 2 && leak.every((l) => l.settled && l.gone && l.held === 0), JSON.stringify(leak));
 
     // Off: everyone heads out by the gate.
     const off = await page.evaluate(async () => {
@@ -292,6 +373,11 @@ try {
       };
     });
     check('Off: they all go home, out by the gate', off.left === 0 && off.viaGate && off.checked > 0, JSON.stringify(off));
+    const held = await page.evaluate(() => {
+      const y = window.office.regulars.yard;
+      return [...y.seats, ...y.stands].filter((st) => st.by && !window.office.regulars.crew().includes(st.by)).length;
+    });
+    check('…and every seat and stand in the yard is free again', held === 0, `${held} still held`);
     check('lively: no page errors', !errors(logs).length, errors(logs).join(' | '));
     await page.close();
   }

@@ -210,6 +210,31 @@ try {
     await page.close();
   }
 
+  // ------------------------------------------------------------------ a shell at a desk this page hasn't built
+  {
+    // A busy day grew the office, you left a shell at one of its last desks, and the page was
+    // reloaded once it was quiet again: the office builds up to that desk, so you can get to it.
+    const { page, logs } = await open(`${BASE}/?demo=1&quiet=1&debug=1&seed=11&regulars=off`);
+    const grown = await page.evaluate(() => {
+      const o = window.office;
+      const before = o.world.desks.length;
+      const desk = before + 2;
+      o.director.hotDesks.set([desk]);
+      return { before, desk, after: o.world.desks.length };
+    });
+    await wait(600);
+    const painted = await page.evaluate((i) => window.office.director.deskKeys.get(i), grown.desk);
+    check('a hot desk past the desks built: the office grows to it, and it shows as a hot desk', grown.after > grown.desk && painted === 'hot', JSON.stringify({ ...grown, painted }));
+    const { said, m } = await sitDown(page, grown.desk);
+    check('…and you can sit at it again', said === 'Use the computer' && m.open && m.yours === grown.desk, JSON.stringify({ said, open: m.open, yours: m.yours }));
+    await clickButton(page, 'Shut down');
+    await wait(1000);
+    const after = await look(page, grown.desk);
+    check('…and Shut it down', !after.open && !after.hot.includes(grown.desk), JSON.stringify({ open: after.open, hot: after.hot }));
+    check('no page errors (a desk past the built ones)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
   // ------------------------------------------------------------------ hires never get your desk
   {
     const { page, logs } = await open(`${BASE}/?demo=1&quiet=1&debug=1&seed=11&regulars=off`);

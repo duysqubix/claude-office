@@ -7,7 +7,7 @@
 import { MAX_HOT_DESK } from '../../shared/protocol';
 import type { Director } from './chars/director';
 import type { Regulars } from './chars/regulars';
-import type { DeskSlot } from './world/types';
+import type { DeskSlot, World } from './world/types';
 
 /** The E prompt at a desk nobody is using. */
 export const USE_COMPUTER = 'Use the computer';
@@ -22,6 +22,7 @@ export class HotDesks {
   private mine: number | null = null;
 
   constructor(
+    private world: World,
     private director: Director,
     private regulars: Regulars,
   ) {}
@@ -32,6 +33,10 @@ export class HotDesks {
    */
   set(open: readonly number[]): void {
     this.hot = new Set(open);
+    // A shell outlives the desk it was opened at when a busy office grew, then the page was
+    // reloaded once it was quieter: build up to it again, so every running shell has its desk
+    // (its nameplate, and a way to sit down and Shut down).
+    if (open.length) this.world.ensureDesks(Math.max(...open) + 1);
     const held = this.regulars.holding();
     for (const i of this.hot) if (held.has(i)) this.regulars.makeRoom(i);
     this.director.refreshDesks();

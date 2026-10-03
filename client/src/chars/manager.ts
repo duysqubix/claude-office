@@ -163,9 +163,13 @@ export class Manager {
     return this.path !== null;
   }
 
-  /** On an auto-walk, or just off one (turning to face whoever it was to). */
+  /**
+   * On an auto-walk, or just off one and still turning to face whoever it was to. Not once you
+   * steer yourself: then the heading follows your keys (and the view), and a view chasing it
+   * would spin.
+   */
   get walkSettling(): boolean {
-    return this.path !== null || this.sinceWalk < 1.2;
+    return this.path !== null || (this.sinceWalk < 1.2 && this.faceYaw !== null);
   }
 
   /** The heading the body is turning to (not where it is mid-turn): what a following view aims at. */
@@ -248,6 +252,7 @@ export class Manager {
     if (hasInput && !this.frozen) {
       this.cancelWalk();
       this.faceYaw = null;
+      this.sinceWalk = Infinity;
     }
     let run = intent.run;
     _d.set(0, 0, 0);

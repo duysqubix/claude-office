@@ -1,7 +1,9 @@
 // Camera checks (run by scripts/ui-check.mjs), in the demo office (?demo=1): walking or running
 // through the front door, in and out, the third-person camera glides through after the manager:
 // it never drops onto him (stays a couple of metres back, never down at doormat height), he
-// never dissolves, and once he's well past the door it's on his side of the wall again.
+// never dissolves, and once he's well past the door it's on his side of the wall again. And in
+// first person, taking over an auto-walk with a key never spins the view (it stays yours), and
+// your body never flashes up: not on V from a camera crowded into him, not turning by a wall.
 //   GAME_BASE=http://127.0.0.1:4778 node scripts/ui-check/camera.mjs
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,6 +16,8 @@ const executablePath = [process.env.CHROME_PATH, '/Applications/Google Chrome.ap
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const check = (name, ok, detail = '') => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
 
 /** A demo page that never reports presence, never hot-reloads and never POSTs. */
 async function open(url) {
@@ -43,6 +47,8 @@ async function open(url) {
   });
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
   await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 30_000 });
+  // Once it's loaded (a throttled page never goes network-idle).
+  if (THROTTLE > 1) await (await page.target().createCDPSession()).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   await wait(1500);
   return { page, logs };
 }
@@ -84,14 +90,138 @@ async function cross(page, ms, run) {
   });
 }
 
+/**
+ * First person: how far the view turns (summed every frame, so a full spin counts) while `key`
+ * is held for 1 s, straight away or after starting an auto-walk across the office.
+ */
+async function turnWhileHeld(page, key, afterWalk) {
+  await page.evaluate((afterWalk) => {
+    const o = window.office;
+    o.panels.close();
+    o.manager.cancelWalk();
+    o.manager.teleport(window.__start.clone(), 0);
+    o.camera.yaw = Math.PI;
+    if (afterWalk) {
+      const far = o.director.list().filter((e) => e.seated).sort((a, b) => b.position.distanceTo(o.manager.position) - a.position.distanceTo(o.manager.position))[0];
+      o.panels.deps.actions.walkTo(far.data.sessionId);
+    }
+  }, afterWalk);
+  await wait(afterWalk ? 600 : 300);
+  await page.evaluate(() => {
+    const c = window.office.camera;
+    const W = (window.__turn = { total: 0, last: c.yaw, go: true });
+    const tick = () => {
+      if (!W.go) return;
+      let d = (c.yaw - W.last) % (Math.PI * 2);
+      if (d > Math.PI) d -= Math.PI * 2;
+      if (d < -Math.PI) d += Math.PI * 2;
+      W.total += Math.abs(d);
+      W.last = c.yaw;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.keyboard.down(key);
+  await wait(1000);
+  await page.keyboard.up(key);
+  await wait(400);
+  return page.evaluate(() => {
+    window.__turn.go = false;
+    return Math.round((window.__turn.total * 180) / Math.PI);
+  });
+}
+
+/**
+ * Back to a wall with the camera swung into it (it crowds in and he dissolves), then V, then in
+ * first person the view swung from the wall to the room and back (the camera behind you crowds
+ * in and clears). Counts the frames that draw his body on the way in and in first person.
+ */
+async function bodyIntoFirstPerson(page) {
+  await page.evaluate(async () => {
+    const o = window.office;
+    const p = o.manager.position.clone();
+    let x = 0;
+    while (x < 40 && o.world.isInside(p.set(x, 1, 0))) x += 0.05;
+    o.manager.teleport(p.set(x - 0.35, 0, 0), -Math.PI / 2);
+    o.camera.yaw = -Math.PI / 2;
+    await new Promise((r) => setTimeout(r, 1500));
+    const W = (window.__body = { s: [], go: true, phase: 'in' });
+    const tick = () => {
+      if (!W.go) return;
+      W.s.push({ phase: W.phase, fp: o.camera.firstPerson, shown: o.manager.rig.root.visible, dist: o.camera.distance });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const crowded = await page.evaluate(async () => {
+    const o = window.office;
+    o.camera.yaw = Math.PI / 2;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 1500) {
+      await new Promise((r) => requestAnimationFrame(r));
+      if (o.camera.distance < 1.05 && !o.manager.rig.root.visible) return true;
+    }
+    return false;
+  });
+  await page.keyboard.press('KeyV');
+  await wait(900);
+  await page.evaluate(async () => {
+    const o = window.office;
+    window.__body.phase = 'turn';
+    const t0 = performance.now();
+    await new Promise((done) => {
+      const swing = () => {
+        const t = (performance.now() - t0) / 3000;
+        if (t >= 1) return done();
+        o.camera.yaw = Math.PI / 2 - Math.PI * Math.sin(Math.PI * t);
+        requestAnimationFrame(swing);
+      };
+      requestAnimationFrame(swing);
+    });
+  });
+  return page.evaluate((crowded) => {
+    window.__body.go = false;
+    const s = window.__body.s;
+    const turn = s.filter((x) => x.phase === 'turn');
+    return {
+      crowded,
+      goingIn: s.filter((x) => x.phase === 'in' && x.fp > 0 && x.fp < 0.5 && x.shown).length,
+      inFirst: s.filter((x) => x.phase === 'in' && x.fp >= 0.5 && x.shown).length,
+      turning: turn.filter((x) => x.fp >= 0.5 && x.shown).length,
+      turnDist: [Math.min(...turn.map((x) => x.dist)), Math.max(...turn.map((x) => x.dist))].map((d) => +d.toFixed(2)),
+    };
+  }, crowded);
+}
+
 try {
+  {
+    const { page, logs } = await open(`${BASE}/?demo=1&quiet=1&debug=1&regulars=off&view=third`);
+    await page.mouse.move(640, 400);
+    const r = await bodyIntoFirstPerson(page);
+    check('V from a camera crowded into him: he never shows on the way into first person', r.crowded && r.goingIn === 0 && r.inFirst === 0, JSON.stringify(r));
+    check('first person by a wall: turning (the camera behind you crowds in and clears) never draws him', r.turnDist[0] < 1.05 && r.turnDist[1] > 1.25 && r.turning === 0, JSON.stringify(r));
+    check('no page errors (body in first person)', !logs.length, logs.join(' | '));
+    await page.close();
+  }
+  {
+    const { page, logs } = await open(`${BASE}/?demo=1&quiet=1&debug=1&regulars=off&view=first`);
+    await page.evaluate(() => (window.__start = window.office.manager.position.clone()));
+    await page.mouse.move(640, 400);
+    for (const key of ['KeyD', 'KeyS']) {
+      const plain = await turnWhileHeld(page, key, false);
+      const takeover = await turnWhileHeld(page, key, true);
+      check(`first person: ${key.slice(3)} mid auto-walk turns the view no more than ${key.slice(3)} alone (no spin)`, takeover <= plain + 20, `${takeover}° vs ${plain}°`);
+    }
+    check('no page errors (first-person takeover)', !logs.length, logs.join(' | '));
+    await page.close();
+  }
   for (const [label, at, yaw, run] of [
     ['walking out', '0,5', 180, false],
     ['running out', '0,5', 180, true],
     ['walking in', '0,15', 0, false],
     ['running in', '0,15', 0, true],
   ]) {
-    const { page, logs } = await open(`${BASE}/?demo=1&quiet=1&debug=1&regulars=off&at=${at}&yaw=${yaw}`);
+    const { page, logs } = await open(`${BASE}/?demo=1&quiet=1&debug=1&regulars=off&view=third&at=${at}&yaw=${yaw}`);
     await page.mouse.move(640, 400);
     const r = await cross(page, run ? 3200 : 4600, run);
     check(`${label} through the front door: the camera glides after him, never down onto him`, r.crossed && r.minDist >= 1.6 && r.minY >= 1.4 && r.hidden === 0, JSON.stringify(r));

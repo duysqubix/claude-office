@@ -136,14 +136,13 @@ export class TerminalView {
   }
 
   /**
-   * Let keys through (after the sit-down's bezel opened, or the quick look's beat) and take focus,
-   * unless you moved on during the hold (to the tabs, say): that stays where you put it.
+   * Let keys through (after the sit-down's bezel opened, or the quick look's beat). It never moves
+   * the keyboard: whoever opened it on purpose focused it already, and one that a roster update
+   * rebuilt (someone moving into the office) must never take keys typed for something else.
    */
   release(): void {
     this.live = true;
     this.fit();
-    const at = document.activeElement;
-    if (!at || at === document.body || this.el.contains(at)) this.focus();
   }
 
   focus(): void {
@@ -339,6 +338,8 @@ export class TerminalOverlay {
     /** When you last pressed a key here: standing you up waits for the keyboard to go quiet. */
     let lastKeyAt = 0;
     const statusOf: Partial<Record<TermKind, TermStatus>> = {};
+    /** A tab whose terminal the office refused says why in the chin (until it connects after all). */
+    const refusedNote: Partial<Record<TermKind, string>> = {};
     const status = el('span', { class: 'term-status' }, STATUS_TEXT.connecting);
     const led = el('i', { class: 'term-led', attrs: { 'aria-hidden': 'true' } });
     const retry = button('Try again', { small: true, onClick: () => this.views[tab]?.retry() });
@@ -367,7 +368,7 @@ export class TerminalOverlay {
       const s = statusOf[tab];
       const shell = tab === 'shell';
       const noClaude = !shell && !who.hosted;
-      status.textContent = s === 'ended' && shell ? 'Shell closed' : STATUS_TEXT[s ?? 'connecting'];
+      status.textContent = refusedNote[tab] ?? (s === 'ended' && shell ? 'Shell closed' : STATUS_TEXT[s ?? 'connecting']);
       status.hidden = led.hidden = noClaude;
       led.classList.toggle('on', s === 'connected');
       retry.hidden = noClaude || s !== 'lost';
@@ -401,29 +402,26 @@ export class TerminalOverlay {
         },
         onStatus: (s) => {
           statusOf[kind] = s;
+          if (s === 'connected') delete refusedNote[kind];
           if (kind === tab) chrome();
         },
         onEnd: (why, reason) => {
-          if (kind === 'shell') {
-            // No shell (their folder is gone, say): with Claude here, say so in the chin; without, stand up.
-            if (why === 'refused' && !who.hosted) {
-              this.events.onNotice?.(`Can't use ${who.displayName}'s shell${reason ? `: ${reason}` : ''}`, 'bad');
-              this.close();
-            } else if (why === 'refused') {
-              statusOf.shell = 'lost';
-              if (tab === 'shell') {
-                chrome();
-                status.textContent = `No shell${reason ? `: ${reason}` : ''}`;
-              }
-            }
-            // An exited shell stays on screen; New shell opens another.
-            return;
-          }
+          // Refused (their folder is gone, say): with the other tab's terminal here, that tab says so
+          // in the chin and you stay seated; with nothing else here, stand up.
           if (why === 'refused') {
-            this.events.onNotice?.(`Can't use ${who.displayName}'s computer${reason ? `: ${reason}` : ''}`, 'bad');
+            const other = this.views[kind === 'claude' ? 'shell' : 'claude'];
+            if (other || (kind === 'shell' && who.hosted)) {
+              statusOf[kind] = 'lost';
+              refusedNote[kind] = `${kind === 'shell' ? 'No shell' : "Can't show Claude"}${reason ? `: ${reason}` : ''}`;
+              if (kind === tab) chrome();
+              return;
+            }
+            this.events.onNotice?.(`Can't use ${who.displayName}'s ${kind === 'shell' ? 'shell' : 'computer'}${reason ? `: ${reason}` : ''}`, 'bad');
             this.close();
             return;
           }
+          // An exited shell stays on screen; New shell opens another.
+          if (kind === 'shell') return;
           // The chin and the terminal say so; the office's own "clocked out" toast follows. You
           // stand up once you stop typing; in their Shell you stay until you're done there.
           claudeEnded = true;
@@ -467,6 +465,11 @@ export class TerminalOverlay {
       standing = true;
       const check = () => {
         if (!this.layer || this.layer !== layer) return;
+        // Gone to their Shell meanwhile: you stay; their Claude tab arms this again (show()).
+        if (tab !== 'claude') {
+          standing = false;
+          return;
+        }
         const quiet = performance.now() - lastKeyAt;
         if (quiet >= ENDED_MS) this.close();
         else this.timers.push(window.setTimeout(check, ENDED_MS - quiet + 50));
