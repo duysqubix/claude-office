@@ -2,11 +2,13 @@
 // the ceiling) or first person (pointer-lock mouse look, V to toggle, wheel all the way in),
 // plus eased "shots" (over the shoulder at a desk, debug close-ups) that override both.
 import * as THREE from 'three';
-import { clamp, damp, smoothstep } from './chars/spring';
+import { angleDelta, clamp, damp, smoothstep } from './chars/spring';
 import type { World } from './world/types';
 
 const DEG = Math.PI / 180;
 const VIEW_KEY = 'claude-office:view';
+/** Crossing the doorway, the camera may stay this far back on the far side rather than come closer. */
+const DOOR_BACK = 2.0;
 const EYE_HEIGHT = 1.2;
 
 export type ViewMode = 'third' | 'first';
@@ -52,6 +54,8 @@ export class CameraRig {
   private focus = new THREE.Vector3();
   private focusReady = false;
   private shot: CameraShot | null = null;
+  /** When the mouse last looked around (an auto-walk leaves the view alone for a moment after). */
+  private lookedAt = -Infinity;
   private lastShot: CameraShot | null = null;
   private blend = 0;
   private dragging = false;
@@ -163,6 +167,7 @@ export class CameraRig {
   }
 
   private look(dx: number, dy: number, k: number): void {
+    this.lookedAt = performance.now();
     this.yaw -= dx * k;
     if (this.mode === 'first') this.fpPitch = clamp(this.fpPitch + dy * k, -80 * DEG, 80 * DEG);
     else this.pitch = clamp(this.pitch + dy * k * 0.8, 20 * DEG, this.maxPitch());
@@ -182,6 +187,16 @@ export class CameraRig {
   /** Indoors the default view is a lower, longer shot (the ceiling is only ~4 m up). */
   get indoorDefaults(): { pitch: number; dist: number } {
     return { pitch: 24 * DEG, dist: 7.5 };
+  }
+
+  /**
+   * First person on an auto-walk: the view turns to where you're walking (`heading`, the body's
+   * yaw), level-ish, so you arrive looking at whoever it's to. Not while you're looking around.
+   */
+  lookAlong(heading: number, dt: number): void {
+    if (this.mode !== 'first' || performance.now() - this.lookedAt < 800) return;
+    this.yaw += angleDelta(this.yaw, heading + Math.PI) * damp(4, dt);
+    this.fpPitch += (8 * DEG - this.fpPitch) * damp(2, dt);
   }
 
   /** Ease to a fixed shot, or back to following with null. */
@@ -254,10 +269,15 @@ export class CameraRig {
       }
     }
     this.lift += (bestLift - this.lift) * damp(this.lift < bestLift ? 8 : 4, dt);
-    // Measure along the exact ray the camera sits on this frame (the lift eases), then pull
-    // in at once (never a frame through a wall or out the door) and ease back out gently.
-    const want = this.collide(this.focus, this.orbitDir(this.sPitch + this.lift), this.sDist);
-    this.cDist = want < this.cDist ? want : Math.min(want, this.cDist + (want - this.cDist) * damp(2.5, dt));
+    // Measure along the exact ray the camera sits on this frame (the lift eases). A wall or the
+    // ceiling pulls the camera in at once (never a frame through one), and it eases back out.
+    const hard = this.collide(this.focus, this.orbitDir(this.sPitch + this.lift), this.sDist);
+    // The doorway has no wall to stop the camera: it stays on the manager's side of the front
+    // wall, except right as they cross, when it keeps DOOR_BACK behind them on the far side and
+    // glides through after them (instead of dropping onto their head).
+    const want = Math.min(hard, Math.max(this.sameSide(this.focus, _dir, hard), DOOR_BACK));
+    if (hard < this.cDist) this.cDist = hard;
+    else this.cDist += (want - this.cDist) * damp(want < this.cDist ? 4 : 2.5, dt);
     _pos.copy(_dir).multiplyScalar(this.cDist).add(this.focus);
     _look.copy(this.focus);
 
@@ -320,26 +340,31 @@ export class CameraRig {
     const inside = this.world.isInside?.(from) ?? false;
     const room = this.world.interior;
     if (inside && room && dir.y > 1e-3) {
-      // Stay a little under the ceiling.
-      best = Math.min(best, (room.ceilingY - 0.3 - from.y) / dir.y);
+      // Stay a little under the ceiling (not out past the doorway, where there isn't one).
+      const under = (room.ceilingY - 0.3 - from.y) / dir.y;
+      if (under < best && this.world.isInside?.(_origin.copy(dir).multiplyScalar(under).add(from))) best = under;
     }
     // Right up against a wall the camera may come very close (the manager fades).
-    best = Math.max(0.15, best);
-    // Never end up on the other side of a wall from the manager (the doorway gap has no
-    // blocker to stop the rays): bisect for the farthest point still on their side.
-    if (this.world.isInside) {
-      const sameSide = (d: number) => this.world.isInside(_origin.copy(dir).multiplyScalar(d).add(from)) === inside;
-      if (!sameSide(best)) {
-        let lo = 0.15;
-        let hi = best;
-        for (let i = 0; i < 12; i++) {
-          const mid = (lo + hi) / 2;
-          if (sameSide(mid)) lo = mid;
-          else hi = mid;
-        }
-        best = lo;
-      }
+    return Math.max(0.15, best);
+  }
+
+  /**
+   * How far along `dir` (up to `upTo`) the camera can go and still be on the manager's side of
+   * the front wall, inside or out. Only the doorway lets a ray through to the other side.
+   */
+  private sameSide(from: THREE.Vector3, dir: THREE.Vector3, upTo: number): number {
+    const world = this.world;
+    if (!world.isInside) return upTo;
+    const inside = world.isInside(from);
+    const ours = (d: number) => world.isInside!(_origin.copy(dir).multiplyScalar(d).add(from)) === inside;
+    if (ours(upTo)) return upTo;
+    let lo = 0.15;
+    let hi = upTo;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (ours(mid)) lo = mid;
+      else hi = mid;
     }
-    return best;
+    return lo;
   }
 }

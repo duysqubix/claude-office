@@ -9,7 +9,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { WebSocketServer, type RawData, type WebSocket } from 'ws';
 import type { ViteDevServer } from 'vite';
-import { HIRE_PERMISSION_MODES } from '../shared/protocol';
+import { HIRE_PERMISSION_MODES, MAX_HOT_DESK } from '../shared/protocol';
 import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, ServerMessage } from '../shared/protocol';
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
@@ -20,7 +20,7 @@ import { attachTerminal } from './terminal';
 import { run } from './exec';
 import { ShellKeeper } from './shells';
 import { ThoughtService } from './thoughts';
-import { assertDirectory, ensureShell, hire, initTmux, interrupt, kill, newSessionId, pasteSafe, rehire, say } from './tmux';
+import { assertDirectory, closeDesk, ensureDesk, ensureShell, hire, initTmux, interrupt, kill, listDesks, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -32,7 +32,29 @@ const MAX_BODY = 64 * 1024;
 /** Hook payloads carry full tool input (a Write can hold a whole file). */
 const MAX_HOOK_BODY = 4 * 1024 * 1024;
 const MAX_TEXT = 8000;
-const CSP_PROD = "frame-ancestors 'none'; script-src 'self'; object-src 'none'; base-uri 'none'";
+/** Biggest terminal message (a paste), and most a terminal may send while its shell starts. */
+const MAX_TERM_INPUT = 1024 * 1024;
+/** Terminals open at once, each a tmux client in a pty: far more than anyone sits at. */
+const MAX_TERMINALS = 32;
+/**
+ * The built game has no inline script and only talks to this server: fetches, and WebSockets
+ * to the host it was loaded from. Model textures are blob: URLs that three.js fetches or loads
+ * as images; faces and icons are data: SVGs, and the build inlines small font files as data:.
+ * Inline styles stay: the UI sets style attributes and xterm.js adds <style> elements.
+ */
+const CSP_PROD = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  // Spotify (v1.2): its Web API host goes here too (https://api.spotify.com); cover art and its
+  // player SDK would need img-src, script-src and frame-src entries as well.
+  `connect-src 'self' blob: ${[...ALLOWED_HOSTS].map((h) => `ws://${h}`).join(' ')}`,
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -85,7 +107,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
   // Nobody may frame the office: an invisible frame over a decoy button could click Allow for
-  // you. The built game has no inline script, so production also pins scripts to our origin.
+  // you. Production also pins scripts, fetches and sockets to our origin (CSP_PROD).
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Content-Security-Policy', IS_PROD ? CSP_PROD : "frame-ancestors 'none'");
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
@@ -217,6 +239,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       await say(tmuxName, text);
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
+    case '/api/desk/close': {
+      const desk = typeof body.desk === 'number' ? deskFrom(String(body.desk)) : null;
+      if (desk === null) throw new HttpError(400, `desk must be a whole number 0 to ${MAX_HOT_DESK}`);
+      await closeDesk(desk);
+      await pushDesks();
+      return sendJson(res, 200, { ok: true } satisfies ApiResult);
+    }
   }
   throw new HttpError(404, 'Not found');
 }
@@ -224,6 +253,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
 function uuidFrom(v: unknown): string {
   if (typeof v !== 'string' || !UUID.test(v)) throw new HttpError(400, 'Bad session id');
   return v.toLowerCase();
+}
+
+/** A hot desk's number from plain digits: a whole number 0 to 99 ("03", "+3", "3.0" and "1e1" are not), else null. */
+function deskFrom(v: string | null): number | null {
+  if (v === null || !/^(?:0|[1-9][0-9]?)$/.test(v)) return null;
+  const desk = Number(v);
+  return desk <= MAX_HOT_DESK ? desk : null;
 }
 
 function expandHome(p: string): string {
@@ -285,8 +321,10 @@ async function serveStatic(res: ServerResponse, pathname: string): Promise<void>
 
 // ── WebSockets ────────────────────────────────────────────────────────────────
 
-const rosterSockets = new WebSocketServer({ noServer: true });
-const termSockets = new WebSocketServer({ noServer: true });
+// A bigger message closes its socket: the game sends small presence JSON on /ws, and keys,
+// pastes and resizes on /term.
+const rosterSockets = new WebSocketServer({ noServer: true, maxPayload: MAX_BODY });
+const termSockets = new WebSocketServer({ noServer: true, maxPayload: MAX_TERM_INPUT });
 const alive = new WeakMap<WebSocket, boolean>();
 
 const send = (ws: WebSocket, msg: ServerMessage) => {
@@ -319,9 +357,29 @@ rosterSockets.on('connection', (ws) => {
     viewers.delete(ws);
   });
   send(ws, { type: 'hello', version: VERSION, home: HOME });
+  // Hot desks before the roster: regulars sit down once the first roster is in, and never at one.
+  send(ws, { type: 'desks', open: openDesks });
   send(ws, { type: 'roster', employees: roster.employees, now: Date.now() });
   void stats.build(roster.employees, roster).then((s) => send(ws, { type: 'stats', stats: s }));
 });
+
+// Hot desks: which desks have a shell running. Checked when a desk's terminal opens or closes
+// (`exit` ends its attach), on Shut down, and every 5 s for a shell closed from outside the
+// game; pushed whenever the set changes. One check at a time, so an older one never lands last.
+let openDesks: number[] = [];
+let deskCheck: Promise<void> = Promise.resolve();
+function pushDesks(): Promise<void> {
+  deskCheck = deskCheck
+    .then(async () => {
+      const open = await listDesks();
+      if (open.join() === openDesks.join()) return;
+      openDesks = open;
+      broadcast({ type: 'desks', open });
+    })
+    .catch((err: unknown) => console.warn('[desks]', err));
+  return deskCheck;
+}
+const deskTimer = setInterval(() => void pushDesks(), 5000);
 
 // Thought bubbles: only while someone is actually looking, with thoughts on, and was around lately.
 const viewers = new Map<WebSocket, { visible: boolean; lastInputAt: number; thoughts: boolean }>();
@@ -384,17 +442,42 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
   }
   const id = url.searchParams.get('id') ?? '';
   const sessionId = UUID.test(id) ? id.toLowerCase() : '';
-  // Their Claude session (hosted only), or their shell (anyone in the office).
+  // Their Claude session (hosted only), their shell (anyone in the office), or a hot desk's shell.
   const kind = url.searchParams.get('kind') ?? 'claude';
+  const desk = deskFrom(url.searchParams.get('desk'));
   const cols = Number(url.searchParams.get('cols'));
   const rows = Number(url.searchParams.get('rows'));
   termSockets.handleUpgrade(req, socket, head, (ws) => {
     // First thing: a malformed frame must close this socket, never crash the office.
     ws.on('error', () => ws.terminate());
+    // Each terminal runs a pty; this socket is already counted.
+    if (termSockets.clients.size > MAX_TERMINALS) {
+      ws.close(1008, 'Too many terminals open');
+      return;
+    }
     if (kind === 'claude') {
       const tmuxName = sessionId ? roster.tmuxNameFor(sessionId) : undefined;
       if (!tmuxName) ws.close(1008, 'Not an office session');
       else attachTerminal(ws, tmuxName, cols, rows);
+      return;
+    }
+    if (kind === 'desk') {
+      if (desk === null) {
+        ws.close(1008, `Desks are numbered 0 to ${MAX_HOT_DESK}`);
+        return;
+      }
+      // Sitting down makes the desk hot; `exit` ends the attach, and then it may not be.
+      ws.on('close', () => void pushDesks());
+      openShell(
+        ws,
+        async () => {
+          const tmuxName = await ensureDesk(desk);
+          void pushDesks();
+          return tmuxName;
+        },
+        cols,
+        rows,
+      );
       return;
     }
     if (kind !== 'shell') {
@@ -406,25 +489,34 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
       ws.close(1008, 'Nobody by that id is in the office');
       return;
     }
-    // Starting their shell takes a moment: keep what the browser sends meanwhile.
-    const early: [RawData, boolean][] = [];
-    const hold = (data: RawData, binary: boolean) => early.push([data, binary]);
-    ws.on('message', hold);
-    ensureShell(who.sessionId, who.cwd).then(
-      (tmuxName) => {
-        ws.off('message', hold);
-        if (ws.readyState !== ws.OPEN) return;
-        attachTerminal(ws, tmuxName, cols, rows);
-        for (const [data, binary] of early) ws.emit('message', data, binary);
-      },
-      (err: unknown) => {
-        // Close reasons are capped at 123 bytes.
-        const why = `No shell: ${err instanceof Error ? err.message : String(err)}`;
-        ws.close(1008, Buffer.from(why).subarray(0, 120).toString());
-      },
-    );
+    openShell(ws, () => ensureShell(who.sessionId, who.cwd), cols, rows);
   });
 });
+
+/** Attach `ws` to the shell `start` finds or starts. Starting one takes a moment: keep what the browser sends meanwhile. */
+function openShell(ws: WebSocket, start: () => Promise<string>, cols: number, rows: number): void {
+  const early: [RawData, boolean][] = [];
+  let held = 0;
+  const hold = (data: RawData, binary: boolean) => {
+    held += Array.isArray(data) ? data.reduce((n, b) => n + b.length, 0) : data.byteLength;
+    if (held > MAX_TERM_INPUT) ws.close(1009, 'Too much input before the shell started');
+    else early.push([data, binary]);
+  };
+  ws.on('message', hold);
+  start().then(
+    (tmuxName) => {
+      ws.off('message', hold);
+      if (ws.readyState !== ws.OPEN) return;
+      attachTerminal(ws, tmuxName, cols, rows);
+      for (const [data, binary] of early) ws.emit('message', data, binary);
+    },
+    (err: unknown) => {
+      // Close reasons are capped at 123 bytes.
+      const why = `No shell: ${err instanceof Error ? err.message : String(err)}`;
+      ws.close(1008, Buffer.from(why).subarray(0, 120).toString());
+    },
+  );
+}
 
 // ── Live model catalog (dev) ─────────────────────────────────────────────────
 // The Blender artists export GLBs, previews and sidecars; regenerate catalog.json whenever
@@ -464,6 +556,8 @@ async function main(): Promise<void> {
   const bins = await initTmux();
   if (!bins.tmux) console.warn('[office] tmux not found on PATH: hiring and terminals are disabled');
   if (!bins.claude) console.warn('[office] claude not found on PATH: hiring is disabled (set CLAUDE_BIN)');
+  // Hot desks left running by the last server are still hot.
+  void pushDesks();
 
   if (!IS_PROD) {
     const { createServer } = await import('vite');
@@ -512,6 +606,7 @@ function shutdown(): void {
   clearInterval(heartbeat);
   clearInterval(statsTimer);
   clearInterval(shellTimer);
+  clearInterval(deskTimer);
   if (catalogTimer) clearInterval(catalogTimer);
   for (const ws of termSockets.clients) ws.close(1001, 'office closing');
   for (const ws of rosterSockets.clients) ws.close(1001, 'office closing');

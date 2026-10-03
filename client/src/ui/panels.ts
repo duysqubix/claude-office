@@ -9,6 +9,8 @@ import { renderAsk, type AskView } from './askpanel';
 import { bus } from './bus';
 import { httpChatApi, openChat, type ChatApi, type ChatMode, type ChatView } from './chatpanel';
 import { button, keyCap, panelShell, personRow } from './components';
+import { soundSettings } from '../audio/controls';
+import { coachDone, coachReset, startCoach } from './coach';
 import { confetti } from './confetti';
 import { ago, doingText, tildify, truncate, waitingLines } from './dom';
 import { el, fmtDuration, fmtMoney, fmtTokens, fmtWait, type Child } from './el';
@@ -29,7 +31,7 @@ export type { PanelId } from './shell';
 export interface PanelActions {
   /** Walk the manager to someone's desk (their panel opens as you set off). */
   walkTo(sessionId: string): void;
-  /** Sit at their computer (hosted only). */
+  /** Sit at their computer (someone in your own terminal: just their Shell tab). */
   sitAt(sessionId: string): void;
   /** An ask was answered in-game (so they can lower their hand right away). */
   answered(sessionId: string, choice: string): void;
@@ -154,6 +156,8 @@ export class PanelHost {
     bus.on('go-to', ({ id }) => this.deps.actions.walkTo(id));
     // Thought bubbles: the saved switch goes out with presence (this runs before backend.start()).
     wireThoughts(this.deps.backend, this.deps.store);
+    // First-run tips (bottom-left), once the office is on screen.
+    startCoach(root, this.deps.store);
     document.documentElement.classList.toggle('co-calm', readCalm());
   }
 
@@ -197,12 +201,14 @@ export class PanelHost {
   openEmployee(sessionId: string, opts: OpenOptions = {}): void {
     this.present(this.employee(sessionId, false), opts);
     this.employeeId = sessionId;
+    coachDone('talk');
   }
 
   /** Their panel with the ask card focused (just their panel when there's nothing to answer). */
   openAsk(sessionId: string, opts: OpenOptions = {}): void {
     this.present(this.employee(sessionId, true), opts);
     this.employeeId = sessionId;
+    coachDone('talk');
   }
 
   /** Talk: the chat with someone (their conversation, a composer, their ask inline). */
@@ -211,6 +217,8 @@ export class PanelHost {
     if (!chat) return;
     this.present(chat, opts);
     this.employeeId = sessionId;
+    coachDone('talk');
+    if (opts.mode === 'terminal') coachDone('peek');
   }
 
   /**
@@ -391,7 +399,9 @@ export class PanelHost {
           { class: 'co-needsnote__text' },
           el('strong', null, said),
           el('span', null, fact),
-          e.hosted ? null : el('span', { class: 'co-muted' }, `They're in your own terminal (${e.project}, pid ${e.pid}). Answer them there.`),
+          e.hosted
+            ? null
+            : el('span', { class: 'co-muted' }, e.otherOffice ? 'They work in another office. Answer them there.' : `They're in your own terminal (${e.project}, pid ${e.pid}). Answer them there.`),
         ),
       );
       if (gotIt) needsNote.append(gotIt);
@@ -437,9 +447,11 @@ export class PanelHost {
 
       note.hidden = e.hosted;
       if (!e.hosted) {
-        note.textContent = e.adopting
-          ? `Moving into the office: they walk in as soon as you type /exit in their terminal (pid ${e.pid}).`
-          : `Started in your own terminal (pid ${e.pid}).`;
+        note.textContent = e.otherOffice
+          ? 'Hired in another office: you can watch them here, and talk to them there.'
+          : e.adopting
+            ? `Moving into the office: they walk in as soon as you type /exit in their terminal (pid ${e.pid}).`
+            : `Started in your own terminal (pid ${e.pid}).`;
       }
     };
 
@@ -456,6 +468,7 @@ export class PanelHost {
       toasts.expect(id, 'leave');
       const r = await backend.fire(id);
       if (r.ok) {
+        bus.emit('sfx', { name: 'wahwah' });
         toasts.show(`${name} packed up and left.`, 'info', 4000, 'Their session has ended.', { who: e });
         if (this.current?.el === panel) this.close();
         return;
@@ -510,7 +523,11 @@ export class PanelHost {
       const talk = button('Talk', { kind: needsSit ? 'secondary' : 'primary', icon: 'chat', key: needsSit || e.ask ? undefined : 'E', onClick: () => this.openChat(id) });
       talk.dataset.action = 'talk';
       if (!e.hosted) {
-        foot.append(talk);
+        // No Claude screen to sit at, but their shell is there.
+        const shellBtn = button('Sit at their computer', { icon: 'terminal', onClick: () => actions.sitAt(id) });
+        shellBtn.dataset.action = 'sit';
+        needsServer(shellBtn);
+        foot.append(shellBtn, talk);
         eButton = e.ask ? null : talk;
         return;
       }
@@ -621,8 +638,10 @@ export class PanelHost {
       dock: true,
       now: () => store.now(),
       mode,
+      home: store.home,
       // Terminal mode widens the panel: keep the edge faces clear of it.
-      onMode: () => {
+      onMode: (m) => {
+        if (m === 'terminal') coachDone('peek');
         if (opened && this.chatView === opened) bus.emit('panel', { name: 'chat', open: true, left: opened.el.offsetLeft, top: opened.el.offsetTop, el: opened.el });
       },
     });
@@ -648,6 +667,13 @@ export class PanelHost {
       focus: () => view.focus(),
       pressE: () => {
         view.focus();
+        return true;
+      },
+      // Esc in the quick look (on its tabs or its buttons) comes back to the chat, as from inside the terminal.
+      escape: () => {
+        if (view.getMode() !== 'terminal') return false;
+        view.setMode('chat');
+        view.el.querySelector<HTMLElement>('.co-panel__title')?.focus({ preventScroll: true });
         return true;
       },
       dispose: () => {
@@ -1039,6 +1065,8 @@ export class PanelHost {
 
   private help(): Panel {
     const shell = panelShell({ title: 'How to manage', theme: 'help', dock: true, onClose: () => this.close() });
+    // The sound section follows the speakers while Help is open, and lets go when it closes.
+    const sound = new AbortController();
     const keys: [string[], string][] = [
       [['W', 'A', 'S', 'D'], 'Walk (the arrows work too)'],
       [['Shift'], 'Run'],
@@ -1046,13 +1074,15 @@ export class PanelHost {
       [['Drag', 'Wheel'], 'Look around, zoom'],
       [['V'], 'First or third person'],
       [['E'], 'Talk to someone, answer them, use reception, the files, the boards, the coffee'],
+      [['E'], 'At an empty desk: use the computer, your own shell in your home folder'],
       [['Q'], 'Go to whoever has needed you longest'],
       [['T'], "Look at someone's live terminal, right where you stand"],
       [['R'], 'Roster'],
       [['H'], 'Hire someone'],
-      [['M'], 'Sound on or off'],
-      [['Esc'], 'Close the panel'],
-      [['Ctrl', ']'], 'Stand up from their computer'],
+      [['M'], 'All sound on or off, music too'],
+      [['Esc'], 'Close the panel. At a computer, Esc goes to the terminal'],
+      [['Ctrl', '`'], 'At their computer: switch between Claude and their shell'],
+      [['Ctrl', ']'], 'Stand up from a computer (or press Stand up)'],
     ];
     const states: [EmployeeState, string][] = [
       ['working', 'Typing, reading, running things, thinking'],
@@ -1096,6 +1126,7 @@ export class PanelHost {
         { class: 'co-rows co-legend' },
         ...states.map(([s, what]) => el('div', { class: 'co-row' }, el('dt', null, el('span', { html: stateBadge(s, true) }), STATE_WORD[s]), el('dd', null, what))),
       ),
+      el('p', { class: 'co-muted' }, '“Hot desk” on a nameplate: your shell is still running at that desk. Press E there to pick up where you left off; Shut down ends it.'),
       el('label', { class: 'co-choice co-choice--toggle' }, calm, el('span', null, 'Calmer motion', el('small', null, 'No bobbing, breathing, wiggles or confetti; pops become fades.'))),
       el(
         'label',
@@ -1103,13 +1134,16 @@ export class PanelHost {
         thoughts,
         el('span', null, 'Thought bubbles', el('small', null, "Now and then someone thinks out loud about what they're doing. Off: nobody does, and the office stops asking for thoughts.")),
       ),
+      // Music and sound (audio/controls.ts): the café music, and the music and sound-effect volumes.
+      soundSettings({ signal: sound.signal }),
       el('h3', { class: 'co-section' }, 'Office regulars'),
       el('p', { class: 'co-muted' }, 'Coworkers who aren’t Claude sessions fill the free desks, and give one up whenever a session needs it.'),
       regulars,
       el('label', { class: 'co-choice co-choice--toggle' }, frontDesk, el('span', null, 'Mabel on the front desk', el('small', null, 'Waves everyone in and out, takes calls. Stays when the regulars are off.'))),
-      el('p', { class: 'co-muted' }, 'Everyone with the orange lanyard is a live Claude Code session on this machine. Sessions you hire here run in tmux, so you can sit at their computer.'),
+      el('div', { class: 'co-help__tips' }, button('Show tips again', { small: true, onClick: () => { this.close(); coachReset(); } })),
+      el('p', { class: 'co-muted' }, "Everyone with the orange lanyard is a live Claude Code session on this machine. Sit at anyone's computer for a shell in their folder; for the ones you hire here (they run in tmux), Claude's own screen too."),
     );
-    return { id: 'help', el: shell.el };
+    return { id: 'help', el: shell.el, dispose: () => sound.abort() };
   }
 
   // -------------------------------------------------------------------------------------

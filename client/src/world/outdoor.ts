@@ -1,20 +1,24 @@
 // Outside: a mown lawn, paved apron and path to the door, doormat, the company sign, faceted
-// low-poly trees and bushes (smooth people against faceted nature), grass
-// tufts along the edges, a bench, a ping-pong table, a hedge around the garden and rolling
-// hills fading into the haze.
+// low-poly bushes (smooth people against faceted nature), grass tufts along the edges, a bench,
+// a ping-pong table, a hedge around the garden and rolling hills fading into the haze. The yard
+// itself (the trail, its stops, the trees and the planting) is in yard.ts.
 import * as THREE from 'three';
 import { PALETTE } from '../style/palette';
 import { Batch, CanvasTex, FONT_FAMILY, fitText, pickR, rng, shade } from './kit';
 import { NAV_BOUNDS, OFFICE } from './layout';
 import { aabb, footprint, type WorldCtx } from './ctx';
 import { sparkle } from './screens';
-import { staticProp, sway, tallProp } from './props';
+import { staticProp, tallProp } from './props';
 import { findNode } from '../models';
 import { disposeGroup, disposeInstanced, instancedModel, ownCanvas, placement, swapModel, type InstancedModel } from './modelkit';
+import { buildYard, type Outdoor } from './yard';
 
 const OUT_Z = OFFICE.halfD + OFFICE.wallT;
-/** Garden trees cycle through the catalog's three kinds. */
-const TREE_IDS = ['tree_round', 'tree_pine', 'tree_round', 'tree_blossom', 'tree_round'];
+/** Where the trail (yard.ts) crosses the main path: by the door and just inside the gate. */
+const TRAIL_CROSSINGS: readonly [number, number][] = [
+  [11.4, 13.0],
+  [23.8, 25.3],
+];
 
 /** Placement for instanced scenery: position, turn and uniform size. */
 function scenery(x: number, z: number, yaw: number, s: number): THREE.Matrix4 {
@@ -39,7 +43,7 @@ const LAWN_TILE = 12.8;
 /** Paver texture tile size in metres. */
 const PAVER_TILE = 2;
 
-export function buildOutdoor(ctx: WorldCtx): void {
+export function buildOutdoor(ctx: WorldCtx): Outdoor {
   const b = ctx.statics;
 
   // Lawn.
@@ -86,7 +90,8 @@ export function buildOutdoor(ctx: WorldCtx): void {
   const matGroup = staticProp(ctx, 'doormat', () => {}, { extra: [doormat], at: [0, OUT_Z + 0.75] });
   void swapModel(ctx, matGroup, 'doormat');
 
-  // Company sign: a chunky monument by the path, angled toward people walking up.
+  // Company sign: a chunky monument by the path, angled toward people walking up, just past
+  // where the trail leaves the path.
   const signTex = new CanvasTex(1024, 300, (c, w, h) => {
     c.fillStyle = PALETTE.claude;
     c.beginPath();
@@ -126,45 +131,13 @@ export function buildOutdoor(ctx: WorldCtx): void {
     if (i % 2 === 0) sb.ball(0.05, ['#FF7EB6', '#FFD93D', '#FFFFFF', '#FF6B6B'][i % 4], { at: [fx + 0.06, 0.62, 0.38], cast: false, ws: 8, hs: 6 });
   }
   sign.add(sb.build({ name: 'office-sign' }), signFace);
-  sign.position.set(3.35, 0, OUT_Z + 1.9);
+  const signZ = OUT_Z + 3.65;
+  sign.position.set(3.4, 0, signZ);
   sign.rotation.y = -0.35;
   ctx.root.add(sign);
   void swapModel(ctx, sign, 'company_sign');
-  ctx.colliders.push(footprint(3.35, OUT_Z + 1.9, 3.0, 1.1));
-  ctx.blobs.add(3.35, OUT_Z + 1.9, 3.2, 1.2, { yaw: -0.35 });
-
-  // Garden trees (each fades on its own so it can never hide the manager). Kept clear of the
-  // garden desk and intern bench spots in layout.ts.
-  const trees: [number, number, number][] = [
-    [-3.5, 13.0, 1.0],
-    [-3.4, 23.8, 1.1],
-    [3.7, 24.6, 1.0],
-    [-22.4, 25.4, 1.2],
-    [22.4, 25.2, 1.1],
-    [-22.9, 12.4, 1.0],
-    [22.9, 12.2, 1.15],
-    [-22.4, -1.6, 1.05],
-    [22.6, -1.8, 0.95],
-    [-21.6, -12.4, 1.2],
-    [21.8, -12.8, 1.1],
-    [-15.2, -13.7, 1.0],
-    [-7.2, -13.6, 1.15],
-    [0.6, -13.9, 0.95],
-    [8.0, -13.7, 1.1],
-    [15.6, -13.5, 1.0],
-    [-10.0, 25.8, 1.0],
-    [10.4, 25.6, 1.1],
-    [-16.0, 11.2, 0.9],
-    [16.0, 11.4, 0.95],
-  ];
-  trees.forEach(([x, z, s], i) => {
-    const r = rng(900 + i);
-    const t = tallProp(ctx, `tree-${i}`, (tb) => buildTree(tb, s, r), { at: [x, z] });
-    void swapModel(ctx, t, TREE_IDS[i % TREE_IDS.length], { fit: { h: 3.9 * s, uniform: true }, yaw: r() * 6 });
-    sway(ctx, t, 0.012, r());
-    ctx.colliders.push(footprint(x, z, 0.5 * s, 0.5 * s));
-    ctx.blobs.add(x, z, 3.6 * s, 3.6 * s, { shape: 'round' });
-  });
+  ctx.colliders.push(footprint(3.4, signZ, 3.0, 1.1));
+  ctx.blobs.add(3.4, signZ, 3.2, 1.2, { yaw: -0.35 });
 
   // Bench beside the path, and a ping-pong table out on the east lawn.
   void swapModel(ctx, staticProp(ctx, 'park-bench', (pb) => buildParkBench(pb), { at: [2.55, 17.2], yaw: -Math.PI / 2 }), 'park_bench', { fit: { w: 1.7, uniform: true } });
@@ -185,9 +158,9 @@ export function buildOutdoor(ctx: WorldCtx): void {
     ctx.colliders.push(footprint(x, z, 0.4, 0.4));
     ctx.blobs.add(x, z, 0.7, 0.7, { shape: 'round' });
   }
-  void swapModel(ctx, staticProp(ctx, 'mailbox', (mb) => buildMailbox(mb), { at: [-2.3, 12.6], yaw: Math.PI / 2 }), 'mailbox', { tint: { Accent: '#3D7CFF' } });
-  ctx.colliders.push(footprint(-2.3, 12.6, 0.45, 0.45));
-  ctx.blobs.add(-2.3, 12.6, 0.6, 0.6, { shape: 'round' });
+  void swapModel(ctx, staticProp(ctx, 'mailbox', (mb) => buildMailbox(mb), { at: [-2.35, 13.45], yaw: Math.PI / 2 }), 'mailbox', { tint: { Accent: '#3D7CFF' } });
+  ctx.colliders.push(footprint(-2.35, 13.45, 0.45, 0.45));
+  ctx.blobs.add(-2.35, 13.45, 0.6, 0.6, { shape: 'round' });
   const flag = tallProp(ctx, 'flag-pole', (fb) => buildFlagPole(fb), { at: [-4.5, 26.0] });
   void swapModel(ctx, flag, 'flag_pole').then((m) => {
     const cloth = m && findNode(m, 'Flag');
@@ -197,9 +170,10 @@ export function buildOutdoor(ctx: WorldCtx): void {
   ctx.blobs.add(-4.5, 26.0, 0.9, 0.9, { shape: 'round' });
 
   // Bushes hugging the building, with flowers.
+  // The front rows stop short of the rose arches where the trail leaves the path (yard.ts).
   const bushRows: [number, number, number][] = [
-    [-13.6, -3.4, OUT_Z + 0.75],
-    [3.4, 13.6, OUT_Z + 0.75],
+    [-13.6, -4.4, OUT_Z + 0.75],
+    [4.4, 13.6, OUT_Z + 0.75],
     [-9.0, 9.0, -OUT_Z - 0.75],
   ];
   const fr = rng(4242);
@@ -226,7 +200,8 @@ export function buildOutdoor(ctx: WorldCtx): void {
   ctx.root.add(shrubGroup);
   void swapScenery(ctx, shrubGroup, [{ id: 'bush_round', at: bushes }]);
 
-  // Grass tufts along the edges of the apron and the path.
+  // Grass tufts along the edges of the apron and the path (the trail brings its own along the
+  // front, and none grow where it crosses the path).
   const tr = rng(777);
   const tufts: [number, number][] = [];
   for (let i = 0; i < 70; i++) {
@@ -237,11 +212,12 @@ export function buildOutdoor(ctx: WorldCtx): void {
     if (side === 0) tufts.push([-apronW / 2 + t * apronW, -ez]);
     else if (side === 1) tufts.push([ex, -apronD / 2 + t * apronD]);
     else if (side === 2) tufts.push([-ex, -apronD / 2 + t * apronD]);
-    else if (Math.abs(-apronW / 2 + t * apronW) > 2.2) tufts.push([-apronW / 2 + t * apronW, ez + 1.2]);
   }
   for (let i = 0; i < 36; i++) {
     const s = i % 2 ? 1 : -1;
-    tufts.push([s * (1.95 + tr() * 0.35), OUT_Z + 1.5 + tr() * (pathLen - 3)]);
+    const x = s * (1.95 + tr() * 0.35);
+    const z = OUT_Z + 1.5 + tr() * (pathLen - 3);
+    if (!TRAIL_CROSSINGS.some(([z0, z1]) => z > z0 && z < z1)) tufts.push([x, z]);
   }
   const grass = new Batch();
   const blades: THREE.Matrix4[] = [];
@@ -340,6 +316,8 @@ export function buildOutdoor(ctx: WorldCtx): void {
     { id: 'tree_pine', at: farTrees[1], shadows: false },
     { id: 'tree_blossom', at: farTrees[2], shadows: false },
   ]);
+
+  return buildYard(ctx);
 }
 
 // ---------------------------------------------------------------------------------------------

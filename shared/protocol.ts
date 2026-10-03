@@ -110,6 +110,8 @@ export interface Employee {
   ask?: Ask;
   /** External session the manager asked to bring into the office: it moves in once it exits its own terminal. */
   adopting?: boolean;
+  /** Hired by another office (a copy on another port): not hosted here, and can't be brought in. */
+  otherOffice?: boolean;
 }
 
 /** Client → server over /ws. Tells the office someone is actually looking at it. */
@@ -215,7 +217,14 @@ export interface ThoughtMessage {
   at: number;
 }
 
-export type ServerMessage = RosterMessage | HelloMessage | NoticeMessage | StatsMessage | ThoughtMessage;
+/** Hot desks: the desks with a shell running (yours, from sitting at an empty desk). On connect and whenever it changes. */
+export interface DesksMessage {
+  type: 'desks';
+  /** Desk indices, lowest first. */
+  open: number[];
+}
+
+export type ServerMessage = RosterMessage | HelloMessage | NoticeMessage | StatsMessage | ThoughtMessage | DesksMessage;
 
 /** A directory Claude Code has been used in (from ~/.claude/projects). */
 export interface ProjectInfo {
@@ -274,18 +283,22 @@ export interface ApiResult {
 //                                                      exits its own terminal; Employee.adopting until then)
 //   GET  /api/session/:id/chatter?after=<seq>&n=<count> -> ChatLine[]  (incremental chat feed, n ≤ 120)
 //   POST /api/hook   <Claude Code hook stdin JSON>    (from scripts/office-hook.mjs only; long-polls for the answer)
+//   POST /api/desk/close {desk}     -> ApiResult      (shut down this office's shell at that desk; desk: 0 to MAX_HOT_DESK)
 //
 // Ask choices: permission → 'allow' | 'always' | 'deny' | 'terminal';  plan → 'approve' | 'revise' | 'terminal';
 //              question → 'answer' (with `answers`) | 'terminal'.  'terminal' = "answer in their own terminal instead".
 //
-// WebSocket /ws    server -> client: ServerMessage JSON (hello once, then roster on every change)
-// WebSocket /term?id=<sessionId>&cols=<n>&rows=<n>   (hosted only)
+// WebSocket /ws    server -> client: ServerMessage JSON (hello, roster and desks on connect, then each on every change)
+// WebSocket /term?id=<sessionId>&kind=claude|shell&cols=<n>&rows=<n>   (claude: hosted only; shell: anyone in the office)
+// WebSocket /term?kind=desk&desk=<0..MAX_HOT_DESK>&cols=<n>&rows=<n>   (a hot desk: your login shell in your home folder)
 //   server -> client: raw terminal output (text frames)
 //   client -> server: TermClientMessage JSON
 export type TermClientMessage = { t: 'in'; d: string } | { t: 'resize'; cols: number; rows: number };
 
 export const SLEEP_AFTER_MS = 15 * 60 * 1000;
 export const DEFAULT_PORT = 4777;
+/** Hot desks are numbered 0 to this (two digits in their tmux name). */
+export const MAX_HOT_DESK = 99;
 
 /** Permission modes a hire may start in (`claude --permission-mode`). Never bypass or dontAsk: commands always still ask. */
 export const HIRE_PERMISSION_MODES = ['manual', 'plan', 'acceptEdits'] as const;

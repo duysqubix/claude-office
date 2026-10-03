@@ -7,6 +7,7 @@ import type { Intern } from '../../../shared/protocol';
 import { hash32 } from '../style/palette';
 import type { InternSlot, World } from '../world/types';
 import { Body } from './body';
+import { crowd } from './crowd';
 import { internLooks } from './looks';
 import type { Bumpable } from './manager';
 import { DIM, HEAD_Y, Rig } from './rig';
@@ -81,6 +82,11 @@ export class InternChar implements Bumpable {
     return this.rig.root.position;
   }
 
+  /** On their stool (or getting on or off it): walkers go round them. */
+  get atDesk(): boolean {
+    return this.phase === 'seated' || this.phase === 'sitting' || this.phase === 'standing';
+  }
+
   /** "<type> · <boss>", for the pill over their head. */
   get title(): string {
     return `${this.data.type.replace(/^.*:/, '') || 'intern'} · ${this.boss.name}`;
@@ -152,20 +158,27 @@ export class InternChar implements Bumpable {
 
   private follow(dt: number): boolean {
     const pos = this.position;
-    while (this.path.length && Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < (this.path.length > 1 ? 0.3 : 0.05)) {
+    // Stuck in a jam for a while: plan the way again from here. Someone standing on the end
+    // point: near it is close enough; a corner the crowd steered us past: on to the next (#30).
+    if (this.path.length && crowd.lost(this)) this.walkTo(this.path[this.path.length - 1]);
+    const reach = crowd.endReach(this, this.path[this.path.length - 1], 0.05);
+    while (this.path.length && (Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < (this.path.length > 1 ? 0.3 : reach) || crowd.past(pos, this.path))) {
       this.path.shift();
     }
     if (!this.path.length) {
       this.speed += (0 - this.speed) * damp(10, dt);
       return true;
     }
-    this.speed += (1.5 - this.speed) * damp(5, dt);
     const tgt = this.path[0];
     _v.set(tgt.x - pos.x, 0, tgt.z - pos.z);
     const d = _v.length();
+    if (d > 1e-4) _v.multiplyScalar(1 / d);
+    // Step around people on the way (#30): bends _v, and eases off (or waits) when it must.
+    const k = d > 1e-4 ? crowd.steer(this, _v, 1.5) : 1;
+    this.speed += (1.5 * k - this.speed) * damp(5, dt);
     if (d > 1e-4) {
-      _v.multiplyScalar(1 / d);
       pos.addScaledVector(_v, Math.min(d, this.speed * dt));
+      crowd.keepClear(this, 0.2, this.world.colliders);
       this.body.heading.setTarget(Math.atan2(_v.x, _v.z));
     }
     return false;

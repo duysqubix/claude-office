@@ -19,6 +19,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PALETTE } from '../style/palette';
+import { ditherable, setDither } from './dither';
 import { dressRig } from './kit';
 import type { HairStyle, Looks } from './looks';
 import RD from './rig-dimensions.json';
@@ -704,7 +705,7 @@ export class Rig {
     const reg = <M extends THREE.Material>(m: M): M => {
       this.materials.push(m);
       this.baseOpacity.set(m, m.opacity);
-      return m;
+      return ditherable(m);
     };
     const radiusAt = torsoGeometry(looks.girth).radiusAt;
     const ctx: PartCtx = {
@@ -826,29 +827,9 @@ export class Rig {
 
     this.mouths = this.buildMouths(ctx, mouthMat);
     this.setMouth('smile');
-    this.assignFadeOrder();
     // Swap in the modelled character kit when it's switched on (chars/kit; ?kit=1). It only
     // touches the rig once its parts have loaded, so this stays procedural until then.
     dressRig(this);
-  }
-
-  /**
-   * While fading, depth writes stay on and parts draw outermost first (body and head
-   * shells, then limbs and hair, then face and accessories), so hidden bits never show
-   * through and the character fades as one solid thing.
-   */
-  private assignFadeOrder(): void {
-    const tag = (root: THREE.Object3D, order: number) =>
-      root.traverse((o) => {
-        if ((o as THREE.Mesh).isMesh && o.userData.fadeOrder === undefined) o.userData.fadeOrder = order;
-      });
-    for (const limb of [this.armL, this.armR, this.legL, this.legR, this.hair]) tag(limb, 2);
-    this.head.children.forEach((c, i) => tag(c, i === 0 ? 1 : 3));
-    tag(this.chest, 3);
-    tag(this.torso, 3);
-    // The spine shells themselves are the outermost layer.
-    for (const g of [this.torso.children[0], this.chest.children[0]]) g?.traverse((o) => ((o as THREE.Mesh).isMesh ? (o.userData.fadeOrder = 1) : null));
-    tag(this.root, 3);
   }
 
   // -------------------------------------------------------------------------------------
@@ -889,8 +870,7 @@ export class Rig {
       ch.scale.set(F.cheeks.radii[0], F.cheeks.radii[1], F.cheeks.radii[2]);
       onHead(ch, side * F.cheeks.x, F.cheeks.y, -0.004);
       ch.renderOrder = 1;
-      ch.userData.baseOrder = 1;
-      ch.userData.fadeOrder = 4;
+      ch.userData.cheek = true;
       this.head.add(ch);
     }
   }
@@ -927,26 +907,20 @@ export class Rig {
     for (const k of Object.keys(this.mouths) as MouthShape[]) this.mouths[k].visible = k === shape;
   }
 
-  /** Fade the whole character (walk-in pop / walk-out fade). */
+  /**
+   * Fade the whole character (walk-in pop / walk-out fade, the camera crowding the manager).
+   * Bodies dissolve as a screen-door dither (chars/dither.ts): solid pixels with depth writes,
+   * so nothing behind or inside shows through; the floor blob just fades.
+   */
   setOpacity(a: number): void {
     const v = Math.max(0, Math.min(1, a));
     if (Math.abs(v - this.opacity) < 1e-3) return;
-    const wasOpaque = this.opacity >= 0.999;
     this.opacity = v;
     const opaque = v >= 0.999;
+    const blob = this.shadow.material as THREE.Material;
     for (const m of this.materials) {
-      const base = this.baseOpacity.get(m) ?? 1;
-      const nativelyTransparent = base < 1 || m === (this.shadow.material as THREE.Material);
-      if (!nativelyTransparent && wasOpaque !== opaque) {
-        m.transparent = !opaque;
-        m.needsUpdate = true;
-      }
-      m.opacity = base * v;
-    }
-    if (wasOpaque !== opaque) {
-      this.root.traverse((o) => {
-        if ((o as THREE.Mesh).isMesh && o !== this.shadow) o.renderOrder = opaque ? (o.userData.baseOrder ?? 0) : 10 + (o.userData.fadeOrder ?? 3);
-      });
+      if (m === blob) m.opacity = (this.baseOpacity.get(m) ?? 1) * v;
+      else setDither(m, opaque ? 1 : v);
     }
     for (const m of this.casters) m.castShadow = opaque;
     this.root.visible = v > 0.001;

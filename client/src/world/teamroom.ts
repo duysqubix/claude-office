@@ -13,8 +13,8 @@ import { aabb, footprint, type WorldCtx } from './ctx';
 import { glassMaterial } from './building';
 import { inView, sparkle, type ScreenView } from './screens';
 import type { FadeItem } from './fader';
-import { disposeGroup, instancedModel, placement, swapModel } from './modelkit';
-import { tallProp } from './props';
+import { disposeGroup, disposeInstanced, instancedModel, placement, swapModel } from './modelkit';
+import { MOUNT_GAP, tallProp } from './props';
 
 const WS = D.wallScreen;
 const CT = D.conferenceTable;
@@ -42,7 +42,7 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   const board = new TeamBoard();
   const screen = new THREE.Group();
   screen.name = 'team-screen';
-  screen.position.set(rx, WS.centerY, WALL_Z);
+  screen.position.set(rx, WS.centerY, WALL_Z + MOUNT_GAP);
   const sb = new Batch();
   buildWallScreen(sb);
   screen.add(sb.build({ name: 'team-screen-body' }));
@@ -97,7 +97,11 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   const chairGroup = chairs.build({ name: 'conference-chairs' });
   ctx.root.add(chairGroup);
   void Promise.all(placements.map((p, k) => instancedModel('conference_chair', p, { tint: { Seat: CHAIR_COLORS[k] } }))).then((models) => {
-    if (models.some((m) => !m)) return;
+    if (models.some((m) => !m)) {
+      // Keep the procedural chairs, and let go of any set that did load.
+      for (const m of models) if (m) disposeInstanced(m.group);
+      return;
+    }
     disposeGroup(chairGroup);
     for (const m of models) ctx.root.add(m!.group);
   });
@@ -136,7 +140,9 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   const blockerMat = new THREE.MeshBasicMaterial({ visible: false });
   for (const side of [-1, 1]) {
     const px = rx + side * TEAM_ROOM.partitionX;
-    const runs = [WALL_Z + GP.w / 2, WALL_Z + GP.w * 1.5];
+    // The glass starts just in front of the band on the wall (its post would cut through it).
+    const z0 = WALL_Z + D.building.bandDepth + 0.005;
+    const runs = [z0 + GP.w / 2, z0 + GP.w * 1.5];
     const groups: THREE.Group[] = [];
     for (const z of runs) {
       const g = new THREE.Group();
@@ -158,11 +164,11 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
       ctx.fader.remove(item);
       item = ctx.fader.add(`partition-${side}`, groups);
     });
-    const z0 = WALL_Z;
-    const z1 = WALL_Z + GP.w * 2;
-    ctx.colliders.push(aabb(px - GP.t / 2, px + GP.t / 2, z0, z1));
-    const blocker = new THREE.Mesh(new THREE.BoxGeometry(GP.t, GP.h, z1 - z0), blockerMat);
-    blocker.position.set(px, GP.h / 2, (z0 + z1) / 2);
+    // Collider and camera blocker still reach the wall: nothing slips through the slit.
+    const z1 = z0 + GP.w * 2;
+    ctx.colliders.push(aabb(px - GP.t / 2, px + GP.t / 2, WALL_Z, z1));
+    const blocker = new THREE.Mesh(new THREE.BoxGeometry(GP.t, GP.h, z1 - WALL_Z), blockerMat);
+    blocker.position.set(px, GP.h / 2, (WALL_Z + z1) / 2);
     blocker.visible = false;
     blocker.name = 'camera-blocker';
     ctx.root.add(blocker);
@@ -172,7 +178,7 @@ export function buildTeamRoom(ctx: WorldCtx): TeamRoom {
   // ---- Sticky-note wall (north wall, by the manager's corner) ----------------------------------
   const sticky = new THREE.Group();
   sticky.name = 'sticky-wall';
-  sticky.position.set(9.4, D.stickyWall.centerY, WALL_Z);
+  sticky.position.set(9.4, D.stickyWall.centerY, WALL_Z + MOUNT_GAP);
   const swb = new Batch();
   buildStickyWall(swb);
   sticky.add(swb.build({ name: 'sticky-wall-body' }));

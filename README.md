@@ -4,7 +4,7 @@
 
 **Your Claude Code sessions, as a cosy little 3D office. You're the manager.**
 
-[![Node 20+](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![Node 22+](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![macOS | Linux | Windows (WSL2)](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28WSL2%29-555)](#quick-start)
 [![Three.js](https://img.shields.io/badge/three.js-0.186-000000?logo=threedotjs&logoColor=white)](https://threejs.org)
 [![For Claude Code](https://img.shields.io/badge/for-Claude%20Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
@@ -33,15 +33,17 @@ npm start          # builds, serves http://127.0.0.1:4777 and opens your browser
 
 Every Claude Code session already running on your machine walks into the office. The
 office only **reads** Claude Code's own files and changes nothing in your Claude setup.
+The café music starts after your first click or key press (browsers keep a page quiet
+until then); `M` mutes it.
 
-**Requirements:** macOS, Linux or Windows ([with WSL2](#windows-wsl2)), Node 20+, Claude
+**Requirements:** macOS, Linux or Windows ([with WSL2](#windows-wsl2)), Node 22+, Claude
 Code (`claude`) on your PATH, and `tmux` if you want to hire, resume or let go of sessions
-from inside the game.
+from inside the game, or use the Shell tab and hot desks.
 
 ### Windows (WSL2)
 
 Run the office inside [WSL2](https://learn.microsoft.com/windows/wsl/install), in the same
-distro as Claude Code. It's then the Linux setup: install Node 20+, `tmux` and Claude Code
+distro as Claude Code. It's then the Linux setup: install Node 22+, `tmux` and Claude Code
 in WSL and run the three commands above.
 
 - **Open it in your Windows browser.** WSL2 forwards `localhost` to Windows, so
@@ -50,11 +52,10 @@ in WSL and run the three commands above.
 - **Only sessions running in WSL join.** The office reads `~/.claude` in your WSL home.
   Claude Code running natively on Windows (PowerShell or CMD) keeps its sessions in your
   Windows home, so those don't appear.
-- **Sluggish on a laptop with two GPUs?** Windows often runs the browser on the
-  power-saving integrated GPU, and below 20 fps the whole game slows down, not just the
-  picture. In **Settings → System → Display → Graphics**, set your browser to **High
-  performance**, then quit the browser completely (every window) and reopen it. Task
-  Manager's **GPU engine** column shows which GPU it's using.
+- **Choppy on a laptop with two GPUs?** Windows often runs the browser on the
+  power-saving integrated GPU. In **Settings → System → Display → Graphics**, set your
+  browser to **High performance**, then quit the browser completely (every window) and
+  reopen it. Task Manager's **GPU engine** column shows which GPU it's using.
 
 ## What you'll see
 
@@ -69,6 +70,7 @@ in WSL and run the three commands above.
 | `claude` (new session) | **Hire** someone at reception |
 | `claude --resume` | **Call someone back in** from the Personnel Files |
 | Typing into the session | Sit at their computer (real terminal, in-game) |
+| A shell of your own | Any empty desk: sit down and it's your terminal (a hot desk) |
 | `/exit` | Pack up and walk out |
 | Thinking about the work | Now and then, a thought bubble about what they're really doing |
 
@@ -93,13 +95,17 @@ that trails a beat behind the controls, bright colours, soft shadows.
 - **Answer without the terminal.** With the optional hooks, permission prompts, questions
   and plan approvals appear in the game: Allow, Deny, or pick an option.
 - **Sit at their computer.** Sessions you hire run in `tmux`, and sitting down attaches the
-  real terminal (xterm.js) in-game.
+  real terminal (xterm.js) in-game. Every computer has a second tab, **Shell**: a shell in
+  that employee's folder, next to Claude (`` Ctrl+` `` switches).
+- **Hot desks.** Walk up to any empty desk and press `E` to use its computer: your own shell,
+  in your home folder. It keeps running after you stand up, so a long command keeps going,
+  and the desk says "Hot desk" until you shut it down.
 - **Chat with any employee.** Their replies render as real markdown (tables, highlighted
   code with Copy), tool steps show as they happen ("Editing `auth.ts`"), and you can send a
   message or interrupt a hosted session. A session you started in your own terminal can be
   adopted: when it exits there, the office resumes it with the whole conversation.
-- **Quick terminal.** Press `T` near anyone to see their live terminal at once, without
-  walking over and sitting down.
+- **Quick terminal.** Press `T` near anyone to see their live terminal at once, Claude and
+  Shell tabs included, without walking over and sitting down.
 - **Interns.** Subagents walk in, sit at the intern bench, and go home 5 minutes after they
   go idle.
 - **Team Room.** A wall screen with your 5-hour and weekly plan usage, every employee's
@@ -107,11 +113,47 @@ that trails a beat behind the controls, bright colours, soft shadows.
 - **Triage in one key.** `Q` walks you to whoever has waited longest.
 - **A lively office.** NPC regulars fill free desks, take coffee breaks and chat, and give a
   desk up to a real session when the room is full ("All yours!"). Mabel runs the front desk.
-  None of them are Claude sessions; real sessions wear the orange lanyard.
+  None of them are Claude sessions; real sessions wear the orange lanyard. Everyone steps
+  around everyone else ("Sorry!", "After you!"), lava lamps bubble on the desks, and out back
+  a stepping-stone trail with rose arches winds through the garden past loungers, a hammock,
+  a picnic table and the pond, with lights that come on at dusk and people on their break.
+- **Music and sounds.** Coffee-shop music made up as it plays (softer after 9 pm, a little
+  quieter while you type to someone) and small interface sounds. Help → Music and sound has
+  the volumes; `M` mutes everything.
 - **Thought bubbles.** Now and then a working session thinks one short line about what it's
   really doing (written by Haiku on your Claude login, at most 20 an hour, only while you're
   watching); regulars daydream. Turn them off in Help.
 - **First person.** `V` puts you behind your own eyes, mug in hand.
+- **First-run tips.** A few small cards teach the basics on your first visit.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/media/shell-tabs.jpg" alt="The quick look open on an employee's Shell tab: git status and ls in their project folder, next to the Claude tab"></td>
+    <td width="50%"><img src="docs/media/hot-desk.jpg" alt="A hot desk's computer open: your own shell in your home folder, with Shut down and Stand up"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Claude | Shell: a shell in their folder, right next to Claude.</sub></td>
+    <td align="center"><sub>A hot desk: any empty desk is your terminal.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/doorway.jpg" alt="People meeting in the front doorway: newcomers say Morning, one gives way with Go ahead"></td>
+    <td width="50%"><img src="docs/media/lava-lamp.jpg" alt="A lava lamp on a desk, its pink wax rising in the glass, the window and garden behind"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Five clock in, five go home, and everyone gives way.</sub></td>
+    <td align="center"><sub>Lava lamps with real moving wax.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/yard-trail.jpg" alt="Eye level on the garden's stepping-stone trail: someone stretched out on a lounger, two people at the picnic table under string lights"></td>
+    <td width="50%"><img src="docs/media/yard-dusk.jpg" alt="The picnic table at dusk: string lights glowing, two people on their break, loungers under a parasol and a picnic blanket"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Out back: a stepping-stone trail and people on their break.</sub></td>
+    <td align="center"><sub>The picnic table when the lights come on.</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/media/yard-above.jpg" alt="The office from above: the building in a meadow garden, the stepping-stone trail looping round it past the pond, the hammock and the picnic area" width="900"></p>
 
 <p align="center"><img src="docs/media/chat.jpg" alt="The chat panel open on an employee: their reply renders as a markdown table and highlighted code with a Copy button, with Chat and Terminal tabs, Interrupt, and Sit at their computer" width="900"></p>
 
@@ -137,11 +179,14 @@ the normal terminal prompt. Each change to `~/.claude/settings.json` is backed u
 | `V` | First / third person |
 | Mouse drag / wheel | Orbit / zoom the camera (scroll all the way in for first person) |
 | `E` | Interact (employee, reception, filing cabinet, whiteboard, coffee); chat with someone |
+| `E` at an empty desk | Hot desk: use its computer, your own shell (`Esc` goes to the shell) |
 | `T` | Quick look at someone's live terminal (`Esc` goes back) |
 | `R` | Roster |
 | `Q` | Walk to whoever needs you (longest wait first) |
 | `H` | Hire |
-| `M` | Mute |
+| `M` | Mute (music and sounds) |
+| `` Ctrl+` `` | At a computer: switch between Claude and Shell |
+| `Ctrl+]` | Stand up from a computer |
 
 ## How it works
 
@@ -190,17 +235,17 @@ isn't the office itself, because it can start Claude sessions and type into them
 sites can't frame it (`X-Frame-Options: DENY`), the production build only runs its own
 scripts, and everything a session writes is shown as text, never HTML. In-game answers
 need a deliberate click or key on the question itself. Thought-bubble calls run with no
-tools, no settings and no file attachments.
+tools, no settings and no file attachments. An office only drives the tmux sessions it
+started itself: a second copy of the office never types into, attaches to or closes yours.
 
 ## Roadmap
 
 See [docs/SPEC.md](docs/SPEC.md) for the full design and [docs/GAMEPLAY.md](docs/GAMEPLAY.md)
-for the game layer. Next up ([v1.1](https://github.com/duysqubix/claude-office/milestone/2)):
+for the game layer. Next up ([v1.2](https://github.com/duysqubix/claude-office/milestone/3)):
 
-- A Shell tab on every computer: a real shell in that employee's folder, next to Claude
-- Coffee-shop music, and Spotify on the manager's laptop
-- People step around each other (with a "sorry!")
-- First-run tips and interface sounds
+- Spotify on the manager's laptop
+- Lighter characters (fewer draw calls per person)
+- The follow-ups from the v1.1 server security review
 
 Later: hire with a role (agent type / model / effort), and a cosmetic shop: earn Beans for
 finished turns, commits and merged PRs, spend them on hats and decor.

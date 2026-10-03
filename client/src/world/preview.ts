@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createEngine } from '../engine';
 import { createWorld, worldDebug } from './index';
+import { mergedRefs, mergedStats } from './modelkit';
 import type { ScreenState } from './types';
 
 const params = new URLSearchParams(location.search);
@@ -22,6 +23,10 @@ const engine = createEngine(canvas);
 const world = createWorld(engine);
 const debug = worldDebug(world)!;
 (window as unknown as { __debug: typeof debug }).__debug = debug;
+// Shared merged model geometry (debug: window.__merged() → entries, meshes drawing it, bytes).
+(window as unknown as { __merged: typeof mergedStats; __mergedRefs: typeof mergedRefs }).__merged = mergedStats;
+(window as unknown as { __mergedRefs: typeof mergedRefs }).__mergedRefs = mergedRefs;
+(window as unknown as { __renderer: THREE.WebGLRenderer }).__renderer = engine.renderer;
 // For headless probes: window.__world.findPath(...)
 (window as unknown as { __world: typeof world; THREE: typeof THREE }).__world = world;
 (window as unknown as { THREE: typeof THREE }).THREE = THREE;

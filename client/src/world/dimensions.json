@@ -14,6 +14,7 @@
     "skirtingH": 0.12,
     "bandY0": 0.92,
     "bandY1": 1.06,
+    "bandDepth": 0.03,
     "cameraCeilingY": 4.0
   },
   "door": {
@@ -50,6 +51,7 @@
   },
   "pendantLamp": {
     "bottomY": 3.05,
+    "teamRoomBottomY": 3.55,
     "shadeR": 0.3,
     "shadeH": 0.2
   },
@@ -210,15 +212,16 @@
   "whiteboard": {
     "w": 3.0,
     "h": 1.5,
-    "centerY": 1.58
+    "centerY": 1.9
   },
   "poster": {
     "w": 0.86,
     "h": 1.505,
-    "centerY": 1.75
+    "centerY": 1.92
   },
   "clock": {
     "r": 0.34,
+    "x": -3.55,
     "centerY": 3.4
   },
   "wallScreen": {
@@ -227,7 +230,7 @@
     "bezelW": 3.38,
     "bezelH": 2.12,
     "d": 0.151,
-    "centerY": 1.8
+    "centerY": 2.22
   },
   "conferenceTable": {
     "w": 3.02,
@@ -254,7 +257,7 @@
     "w": 1.92,
     "h": 1.22,
     "d": 0.066,
-    "centerY": 1.6
+    "centerY": 1.78
   },
   "internBench": {
     "moduleW": 1.6,

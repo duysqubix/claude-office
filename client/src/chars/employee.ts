@@ -7,6 +7,7 @@ import type { ActivityKind, Employee, EmployeeState } from '../../../shared/prot
 import { hash32 } from '../style/palette';
 import type { DeskSlot, World } from '../world/types';
 import { Body, type Pose } from './body';
+import { crowd } from './crowd';
 import { employeeLooks, type Looks } from './looks';
 import { Glancer, type Bumpable } from './manager';
 import { DIM, HEAD_Y, Rig } from './rig';
@@ -105,7 +106,7 @@ export class EmployeeChar implements Bumpable {
   protected phaseT = 0;
   private path: THREE.Vector3[] = [];
   protected speed = 0;
-  private opacity = 1;
+  protected opacity = 1;
   private glance = new Glancer(0.75);
   private celebrateT = -1;
   private waveT = -1;
@@ -327,7 +328,11 @@ export class EmployeeChar implements Bumpable {
   /** Follow the path; returns true when arrived. */
   protected followPath(dt: number): boolean {
     const pos = this.position;
-    while (this.path.length && Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < (this.path.length > 1 ? 0.35 : 0.06)) {
+    // Stuck in a jam for a while: plan the way again from here. Someone standing on the end
+    // point: near it is close enough; a corner the crowd steered us past: on to the next (#30).
+    if (this.path.length && crowd.lost(this)) this.walkTo(this.path[this.path.length - 1]);
+    const reach = crowd.endReach(this, this.path[this.path.length - 1], 0.06);
+    while (this.path.length && (Math.hypot(this.path[0].x - pos.x, this.path[0].z - pos.z) < (this.path.length > 1 ? 0.35 : reach) || crowd.past(pos, this.path))) {
       this.path.shift();
     }
     if (!this.path.length) {
@@ -340,15 +345,18 @@ export class EmployeeChar implements Bumpable {
       remaining += Math.hypot(p.x - prev.x, p.z - prev.z);
       prev = p;
     }
-    const want = Math.min(WALK_SPEED * this.rig.looks.pace, remaining * 2.4 + 0.35);
-    this.speed += (want - this.speed) * damp(5, dt);
     const tgt = this.path[0];
     _v.set(tgt.x - pos.x, 0, tgt.z - pos.z);
     const d = _v.length();
+    if (d > 1e-4) _v.multiplyScalar(1 / d);
+    let want = Math.min(WALK_SPEED * this.rig.looks.pace, remaining * 2.4 + 0.35);
+    // Step around people on the way (#30): bends _v, and eases off (or waits) when it must.
+    if (d > 1e-4) want *= crowd.steer(this, _v, want);
+    this.speed += (want - this.speed) * damp(5, dt);
     const step = Math.min(d, this.speed * dt);
     if (d > 1e-4) {
-      _v.multiplyScalar(1 / d);
       pos.addScaledVector(_v, step);
+      crowd.keepClear(this, 0.24, this.world.colliders);
       this.body.heading.setTarget(Math.atan2(_v.x, _v.z));
     }
     return false;

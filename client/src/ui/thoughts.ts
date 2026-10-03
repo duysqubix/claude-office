@@ -79,7 +79,7 @@ export function wireThoughts(backend: ThoughtsBackend, store: RosterStore): void
 
 // ------------------------------------------------------------------ regulars' daydreams
 
-type Mood = 'typing' | 'reading' | 'phone' | 'coffee' | 'idle' | 'night' | 'monday' | 'friday';
+type Mood = 'typing' | 'reading' | 'phone' | 'coffee' | 'idle' | 'night' | 'monday' | 'friday' | 'yard' | 'yardNight';
 
 const DAYDREAMS: Record<Mood, readonly string[]> = {
   typing: [
@@ -146,6 +146,27 @@ const DAYDREAMS: Record<Mood, readonly string[]> = {
     'Five more days. I can do this. Probably.',
     'Monday coffee hits different.',
   ],
+  // Out in the garden (#48): people on their break, and regulars having their coffee outside.
+  yard: [
+    'If I lie here long enough, do I count as lawn?',
+    'The bees have the best job.',
+    'Cloud report: one bunny, two spreadsheets.',
+    'Five more minutes of sun. Then emails.',
+    'Is that a duck or a very calm stapler?',
+    'Touching grass, as the doctor ordered.',
+    'The hammock and I have reached an agreement.',
+    'I can hear the pond thinking.',
+    'Nobody can assign me tickets out here.',
+    'Out of office. Literally.',
+    'This bench gets me.',
+  ],
+  yardNight: [
+    'The string lights are doing their best.',
+    'Moths have meetings too, apparently.',
+    'Stars out. Notifications off.',
+    "The garden's quieter than my inbox.",
+    'One more minute out here. Then home.',
+  ],
   friday: [
     'Friday. My brain has already left.',
     'Weekend plans: absolutely nothing. Glorious.',
@@ -160,6 +181,8 @@ export interface Daydreamer {
   night: boolean;
   mugInHand: boolean;
   onBreak: boolean;
+  /** Out in the garden (a visitor on their break, or a regular having their coffee outside). */
+  outdoors?: boolean;
 }
 
 const pick = <T>(list: readonly T[], rand: () => number) => list[Math.floor(rand() * list.length) % list.length];
@@ -169,6 +192,17 @@ export function daydream(r: Daydreamer, now = new Date(), rand: () => number = M
   const hour = now.getHours();
   const day = now.getDay();
   const moods: Mood[] = [];
+  if (r.outdoors) {
+    // In the garden it's mostly the garden: sun and bees by day; once the string lights are on
+    // (19:00, as the yard's lights), the lights and the moths.
+    if (r.night || hour >= 19 || hour < 6) moods.push('yardNight', 'yardNight');
+    else moods.push('yard', 'yard', 'yard');
+    if (r.mugInHand || r.task === 'sip') moods.push('coffee');
+    else if (r.task === 'phone') moods.push('phone');
+    if (day === 1) moods.push('monday');
+    if (day === 5) moods.push('friday');
+    return pick(DAYDREAMS[pick(moods, rand)], rand);
+  }
   if (r.night || hour >= 21 || hour < 5) moods.push('night', 'night');
   if (day === 1) moods.push('monday');
   if (day === 5) moods.push('friday');

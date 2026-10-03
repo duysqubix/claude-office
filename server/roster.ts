@@ -39,6 +39,8 @@ export class Roster extends EventEmitter {
   /** tmux name -> what the office stamped on it (null: not one of our hires). */
   private officeMeta = new Map<string, OfficeMeta | null>();
   private hostedBySession = new Map<string, string>();
+  /** Pids of the people in other offices' hires (tmux.ts listHosted): never brought in here. */
+  private elsewhere = new Set<number>();
   private lastJson = '';
   private tickN = 0;
   private timer: NodeJS.Timeout | null = null;
@@ -107,6 +109,7 @@ export class Roster extends EventEmitter {
     const e = this.find(sessionId);
     if (!e) throw new Error('Nobody by that id is in the office');
     if (e.hosted) throw new Error('They already work in the office');
+    if (e.otherOffice) throw new Error('They work in another office');
     this.adoptions.set(sessionId, { cwd: e.cwd, displayName: e.displayName, until: Date.now() + 10 * 60_000 });
     this.refresh();
   }
@@ -132,7 +135,7 @@ export class Roster extends EventEmitter {
   private async doTick(): Promise<void> {
     this.tickN++;
     const now = Date.now();
-    const [reg, panes] = await Promise.all([readRegistry(), listHosted()]);
+    const [reg, { panes, elsewhere }] = await Promise.all([readRegistry(), listHosted()]);
     if (!reg.length && !this.warnedUnreadable && this.tickN % 10 === 1 && (await claudeProcessCount()) > 0) {
       // Claude is running but its session registry gave us nothing: likely a newer Claude Code format.
       this.warnedUnreadable = true;
@@ -172,15 +175,17 @@ export class Roster extends EventEmitter {
       this.pending.set(meta.sessionId, {
         sessionId: meta.sessionId,
         tmuxName: p.tmuxName,
-        cwd: meta.cwd ?? p.cwd,
+        cwd: meta.cwd ?? '',
         displayName: meta.displayName ?? pickName(meta.sessionId, new Set()),
         startedAt: p.createdAt,
       });
     }
 
-    // Adoptions: once the external process is gone, resume the session in the office.
+    // Adoptions: once the external process is gone, resume the session in the office. Someone
+    // who turns up in another office's hire meanwhile (it resumed them first) stays there.
+    const inOtherOffices = new Set(reg.filter((e) => elsewhere.has(e.pid)).map((e) => e.sessionId));
     for (const [id, a] of this.adoptions) {
-      if (now > a.until) {
+      if (now > a.until || inOtherOffices.has(id)) {
         this.adoptions.delete(id);
         continue;
       }
@@ -195,6 +200,7 @@ export class Roster extends EventEmitter {
       }
     }
 
+    this.elsewhere = elsewhere;
     this.hostedBySession = new Map();
     for (const e of reg) {
       const name = paneByPid.get(e.pid);
@@ -290,6 +296,7 @@ export class Roster extends EventEmitter {
       kind: e.kind ?? 'interactive',
       entrypoint: e.entrypoint,
       hosted: Boolean(tmuxName),
+      otherOffice: this.elsewhere.has(e.pid) || undefined,
       state,
       stateSince: this.since(e.sessionId, state, sinceHint),
       waitingFor: state === 'needs-you' ? e.waitingFor || 'your input' : undefined,

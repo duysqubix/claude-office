@@ -8,6 +8,7 @@ import type { DeskSlot, InternSlot, OfficeStats, ScreenState, World } from '../w
 import { Chair, EmployeeChar, distXZ } from './employee';
 import { InternChar } from './intern';
 import type { Bumpable } from './manager';
+import type { HotDesks } from '../hotdesk';
 
 /** Uniformly random element, or undefined for an empty list. */
 const pickRandom = <T>(xs: readonly T[]): T | undefined => (xs.length ? xs[Math.floor(Math.random() * xs.length)] : undefined);
@@ -120,6 +121,8 @@ export class Director {
   readonly employees = new Map<string, EmployeeChar>();
   /** NPC coworkers sharing the desks and the door (set by main.ts). */
   regulars: DeskSharers | null = null;
+  /** Desks with your shell running, and the one you're sitting at (set by main.ts; hotdesk.ts). */
+  hotDesks: HotDesks | null = null;
   private chairs = new Map<number, Chair>();
   /** Each boss's interns, by intern id. */
   private crews = new Map<string, Map<string, InternChar>>();
@@ -336,6 +339,10 @@ export class Director {
   private assignDesk(sessionId: string): { desk: DeskSlot; displaced: boolean } {
     const taken = new Set<number>();
     for (const e of this.employees.values()) if (e.phase !== 'gone' && e.phase !== 'leaving') taken.add(e.desk.index);
+    // Never the desk you're sitting at; a hot desk (your shell running) only when nothing else is free.
+    const yours = this.hotDesks?.yours ?? null;
+    if (yours !== null) taken.add(yours);
+    const hot = (d: DeskSlot) => !!this.hotDesks?.isHot(d.index);
     const held = this.regulars?.holding() ?? NO_DESKS;
     const take = (desk: DeskSlot) => {
       const displaced = held.has(desk.index);
@@ -344,14 +351,15 @@ export class Director {
     };
     let desks = this.world.desks;
     const saved = this.desks.get(sessionId);
-    if (saved !== undefined && saved < desks.length && !taken.has(saved)) return take(desks[saved]);
+    if (saved !== undefined && saved < desks.length && !taken.has(saved) && !hot(desks[saved])) return take(desks[saved]);
     // Prefer desks nobody else has a recent claim on, so people who come back keep their spot.
     const claimed = this.desks.claimedByOthers(sessionId, 3 * 24 * 3600 * 1000);
-    let free = desks.filter((d) => !taken.has(d.index) && !held.has(d.index));
+    let free = desks.filter((d) => !taken.has(d.index) && !held.has(d.index) && !hot(d));
     if (!free.length) {
-      // Every desk without a session has a regular at it: one of them gives theirs up.
-      const theirs = desks.filter((d) => !taken.has(d.index));
-      const desk = pickRandom(theirs.filter((d) => !claimed.has(d.index))) ?? pickRandom(theirs);
+      // Every desk without a session has a regular at it: one of them gives theirs up. With
+      // none of those, a hot desk: your shell keeps running there, out of sight.
+      const theirs = desks.filter((d) => !taken.has(d.index) && !hot(d));
+      const desk = pickRandom(theirs.filter((d) => !claimed.has(d.index))) ?? pickRandom(theirs) ?? pickRandom(desks.filter((d) => !taken.has(d.index)));
       if (desk) return take(desk);
       this.world.ensureDesks(desks.length + 1);
       desks = this.world.desks;
@@ -369,7 +377,8 @@ export class Director {
    */
   private reclaimDesk(e: EmployeeChar): void {
     const index = e.desk.index;
-    const taken = this.list().some((x) => x !== e && x.desk.index === index && x.phase !== 'leaving' && x.phase !== 'gone');
+    // You sitting at it counts as taken: nobody is given the desk you're at.
+    const taken = index === this.hotDesks?.yours || this.list().some((x) => x !== e && x.desk.index === index && x.phase !== 'leaving' && x.phase !== 'gone');
     if (taken) {
       const { desk } = this.assignDesk(e.data.sessionId);
       e.desk = desk;
@@ -459,7 +468,7 @@ export class Director {
         continue;
       }
       let key: string;
-      if (!e) key = 'vacant';
+      if (!e) key = this.hotDesks?.isHot(desk.index) ? 'hot' : 'vacant';
       else {
         const screen = screenFor(e);
         const lines = e.data.screen ?? [];
@@ -467,7 +476,9 @@ export class Director {
       }
       if (this.deskKeys.get(desk.index) === key) continue;
       this.deskKeys.set(desk.index, key);
-      if (!e) {
+      // Nobody at it but your shell running: "Hot desk", and the shell waiting on its monitor.
+      if (key === 'hot') this.hotDesks?.paint(desk);
+      else if (!e) {
         desk.setNameplate('');
         desk.setScreen('off');
       } else {

@@ -31,10 +31,10 @@ export interface BreakSpot {
 
 export type DeskTask = 'type' | 'read' | 'mouse' | 'think' | 'notes' | 'idle' | 'phone' | 'sip';
 
-/** Why they're up: a break (they'll be back), home time, or making room for a session. */
-type Plan = 'break' | 'home' | 'yield';
-/** The 'away' phase, step by step. */
-type Step = 'yield' | 'grab' | 'walk' | 'fill' | 'hang';
+/** Why they're up: a break (they'll be back), home time, making room for a session, or out in the yard (visitors, chars/visitor.ts). */
+export type Plan = 'break' | 'home' | 'yield' | 'yard';
+/** The 'away' phase, step by step ('stand' and 'stroll' are the yard visitors'). */
+export type Step = 'yield' | 'grab' | 'walk' | 'fill' | 'hang' | 'stand' | 'stroll';
 
 /** [task, weight, shortest s, longest s]. */
 export type TaskRow = readonly [DeskTask, number, number, number];
@@ -116,10 +116,12 @@ export class RegularChar extends EmployeeChar {
   app: OfficeApp;
   /** Bumped whenever their nameplate or monitor should change. */
   deskVersion = 0;
+  /** This break's coffee is out at a yard stand (the crew sets it when it sends them). */
+  coffeeOutside = false;
 
-  private plan: Plan | null = null;
-  private step: Step = 'walk';
-  private stepT = 0;
+  protected plan: Plan | null = null;
+  protected step: Step = 'walk';
+  protected stepT = 0;
   private fillSpot: BreakSpot | null = null;
   private hangSpot: BreakSpot | null = null;
   private hangFor = 0;
@@ -130,11 +132,11 @@ export class RegularChar extends EmployeeChar {
   private sipIn = 1.5;
   private sipT = -1;
   private laughT = -1;
-  private phoneUp = false;
+  protected phoneUp = false;
   private arrived: boolean;
   private lastPhase: Phase;
-  private readonly glancer = new Glancer(0.8);
-  private readonly phone: THREE.Mesh;
+  protected readonly glancer = new Glancer(0.8);
+  protected readonly phone: THREE.Mesh;
   private readonly phoneMat: THREE.MeshStandardMaterial;
   private readonly tasks: readonly TaskRow[];
   /** Waving at someone (waveAt): how far into it, how long, and at whom. */
@@ -142,8 +144,8 @@ export class RegularChar extends EmployeeChar {
   private waveFor = 1.4;
   private waveTarget: THREE.Vector3 | null = null;
   /** How fast they're really moving (measured), and the speed their legs are stepping at. */
-  private ground = 0;
-  private gaitSpeed = 0;
+  protected ground = 0;
+  protected gaitSpeed = 0;
   private readonly lastPos = new THREE.Vector3();
   /** Unsticking: where they last made progress, how long since, re-paths tried, and to where. */
   private readonly progressAt = new THREE.Vector3();
@@ -210,6 +212,16 @@ export class RegularChar extends EmployeeChar {
   /** Standing at their break spot (where chats happen). */
   get hanging(): boolean {
     return this.phase === 'away' && this.step === 'hang';
+  }
+
+  /** Out in the garden right now (their daydreams are the garden's, ui/thoughts.ts). */
+  get outdoors(): boolean {
+    return this.coffeeOutside && this.hanging;
+  }
+
+  /** On a break and on their way somewhere (the crowd steers them like anyone walking in or out). */
+  get awayWalking(): boolean {
+    return this.phase === 'away' && (this.step === 'walk' || this.step === 'stroll');
   }
 
   /** How far through the current desk task, 0..1. */
@@ -391,7 +403,7 @@ export class RegularChar extends EmployeeChar {
     if (!this.ready) return;
     if (this.phase !== this.lastPhase) this.changedPhase();
     const T = this.body.target;
-    const walking = this.phase === 'entering' || this.phase === 'leaving' || (this.phase === 'away' && this.step === 'walk');
+    const walking = this.phase === 'entering' || this.phase === 'leaving' || this.awayWalking;
     // How fast they're really going (the gait never outpaces it), and the stuck watchdog.
     const pos = this.position;
     const moved = dt > 0 ? Math.hypot(pos.x - this.lastPos.x, pos.z - this.lastPos.z) / dt : 0;
@@ -537,7 +549,7 @@ export class RegularChar extends EmployeeChar {
 
   // -------------------------------------------------------------------------------------
 
-  private setStep(s: Step): void {
+  protected setStep(s: Step): void {
     this.step = s;
     this.stepT = 0;
   }
@@ -565,17 +577,29 @@ export class RegularChar extends EmployeeChar {
     if (this.stuckT < 2) return;
     this.stuckT = 0;
     if (this.phase === 'away' && this.repaths >= 2) {
-      this.fillSpot = this.hangSpot = null;
-      this.setPhase('entering');
-      this.walkTo(this.desk.approach);
+      this.stuckAway();
+    } else if (this.repaths >= 2 && this.stuckWalking()) {
+      // (Someone with somewhere else to be took it from here.)
     } else if (this.walkTarget) {
       this.walkTo(this.walkTarget);
     }
     this.repaths++;
   }
 
+  /** Can't get to their break spot after two tries: back to the desk. */
+  protected stuckAway(): void {
+    this.fillSpot = this.hangSpot = null;
+    this.setPhase('entering');
+    this.walkTo(this.desk.approach);
+  }
+
+  /** Can't get where they're walking (in or out) after two tries: true if they've made other plans. */
+  protected stuckWalking(): boolean {
+    return false;
+  }
+
   /** Off somewhere: hang up the phone; anywhere but a break, the chat's over too. */
-  private setPlan(p: Plan): void {
+  protected setPlan(p: Plan): void {
     this.plan = p;
     this.phoneUp = false;
     if (p !== 'break') this.partner = null;
@@ -672,7 +696,7 @@ export class RegularChar extends EmployeeChar {
   }
 
   /** Mug held out in front while standing, with a sip now and then. */
-  private holdMug(dt: number, allowSip: boolean): void {
+  protected holdMug(dt: number, allowSip: boolean): void {
     const T = this.body.target;
     T.armRPitch += 0.35;
     T.armRRoll -= 0.12;
@@ -681,7 +705,7 @@ export class RegularChar extends EmployeeChar {
   }
 
   /** Mug up to the mouth, eyes closed, back down: the boss's sip (chars/manager.ts). */
-  private sipCycle(dt: number, allow: boolean): void {
+  protected sipCycle(dt: number, allow: boolean): void {
     const b = this.body;
     const T = b.target;
     if (this.sipT < 0) {
@@ -708,7 +732,7 @@ export class RegularChar extends EmployeeChar {
   }
 
   /** Their turn in a chat: the free (left) hand does the talking. */
-  private talk(tt: number): void {
+  protected talk(tt: number): void {
     const b = this.body;
     const T = b.target;
     const O = b.over;
@@ -722,14 +746,14 @@ export class RegularChar extends EmployeeChar {
   }
 
   /** Listening: nods, head tilted. */
-  private listen(tt: number): void {
+  protected listen(tt: number): void {
     const T = this.body.target;
     this.body.over.headPitch += Math.max(0, Math.sin(tt * 2.5)) * 0.13;
     T.headRoll += 0.09;
     T.brow += 0.12;
   }
 
-  private laughing(dt: number): void {
+  protected laughing(dt: number): void {
     if (this.laughT < 0) return;
     this.laughT += dt;
     const k = pulse(this.laughT, 0, 0.9);
@@ -745,7 +769,7 @@ export class RegularChar extends EmployeeChar {
   }
 
   /** A big night-owl yawn every 20-odd seconds. */
-  private yawn(tt: number, amount: number): void {
+  protected yawn(tt: number, amount: number): void {
     const k = pulse((tt + this.offset) % 23, 0, 2.4) * amount;
     if (k <= 0) return;
     const T = this.body.target;

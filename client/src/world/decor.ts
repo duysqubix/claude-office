@@ -5,7 +5,7 @@ import { PALETTE } from '../style/palette';
 import type { AABB } from './types';
 import { Batch, CanvasTex, fitText, font, rng, shade } from './kit';
 import { footprint, type WorldCtx } from './ctx';
-import { hangPicture, placeOnWall, pottedPlant, staticProp, swapCouch, tallProp } from './props';
+import { hangPicture, MOUNT_GAP, placeOnWall, pottedPlant, staticProp, swapCouch, tallProp } from './props';
 import { findNode } from '../models';
 import { addModel, disposeGroup, disposeModel, swapModel } from './modelkit';
 import { sparkle } from './screens';
@@ -34,10 +34,10 @@ function buildOddsAndEnds(ctx: WorldCtx): void {
     ctx.root.add(g);
     return g;
   };
-  void addModel(onWall('exit-sign', 'south', 0, 2.72), 'exit_sign', { fit: { w: 0.5, uniform: true }, glow: 0.3 });
-  void addModel(onWall('calendar', 'north', -8.5, 1.62), 'calendar_wall', { fit: { h: 0.72, uniform: true } });
-  void addModel(onWall('cork-board', 'east', 2.0, 1.6), 'cork_board', { fit: { w: 1.2, uniform: true }, tint: { Accent: '#C98F5A' } });
-  void addModel(onWall('hanging-plant', 'south', 5.4, 2.2), 'plant_hanging', { tint: { Accent: '#FF9DCB' } });
+  void addModel(onWall('exit-sign', 'south', 0, 2.72), 'exit_sign', { fit: { w: 0.5, uniform: true }, glow: 0.3, at: [0, 0, MOUNT_GAP] });
+  void addModel(onWall('calendar', 'north', -8.5, 1.66), 'calendar_wall', { fit: { h: 0.72, uniform: true }, at: [0, 0, MOUNT_GAP] });
+  void addModel(onWall('cork-board', 'east', 2.0, 1.66), 'cork_board', { fit: { w: 1.2, uniform: true }, tint: { Accent: '#C98F5A' }, at: [0, 0, MOUNT_GAP] });
+  void addModel(onWall('hanging-plant', 'south', 5.4, 2.36), 'plant_hanging', { tint: { Accent: '#FF9DCB' }, at: [0, 0, MOUNT_GAP] });
 
   // Floor props with a collider get a simple procedural stand-in, so the collider is never invisible.
   const floor = (name: string, x: number, z: number, w: number, d: number, fill: (b: Batch) => void) => {
@@ -225,7 +225,7 @@ function buildWallArt(ctx: WorldCtx): void {
   hangPicture(ctx, {
     side: 'south',
     u: -9.6,
-    y: 1.65,
+    y: 1.78,
     w: 0.86,
     h: 1.2,
     px: [400, 560],
@@ -266,7 +266,7 @@ function buildWallArt(ctx: WorldCtx): void {
   hangPicture(ctx, {
     side: 'south',
     u: -5.45,
-    y: 1.65,
+    y: 1.78,
     w: 0.86,
     h: 1.2,
     px: [400, 560],
@@ -297,7 +297,7 @@ function buildWallArt(ctx: WorldCtx): void {
   hangPicture(ctx, {
     side: 'south',
     u: 9.6,
-    y: 1.65,
+    y: 1.78,
     w: 0.86,
     h: 1.2,
     px: [400, 560],
@@ -335,7 +335,7 @@ function buildWallArt(ctx: WorldCtx): void {
   const star = hangPicture(ctx, {
     side: 'west',
     u: -2.0,
-    y: 1.62,
+    y: 1.72,
     w: 0.8,
     h: 1.0,
     px: [400, 500],
@@ -388,11 +388,11 @@ function buildWallArt(ctx: WorldCtx): void {
     c.arc(w / 2, h / 2 + 6, 16, 0.15 * Math.PI, 0.85 * Math.PI);
     c.stroke();
   });
-  void swapModel(ctx, star, 'employee_of_month', { fit: { h: 1.12, uniform: true }, paint: { Label: new THREE.MeshStandardMaterial({ map: portrait.tex, roughness: 0.6 }) } });
+  void swapModel(ctx, star, 'employee_of_month', { fit: { h: 1.12, uniform: true }, paint: { Label: new THREE.MeshStandardMaterial({ map: portrait.tex, roughness: 0.6 }) }, at: [0, 0, MOUNT_GAP] });
   hangPicture(ctx, {
     side: 'east',
     u: -2.0,
-    y: 1.62,
+    y: 1.72,
     w: 1.0,
     h: 0.8,
     px: [500, 400],

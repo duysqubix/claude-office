@@ -16,7 +16,7 @@ import { PALETTE } from '../../style/palette';
 import { Body } from '../body';
 import { employeeLooks, internLooks, managerLooks, regularLooks, type HairStyle, type Looks } from '../looks';
 import { DIM, Rig } from '../rig';
-import { applyKit, keepProcedural, kitReport, planKit, stripKit, type KitPlan } from './index';
+import { applyKit, keepProcedural, kitBackDepth, kitReport, planKit, stripKit, type KitPlan } from './index';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -219,7 +219,7 @@ window.addEventListener('keydown', (e) => {
   }
 });
 // For headless probes.
-(window as unknown as { __kit: unknown }).__kit = { people, camera, controls, scene, renderer: engine.renderer, THREE, Rig, Body, employeeLooks, managerLooks, internLooks, regularLooks, applyKit, stripKit, keepProcedural, kitReport };
+(window as unknown as { __kit: unknown }).__kit = { people, camera, controls, scene, renderer: engine.renderer, THREE, Rig, Body, employeeLooks, managerLooks, internLooks, regularLooks, applyKit, stripKit, keepProcedural, kitReport, kitBackDepth };
 
 // ---- Motion -----------------------------------------------------------------------------------
 
