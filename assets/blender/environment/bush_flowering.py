@@ -21,19 +21,6 @@ PUFFS = [
 ]
 
 
-def surface(d, origin=Vector((0.0, 0.0, 0.33))):
-    """Where a ray from inside the bush leaves its outer surface: the farthest exit among the
-    puffs it passes through."""
-    best = 0.0
-    for x, y, z, r, _ in PUFFS:
-        oc = origin - Vector((x, y, z))
-        b = oc.dot(d)
-        disc = b * b - (oc.dot(oc) - r * r)
-        if disc > 0:
-            best = max(best, -b + math.sqrt(disc))
-    return origin + d * best
-
-
 def blossoms(mats):
     """Twelve flowers spread over the upper bush, facing out."""
     rnd = _env.rng(14)
@@ -43,7 +30,7 @@ def blossoms(mats):
         a = k * 2.39996
         d = Vector((math.cos(a) * math.sqrt(1 - up * up), math.sin(a) * math.sqrt(1 - up * up),
                     up)).normalized()
-        at = surface(d) + d * 0.012
+        at = _env.puff_surface(PUFFS, d, (0.0, 0.0, 0.33)) + d * 0.012
         _env.star_flower(f"Blossom{k}", tuple(at), 0.065 + rnd.uniform(0, 0.015),
                          mats[k % len(mats)], normal=tuple(d), spin=rnd.uniform(0, 6.3))
 

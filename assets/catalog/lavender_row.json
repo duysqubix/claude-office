@@ -1,0 +1,19 @@
+{
+  "id": "lavender_row",
+  "name": "Lavender row",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "A short planted row of lavender: grey-green mounds bristling with purple spikes",
+  "tags": [
+    "flowers",
+    "garden",
+    "border",
+    "lavender",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "Runs along X; tile rows end to end at 1.6 m to line the trail."
+}

@@ -1,0 +1,18 @@
+{
+  "id": "sunflower_clump",
+  "name": "Sunflower clump",
+  "category": "plant",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Three cheerful sunflowers of different heights with broad leaves, faces forward",
+  "tags": [
+    "flowers",
+    "garden",
+    "sunflower",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {},
+  "notes": "Petals are double-sided. Under 1.1 m tall; the faces look toward +Z."
+}

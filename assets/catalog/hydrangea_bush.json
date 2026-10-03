@@ -1,0 +1,18 @@
+{
+  "id": "hydrangea_bush",
+  "name": "Hydrangea",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Round faceted bush crowned with big blue, lilac and pink mophead blooms",
+  "tags": [
+    "bush",
+    "garden",
+    "flowers",
+    "foliage",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {}
+}

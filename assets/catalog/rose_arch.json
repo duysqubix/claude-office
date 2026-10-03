@@ -1,0 +1,25 @@
+{
+  "id": "rose_arch",
+  "name": "Rose arch",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Painted wooden garden arch with climbing roses, to walk through on the trail",
+  "tags": [
+    "garden",
+    "trail",
+    "arch",
+    "roses",
+    "flowers"
+  ],
+  "tintable": [],
+  "anchors": {
+    "pass": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "notes": "Walk through it along Z: 1.4 m clear between the posts, about 2 m clear under the beams. Collide with the four posts only."
+}
