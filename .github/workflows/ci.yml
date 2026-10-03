@@ -1,0 +1,85 @@
+# Checks for every pull request into main, every push to main, and on demand.
+#   Fast checks         typecheck (client + server), build, and the smoke test in an office of
+#                       its own. The required check for merging.
+#   Claude Code compat  scripts/compat.mjs against the Claude Code version the office is known
+#                       to work with (.github/claude-code-version).
+# The browser checks run nightly instead (browser.yml). How to run each one locally:
+# CONTRIBUTING.md.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to a pull request cancels its run in progress; runs on main always finish.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fast:
+    name: Fast checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install tmux
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends tmux
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run typecheck:server
+      - run: npm run build
+      - name: Smoke test (an office of its own; no Claude Code needed)
+        run: node scripts/ci/smoke.mjs
+
+  compat:
+    name: Claude Code compat
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install tmux
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends tmux
+      - run: npm ci
+      - name: Install the tracked Claude Code
+        run: |
+          version=$(tr -d '[:space:]' < .github/claude-code-version)
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=.github/claude-code-version::Not a version: '$version'"
+            exit 1
+          fi
+          npm install --prefix "$RUNNER_TEMP/claude-code" --no-fund --no-audit "@anthropic-ai/claude-code@$version"
+          echo "CLAUDE_BIN=$RUNNER_TEMP/claude-code/node_modules/.bin/claude" >> "$GITHUB_ENV"
+      - name: Compat check (a pretend Anthropic API; no login, nothing sent to Anthropic)
+        run: node scripts/compat.mjs --json "$RUNNER_TEMP/compat.json" --markdown "$RUNNER_TEMP/compat.md"
+      - name: Report
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/compat.md" ]; then cat "$RUNNER_TEMP/compat.md" >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compat-report
+          path: ${{ runner.temp }}/compat.json
+          retention-days: 14
+          if-no-files-found: ignore
+
