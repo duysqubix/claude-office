@@ -10,7 +10,7 @@
 //   audio.subscribe(fn)          any change: prefs, unlocked, what's playing
 //   audio.handOver(source)       an external player takes the music; call the result to hand back
 import { limiter, murmurBuffer } from './fx';
-import { MusicPlayer } from './music';
+import { MusicPlayer, prepareTune } from './music';
 import { rng } from './rng';
 
 export interface AudioPrefs {
@@ -183,6 +183,8 @@ class Speakers {
       // no BroadcastChannel: every tab plays
     }
     if (import.meta.env.DEV && params.has('debug')) Object.assign(window, { officeAudio: this });
+    // The first tune, written while the page is idle: the click that starts the music only plays it.
+    prepareTune(this.seed, this.nextTune, isEvening());
   }
 
   subscribe(fn: () => void): () => void {
@@ -459,6 +461,8 @@ class Speakers {
     g.setValueAtTime(g.value, now);
     g.linearRampToValueAtTime(0, now + fade);
     p.stop(now + fade + 0.05);
+    // And the tune it would start with next time (unmute, Music on), while things are quiet.
+    prepareTune(this.seed, this.nextTune, isEvening());
     this.emit();
   }
 

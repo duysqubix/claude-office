@@ -48,6 +48,10 @@ async function open(query = '') {
         return Reflect.construct(target, args);
       },
     });
+    // The game's own copy of a module: Vite serves one edited since it started as path?t=…, and a
+    // plain import('/src/…') would load a second copy that the game never sees.
+    performance.setResourceTimingBufferSize(5000);
+    window.__live = (path) => import(performance.getEntriesByType('resource').map((e) => e.name).find((n) => new URL(n).pathname === path) ?? path);
     // Frame timing: when each frame ran, and how long the game's own frame took.
     const raf = window.requestAnimationFrame.bind(window);
     window.__frames = { on: false, busy: [], ts: [] };
@@ -68,9 +72,25 @@ async function open(query = '') {
   await page.waitForFunction(() => window.office && window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
   // Once it's loaded: a throttled load takes ages to go network-idle.
   await throttle(page, THROTTLE);
+  await instrument(page);
   await wait(800);
   return page;
 }
+
+/** Time every pump of the game's music player: the first (music start), and those in a frames() window. */
+const instrument = (page) =>
+  page.evaluate(async () => {
+    const { MusicPlayer } = await window.__live('/src/audio/music.ts');
+    const pump = MusicPlayer.prototype.pump;
+    window.__pumps = { first: null, window: null };
+    MusicPlayer.prototype.pump = function (until) {
+      const t0 = performance.now();
+      pump.call(this, until);
+      const ms = performance.now() - t0;
+      window.__pumps.first ??= ms;
+      window.__pumps.window?.push(ms);
+    };
+  });
 
 /** Reload, the way open() loads: unthrottled until the office is up, then slow again. */
 async function reload(page) {
@@ -78,6 +98,7 @@ async function reload(page) {
   await page.reload({ waitUntil: 'networkidle2' });
   await page.waitForFunction(() => window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
   await throttle(page, THROTTLE);
+  await instrument(page);
 }
 
 const state = (page) => page.evaluate(() => window.officeAudio.state());
@@ -105,31 +126,35 @@ const stored = (page) =>
   page.evaluate(() => Object.fromEntries(['muted', 'music', 'music-volume', 'sfx-volume'].map((k) => [k, localStorage.getItem(`claude-office:${k}`)])));
 const clearPrefs = (page) => page.evaluate(() => ['muted', 'music', 'music-volume', 'sfx-volume'].forEach((k) => localStorage.removeItem(`claude-office:${k}`)));
 
-/** Frame intervals and the game's per-frame JS time over `ms`, plus what the music scheduler cost. */
+/** Frame intervals and the game's per-frame JS time over `ms`, plus what the music scheduler cost in that time. */
 async function frames(page, ms) {
-  const before = await state(page);
-  await page.evaluate(() => Object.assign(window.__frames, { on: true, busy: [], ts: [] }));
+  await page.evaluate(() => {
+    Object.assign(window.__frames, { on: true, busy: [], ts: [] });
+    window.__pumps.window = [];
+  });
   await wait(ms);
   const f = await page.evaluate(() => {
     window.__frames.on = false;
-    return { busy: window.__frames.busy, ts: window.__frames.ts };
+    const pumps = window.__pumps.window;
+    window.__pumps.window = null;
+    return { busy: window.__frames.busy, ts: window.__frames.ts, pumps };
   });
   const after = await state(page);
   const gaps = f.ts.slice(1).map((t, i) => t - f.ts[i]).sort((a, b) => a - b);
   const q = (a, p) => a[Math.min(a.length - 1, Math.floor(a.length * p))] ?? NaN;
   const busy = f.busy.slice().sort((a, b) => a - b);
-  const m0 = before.music;
-  const m1 = after.music;
   return {
     fps: (gaps.length / ms) * 1000,
     p50: q(gaps, 0.5),
     p95: q(gaps, 0.95),
     p99: q(gaps, 0.99),
     busy: busy.reduce((a, b) => a + b, 0) / Math.max(1, busy.length),
-    pumps: m1 && m0 ? m1.pumps - m0.pumps : 0,
-    pumpMs: m1 && m0 ? m1.pumpMs - m0.pumpMs : 0,
-    maxPump: m1?.maxPumpMs ?? 0,
-    dropped: m1?.dropped ?? 0,
+    // Only this window's pumps (the player's own stats run from its start, when it composed and
+    // built its first bars while the page was still settling).
+    pumps: f.pumps.length,
+    pumpMs: f.pumps.reduce((a, b) => a + b, 0),
+    maxPump: Math.max(0, ...f.pumps),
+    dropped: after.music?.dropped ?? 0,
   };
 }
 const fmt = (x) => `${x.fps.toFixed(0)} fps, frame p50 ${x.p50.toFixed(1)} / p95 ${x.p95.toFixed(1)} / p99 ${x.p99.toFixed(1)} ms, game JS ${x.busy.toFixed(2)} ms`;
@@ -222,7 +247,7 @@ try {
     // Nothing is playing through the effects bus now, and a bus nothing plays through isn't
     // processed: its gain still reads the old value. The next sound must get the new level from
     // its first moment, so play one (a tick) and read the gain it got.
-    await page.evaluate(async () => (await import('/src/ui/bus.ts')).bus.emit('sfx', { name: 'tick' }));
+    await page.evaluate(async () => (await window.__live('/src/ui/bus.ts')).bus.emit('sfx', { name: 'tick' }));
     await wait(300);
     s = await state(page);
     check('the music slider sets the music level', Math.abs(s.musicBus - 0.04) < 0.01, `music bus ${s.musicBus?.toFixed(3)} (want 0.040)`);
@@ -347,7 +372,7 @@ try {
   // ---------------------------------------------------------------- sound effects
   // Music off (silence), then a bell over the bus: it must come out; muted, it must not.
   const fx = await page.evaluate(async () => {
-    const { bus } = await import('/src/ui/bus.ts');
+    const { bus } = await window.__live('/src/ui/bus.ts');
     const a = window.officeAudio;
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const level = async () => {
@@ -396,7 +421,8 @@ try {
   const worst = Math.max(...runs.on.map((x) => x.maxPump));
   const dropped = Math.max(...runs.on.map((x) => x.dropped));
   console.log(`  frames, music off: ${fmt(base)}`);
-  console.log(`  frames, music on:  ${fmt(band)}; scheduler ${pumps} pumps, ${pumpMs.toFixed(1)} ms in 10 s (${perSecond.toFixed(2)} ms per second, ${(pumpMs / Math.max(1, pumps)).toFixed(3)} ms per pump), worst ${worst.toFixed(1)} ms`);
+  const startPump = await page.evaluate(() => window.__pumps.first);
+  console.log(`  frames, music on:  ${fmt(band)}; scheduler ${pumps} pumps, ${pumpMs.toFixed(1)} ms in 10 s (${perSecond.toFixed(2)} ms per second, ${(pumpMs / Math.max(1, pumps)).toFixed(3)} ms per pump), worst ${worst.toFixed(1)} ms; music start's first pump ${startPump?.toFixed(1)} ms`);
   check(
     'frame budget: the music adds no jank (frame p95 within 10% + 1 ms of music off)',
     band.p95 <= base.p95 * 1.1 + 1 && band.fps >= base.fps * 0.93,
@@ -417,7 +443,7 @@ try {
   // 300 seeded tunes (a fifth of them evening ones): tempos, registers and timing stay sane.
   const songs = await open();
   const tunes = await songs.evaluate(async () => {
-    const { followUp } = await import('/src/audio/composer.ts');
+    const { followUp } = await window.__live('/src/audio/composer.ts');
     const bad = [];
     let prev = null;
     let bars = 0;
