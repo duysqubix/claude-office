@@ -25,7 +25,7 @@ import * as THREE from 'three';
 import { CameraRig, type CameraShot } from './camera';
 import { Director } from './chars/director';
 import type { EmployeeChar } from './chars/employee';
-import { KIT_ENABLED, kitReport } from './chars/kit';
+import { KIT_ENABLED, kitReport, updateKit } from './chars/kit';
 import { createLineup } from './chars/lineup';
 import { Manager, type DebugPose, type MoveIntent } from './chars/manager';
 import type { RegularChar } from './chars/npc';
@@ -818,6 +818,8 @@ function runOffice(): void {
     // Fully dissolved: skip drawing altogether (every pixel would be discarded anyway).
     if (managerFade <= 0) manager.rig.root.visible = false;
     world.updateOcclusion(engine.camera, manager.position);
+    // Newly dressed characters merged into one mesh each (a couple a frame); far ones in one draw.
+    updateKit(engine.camera);
 
     const stats = director.stats();
     const sk = JSON.stringify(stats);
@@ -869,6 +871,7 @@ function runLineup(): void {
       lineup.update(elapsed / n, t, cam.position);
       world.update(elapsed / n, t);
     }
+    updateKit(cam);
     engine.render();
   };
   frame();
