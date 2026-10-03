@@ -22,5 +22,6 @@
     "HourHand": "rest = 12 o'clock; rotate about -Z (three) for clockwise",
     "MinuteHand": "rest = 12 o'clock; rotate about -Z (three) for clockwise"
   },
-  "mount": "wall: origin is the back centre"
+  "mount": "wall: origin is the back centre",
+  "notes": "AO re-baked by Claude C\u00e9zanne, 2026-10-02: lib.bake_ao bakes models with named parts without a margin (no dark specks from one part's margin over another's)."
 }
