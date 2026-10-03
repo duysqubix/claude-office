@@ -8,7 +8,7 @@
 // its own random `state` (the CSRF check at /callback) and PKCE verifier, and lapses after
 // ten minutes. index.ts has already checked Host, Origin and the JSON-only POST rule.
 import { createHash, randomBytes } from 'node:crypto';
-import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import { basename, dirname, join } from 'node:path';
 import { SPOTIFY_CLIENT_ID, SPOTIFY_SCOPES, type SpotifyResult } from '../shared/spotify';
@@ -29,6 +29,8 @@ const BACKOFF_MS = 10_000;
 const MAX_BACKOFF_MS = 10 * 60_000;
 /** Shutting down, the office waits at most this long for a token being saved. */
 const FLUSH_MS = 1000;
+/** A save's leftover copy this old is abandoned, whoever's pid it carries. */
+const STALE_TMP_MS = 60_000;
 /** Longest piece of Spotify's own wording passed on (error descriptions). */
 const MAX_TEXT = 200;
 
@@ -237,13 +239,11 @@ export class SpotifyLink {
     const signOuts = this.signOuts;
     const run = (async (): Promise<Saved> => {
       const g = await this.grant({ grant_type: 'refresh_token', refresh_token: s.refreshToken!, client_id: s.clientId });
-      // You signed out meanwhile: nobody gets a token (and it wasn't Spotify).
+      // Signed in again meanwhile (signed out first, maybe): that sign-in wins.
+      if (this.saved !== s && this.saved?.accessToken) return this.saved;
+      // Only signed out: nobody gets a token (and it wasn't Spotify).
       if (this.signOuts !== signOuts) throw new SignedOut(YOU_SIGNED_OUT);
-      // Signed in again meanwhile: that sign-in wins.
-      if (this.saved !== s) {
-        if (this.saved?.accessToken) return this.saved;
-        throw new SignedOut();
-      }
+      if (this.saved !== s) throw new SignedOut();
       if (!g.ok) {
         if (g.code === 'invalid_grant') {
           await this.forget(s);
@@ -259,7 +259,8 @@ export class SpotifyLink {
       // A PKCE refresh may come without a new refresh token: then the old one stays good.
       const next: Saved = { ...s, accessToken: g.access, expiresAt: g.expiresAt, refreshToken: g.refresh ?? s.refreshToken, scope: g.scope ?? s.scope };
       await this.save(next);
-      // Signed out while it was being saved: that token isn't handed out either.
+      // The same while it was being saved: a newer sign-in wins; only signed out, no token.
+      if (this.saved !== next && this.saved?.accessToken) return this.saved;
       if (this.signOuts !== signOuts) throw new SignedOut(YOU_SIGNED_OUT);
       return next;
     })();
@@ -317,11 +318,13 @@ export class SpotifyLink {
 
   private load(): Promise<void> {
     this.loading ??= (async () => {
-      // A save cut short (the office stopped between writing and renaming) left a copy of the tokens behind.
+      // A save cut short (the office stopped between writing and renaming) left a copy of the tokens
+      // behind. Only an abandoned one goes: the office before this one may still be saving.
       const dir = dirname(this.opts.file);
       const base = basename(this.opts.file);
       for (const f of await readdir(dir).catch(() => [] as string[])) {
-        if (f.startsWith(`${base}.`) && /^\d+\.tmp$/.test(f.slice(base.length + 1))) await rm(join(dir, f), { force: true }).catch(() => {});
+        const pid = f.startsWith(`${base}.`) ? /^(\d+)\.tmp$/.exec(f.slice(base.length + 1))?.[1] : undefined;
+        if (pid !== undefined && (await abandoned(join(dir, f), Number(pid)))) await rm(join(dir, f), { force: true }).catch(() => {});
       }
       let raw: unknown;
       try {
@@ -368,6 +371,22 @@ export class SpotifyLink {
 
 const CLOSE_JS = 'setTimeout(function(){window.close()},1500)';
 const CLOSE_HASH = createHash('sha256').update(CLOSE_JS).digest('base64');
+
+/**
+ * A save's leftover copy (`<file>.<pid>.tmp`) nobody will finish: its office isn't running any
+ * more, or the copy is over a minute old. A running office (the one this port just came from,
+ * say, still saving as it shuts down) keeps its copy.
+ */
+async function abandoned(path: string, pid: number): Promise<boolean> {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return true;
+  try {
+    process.kill(pid, 0);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ESRCH') return true;
+  }
+  const s = await stat(path).catch(() => null);
+  return !!s && Date.now() - s.mtimeMs > STALE_TMP_MS;
+}
 
 const handOut = (s: Saved): SpotifyReply => ({ status: 200, body: { ok: true, accessToken: s.accessToken!, expiresAt: s.expiresAt! } });
 
