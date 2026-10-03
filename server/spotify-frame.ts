@@ -67,6 +67,9 @@ export function startPlayerFrame(office: string[]): Promise<PlayerFrame> {
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address() as { port: number };
       host = `127.0.0.1:${port}`;
+      // Listening: from here on an error is logged, never thrown at the office (an unhandled one would end it).
+      server.off('error', reject);
+      server.on('error', (err) => console.warn('[spotify] player frame:', err));
       // It never keeps the office running on its own.
       server.unref();
       resolve({ origin: `http://${host}`, close: () => server.close() });
