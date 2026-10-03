@@ -272,7 +272,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       if (said === 'not-pasted') throw new HttpError(409, asked ? 'They have a question open. Sit at their computer to answer it.' : "Their terminal isn't at the prompt. Sit at their computer to see what's on it.");
       if (said === 'draft') throw new HttpError(409, "There's unsent text in their box. Sit at their computer to send or clear it.");
       if (said === 'not-sent') throw new HttpError(409, asked ? 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.' : "Your message didn't show up in their box. Sit at their computer to check it.");
-      if (said === 'held') throw new HttpError(409, "Enter didn't send your message: it's still in their box. Sit at their computer to send it.");
+      if (said === 'held') throw new HttpError(409, "Enter didn't send your message: it's still in their box. If Claude asked something just then, check what Enter did. Sit at their computer to see.");
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/desk/close': {
