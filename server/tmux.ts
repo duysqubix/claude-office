@@ -378,54 +378,122 @@ export function pasteSafe(text: string): string {
   return text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 }
 
-/** How far say() got: all of it, or stopped by a question before the paste or before Enter. */
-export type Said = 'sent' | 'not-pasted' | 'not-sent';
+/** How far say() got: all of it; stopped before the paste (a question open, or unsent text already in their box); or stopped before Enter. */
+export type Said = 'sent' | 'not-pasted' | 'draft' | 'not-sent';
 
 /**
- * Type `text` into the session (bracketed paste) and press Enter. `asking` is checked right
- * before the paste and again right before Enter: Claude can raise a question at any moment, and
- * that Enter would answer it (a permission prompt's first choice is Yes).
+ * Type `text` into the session's input box (bracketed paste) and press Enter. Claude can raise a
+ * question at any moment, and Enter on one of its dialogs would answer it (a permission prompt's
+ * first choice is Yes), so `asking` (what the office knows) and the screen are checked right
+ * before the paste, and again right before Enter, which waits until the box shows the text: a
+ * dialog hides the box (keeping the text in it for later).
  */
 export async function say(tmuxName: string, text: string, asking: (stage: 'paste' | 'enter') => Promise<boolean> = async () => false): Promise<Said> {
   if (!isOfficeName(tmuxName)) throw new Error('Not an office session');
   const clean = pasteSafe(text);
   if (!clean.trim()) throw new Error('Nothing to say');
   if (await asking('paste')) return 'not-pasted';
+  const box = await inputBox(tmuxName);
+  if (box === null) return 'not-pasted';
+  if (box) return 'draft';
   const buffer = `office-say-${process.pid}-${randomUUID()}`;
   const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: clean });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
   const paste = await tmux(['paste-buffer', '-p', '-d', '-b', buffer, '-t', `=${tmuxName}:`]);
   if (paste.code !== 0) throw new Error(paste.stderr.trim() || 'tmux paste-buffer failed');
-  // Give Claude Code's input a beat to take the paste before submitting.
-  await new Promise((r) => setTimeout(r, 150));
-  if (await asking('enter')) return 'not-sent';
+  // Give Claude Code's input a beat to take the paste, and up to a second more to draw it.
+  for (let look = 0; ; look++) {
+    await new Promise((r) => setTimeout(r, look ? 100 : 150));
+    if (await asking('enter')) return 'not-sent';
+    if (!(await dialogOnScreen(tmuxName, clean))) break;
+    if (look === 8) return 'not-sent';
+  }
   await tmux(['send-keys', '-t', `=${tmuxName}:`, 'Enter']);
   return 'sent';
 }
 
-/** How Claude Code words its permission and plan prompts. Its replies can ask the same in passing. */
-const DIALOG_HEAD = /Do you want to (proceed|make this edit|create|allow)|Would you like to proceed/i;
-/** Words only its own dialogs use: the folder-trust prompt, old (1.x) and new (2.1: unnumbered choices). */
-const DIALOG_ONLY = /Do you trust the files in this folder|Accessing workspace:|Quick safety check/i;
-/** One of a select list's numbered choices, the highlighted one marked ❯ (inside a box or not). */
-const CHOICE = /^\s*[│|]?\s*(❯\s*)?\d+\.\s+\S/;
-/** A highlighted choice, numbered or not. */
-const PICKED = /^\s*[│|]?\s*❯\s+\S/;
+/** The input box's top and bottom edges: a rule across (2.x, with their name in it) or a ╭─╮ box (1.x). */
+const TOP_EDGE = /^\s*[╭┌]?─{8,}/;
+const BOTTOM_EDGE = /^\s*[╰└]?─{8,}/;
+/** A line led by Claude Code's prompt glyph: its input box, a dialog's highlighted choice, or a sent message's echo. */
+const PROMPT = /^\s*│?\s*[❯>](?=\s|$)/;
+/** The input box's first line: the prompt glyph, or ! once a typed "!" has put it in shell mode. */
+const BOX_HEAD = /^\s*│?\s*([❯>]|!)(?=\s|$)/;
 
 /**
- * Is one of Claude Code's dialogs on `tmuxName`'s screen, so that Enter would answer it? Its
- * question with a highlighted (❯) choice below, or a highlighted numbered choice among others.
- * Claude's replies can ask "Do you want to proceed?" or list options too, but never highlight
- * one: after words like those, only a highlighted numbered choice counts (your own typing sits
- * after a ❯ too). `typing`: text in their box right now, so a numbered list in it isn't a dialog.
+ * Would Enter answer one of Claude Code's dialogs rather than send `typing` from its input box?
+ * Yes while the box isn't on screen (a dialog or menu has the keys: it hides the box), and yes
+ * if the box doesn't show `typing`: its start, however the box wraps it, or "[Pasted text #N]",
+ * how Claude Code shows a long paste. With no `typing`, only whether the box is hidden.
  */
 export async function dialogOnScreen(tmuxName: string, typing = ''): Promise<boolean> {
-  const lines = await capture(tmuxName, 40, 400);
-  const highlighted = (l: string) => CHOICE.test(l) && l.includes('❯');
-  const below = (i: number, test: (l: string) => boolean) => lines.slice(i + 1, i + 14).some(test);
-  if (lines.some((l, i) => (DIALOG_ONLY.test(l) && below(i, (c) => PICKED.test(c))) || (DIALOG_HEAD.test(l) && below(i, highlighted)))) return true;
-  if (/^\s*\d+\.\s/m.test(typing)) return false;
-  return lines.filter((l) => CHOICE.test(l)).length >= 2 && lines.some(highlighted);
+  const box = await inputBox(tmuxName);
+  if (box === null) return true;
+  const flat = (s: string) => s.replace(/\s+/g, '');
+  return !!typing && !/\[(Pasted|\.\.\.Truncated) text #\d/.test(box) && !flat(box).startsWith(flat(typing).slice(0, 16));
+}
+
+/**
+ * What's typed in Claude Code's input box on `tmuxName`'s screen: '' if nothing, null if the box
+ * isn't on screen. The box is the last prompt line right under a rule, down to the next rule
+ * (the lines under the box, like "! for shell mode", have none), with no prompt line below it:
+ * a dialog's choices and the echoes of sent messages never sit right under a rule. Its ghost
+ * text ("Try …", a suggested reply) is drawn dim and the cursor inverse: neither was typed. In
+ * shell mode, the ! was.
+ */
+async function inputBox(tmuxName: string): Promise<string | null> {
+  const r = await tmux(['capture-pane', '-p', '-e', '-t', `=${tmuxName}:`]);
+  if (r.code !== 0) return null;
+  const rows = screenRows(r.stdout);
+  for (let top = rows.length - 1; top > 0; top--) {
+    if (!BOX_HEAD.test(rows[top].text) || !TOP_EDGE.test(rows[top - 1].text)) continue;
+    const bottom = rows.findIndex((row, i) => i > top && BOTTOM_EDGE.test(row.text));
+    if (bottom < 0) continue;
+    if (rows.slice(bottom + 1).some((row) => PROMPT.test(row.text))) return null;
+    const typed = rows
+      .slice(top, bottom)
+      .map((row) => row.typed.replace(/\s*│$/, ''))
+      .join('\n')
+      .replace(BOX_HEAD, '')
+      .trim();
+    return BOX_HEAD.exec(rows[top].text)?.[1] === '!' ? `!${typed}` : typed;
+  }
+  return null;
+}
+
+/**
+ * `capture-pane -e` output as rows: `text` as drawn, and `typed`, without the cells drawn dim or
+ * inverse. Attributes carry over from one row to the next, as tmux writes them.
+ */
+function screenRows(out: string): { text: string; typed: string }[] {
+  const rows: { text: string; typed: string }[] = [];
+  let text = '';
+  let typed = '';
+  let dim = false;
+  let inverse = false;
+  for (const [token, sgr] of out.matchAll(/\x1b\[([\d;:]*)m|\x1b\[[\d;:?<=>]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b.?|\n|[^\x1b\n]+/g)) {
+    if (token === '\n') {
+      rows.push({ text: text.trimEnd(), typed: typed.trimEnd() });
+      text = typed = '';
+    } else if (sgr !== undefined) {
+      const codes = sgr.split(';');
+      for (let i = 0; i < codes.length; i++) {
+        const c = codes[i];
+        if (c === '' || c === '0') dim = inverse = false;
+        else if (c === '2') dim = true;
+        else if (c === '22') dim = false;
+        else if (c === '7') inverse = true;
+        else if (c === '27') inverse = false;
+        // 38;5;n and 38;2;r;g;b (and 48, 58): colors, whose numbers aren't attributes.
+        else if (c === '38' || c === '48' || c === '58') i += codes[i + 1] === '5' ? 2 : codes[i + 1] === '2' ? 4 : 0;
+      }
+    } else if (token[0] !== '\x1b') {
+      text += token;
+      if (!dim && !inverse) typed += token;
+    }
+  }
+  rows.push({ text: text.trimEnd(), typed: typed.trimEnd() });
+  return rows;
 }
 
 /** Press Esc in the session (Claude Code's interrupt). */

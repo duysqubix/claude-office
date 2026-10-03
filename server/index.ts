@@ -22,7 +22,7 @@ import { run } from './exec';
 import { ShellKeeper } from './shells';
 import { SpotifyLink } from './spotify';
 import { ThoughtService } from './thoughts';
-import { AlreadyHere, assertDirectory, closeDesk, dialogOnScreen, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
+import { AlreadyHere, assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -267,8 +267,9 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       // With a question open, the Enter after the paste would answer it, and a permission
       // prompt's first choice is Yes. Claude can ask at any moment, so say() looks right before
       // it pastes and again right before Enter.
-      const said = await say(tmuxName, text, (stage) => asking(sessionId, tmuxName, stage === 'enter' ? text : ''));
+      const said = await say(tmuxName, text, () => asking(sessionId));
       if (said === 'not-pasted') throw new HttpError(409, 'They have a question open. Sit at their computer to answer it.');
+      if (said === 'draft') throw new HttpError(409, "There's unsent text in their box. Sit at their computer to send or clear it.");
       if (said === 'not-sent') throw new HttpError(409, 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.');
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
@@ -289,15 +290,14 @@ function uuidFrom(v: unknown): string {
 }
 
 /**
- * Has Claude asked something that Enter would answer, right now? An in-game ask, the roster (a
- * poll old), Claude Code's own status read fresh from its registry file, then its screen for a
- * dialog. `typing`: text in their box, so a list in it isn't taken for a dialog.
+ * Has Claude asked something that Enter would answer, as far as the office knows? An in-game ask,
+ * the roster (a poll old), or Claude Code's own status read fresh from its registry file. That
+ * file can trail the dialog by a few frames, so say() reads the screen as well.
  */
-async function asking(sessionId: string, tmuxName: string, typing: string): Promise<boolean> {
+async function asking(sessionId: string): Promise<boolean> {
   const e = roster.find(sessionId);
   if (asks.forSession(sessionId) || e?.state === 'needs-you') return true;
-  if (e?.pid && (await sessionStatus(e.pid, sessionId)) === 'waiting') return true;
-  return dialogOnScreen(tmuxName, typing);
+  return !!e?.pid && (await sessionStatus(e.pid, sessionId)) === 'waiting';
 }
 
 /** The tmux session of someone this office hired, else 400 `refused`. Its stamp is read again here: the roster's map can be a poll old. */
