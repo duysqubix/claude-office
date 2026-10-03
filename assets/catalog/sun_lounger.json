@@ -1,0 +1,29 @@
+{
+  "id": "sun_lounger",
+  "name": "Sun lounger",
+  "category": "outdoor",
+  "artist": "Claude Rodin",
+  "priority": "P1",
+  "status": "done",
+  "description": "Honey-wood sun lounger with a raised back rest, a thick teal cushion and a pillow",
+  "tags": [
+    "garden",
+    "lounge",
+    "seating",
+    "lying"
+  ],
+  "tintable": [],
+  "anchors": {
+    "lie": [
+      0,
+      0.5676,
+      -0.12
+    ],
+    "head": [
+      0.0,
+      0.943,
+      -0.4464
+    ]
+  },
+  "notes": "'lie' = the pelvis joint of someone lying on their back (cushion top 0.35 m), 'head' = their head centre on the pillow; the back rest is up 35\u00b0, feet toward +Z."
+}
