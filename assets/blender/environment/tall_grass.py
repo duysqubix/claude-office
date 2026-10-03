@@ -31,7 +31,7 @@ def build():
         b.data.shade_flat()
     for k in range(3):
         a = k * 2.1 + 0.4
-        top = (0.06 * math.cos(a), 0.06 * math.sin(a), 0.6 + 0.04 * k)
+        top = (0.06 * math.cos(a), 0.06 * math.sin(a), 0.5 + 0.04 * k)
         _env.sweep_tube(f"Stalk{k}", [(0.0, 0.0, 0.0), (top[0] * 0.5, top[1] * 0.5, 0.5), top],
                         0.006, stalk, verts=3, caps=False)
         _env.icoblob(f"Plume{k}", 0.065, (top[0] * 1.08, top[1] * 1.08, top[2] + 0.09), plume,

@@ -1,0 +1,26 @@
+{
+  "id": "tree_oak",
+  "name": "Oak",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Big faceted shade tree: a stout forked trunk under a wide umbrella canopy you can walk under",
+  "tags": [
+    "tree",
+    "garden",
+    "lawn",
+    "shade",
+    "foliage",
+    "faceted"
+  ],
+  "tintable": [],
+  "anchors": {
+    "canopy": [
+      0.0,
+      3.7,
+      0.0
+    ]
+  },
+  "notes": "Canopy underside about 2.6 m up. Fade it like the other trees when it hides the manager."
+}

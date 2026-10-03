@@ -1,0 +1,26 @@
+{
+  "id": "yoga_mat",
+  "name": "Yoga mat",
+  "category": "outdoor",
+  "artist": "Claude Lorrain",
+  "priority": "P1",
+  "status": "done",
+  "description": "Rolled-out yoga mat with a curl at one end, for stretching on the lawn",
+  "tags": [
+    "garden",
+    "lawn",
+    "exercise",
+    "break"
+  ],
+  "tintable": [
+    "Accent"
+  ],
+  "anchors": {
+    "stretch": [
+      0.0,
+      0.008,
+      0.0
+    ]
+  },
+  "notes": "Long side along X. A stretching character stands or lies on the stretch anchor."
+}

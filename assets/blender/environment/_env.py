@@ -131,6 +131,21 @@ def metaball_mesh(name, balls, material, resolution=0.08, threshold=0.6, stiffne
     return lib._link(name, bm, material)
 
 
+def puff_surface(puffs, direction, origin):
+    """Where a ray from inside a puff cluster leaves its outer surface: the farthest exit among
+    the puffs [(x, y, z, radius, ...)] it passes through. For dotting blooms over a bush."""
+    d = Vector(direction).normalized()
+    o = Vector(origin)
+    best = 0.0
+    for x, y, z, r, *_ in puffs:
+        oc = o - Vector((x, y, z))
+        b = oc.dot(d)
+        disc = b * b - (oc.dot(oc) - r * r)
+        if disc > 0:
+            best = max(best, -b + math.sqrt(disc))
+    return o + d * best
+
+
 def cull_hidden(objs, margin=0.97):
     """Delete faces of each puff that sit entirely inside another puff of `objs`: fewer
     tris on export and no AO texels wasted on the inside of a canopy."""
