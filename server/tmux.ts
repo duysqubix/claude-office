@@ -64,14 +64,17 @@ const shellName = (sessionId: string) => TMUX_PREFIX + sessionId.slice(0, 8).toL
 
 /** Every pane of every office hire's tmux session (none if the tmux server isn't running). */
 export async function listHosted(): Promise<HostedPane[]> {
+  // Colon-separated, not tabs: tmux 3.3/3.4 (Debian 12, Ubuntu 24.04) print a tab in -F output
+  // as "_". Session names can't hold a colon; the path is last and keeps any of its own.
   const r = await tmux([
     'list-panes', '-a', '-F',
-    '#{session_name}\t#{pane_pid}\t#{pane_dead}\t#{pane_dead_status}\t#{session_created}\t#{pane_current_path}',
+    '#{session_name}:#{pane_pid}:#{pane_dead}:#{pane_dead_status}:#{session_created}:#{pane_current_path}',
   ]);
   if (r.code !== 0) return [];
   const out: HostedPane[] = [];
   for (const line of r.stdout.split('\n')) {
-    const [name, pid, dead, status, created, cwd] = line.split('\t');
+    const [name, pid, dead, status, created, ...path] = line.split(':');
+    const cwd = path.join(':');
     if (!name || !isOfficeName(name) || isShellName(name)) continue;
     out.push({
       tmuxName: name,
