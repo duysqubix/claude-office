@@ -2,7 +2,7 @@
 // Faces on the left, clock-ins merge ("3 people clocked in"), and while you sit at someone's
 // computer only errors show; the rest wait until you stand up.
 import type { Employee } from '../../../shared/protocol';
-import type { ToastRequest } from './bus';
+import { bus, type ToastRequest } from './bus';
 import { ToastStack } from './components';
 import { employeeFace } from './faces';
 import { icon } from './icons';
@@ -36,6 +36,8 @@ export class Toasts {
         const held = this.held;
         this.held = [];
         for (const req of held) this.stack.show(req);
+        // One pip for the lot.
+        bus.emit('sfx', { name: 'pip' });
       }
     }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
@@ -86,5 +88,7 @@ export class Toasts {
       return;
     }
     this.stack.show(req);
+    // A soft pip (it makes way for a sound that just played: the bell of a hire, a clock-in's chime).
+    bus.emit('sfx', { name: kind === 'bad' ? 'error' : 'pip' });
   }
 }

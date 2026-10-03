@@ -17,6 +17,25 @@ mkdirSync(SNAPS, { recursive: true });
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const check = (name, ok, detail = '') => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
+
+/**
+ * Read every `every` ms until `done(value)`, giving up once the office's own clock has run
+ * `simSecs` (on a slow machine the sim runs behind the wall clock), or after `capMs` of wall
+ * time whatever happens. Returns the last value read.
+ */
+async function poll(page, read, done, simSecs, every = 100, capMs = 180_000) {
+  const clock = () => page.evaluate(() => window.office.regulars.clock);
+  const s0 = await clock();
+  const t0 = Date.now();
+  let v = await read();
+  while (!done(v) && Date.now() - t0 < capMs && (await clock()) - s0 < simSecs) {
+    await wait(every);
+    v = await read();
+  }
+  return v;
+}
 
 /** A page that never reports presence and (live) never POSTs. */
 async function open(url, { live = false } = {}) {
@@ -51,6 +70,8 @@ async function open(url, { live = false } = {}) {
   });
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
   await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  // Once it's loaded (with request interception on, a throttled load never goes network-idle).
+  if (THROTTLE > 1) await (await page.target().createCDPSession()).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   await wait(1500);
   return { page, logs, posts };
 }
@@ -205,22 +226,26 @@ try {
     yielded = await full.page.evaluate(() => window.office.regulars.crew().filter((r) => r.plan === 'yield').map((r) => ({ name: r.name, desk: r.desk.index })));
   }
   check('a full office: each hire makes a regular give up a desk', yielded.length === 2, JSON.stringify({ before, yielded }));
-  await wait(1200);
-  const allYours = await full.page.evaluate(() => window.office.regulars.crew().filter((r) => r.quipping && r.quipText === 'All yours!').length);
-  check('they say "All yours!"', allYours >= 1, String(allYours));
-  let seated = [];
-  for (let i = 0; i < 40; i++) {
-    await wait(500);
-    seated = await full.page.evaluate((desks) => desks.map((d) => window.office.director.list().find((e) => e.desk.index === d && e.seated)?.data.displayName ?? null), yielded.map((y) => y.desk));
-    if (seated.every(Boolean)) break;
-  }
+  // Who's sitting at the desks the regulars gave up.
+  const seatedAt = () => full.page.evaluate((desks) => desks.map((d) => window.office.director.list().find((e) => e.desk.index === d && e.seated)?.data.displayName ?? null), yielded.map((y) => y.desk));
+  // Said once they're up out of the chair (a quip lasts 2.8 s): watch for it until the newcomers sit.
+  const handover = await poll(
+    full.page,
+    async () => ({ yours: await full.page.evaluate(() => window.office.regulars.crew().filter((r) => r.quipping && r.quipText === 'All yours!').length), seated: await seatedAt() }),
+    (v) => v.yours >= 1 || v.seated.every(Boolean),
+    30,
+  );
+  check('they say "All yours!"', handover.yours >= 1, JSON.stringify(handover));
+  const seated = await poll(full.page, seatedAt, (v) => v.every(Boolean), 60, 250);
   check('the newcomers sit at those desks', seated.every(Boolean), JSON.stringify(seated));
   // Whoever gave a desk up walks out the front door (a far desk is a 15 m stroll).
-  let after = { desks: -1, stillHere: -1 };
-  for (let i = 0; i < 40 && after.stillHere !== 0; i++) {
-    after = await full.page.evaluate((names) => ({ desks: window.office.world.desks.length, stillHere: window.office.regulars.crew().filter((r) => names.includes(r.name)).length }), yielded.map((y) => y.name));
-    if (after.stillHere) await wait(500);
-  }
+  const after = await poll(
+    full.page,
+    () => full.page.evaluate((names) => ({ desks: window.office.world.desks.length, stillHere: window.office.regulars.crew().filter((r) => names.includes(r.name)).length }), yielded.map((y) => y.name)),
+    (v) => v.stillHere === 0,
+    60,
+    250,
+  );
   check('the office did not grow, and the regulars went home', after.desks === before.desks && after.stillHere === 0, JSON.stringify(after));
   check('no page errors while displacing', !full.logs.some((l) => l.startsWith('[pageerror]')), full.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
   await full.page.close();
@@ -289,11 +314,7 @@ try {
   await sw.page.evaluate(() => document.querySelector('.co-regulars').scrollIntoView({ block: 'end' }));
   await sw.page.screenshot({ path: `${SNAPS}/npc-check-settings.png` });
   await sw.page.evaluate(() => document.querySelector('.co-regulars input[value="off"]').click());
-  let left = -1;
-  for (let i = 0; i < 50 && left !== 0; i++) {
-    await wait(500);
-    left = await sw.page.evaluate(() => window.office.regulars.crew().length);
-  }
+  const left = await poll(sw.page, () => sw.page.evaluate(() => window.office.regulars.crew().length), (n) => n === 0, 60, 250);
   const saved = await sw.page.evaluate(() => localStorage.getItem('claude-office:regulars'));
   check('Off: everyone heads home (walking out, not popping)', left === 0 && saved === 'off', `${left} left, saved ${saved}`);
   const stays = await sw.page.evaluate(() => window.office.regulars.frontDesk?.phase ?? null);

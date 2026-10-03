@@ -98,6 +98,52 @@ export interface OfficeStats {
   interns: number;
 }
 
+/** Where someone on their break can sit or lie down in the garden (#48). */
+export type YardSeatKind = 'bench' | 'picnic' | 'blanket' | 'lounger' | 'hammock' | 'pond';
+
+export interface YardSeat {
+  kind: YardSeatKind;
+  /** Pelvis point: y = seat height; about 0.1 sitting on the blanket or the pond's edge; lying, the pelvis joint. */
+  position: THREE.Vector3;
+  /** The way a seated person faces; lying down (lounger, hammock), the way their feet point. */
+  yaw: number;
+  /** Walkable floor point (y = 0) to walk to before sitting down, and to stand up onto. */
+  approach: THREE.Vector3;
+  /** 'ground' is cross-legged on the blanket or at the pond's edge. */
+  pose: 'sit' | 'lie' | 'ground';
+  /** The hammock's swinging bed: while lying in it, follow this object's world matrix. */
+  carrier?: THREE.Object3D;
+  /** Seats and stands sharing a group belong together (a bench, the picnic table, the blanket, the pond's edge). */
+  group?: string;
+  /** Under or beside the string lights, where the night owls sit after 21:00. */
+  lit?: boolean;
+}
+
+export interface YardStand {
+  /** Floor point (y = 0) just off the trail. */
+  position: THREE.Vector3;
+  /** The way to face: at a view, the pond, or the other stand in the group. */
+  yaw: number;
+  group?: string;
+  lit?: boolean;
+}
+
+/** The garden's break spots (#48). */
+export interface Yard {
+  /**
+   * The paved trail: a closed loop of walkable floor points (y = 0) about 1 m apart; the last
+   * joins the first. Every step from one point to the next is clear of colliders by 0.3 m, so
+   * walk it point to point, either way round.
+   */
+  trail: THREE.Vector3[];
+  /** Width of the trail's paving (m). */
+  trailWidth: number;
+  seats: YardSeat[];
+  stands: YardStand[];
+  /** Floor point just inside the garden gate, where people out on a break come and go. */
+  gate: THREE.Vector3;
+}
+
 export interface World {
   root: THREE.Group;
   /** All desks, index = position in this array. */
@@ -154,4 +200,6 @@ export interface World {
   internSlots: InternSlot[];
   /** Add stations (extend the bench or add a second one) until at least `n` exist. Returns the count. */
   ensureInternSlots(n: number): number;
+  /** The garden's break spots (#48): the trail loop, seats, stands and the gate. */
+  yard: Yard;
 }

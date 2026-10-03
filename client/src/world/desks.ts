@@ -14,8 +14,9 @@ import D from './dimensions.json';
 import { Screen, type ScreenView } from './screens';
 import { aabb, type WorldCtx } from './ctx';
 import type { Decor } from './decor';
-import { catalogItem } from '../models';
+import { catalogItem, model } from '../models';
 import { disposeGroup, disposeInstanced, instancedModel, placement, type Fit, type InstancedModel } from './modelkit';
+import { lavaWax } from './lava';
 
 const TRIM = '#FFFDF8';
 const LEG = '#F1ECE4';
@@ -23,8 +24,12 @@ const MUGS = ['#FF7A6B', '#5CC8FF', '#FFC94A', '#6EDC9A', '#B48CFF', '#FFFFFF', 
 const DIVIDERS = ['#BFE6D8', '#CFE0FF', '#FFE2B8', '#F6D0E4'];
 const TOP = D.deskTop;
 
-/** Desk clutter from the catalog, by kind. The procedural fallback draws kind % 5. */
-const CLUTTER: { id: string; fit?: Fit; tint?: readonly string[] }[] = [
+/**
+ * Desk clutter from the catalog, by kind. The procedural fallback draws kind % 5. `tint` colours
+ * each copy's `Accent`; `glass` also tints its `Glass` that much toward the same colour (0 clear,
+ * 1 the full colour), so the glass stays light and what's inside reads through it.
+ */
+const CLUTTER: { id: string; fit?: Fit; tint?: readonly string[]; glass?: number }[] = [
   { id: 'succulent', fit: { h: 0.15, uniform: true }, tint: ['#FF9A7A', '#5CC8FF', '#FFC94A'] },
   { id: 'rubber_duck', fit: { h: 0.11, uniform: true } },
   { id: 'paper_stack' },
@@ -32,10 +37,14 @@ const CLUTTER: { id: string; fit?: Fit; tint?: readonly string[] }[] = [
   { id: 'books_stack' },
   { id: 'cactus', fit: { h: 0.2, uniform: true }, tint: ['#FF9DCB', '#FFC94A'] },
   { id: 'photo_frame', tint: ['#FF7A6B', '#2EC4B6', '#FFC94A'] },
-  { id: 'lava_lamp', tint: ['#B48CFF', '#FF7A6B'] },
+  { id: 'lava_lamp', tint: ['#B48CFF', '#FF7A6B'], glass: 0.45 },
   { id: 'desk_fan', tint: ['#5CC8FF', '#6EDC9A'] },
   { id: 'headphones_stand', tint: ['#FF5A5F', '#3D7CFF'] },
 ];
+/** The lava lamp's kind: its wax moves (lava.ts). */
+const LAVA_LAMP = CLUTTER.findIndex((c) => c.id === 'lava_lamp');
+/** Every model a desk's items use. All must have loaded before a new pod skips its stand-ins. */
+const ITEM_IDS = ['desk', 'desk_divider', 'monitor', 'keyboard', 'computer_mouse', 'mug', 'nameplate', ...CLUTTER.map((c) => c.id)];
 
 /** The chair model sits inside the wrapper turned around, like the procedural chair. */
 const CHAIR_TURN = new THREE.Matrix4().makeRotationY(Math.PI);
@@ -45,10 +54,14 @@ interface DeskRuntime {
   screen: Screen;
   /** Desk frame: pivot under the desk centre, local +Z toward the sitter. */
   frame: THREE.Matrix4;
+  deskYaw: number;
   /** The desk's outer side (toward the pod's aisle) in the desk frame. */
   ox: number;
   mugSide: number;
   mug: string;
+  /** The procedural monitor's sticky note (or none) and its tilt. */
+  sticky: string | null;
+  stickyTilt: number;
   clutter: number;
   clutterTint: string;
   chairColor: string;
@@ -61,9 +74,11 @@ interface DeskRuntime {
 }
 
 interface PodRuntime {
+  index: number;
   x: number;
   z: number;
   divider: string;
+  desks: DeskRuntime[];
   /** Procedural desks, divider and desk items, until the models replace them. */
   fallback: THREE.Group | null;
 }
@@ -79,6 +94,17 @@ export class DeskSystem {
   private itemsGen = 0;
   private chairsGen = 0;
   private swapQueued = false;
+  /**
+   * Every desk-item model has loaded (all of ITEM_IDS, preloaded after the first swap), so a swap
+   * only ever uses cached models and lands before the next frame: a new pod skips its procedural
+   * stand-ins. Likewise for the chair once its model has loaded.
+   */
+  private itemsReady = false;
+  private chairsReady = false;
+  /** A desk-item model failed to load: new pods keep their procedural stand-ins for good. */
+  private itemsBroken = false;
+  /** Desks the instanced models on show cover (the last swap that landed). */
+  private shown = new Set<DeskRuntime>();
 
   constructor(
     private readonly ctx: WorldCtx,
@@ -120,13 +146,13 @@ export class DeskSystem {
     });
     ctx.root.add(base.build({ name: `pod-${podIndex}-floor` }));
 
-    const b = new Batch();
     const divider = pickR(r, DIVIDERS);
-    b.place(px, 0, pz, 0, () => buildPodDivider(b, divider));
-    for (let k = 0; k < 4; k++) this.addDesk(b, px, pz, k, slot.outdoor === true);
-    const fallback = b.build({ name: `pod-${podIndex}` });
-    ctx.root.add(fallback);
-    this.pods.push({ x: px, z: pz, divider, fallback });
+    const desks: DeskRuntime[] = [];
+    for (let k = 0; k < 4; k++) desks.push(this.addDesk(px, pz, k, slot.outdoor === true));
+    const pod: PodRuntime = { index: podIndex, x: px, z: pz, divider, desks, fallback: null };
+    this.pods.push(pod);
+    // Until every desk model is known to load, the pod gets procedural stand-ins.
+    if (!this.itemsReady) this.buildFallback(pod);
 
     ctx.colliders.push(aabb(px - 1.47, px + 1.47, pz - 0.73, pz + 0.73));
     ctx.blobs.add(px, pz, 3.6, 2.0);
@@ -191,7 +217,8 @@ export class DeskSystem {
       instancedModel('nameplate', desks.map((d) => this.nameplateAt(d)), { fit: { w: TOP.nameplateW, uniform: true }, hide: ['Label'], colors: { Accent: accents } }),
       ...CLUTTER.map((c, k) => {
         const on = desks.filter((d) => d.clutter === k);
-        const colors = c.tint ? { Accent: on.map((d) => d.clutterTint) } : undefined;
+        const tints = on.map((d) => d.clutterTint);
+        const colors = c.tint ? { Accent: tints, ...(c.glass ? { Glass: tints.map((t) => paleTint(t, c.glass!)) } : {}) } : undefined;
         return instancedModel(c.id, on.map((d) => this.on(d, -d.mugSide * TOP.clutter[0], TOP.clutter[1], (d.mugSide * 0.4) + d.ox * 0.2)), { fit: c.fit, colors });
       }),
     ]);
@@ -201,12 +228,24 @@ export class DeskSystem {
     const missing = core.some((m) => !m) || clutter.some((m, k) => !m && desks.some((d) => d.clutter === k));
     if (gen !== this.itemsGen || missing) {
       for (const m of loaded) disposeInstanced(m.group);
-      if (gen === this.itemsGen) warnOnce('desk models missing: keeping the procedural desks');
+      // Stale: a newer swap is on its way. Missing: every pod the models on show don't cover gets
+      // its procedural stand-ins back, and new pods keep theirs from now on.
+      if (gen === this.itemsGen) {
+        warnOnce('desk models missing: keeping the procedural desks');
+        this.itemsBroken = true;
+        this.itemsReady = false;
+        for (const p of this.pods) if (!p.fallback && p.desks.some((d) => !this.shown.has(d))) this.buildFallback(p);
+      }
       return;
     }
     for (const g of this.models) disposeInstanced(g);
     this.models = loaded.map((m) => m.group);
+    // Wax that flows inside every lava lamp, in each lamp's colour (lava.ts).
+    const wax = lavaWax(clutter[LAVA_LAMP], desks.filter((d) => d.clutter === LAVA_LAMP).map((d) => d.clutterTint));
+    if (wax) this.models.push(wax);
     for (const g of this.models) this.ctx.root.add(g);
+    this.shown = new Set(desks);
+    if (!this.itemsReady && !this.itemsBroken) void this.preloadItems();
     for (const p of pods) {
       if (p.fallback) disposeGroup(p.fallback);
       p.fallback = null;
@@ -240,6 +279,57 @@ export class DeskSystem {
     }
   }
 
+  /**
+   * Load every desk-item model, each clutter kind too (even those no desk uses yet). Only once all
+   * of them have does a new pod skip its stand-ins: its swap then needs no loading at all.
+   */
+  private async preloadItems(): Promise<void> {
+    const ok = (await Promise.all(ITEM_IDS.map((id) => model(id)))).every((m) => m !== null);
+    if (ok && !this.itemsBroken) this.itemsReady = true;
+    else this.itemsBroken = true;
+  }
+
+  /** The pod's procedural divider, desks, desk items and printed nameplate faces (the models' stand-ins). */
+  private buildFallback(pod: PodRuntime): void {
+    const b = new Batch();
+    b.place(pod.x, 0, pod.z, 0, () => buildPodDivider(b, pod.divider));
+    for (const d of pod.desks) {
+      const accent = d.slot.accent;
+      const cr = rng(d.slot.index * 104729 + 11);
+      b.place(d.frame.elements[12], 0, d.frame.elements[14], d.deskYaw, () => {
+        buildDesk(b, accent);
+        b.place(0, D.desk.h, -D.monitor.setBack, 0, () => buildMonitor(b, accent, d.sticky, d.stickyTilt));
+        b.place(0, D.desk.h, D.desk.d / 2 - 0.2, 0, () => buildKeyboard(b));
+        b.place(0.31, D.desk.h, D.desk.d / 2 - 0.2, 0, () => buildMouse(b));
+        b.place(d.mugSide * 0.5, D.desk.h, D.desk.d / 2 - 0.22, 0, () => buildMug(b, d.mug, d.mugSide));
+        b.place(-d.mugSide * 0.48, D.desk.h, -0.02, 0, () => buildDeskClutter(b, cr, d.mugSide, d.clutter % 5));
+        b.place(d.ox * 0.5, D.desk.h, D.desk.d / 2 - 0.14, d.ox * 0.25, () => buildNameplateCard(b));
+      });
+      if (d.plateFaces.length === 0) d.plateFaces.push(this.plateFace(d));
+    }
+    pod.fallback = b.build({ name: `pod-${pod.index}` });
+    this.ctx.root.add(pod.fallback);
+  }
+
+  /** The procedural tent card's printed faces: front and back share one mesh, placed like the card. */
+  private plateFace(d: DeskRuntime): THREE.Mesh {
+    const faces: THREE.BufferGeometry[] = [];
+    for (const s of [1, -1]) {
+      const face = new THREE.PlaneGeometry(D.nameplate.w - 0.03, D.nameplate.h - 0.025);
+      face.applyMatrix4(partMatrix({ at: [0, D.nameplate.h / 2, s * 0.0295], rot: [-s * 0.36, s > 0 ? 0 : Math.PI, 0] }));
+      faces.push(face);
+    }
+    const mesh = new THREE.Mesh(mergeGeometries(faces, false)!, d.plate.material);
+    mesh.name = `nameplate-${d.slot.index}`;
+    d.frame
+      .clone()
+      .multiply(new THREE.Matrix4().makeRotationY(d.ox * 0.25).setPosition(d.ox * 0.5, D.desk.h, D.desk.d / 2 - 0.14))
+      .decompose(mesh.position, mesh.quaternion, mesh.scale);
+    mesh.receiveShadow = true;
+    this.ctx.root.add(mesh);
+    return mesh;
+  }
+
   /** Replace the procedural chairs with one instanced office_chair per desk (seat at DESK.seatH). */
   private async swapChairs(): Promise<void> {
     const gen = ++this.chairsGen;
@@ -263,13 +353,15 @@ export class DeskSystem {
     if (this.chairs) disposeInstanced(this.chairs.group);
     this.chairs = chairs;
     this.ctx.root.add(chairs.group);
+    this.chairsReady = true;
     for (const d of desks) {
       if (d.chairBody) disposeGroup(d.chairBody);
       d.chairBody = null;
     }
   }
 
-  private addDesk(b: Batch, px: number, pz: number, k: number, outdoor: boolean): void {
+  /** One desk of a pod: its slot, screen, nameplate, chair and look (its procedural stand-ins come from buildFallback). */
+  private addDesk(px: number, pz: number, k: number, outdoor: boolean): DeskRuntime {
     const index = this.desks.length;
     const r = rng(index * 104729 + 7);
     const accent = PALETTE.deskAccents[index % PALETTE.deskAccents.length];
@@ -289,18 +381,10 @@ export class DeskSystem {
     const mugSide = r() < 0.5 ? 1 : -1;
     const sticky = r() < 0.6 ? pickR(r, ['#FFE66D', '#9CF6C8', '#FFB3D1']) : null;
     const mug = pickR(r, MUGS);
+    const stickyTilt = (r() - 0.5) * 0.4;
     const pick = rng(index * 7907 + 3);
     const clutter = Math.floor(pick() * CLUTTER.length);
     const clutterTint = pickR(pick, CLUTTER[clutter].tint ?? ['#FFFFFF']);
-    b.place(X, 0, Zc, deskYaw, () => {
-      buildDesk(b, accent);
-      b.place(0, D.desk.h, -D.monitor.setBack, 0, () => buildMonitor(b, accent, sticky, (r() - 0.5) * 0.4));
-      b.place(0, D.desk.h, D.desk.d / 2 - 0.2, 0, () => buildKeyboard(b));
-      b.place(0.31, D.desk.h, D.desk.d / 2 - 0.2, 0, () => buildMouse(b));
-      b.place(mugSide * 0.5, D.desk.h, D.desk.d / 2 - 0.22, 0, () => buildMug(b, mug, mugSide));
-      b.place(-mugSide * 0.48, D.desk.h, -0.02, 0, () => buildDeskClutter(b, r, mugSide, clutter % 5));
-      b.place(oxLocal * 0.5, D.desk.h, D.desk.d / 2 - 0.14, oxLocal * 0.25, () => buildNameplateCard(b));
-    });
 
     const screen = new Screen(index, accent);
     const screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(D.monitor.screenW, D.monitor.screenH), screen.material);
@@ -312,33 +396,23 @@ export class DeskSystem {
     this.ctx.root.add(screenMesh);
     screen.attach(screenMesh);
 
-    // Both printed faces of the tent card share one mesh, placed like the card body above.
+    // The tent card's canvas: on the nameplate model's faces, or the procedural card's (plateFace).
     const plate = new Nameplate(index, accent);
-    const faces: THREE.BufferGeometry[] = [];
-    for (const s of [1, -1]) {
-      const face = new THREE.PlaneGeometry(D.nameplate.w - 0.03, D.nameplate.h - 0.025);
-      face.applyMatrix4(partMatrix({ at: [0, D.nameplate.h / 2, s * 0.0295], rot: [-s * 0.36, s > 0 ? 0 : Math.PI, 0] }));
-      faces.push(face);
-    }
-    const plateMesh = new THREE.Mesh(mergeGeometries(faces, false)!, plate.material);
-    plateMesh.name = `nameplate-${index}`;
-    frame
-      .clone()
-      .multiply(new THREE.Matrix4().makeRotationY(oxLocal * 0.25).setPosition(oxLocal * 0.5, D.desk.h, D.desk.d / 2 - 0.14))
-      .decompose(plateMesh.position, plateMesh.quaternion, plateMesh.scale);
-    plateMesh.receiveShadow = true;
-    this.ctx.root.add(plateMesh);
+    const plateFaces: THREE.Mesh[] = [];
 
     // Chair: its wrapper's local +Z points away from the desk (gameplay slides it along that);
     // the chair itself is built facing +Z, so it sits turned around inside the wrapper.
     // The chair's seat wears the desk's accent, like the drawers, mouse pad and nameplate.
     const chair = new THREE.Group();
     const chairColor = accent;
-    const cb = new Batch();
-    buildChair(cb, chairColor);
-    const chairBody = cb.build({ name: 'chair-body' });
-    chairBody.rotation.y = Math.PI;
-    chair.add(chairBody);
+    let chairBody: THREE.Object3D | null = null;
+    if (!this.chairsReady) {
+      const cb = new Batch();
+      buildChair(cb, chairColor);
+      chairBody = cb.build({ name: 'chair-body' });
+      chairBody.rotation.y = Math.PI;
+      chair.add(chairBody);
+    }
     const yaw = sz > 0 ? 0 : Math.PI;
     chair.position.set(X, 0, Zseat);
     chair.rotation.y = yaw + Math.PI;
@@ -371,21 +445,25 @@ export class DeskSystem {
       },
     };
     this.desks.push(slot);
-    this.runtimes.push({
+    const runtime: DeskRuntime = {
       slot,
       screen,
       frame,
+      deskYaw,
       ox: oxLocal,
       mugSide,
       mug,
+      sticky,
+      stickyTilt,
       clutter,
       clutterTint,
       chairColor,
       chairBody,
       plate,
-      plateFaces: [plateMesh],
+      plateFaces,
       chairSeen: new THREE.Matrix4(),
-    });
+    };
+    this.runtimes.push(runtime);
     this.ctx.interactables.push({
       id: `desk:${index}`,
       kind: 'desk',
@@ -394,10 +472,16 @@ export class DeskSystem {
       label: outdoor ? 'Garden desk' : 'Empty desk',
       deskIndex: index,
     });
+    return runtime;
   }
 }
 
 const _m = new THREE.Matrix4();
+
+/** White tinted `k` of the way toward `color` (in linear light), as a hex string. */
+function paleTint(color: string, k: number): string {
+  return `#${new THREE.Color(0xffffff).lerp(new THREE.Color(color), k).getHexString()}`;
+}
 
 const warned = new Set<string>();
 function warnOnce(message: string): void {

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-03T05:02:39.690Z",
+  "generated": "2026-10-03T04:45:39.281Z",
   "totals": {
     "all": 253,
     "done": 253
@@ -1859,7 +1859,7 @@
       "artist": "Claude Cézanne",
       "group": "desk items, small props, food, decor",
       "priority": "P1",
-      "description": "Groovy lava lamp: translucent glowing bottle with emissive orange wax blobs",
+      "description": "Groovy lava lamp: a translucent glowing bottle the game fills with moving wax",
       "tags": [
         "desk",
         "lamp",
@@ -1873,6 +1873,56 @@
         "glow": [
           0,
           0.2,
+          0
+        ],
+        "glass_bottom": [
+          0,
+          0.112,
+          0
+        ],
+        "glass_top": [
+          0,
+          0.296,
+          0
+        ],
+        "glass_wall_0": [
+          0.034,
+          0.112,
+          0
+        ],
+        "glass_wall_1": [
+          0.04,
+          0.13,
+          0
+        ],
+        "glass_wall_2": [
+          0.0455,
+          0.165,
+          0
+        ],
+        "glass_wall_3": [
+          0.046,
+          0.185,
+          0
+        ],
+        "glass_wall_4": [
+          0.042,
+          0.22,
+          0
+        ],
+        "glass_wall_5": [
+          0.034,
+          0.26,
+          0
+        ],
+        "glass_wall_6": [
+          0.026,
+          0.29,
+          0
+        ],
+        "glass_wall_7": [
+          0.0241,
+          0.296,
           0
         ]
       },
@@ -1896,18 +1946,20 @@
           0.065
         ]
       },
-      "tris": 2532,
+      "tris": 1360,
       "materials": [
         "Accent",
-        "Trim",
         "Glass",
-        "Wax"
+        "Trim"
       ],
       "nodes": [
-        "lava_lamp"
+        "lava_lamp",
+        "Base",
+        "Cap",
+        "Glass"
       ],
       "textures": 1,
-      "bytes": 95928
+      "bytes": 54424
     },
     {
       "id": "photo_frame",

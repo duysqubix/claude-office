@@ -16,6 +16,14 @@ mkdirSync(SNAPS, { recursive: true });
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const check = (name, ok, detail = '') => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
+/**
+ * How to wait out a throttled page's reload. Network-idle only counts time its main thread sits
+ * idle, and a throttled render loop leaves it none (the reload is done in 2 s; the wait never is).
+ * Each reload then waits for the office itself.
+ */
+const RELOADED = THROTTLE > 1 ? 'load' : 'networkidle2';
 
 /** A page that never reports presence and (live) never POSTs. */
 async function open(url, { live = false } = {}) {
@@ -58,8 +66,12 @@ async function open(url, { live = false } = {}) {
       } else void req.continue();
     });
   }
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
-  await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  // Pages already open (and throttled) slow a new one's load down too.
+  const slow = Math.max(1, THROTTLE);
+  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 * slow });
+  await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * slow });
+  // Once it's loaded (with request interception on, a throttled load never goes network-idle).
+  if (THROTTLE > 1) await (await page.target().createCDPSession()).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   await wait(1200);
   return { page, logs, posts };
 }
@@ -87,7 +99,8 @@ try {
     title: document.title,
   }));
   check('HUD badge says Claude Office and staff count', /Claude Office/.test(hud.badge ?? '') && /\d+ staff/.test(hud.badge ?? ''), hud.badge);
-  check('HUD buttons: Roster, Hire, Sound, Help', hud.buttons.join('|') === 'Roster (R)|Hire (H)|Sound is on (M)|Help (?)' || hud.buttons.join('|') === 'Roster (R)|Hire (H)|Sound is off (M)|Help (?)', hud.buttons.join('|'));
+  // (Before any click or key, the browser keeps the page quiet and the Sound button says so.)
+  check('HUD buttons: Roster, Hire, Sound, Help', /^Roster \(R\)\|Hire \(H\)\|Sound (is on \(M\)|is off \(M\)|\(M\): click anywhere to turn it on)\|Help \(\?\)$/.test(hud.buttons.join('|')), hud.buttons.join('|'));
   check('needs-you chip counts and tab title follows', /\d+ needs? you/.test(hud.needs ?? '') && /^\(\d+\) Claude Office$/.test(hud.title), `${hud.needs} / ${hud.title}`);
   check('count chips hide zeros', hud.counts.every((c) => !/^0/.test(c)), hud.counts.join(', '));
   await shot(page, '2b-hud');
@@ -196,12 +209,12 @@ try {
   await wait(400);
   check('second Esc closes the chat', (await openId(page)) === null, String(await openId(page)));
 
-  // External: Talk → read-only chat with "Bring into the office"
+  // External: their Shell at their computer, and Talk → read-only chat with "Bring into the office"
   await page.evaluate((id) => window.office.panels.openEmployee(id), external.id);
   await wait(400);
   const extFoot = await page.evaluate(() => [...document.querySelectorAll('.co-panel--person .co-panel__foot .co-btn')].map((b) => b.textContent.trim()));
-  check('external employee: Talk only', extFoot.length === 1 && extFoot[0].startsWith('Talk'), extFoot.join(' | '));
-  await page.evaluate(() => document.querySelector('.co-panel--person .co-panel__foot .co-btn')?.click());
+  check('external employee: Sit at their computer (their shell) and Talk', extFoot.length === 2 && extFoot[0] === 'Sit at their computer' && extFoot[1].startsWith('Talk'), extFoot.join(' | '));
+  await page.evaluate(() => [...document.querySelectorAll('.co-panel--person .co-panel__foot .co-btn')].find((b) => b.textContent.trim().startsWith('Talk'))?.click());
   await wait(1200);
   const adopt = await page.evaluate(() => ({
     composer: document.querySelector('.co-chat__composer')?.hidden,
@@ -292,15 +305,26 @@ try {
   check('the Chat button switches back', await page.evaluate(() => !document.querySelector('.co-panel--term') && document.querySelector('.co-chat__feed')?.hidden === false));
   await page.evaluate(() => window.office.panels.close());
   await wait(300);
-  // Not office-hosted: no tmux to show; say so and offer to bring them in.
+  // Not office-hosted: the quick look opens on their Shell tab; their Claude tab has no screen to
+  // show, says so and offers to bring them in.
   await page.evaluate((id) => window.office.panels.peek(id), external.id);
   await wait(500);
-  const extTerm = await page.evaluate(() => ({
-    note: document.querySelector('.co-chat__termnote')?.textContent ?? '',
-    xterm: !!document.querySelector('.co-chat__term .xterm'),
-    button: document.querySelector('.co-chat__termnote .co-btn')?.textContent.trim(),
-  }));
-  check('external terminal mode explains and offers "Bring into the office"', /runs in their own terminal/.test(extTerm.note) && !extTerm.xterm && extTerm.button === 'Bring into the office', JSON.stringify(extTerm));
+  const extTab = () =>
+    page.evaluate(() => {
+      const note = document.querySelector('.co-chat__termnote');
+      return {
+        tab: document.querySelector('.term-tabs [aria-selected="true"]')?.dataset.tab ?? null,
+        note: note && !note.hidden ? note.textContent : '',
+        xterm: [...document.querySelectorAll('.co-chat__term .xterm')].some((x) => x.getBoundingClientRect().width > 0),
+        button: document.querySelector('.co-chat__termnote:not([hidden]) .co-btn')?.textContent.trim() ?? null,
+      };
+    });
+  const extShell = await extTab();
+  check("an external's quick look opens on their Shell tab", extShell.tab === 'shell' && extShell.xterm && !extShell.note, JSON.stringify(extShell));
+  await page.evaluate(() => document.querySelector('.term-tabs [data-tab="claude"]')?.click());
+  await wait(300);
+  const extTerm = await extTab();
+  check('their Claude tab explains and offers "Bring into the office"', extTerm.tab === 'claude' && /runs in their own terminal/.test(extTerm.note) && !extTerm.xterm && extTerm.button === 'Bring into the office', JSON.stringify(extTerm));
   await shot(page, '2b-terminal-external');
   await page.evaluate(() => window.office.panels.close());
   // T from anywhere: the nearest (or targeted) person's terminal, straight away.
@@ -611,6 +635,24 @@ try {
       });
     }
     check('a regular daydreams now and then', !!dream, String(dream));
+    // Out in the garden it's the garden (sun and bees by day, string lights and moths after 19:00).
+    const yard = await tp.evaluate(async () => {
+      const { daydream } = await import('/src/ui/thoughts.ts');
+      let s = 7;
+      const rand = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+      const r = { task: 'idle', night: false, mugInHand: false, onBreak: true, outdoors: true };
+      // A Wednesday, so no Monday or Friday lines.
+      const day = Array.from({ length: 60 }, () => daydream(r, new Date(2026, 9, 7, 11), rand));
+      const night = Array.from({ length: 60 }, () => daydream(r, new Date(2026, 9, 7, 20), rand));
+      const indoors = Array.from({ length: 60 }, () => daydream({ ...r, outdoors: false, task: 'type' }, new Date(2026, 9, 7, 11), rand));
+      return { day: [...new Set(day)], night: [...new Set(night)], indoors: [...new Set(indoors)] };
+    });
+    const officeLines = /type faster|spreadsheet looks like art|temp2|Typing loudly/;
+    check(
+      'a daydream in the garden is about the garden, and after dark about the lights',
+      yard.day.includes('The bees have the best job.') && !yard.day.some((l) => officeLines.test(l)) && yard.night.some((l) => /string lights|Moths/.test(l)) && !yard.night.some((l) => /sun/i.test(l)) && !yard.indoors.some((l) => /bees|hammock|string lights/.test(l)),
+      JSON.stringify({ day: yard.day.length, night: yard.night, indoorsSample: yard.indoors.slice(0, 3) }),
+    );
     if (dream) await shot(tp, 'thought-daydream');
     await tp.evaluate(() => window.office.camera.setShot(null));
 
@@ -629,6 +671,374 @@ try {
     await tp.evaluate(() => [...document.querySelectorAll('.co-panel--help label')].find((l) => l.textContent.includes('Thought bubbles'))?.querySelector('input')?.click());
     check('no page errors (thoughts)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
     await tp.close();
+  }
+
+  // Needs-you always wins (UX.md §2.1): line a thinker up with someone who needs you, so their
+  // labels meet on the screen. The thinker's cloud steps aside whether they sit in front or
+  // behind, the needs-you label is drawn on top, and the cloud comes back once they're apart.
+  {
+    const o = await open(`${BASE}/?demo=1&quiet=1&debug=1`);
+    const np = o.page;
+    // Who needs you, and the nearest seated person who doesn't (they do the thinking).
+    const pair = await np.evaluate(() => {
+      const list = window.office.director.list();
+      const head = (x) => x.labelAnchor.getWorldPosition(x.position.clone());
+      const n = list.find((x) => x.handUp && x.phase !== 'leaving' && x.phase !== 'entering');
+      if (!n) return null;
+      const t = list.filter((x) => !x.handUp && x.seated).sort((a, b) => head(a).distanceTo(head(n)) - head(b).distanceTo(head(n)))[0];
+      return t ? { n: n.data.sessionId, nName: n.data.displayName, t: t.data.sessionId, tName: t.data.displayName } : null;
+    });
+    // `front`: the thinker nearer the camera; null: off to the side, where the two are apart.
+    const look = (front) =>
+      np.evaluate((pr, front) => {
+        const of = window.office;
+        const list = of.director.list();
+        const N = list.find((x) => x.data.sessionId === pr.n);
+        const T = list.find((x) => x.data.sessionId === pr.t);
+        const hn = N.labelAnchor.getWorldPosition(N.position.clone());
+        const ht = T.labelAnchor.getWorldPosition(T.position.clone());
+        const up = new hn.constructor(0, 1, 0);
+        const across = ht.clone().sub(hn).cross(up).setY(0).normalize();
+        of.manager.teleport(T.position.clone().addScaledVector(across, 1.4).setY(0), of.manager.yaw);
+        if (front === null) {
+          // Side on, close enough that the two heads sit well apart on the screen.
+          const mid = hn.clone().add(ht).multiplyScalar(0.5);
+          const back = Math.max(3.2, hn.distanceTo(ht) * 1.3);
+          of.camera.snapShot({ position: mid.clone().addScaledVector(across, back).addScaledVector(up, 0.6), look: mid });
+        } else {
+          const [near, far] = front ? [ht, hn] : [hn, ht];
+          of.camera.snapShot({ position: near.clone().addScaledVector(near.clone().sub(far).normalize(), 3.5), look: far });
+        }
+        window.officeThink(pr.t, 'Lined up right in front of someone who needs you.');
+      }, pair, front);
+    const measure = () =>
+      np.evaluate((pr) => {
+        const stack = (name) => [...document.querySelectorAll('.co-tagstack .co-pill:not(.co-pill--regular)')].find((p) => p.textContent.trim() === name)?.closest('.co-tagstack');
+        const shown = (el) => !el.hidden && getComputedStyle(el).visibility !== 'hidden' && Number(getComputedStyle(el).opacity) > 0.05 && el.getBoundingClientRect().width > 0;
+        const over = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+        const sn = stack(pr.nName);
+        const st = stack(pr.tName);
+        if (!sn || !st) return null;
+        const needs = [...sn.querySelectorAll('.co-bubble--needs, .co-bang:not(.co-bang--bump)')].filter(shown).map((x) => x.getBoundingClientRect());
+        const chatter = [...st.querySelectorAll('.co-bubble:not(.co-bubble--needs), .co-thought')].filter((x) => !x.hidden);
+        const meets = chatter.filter((c) => needs.some((b) => over(c.getBoundingClientRect(), b)));
+        return {
+          needs: needs.length,
+          chatter: chatter.length,
+          meets: meets.length,
+          covering: meets.filter(shown).length,
+          yielding: chatter.filter((c) => c.classList.contains('is-yielding')).length,
+          onTop: Number(sn.style.zIndex) > Number(st.style.zIndex),
+        };
+      }, pair);
+    if (pair) {
+      for (const front of [true, false]) {
+        await look(front);
+        await wait(700);
+        const r = await measure();
+        if (front) await shot(np, 'needs-wins-front');
+        const where = front ? 'in front of' : 'behind';
+        check(`a thought ${where} someone who needs you steps aside`, !!r && r.needs > 0 && r.meets > 0 && r.covering === 0 && r.yielding > 0, JSON.stringify({ ...pair, ...r }));
+        if (front) check('the needs-you label is drawn over a nearer person\'s', !!r?.onTop, JSON.stringify(r));
+      }
+      // Their speech bubble is the same element as their needs-you bubble: a class left over from
+      // stepping aside must never hide the needs-you one.
+      const stale = await np.evaluate((pr) => {
+        const pill = [...document.querySelectorAll('.co-tagstack .co-pill:not(.co-pill--regular)')].find((p) => p.textContent.trim() === pr.nName);
+        const b = pill?.closest('.co-tagstack')?.querySelector('.co-bubble--needs');
+        if (!b) return null;
+        b.classList.add('is-yielding');
+        const vis = getComputedStyle(b).visibility;
+        return new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => res({ vis, left: b.classList.contains('is-yielding') }))));
+      }, pair);
+      check('a needs-you bubble never steps aside', stale?.vis === 'visible' && stale.left === false, JSON.stringify(stale));
+      await look(null);
+      await wait(700);
+      const r = await measure();
+      check('the cloud comes back once they are apart', !!r && r.needs > 0 && r.chatter > 0 && r.meets === 0 && r.yielding === 0, JSON.stringify(r));
+
+      // One marker each: with a wide panel open, a needs-you head just under its edge has the "!"
+      // slid out beside the panel and no edge face as well; deep under it, the edge face stands in.
+      const headAt = (fx) =>
+        np.evaluate(
+          async (pr, fx) => {
+            const of = window.office;
+            const N = of.director.list().find((x) => x.data.sessionId === pr.n);
+            const head = N.labelAnchor.getWorldPosition(N.position.clone());
+            const pos = head.clone().add(new head.constructor(0, 2, 6));
+            let lo = -8;
+            let hi = 8;
+            for (let i = 0; i < 22; i++) {
+              const mid = (lo + hi) / 2;
+              of.camera.snapShot({ position: pos, look: head.clone().add(new head.constructor(mid, 0, 0)) });
+              await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+              const x = (N.labelAnchor.getWorldPosition(head.clone()).project(of.engine.camera).x + 1) / 2;
+              if (x > fx) lo = mid;
+              else hi = mid;
+            }
+          },
+          pair,
+          fx,
+        );
+      const markers = () =>
+        np.evaluate((pr) => {
+          const pill = [...document.querySelectorAll('.co-tagstack .co-pill:not(.co-pill--regular)')].find((p) => p.textContent.trim() === pr.nName);
+          const bang = pill?.closest('.co-tagstack')?.querySelector('.co-bang:not(.co-bang--bump)');
+          const b = bang && !bang.hidden ? bang.getBoundingClientRect() : null;
+          const panel = document.querySelector('.co-panel--chat')?.getBoundingClientRect();
+          return {
+            bang: !!b && b.width > 0,
+            underPanel: !!b && !!panel && b.right > panel.left && b.left < panel.right && b.bottom > panel.top && b.top < panel.bottom,
+            edge: [...document.querySelectorAll('.co-edge')].some((x) => (x.getAttribute('aria-label') ?? '').includes(pr.nName)),
+          };
+        }, pair);
+      const other = await np.evaluate((pr) => window.office.director.list().find((x) => !x.handUp && x.data.hosted && x.data.sessionId !== pr.n)?.data.sessionId ?? null, pair);
+      await np.evaluate((id) => window.office.panels.peek(id), other);
+      await wait(800);
+      await headAt(0.5);
+      await wait(700);
+      const near = await markers();
+      check('a needs-you head just under the panel: its "!" slides out, no edge face beside it', near.bang && !near.underPanel && !near.edge, JSON.stringify(near));
+      await headAt(0.8);
+      await wait(700);
+      const deep = await markers();
+      check('deep under the panel: the edge face stands in for the "!"', deep.edge && (!deep.bang || deep.underPanel), JSON.stringify(deep));
+      await np.evaluate(() => window.office.panels.close());
+      await np.evaluate(() => window.office.camera.setShot(null));
+    } else check('needs-you wins (no one needs you in this demo run)', false);
+    await np.close();
+  }
+
+  // Muted, the Sound button says so before anything else (even before the browser lets the page play).
+  {
+    const page2 = await browser.newPage();
+    await page2.setViewport({ width: 1440, height: 900 });
+    await page2.evaluateOnNewDocument(() => {
+      try {
+        localStorage.setItem('claude-office:muted', '1');
+      } catch {
+        // storage unavailable
+      }
+      window.WebSocket = new Proxy(WebSocket, {
+        construct(target, args) {
+          const p = args[1];
+          if (p === 'vite-hmr' || (Array.isArray(p) && p.includes('vite-hmr'))) return { addEventListener() {}, removeEventListener() {}, send() {}, close() {}, readyState: 0 };
+          return Reflect.construct(target, args);
+        },
+      });
+    });
+    await page2.goto(`${BASE}/?demo=1&quiet=1&debug=1`, { waitUntil: 'networkidle2', timeout: 30_000 * Math.max(1, THROTTLE) });
+    await page2.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+    await wait(600);
+    const snd = await page2.evaluate(() => {
+      const b = document.querySelector('.co-hud__right button[aria-pressed]');
+      return { label: b?.getAttribute('aria-label'), dot: !!b?.classList.contains('is-locked') };
+    });
+    check('muted before any click: the Sound button says "Sound is off (M)", no dot', snd.label === 'Sound is off (M)' && !snd.dot, JSON.stringify(snd));
+    // Help's Music and sound lets go of the speakers when Help closes (no listener left per visit).
+    const subs = await page2.evaluate(async () => {
+      const n = () => window.officeAudio?.subs?.size ?? -1;
+      const before = n();
+      for (let i = 0; i < 5; i++) {
+        window.office.panels.open('help');
+        await new Promise((r) => setTimeout(r, 120));
+        window.office.panels.close();
+        await new Promise((r) => setTimeout(r, 60));
+      }
+      return { before, after: n() };
+    });
+    check('opening and closing Help leaves no sound listener behind', subs.before >= 0 && subs.after === subs.before, JSON.stringify(subs));
+    await page2.close();
+  }
+  // The very first click, on the Sound button's glyph: it turns sound on (as the dot promised) and
+  // doesn't mute; the next click on the glyph mutes.
+  {
+    const page3 = await browser.newPage();
+    await page3.setViewport({ width: 1440, height: 900 });
+    await page3.evaluateOnNewDocument(() => {
+      try {
+        localStorage.removeItem('claude-office:muted');
+      } catch {
+        // storage unavailable
+      }
+      window.WebSocket = new Proxy(WebSocket, {
+        construct(target, args) {
+          const p = args[1];
+          if (p === 'vite-hmr' || (Array.isArray(p) && p.includes('vite-hmr'))) return { addEventListener() {}, removeEventListener() {}, send() {}, close() {}, readyState: 0 };
+          return Reflect.construct(target, args);
+        },
+      });
+    });
+    await page3.goto(`${BASE}/?demo=1&quiet=1&debug=1`, { waitUntil: 'networkidle2', timeout: 30_000 });
+    await page3.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+    await wait(600);
+    const glyph = async () => {
+      const r = await page3.evaluate(() => {
+        const b = document.querySelector('.co-hud__right button[aria-pressed] svg').getBoundingClientRect();
+        return [b.left + b.width / 2, b.top + b.height / 2];
+      });
+      await page3.mouse.click(r[0], r[1]);
+      await wait(400);
+      return page3.evaluate(() => ({ label: document.querySelector('.co-hud__right button[aria-pressed]')?.getAttribute('aria-label'), saved: localStorage.getItem('claude-office:muted') }));
+    };
+    const before = await page3.evaluate(() => document.querySelector('.co-hud__right button[aria-pressed]')?.getAttribute('aria-label'));
+    const first = await glyph();
+    const second = await glyph();
+    check('the first click on the Sound button turns sound on; the next one mutes', /click anywhere/.test(before ?? '') && first.label === 'Sound is on (M)' && first.saved !== '1' && second.label === 'Sound is off (M)' && second.saved === '1', JSON.stringify({ before, first, second }));
+    await page3.close();
+  }
+
+  // First-run tips (#32): one card at a time, gone when you do the thing; Skip, and Help → Show
+  // tips again; never over a needs-you bubble.
+  {
+    const o = await open(`${BASE}/?demo=1&quiet=1&debug=1&tips=1`);
+    const cp = o.page;
+    const tipNow = () => cp.evaluate(() => {
+      const c = document.querySelector('.co-coachwrap .co-coach');
+      return c ? { id: c.dataset.tip, title: c.querySelector('h3')?.textContent, away: document.querySelector('.co-coachwrap')?.classList.contains('is-away') ?? false } : null;
+    });
+    await wait(1800);
+    const first = await tipNow();
+    check('a first visit opens with the walking tip', first?.id === 'walk' && /You're the manager/.test(first.title ?? ''), JSON.stringify(first));
+    await shot(cp, 'tips-walk');
+    await focusGame(cp);
+    await cp.keyboard.down('KeyW');
+    await wait(1600);
+    await cp.keyboard.up('KeyW');
+    await wait(400);
+    const second = await tipNow();
+    check('walking a few metres moves on (someone needs you: the Q tip comes first)', second?.id === 'q', JSON.stringify(second));
+    await focusGame(cp);
+    await cp.keyboard.press('KeyQ');
+    await wait(700);
+    const third = await tipNow();
+    check('Q goes to them and moves on (opening their panel counts as talking too)', third?.id === 'peek', JSON.stringify(third));
+    await cp.evaluate(() => window.office.panels.close());
+    await wait(300);
+    // Never over a needs-you bubble: put the one who needs you right where the card is.
+    await cp.evaluate(async () => {
+      const of = window.office;
+      const e = of.director.list().find((x) => x.handUp);
+      if (!e) return;
+      const card = document.querySelector('.co-coachwrap .co-coach').getBoundingClientRect();
+      const head = e.labelAnchor.getWorldPosition(e.position.clone());
+      const pos = head.clone().add(head.clone().set(0, 1.4, 3.6));
+      const dir = head.clone().sub(pos).normalize();
+      const right = dir.clone().cross(head.clone().set(0, 1, 0)).normalize();
+      const up = right.clone().cross(dir).normalize();
+      const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const tx = (card.left + card.right) / 2;
+      const ty = card.bottom - 10;
+      let kx = 0, ky = 0;
+      for (let round = 0; round < 3; round++) {
+        let lo = -6, hi = 6;
+        for (let i = 0; i < 12; i++) {
+          kx = (lo + hi) / 2;
+          of.camera.snapShot({ position: pos, look: head.clone().addScaledVector(right, kx).addScaledVector(up, ky) });
+          await frame();
+          const v = e.labelAnchor.getWorldPosition(head.clone()).project(of.engine.camera);
+          if (((v.x + 1) / 2) * innerWidth > tx) lo = kx;
+          else hi = kx;
+        }
+        lo = -6;
+        hi = 6;
+        for (let i = 0; i < 12; i++) {
+          ky = (lo + hi) / 2;
+          of.camera.snapShot({ position: pos, look: head.clone().addScaledVector(right, kx).addScaledVector(up, ky) });
+          await frame();
+          const v = e.labelAnchor.getWorldPosition(head.clone()).project(of.engine.camera);
+          if (((1 - v.y) / 2) * innerHeight < ty) lo = ky;
+          else hi = ky;
+        }
+      }
+    });
+    await wait(700);
+    const covered = await tipNow();
+    check('the tip steps aside when a needs-you bubble is under it', covered?.away === true, JSON.stringify(covered));
+    await cp.evaluate(() => window.office.camera.setShot(null));
+    await wait(700);
+    // Skip tips: gone, and gone next visit too; Help → Show tips again brings them back.
+    await cp.evaluate(() => [...document.querySelectorAll('.co-coach .co-btn')].find((b) => b.textContent.trim() === 'Skip tips')?.click());
+    await wait(300);
+    const skipped = await tipNow();
+    await cp.reload({ waitUntil: RELOADED, timeout: 30_000 * Math.max(1, THROTTLE) });
+    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * Math.max(1, THROTTLE) });
+    await wait(2500);
+    const nextVisit = await tipNow();
+    check('Skip tips ends them, this visit and the next', skipped === null && nextVisit === null, JSON.stringify({ skipped, nextVisit }));
+    await cp.evaluate(() => window.office.panels.open('help'));
+    await wait(400);
+    await cp.evaluate(() => [...document.querySelectorAll('.co-panel--help .co-btn')].find((b) => b.textContent.trim() === 'Show tips again')?.click());
+    await wait(500);
+    const again = await tipNow();
+    check('Help → Show tips again starts over', again?.id === 'walk', JSON.stringify(again));
+    await cp.evaluate(() => window.office.panels.close());
+    // An empty desk: its tip the first time you stand at one with no other card up, said once.
+    await cp.evaluate(() => localStorage.setItem('claude-office:tips', JSON.stringify({ done: ['walk', 'talk', 'peek', 'q', 'v'] })));
+    await cp.reload({ waitUntil: RELOADED, timeout: 30_000 * Math.max(1, THROTTLE) });
+    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * Math.max(1, THROTTLE) });
+    await wait(2500);
+    const before = await tipNow();
+    const standAt = () =>
+      cp.evaluate(() => {
+        const o = window.office;
+        const hd = o.director.hotDesks;
+        const used = window.__usedDesks ?? (window.__usedDesks = []);
+        const d = o.world.desks.find((x) => !used.includes(x.index) && hd.canSit(x.index) && !o.regulars.holderOf(x.index) && !hd.isHot(x.index) && o.world.interactables.find((i) => i.id === `desk:${x.index}`)?.label === 'Empty desk');
+        if (!d) return null;
+        used.push(d.index);
+        window.__home ??= o.manager.position.clone();
+        const yaw = Math.atan2(d.seat.x - d.approach.x, d.seat.z - d.approach.z);
+        o.manager.teleport(d.approach.clone().setY(0), yaw);
+        o.manager.face(yaw);
+        o.camera.yaw = yaw + Math.PI;
+        return d.index;
+      });
+    const walkOn = () => cp.evaluate(() => window.office.manager.teleport(window.__home.clone().setY(0), window.office.manager.yaw));
+    const promptNow = () => cp.evaluate(() => (document.querySelector('.co-hud__prompt:not([hidden]) .co-prompt')?.textContent ?? '').replace(/^E/, '').trim());
+    const desk1 = await standAt();
+    await wait(900);
+    const atDesk = { tip: await tipNow(), prompt: await promptNow() };
+    await walkOn();
+    await wait(900);
+    const walkedOn = await tipNow();
+    const desk2 = await standAt();
+    await wait(900);
+    const nextDesk = await tipNow();
+    const saved = await cp.evaluate(() => JSON.parse(localStorage.getItem('claude-office:tips') ?? '{}').done ?? []);
+    check(
+      'the first empty desk you stand at brings its tip; it goes when you walk on, and not again',
+      before === null && desk1 !== null && atDesk.prompt === 'Use the computer' && atDesk.tip?.id === 'desk' && /This desk is free/.test(atDesk.tip.title ?? '') && walkedOn === null && desk2 !== null && nextDesk === null && saved.includes('desk'),
+      JSON.stringify({ before, desk1, atDesk, walkedOn, desk2, nextDesk, saved }),
+    );
+    // The talk tip stays put while the roster updates (about once a second in a working office):
+    // it changes only when the office goes from empty to someone, or back.
+    await cp.evaluate(() => localStorage.setItem('claude-office:tips', JSON.stringify({ done: ['walk', 'q'] })));
+    await cp.reload({ waitUntil: RELOADED, timeout: 30_000 * Math.max(1, THROTTLE) });
+    await cp.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 * Math.max(1, THROTTLE) });
+    await wait(2500);
+    const talk = await cp.evaluate(async () => {
+      const wrap = document.querySelector('.co-coachwrap');
+      const tip = wrap.firstElementChild?.dataset.tip ?? null;
+      let swaps = 0;
+      new MutationObserver(() => swaps++).observe(wrap, { childList: true });
+      const s = window.office.store;
+      const all = s.employees.map((e) => ({ ...e }));
+      for (let i = 0; i < 5; i++) {
+        s.set(all.map((e) => ({ ...e })), Date.now());
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      const quiet = swaps;
+      s.set([], Date.now());
+      await new Promise((r) => setTimeout(r, 300));
+      const empty = wrap.querySelector('.co-coach h3')?.textContent ?? '';
+      s.set(all, Date.now());
+      await new Promise((r) => setTimeout(r, 300));
+      return { tip, quiet, empty, back: wrap.querySelector('.co-coach h3')?.textContent ?? '', swaps };
+    });
+    check('the talk tip stays put while the roster updates, and changes when the office empties', talk.tip === 'talk' && talk.quiet === 0 && /Nobody's in yet/.test(talk.empty) && /Claude Code sessions/.test(talk.back), JSON.stringify(talk));
+    check('no page errors (tips)', !o.logs.some((l) => l.startsWith('[pageerror]')), o.logs.filter((l) => l.startsWith('[pageerror]')).join(' | '));
+    await cp.close();
   }
 
   // Labels track moving heads frame by frame (the label pass reuses the WebGL pass's matrices):
@@ -652,7 +1062,8 @@ try {
             const cam = of.engine.camera;
             let worst = 0;
             let n = 0;
-            let frames = 0;
+            // 0.75 s, however many frames that is (45 frames at 3–5 fps would walk him into a wall).
+            const t0 = performance.now();
             const tick = () => {
               for (const e of of.director.list()) {
                 const pill = [...document.querySelectorAll('.co-tagstack .co-pill')].find((p) => p.textContent.trim() === e.data.displayName);
@@ -666,7 +1077,7 @@ try {
                 worst = Math.max(worst, Math.abs((r.left + r.right) / 2 - x), Math.abs(r.bottom - y));
                 n++;
               }
-              if (++frames < 45) requestAnimationFrame(tick);
+              if (performance.now() - t0 < 750) requestAnimationFrame(tick);
               else done({ worst: Math.round(worst * 10) / 10, n });
             };
             requestAnimationFrame(tick);

@@ -93,12 +93,75 @@ function filled(count: number, values: number[]): THREE.Float32BufferAttribute {
 }
 
 /**
+ * Merged geometry and its material are shared by every copy of a model merged with the same
+ * options (see mergeKey): a hundred desks hold one desk's merged vertices, and a pod growing
+ * re-uses what's already on the GPU instead of merging again. Refcounted per mesh that draws
+ * them (a copy's mesh or an InstancedMesh); the last one released frees them.
+ */
+interface MergedPart {
+  geometry: THREE.BufferGeometry;
+  material: ModelMaterial;
+  cast: boolean;
+}
+interface MergedEntry {
+  /** Per owner ('' = the model's body, else a moving part's node name); null = nothing to merge there. */
+  parts: Map<string, MergedPart | null>;
+  refs: number;
+}
+const mergedCache = new Map<string, MergedEntry>();
+
+/** The cache key for merging model `id` with these options. */
+export function mergeKey(
+  id: string,
+  o: { tint?: Record<string, THREE.ColorRepresentation>; tinted?: readonly string[]; exclude?: readonly string[]; glow?: number; shadows?: boolean },
+): string {
+  const tint = Object.entries(o.tint ?? {})
+    .map(([k, v]) => `${k}=${new THREE.Color(v).getHexString()}`)
+    .sort()
+    .join(',');
+  return [id, tint, [...(o.tinted ?? [])].sort().join(','), [...(o.exclude ?? [])].sort().join(','), o.glow ?? 1, o.shadows === false ? 0 : 1].join('|');
+}
+
+/** A mesh drawing this merged geometry is gone; the last one frees the entry's geometry and materials. */
+export function releaseMerged(geometry: THREE.BufferGeometry): void {
+  const key = geometry.userData.mergeKey as string | undefined;
+  const entry = key === undefined ? undefined : mergedCache.get(key);
+  if (!entry || --entry.refs > 0) return;
+  mergedCache.delete(key!);
+  for (const part of entry.parts.values()) {
+    part?.geometry.dispose();
+    part?.material.dispose();
+  }
+}
+
+/** References held per cache key (debug: compare with the meshes actually in the scene). */
+export function mergedRefs(): Record<string, number> {
+  return Object.fromEntries([...mergedCache.entries()].map(([k, e]) => [k, e.refs]));
+}
+
+/** How much merged geometry is cached (debug: entries, meshes drawing it, vertex bytes). */
+export function mergedStats(): { entries: number; refs: number; bytes: number } {
+  let refs = 0;
+  let bytes = 0;
+  for (const entry of mergedCache.values()) {
+    refs += entry.refs;
+    for (const part of entry.parts.values()) {
+      if (!part) continue;
+      for (const a of Object.values(part.geometry.attributes)) bytes += (a as THREE.BufferAttribute).array.byteLength;
+      if (part.geometry.index) bytes += part.geometry.index.array.byteLength;
+    }
+  }
+  return { entries: mergedCache.size, refs, bytes };
+}
+
+/**
  * Merge a model's opaque parts into as few meshes as possible, drawn with ModelMaterial: one for
  * the body, and one inside each moving part (nodes named in `parts`, so they still animate).
  * Painted faces, transparent or hidden parts and `exclude`d materials stay as they are. Vertices of
- * `tinted` materials take the instance colour when drawn instanced.
+ * `tinted` materials take the instance colour when drawn instanced. With a `key` (mergeKey), the
+ * result is shared with every other copy merged under that key; each merged mesh holds a reference.
  */
-export function mergeModel(root: THREE.Object3D, parts: readonly string[] = [], tinted: readonly string[] = [], exclude: readonly string[] = [], glowScale = 1): void {
+export function mergeModel(root: THREE.Object3D, parts: readonly string[] = [], tinted: readonly string[] = [], exclude: readonly string[] = [], glowScale = 1, key?: string): void {
   root.updateMatrixWorld(true);
   const owners = new Map<THREE.Object3D, THREE.Mesh[]>();
   root.traverse((o) => {
@@ -117,7 +180,38 @@ export function mergeModel(root: THREE.Object3D, parts: readonly string[] = [], 
     }
     owners.set(owner, [...(owners.get(owner) ?? []), mesh]);
   });
-  for (const [owner, meshes] of owners) if (meshes.length > 1) mergeInto(owner, meshes, tinted, glowScale, root.name);
+  let entry = key === undefined ? undefined : mergedCache.get(key);
+  if (key !== undefined && !entry) {
+    entry = { parts: new Map(), refs: 0 };
+    mergedCache.set(key, entry);
+  }
+  for (const [owner, meshes] of owners) {
+    if (meshes.length < 2) continue;
+    const slot = owner === root ? '' : owner.name;
+    let part = entry?.parts.get(slot);
+    if (part === undefined) {
+      part = buildMerged(owner, meshes, tinted, glowScale);
+      if (part && key !== undefined) {
+        part.geometry.userData.mergeKey = key;
+        part.material.userData.mergeKey = key;
+      } else if (part) {
+        // Not cached: this copy owns it outright.
+        part.geometry.userData.owned = true;
+        part.material.userData.instanceOwned = true;
+      }
+      entry?.parts.set(slot, part);
+    }
+    if (!part) continue;
+    const merged = new THREE.Mesh(part.geometry, part.material);
+    merged.name = `${root.name}:merged`;
+    merged.castShadow = part.cast;
+    merged.receiveShadow = true;
+    if (entry) entry.refs++;
+    for (const m of meshes) m.removeFromParent();
+    owner.add(merged);
+  }
+  // An entry nothing ended up drawing (nothing to merge in this model) needn't linger.
+  if (key !== undefined && entry && entry.refs === 0 && [...entry.parts.values()].every((p) => !p)) mergedCache.delete(key);
 }
 
 /**
@@ -158,14 +252,15 @@ function glowLayers(meshes: THREE.Mesh[]): Map<string, number> {
   return new Map(order.map(([name], i) => [name, i + 1]));
 }
 
-/** Merge `meshes` into one ModelMaterial mesh in `owner`'s space, replacing them. */
-function mergeInto(owner: THREE.Object3D, meshes: THREE.Mesh[], tinted: readonly string[], glowScale: number, name: string): void {
+/** Merge `meshes` into one geometry in `owner`'s space, with its ModelMaterial (the meshes are left alone). */
+function buildMerged(owner: THREE.Object3D, meshes: THREE.Mesh[], tinted: readonly string[], glowScale: number): MergedPart | null {
   const toOwner = owner.matrixWorld.clone().invert();
   const layers = glowLayers(meshes);
   const geos: THREE.BufferGeometry[] = [];
   let map: THREE.Texture | null = null;
   let side: THREE.Side = THREE.FrontSide;
   let cast = false;
+  const tintedHere = new Set<string>();
   for (const mesh of meshes) {
     const mat = mesh.material as THREE.MeshStandardMaterial;
     const src = mesh.geometry;
@@ -191,6 +286,7 @@ function mergeInto(owner: THREE.Object3D, meshes: THREE.Mesh[], tinted: readonly
     const glow = mat.emissive.clone().multiplyScalar(mat.emissiveIntensity * glowScale);
     // A tinted part is white here: the instance colour is its whole colour.
     const tint = tinted.includes(mat.name);
+    if (tint) tintedHere.add(mat.name);
     g.setAttribute('color', filled(n, tint ? [1, 1, 1] : [mat.color.r, mat.color.g, mat.color.b]));
     g.setAttribute('aRough', filled(n, [mat.roughness]));
     g.setAttribute('aMetal', filled(n, [mat.metalness]));
@@ -204,16 +300,10 @@ function mergeInto(owner: THREE.Object3D, meshes: THREE.Mesh[], tinted: readonly
   }
   const geometry = geos.length > 1 ? mergeGeometries(geos, false) : null;
   for (const g of geos) g.dispose();
-  if (!geometry) return;
-  geometry.userData.owned = true;
-  const material = new ModelMaterial({ map, side });
-  material.userData.instanceOwned = true;
-  const merged = new THREE.Mesh(geometry, material);
-  merged.name = `${name}:merged`;
-  merged.castShadow = cast;
-  merged.receiveShadow = true;
-  for (const m of meshes) m.removeFromParent();
-  owner.add(merged);
+  if (!geometry) return null;
+  // Which per-copy colour (InstancedOptions.colors) its tinted vertices take.
+  geometry.userData.tinted = [...tintedHere];
+  return { geometry, material: new ModelMaterial({ map, side }), cast };
 }
 
 /** Moving parts of a catalog model: its node names after the first (the body). */
@@ -249,7 +339,11 @@ export function fitScale(size: THREE.Vector3, fit: Fit): THREE.Vector3 {
 
 export interface InstancedOptions {
   tint?: Record<string, THREE.ColorRepresentation>;
-  /** Per-instance colour for one material's meshes (e.g. each desk's accent), one entry per placement. */
+  /**
+   * Per-instance colours by material name (e.g. each desk's accent), one entry per placement. A
+   * merged mesh takes the colours of the first tinted material it holds; a part left out of the
+   * merge (e.g. translucent `Glass`) takes its own material's colours, glow included.
+   */
   colors?: Record<string, readonly THREE.ColorRepresentation[]>;
   /** Materials left out (e.g. 'Screen', replaced by our own canvas). */
   hide?: string[];
@@ -280,7 +374,9 @@ export async function instancedModel(id: string, placements: THREE.Matrix4[], op
   if (placements.length === 0) return null;
   const [root, moving] = await Promise.all([model(id, { tint: opts.tint, shadows: opts.shadows }), movingParts(id)]);
   if (!root) return null;
-  mergeModel(root, moving, Object.keys(opts.colors ?? {}), opts.hide);
+  const tinted = Object.keys(opts.colors ?? {});
+  // Each merged mesh's reference passes to the InstancedMesh drawn from it (the root is dropped).
+  mergeModel(root, moving, tinted, opts.hide, 1, mergeKey(id, { tint: opts.tint, tinted, exclude: opts.hide, shadows: opts.shadows }));
   const scale = opts.fit ? fitScale(localBox(root).getSize(new THREE.Vector3()), opts.fit) : new THREE.Vector3(1, 1, 1).multiplyScalar(opts.scale ?? 1);
   root.scale.copy(scale);
   root.updateMatrixWorld(true);
@@ -304,11 +400,15 @@ export async function instancedModel(id: string, placements: THREE.Matrix4[], op
       parts.set(mat.name, [...(parts.get(mat.name) ?? []), { geometry: mesh.geometry, matrix: local }]);
     }
     const shown = mats.map((m) => (opts.hide?.includes(m.name) ? hidden : m));
-    if (shown.every((m) => m === hidden)) return;
+    if (shown.every((m) => m === hidden)) {
+      releaseMerged(mesh.geometry);
+      return;
+    }
     const inst = new THREE.InstancedMesh(mesh.geometry, Array.isArray(mesh.material) ? shown : shown[0], placements.length);
     placements.forEach((p, i) => inst.setMatrixAt(i, _m.multiplyMatrices(p, local)));
     const merged = mesh.material instanceof ModelMaterial;
-    const perCopy = merged ? Object.values(opts.colors ?? {})[0] : !Array.isArray(mesh.material) ? opts.colors?.[mesh.material.name] : undefined;
+    const tintedHere = (mesh.geometry.userData.tinted as string[] | undefined) ?? [];
+    const perCopy = merged ? tintedHere.map((name) => opts.colors?.[name]).find((c) => c) : !Array.isArray(mesh.material) ? opts.colors?.[mesh.material.name] : undefined;
     if (perCopy && merged) {
       // ModelMaterial applies the copy's colour to the vertices marked aTint only.
       placements.forEach((_, i) => inst.setColorAt(i, _c.set(perCopy[i] ?? 0xffffff)));
@@ -318,6 +418,16 @@ export async function instancedModel(id: string, placements: THREE.Matrix4[], op
       const white = own.clone();
       white.userData.instanceOwned = true;
       white.color.set(0xffffff);
+      if (white.emissive.getHex() !== 0) {
+        // Its glow takes the copy's colour too, at the model's own glow brightness.
+        const e = white.emissive;
+        const l = e.r * 0.2126 + e.g * 0.7152 + e.b * 0.0722;
+        e.setRGB(l, l, l);
+        white.onBeforeCompile = (shader) => {
+          shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;');
+        };
+        white.customProgramCacheKey = () => 'office-copy-glow-1';
+      }
       inst.material = white;
       placements.forEach((_, i) => inst.setColorAt(i, _c.set(perCopy[i] ?? 0xffffff)));
     }
@@ -360,6 +470,8 @@ export interface SwapOptions {
   materials?: Record<string, THREE.Material>;
   /** Materials hidden (e.g. a surface we draw ourselves). */
   hide?: string[];
+  /** Materials kept out of the merge as their own meshes, to restyle or animate them (see `materials`). */
+  separate?: string[];
   shadows?: boolean;
   /** Where the model's pivot sits in the placeholder, and its turn (default: origin, facing +Z). */
   at?: Vec3;
@@ -375,7 +487,8 @@ async function prepared(id: string, opts: SwapOptions & { mirror?: boolean }): P
   const [m, moving] = await Promise.all([model(id, { tint: opts.tint, shadows: opts.shadows }), movingParts(id)]);
   if (!m) return null;
   for (const name of opts.hide ?? []) hideMaterial(m, name);
-  mergeModel(m, moving, [], opts.hide, opts.glow);
+  const exclude = [...(opts.hide ?? []), ...(opts.separate ?? [])];
+  mergeModel(m, moving, [], exclude, opts.glow, mergeKey(id, { tint: opts.tint, exclude, glow: opts.glow, shadows: opts.shadows }));
   if (opts.fit) m.scale.copy(fitScale(localBox(m).getSize(new THREE.Vector3()), opts.fit));
   else if (typeof opts.scale === 'number') m.scale.setScalar(opts.scale);
   else if (opts.scale) m.scale.set(...opts.scale);
@@ -467,27 +580,34 @@ export function hideMaterial(root: THREE.Object3D, name: string): void {
   });
 }
 
+/** Let go of a model mesh's geometry: shared merged geometry is released, a copy's own is disposed. */
+function dropGeometry(geometry: THREE.BufferGeometry): void {
+  if (geometry.userData.mergeKey !== undefined) releaseMerged(geometry);
+  else if (geometry.userData.owned) geometry.dispose();
+}
+
 /**
- * Remove an instancedModel() group and release what it owns: the instance buffers, merged
- * geometry and its own materials. Other geometry and materials are shared with the model cache.
+ * Remove an instancedModel() group and release what it holds: the instance buffers, its own
+ * materials, and its references to shared merged geometry. Other geometry and materials belong to
+ * the model cache.
  */
 export function disposeInstanced(group: THREE.Object3D): void {
   group.traverse((o) => {
     const inst = o as THREE.InstancedMesh;
     if (!inst.isInstancedMesh) return;
     for (const m of Array.isArray(inst.material) ? inst.material : [inst.material]) if (m.userData.instanceOwned) m.dispose();
-    if (inst.geometry.userData.owned) inst.geometry.dispose();
+    dropGeometry(inst.geometry);
     inst.dispose();
   });
   group.removeFromParent();
 }
 
-/** Remove a swapped-in model, releasing only what this copy owns (merged geometry, tinted materials). */
+/** Remove a swapped-in model, releasing only what this copy holds (merged geometry references, tinted materials). */
 export function disposeModel(root: THREE.Object3D): void {
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
-    if (mesh.geometry.userData.owned) mesh.geometry.dispose();
+    dropGeometry(mesh.geometry);
     for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) if (m.userData.instanceOwned) m.dispose();
   });
   root.removeFromParent();
@@ -500,6 +620,8 @@ export function disposeGroup(group: THREE.Object3D, keepMaterials = true): void 
     if (!mesh.isMesh) return;
     mesh.geometry.dispose();
     if (!keepMaterials) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m) => m.dispose());
+    // An instanced part frees its instance buffers too.
+    if ((mesh as THREE.InstancedMesh).isInstancedMesh) (mesh as THREE.InstancedMesh).dispose();
   });
   group.removeFromParent();
 }

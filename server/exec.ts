@@ -9,7 +9,10 @@ export interface RunResult {
 /**
  * The environment child processes get. Strips what `npm run` injects (node_modules/.bin on
  * PATH, npm_* vars) so sessions we start in tmux behave like ones started from a terminal,
- * and so a tmux server we happen to start doesn't inherit npm's environment.
+ * and so a tmux server we happen to start doesn't inherit npm's environment. Everything else
+ * (tokens and keys included) is kept on purpose: it's all yours, a tmux server we start hands
+ * it to hires and shells as a terminal would, and a login shell re-reads your profile anyway,
+ * so stripping it would hide nothing.
  */
 export function cleanEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};

@@ -13,6 +13,12 @@ import type {
   TermClientMessage,
 } from '../../shared/protocol';
 
+/**
+ * Which of their terminals: their Claude session (hosted only), or their shell (anyone). Or a
+ * hot desk's: your own shell at an empty desk, where the terminal's id is the desk number.
+ */
+export type TermKind = 'claude' | 'shell' | 'desk';
+
 export interface TermLink {
   send(msg: TermClientMessage): void;
   close(): void;
@@ -36,6 +42,8 @@ export interface Backend {
   onThought?: ((sessionId: string, text: string, at: number) => void) | null;
   /** Thought bubbles on/off. Goes out with presence, so the server only thinks while someone wants it. */
   setThoughts?(on: boolean): void;
+  /** Hot desks: the desks with a shell running, on connect and whenever that changes. */
+  onDesks: ((open: number[]) => void) | null;
   start(): void;
   roster(): Promise<Employee[]>;
   projects(): Promise<ProjectInfo[]>;
@@ -47,7 +55,13 @@ export interface Backend {
   say(sessionId: string, text: string): Promise<ApiResult>;
   /** Answer an open Ask in-game. */
   answer(req: AnswerRequest): Promise<ApiResult>;
-  terminal(sessionId: string, cols: number, rows: number): TermLink;
+  /**
+   * Their Claude session (default), or their shell: a login shell in their folder, opened on
+   * demand. Kind 'desk': `id` is a desk number, and the shell is yours, in your home folder.
+   */
+  terminal(id: string, cols: number, rows: number, kind?: TermKind): TermLink;
+  /** Shut down the shell at a hot desk (fine if it has none). */
+  closeDesk(desk: number): Promise<ApiResult>;
 }
 
 const wsBase = () => `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
@@ -96,6 +110,7 @@ export function createBackend(): Backend {
     onStats: null,
     onStatus: null,
     onThought: null,
+    onDesks: null,
     setThoughts(on) {
       wantThoughts = on;
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(presence()));
@@ -121,8 +136,9 @@ export function createBackend(): Backend {
     fire: (sessionId) => postApi('/api/fire', { sessionId }),
     say: (sessionId, text) => postApi('/api/say', { sessionId, text }),
     answer: (req) => postApi('/api/answer', req),
-    terminal(sessionId, cols, rows) {
-      const q = new URLSearchParams({ id: sessionId, cols: String(cols), rows: String(rows) });
+    closeDesk: (desk) => postApi('/api/desk/close', { desk }),
+    terminal(id, cols, rows, kind = 'claude') {
+      const q = new URLSearchParams({ ...(kind === 'desk' ? { desk: id } : { id }), kind, cols: String(cols), rows: String(rows) });
       const sock = new WebSocket(`${wsBase()}/term?${q}`);
       sock.binaryType = 'arraybuffer';
       const link: TermLink = {
@@ -168,6 +184,7 @@ export function createBackend(): Backend {
       else if (msg.type === 'notice') backend.onNotice?.(msg.level, msg.text);
       else if (msg.type === 'stats') backend.onStats?.(msg.stats);
       else if (msg.type === 'thought') backend.onThought?.(msg.sessionId, msg.text, msg.at);
+      else if (msg.type === 'desks') backend.onDesks?.(msg.open);
     };
     sock.onclose = () => {
       window.clearTimeout(giveUp);

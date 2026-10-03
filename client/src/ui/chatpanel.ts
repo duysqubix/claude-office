@@ -8,8 +8,11 @@
 import type { AnswerRequest, ApiResult, ChatLine, Employee } from '../../../shared/protocol';
 import { renderAsk, type AskView } from './askpanel';
 import { bus } from './bus';
-import type { TermStatus, TerminalView, TerminalViewOptions } from './terminal';
-import { button, panelShell } from './components';
+import type { TermKind } from '../net';
+import { lastTab, setLastTab } from '../termtab';
+import { isTabSwitch, STATUS_TEXT, termTabs, type TermStatus, type TerminalView, type TerminalViewOptions } from './terminal';
+import { button, keyCap, panelShell } from './components';
+import { tildify } from './dom';
 import { el, fmtTime, fmtWait } from './el';
 import { faceSvg } from './faces';
 import { employeeLooks } from '../chars/looks';
@@ -83,6 +86,8 @@ export interface ChatOptions {
   mode?: ChatMode;
   /** Chat ⇄ Terminal flipped (the panel changed width). */
   onMode?(mode: ChatMode): void;
+  /** The home folder, for "~/…" paths on the Shell tab. */
+  home?: string;
 }
 
 /** Chat: the conversation. Terminal: their live terminal, right here (the quick look). */
@@ -148,7 +153,14 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   let ended = false;
   let faceHosted = e.hosted;
   let mode: ChatMode = 'chat';
-  let termView: TerminalView | null = null;
+  /**
+   * Terminal mode's tab: their Claude session (hosted only) or their shell (anyone). Shell when
+   * there's no Claude here; Claude while they need you; else where you last looked.
+   */
+  let termTab: TermKind = !e.hosted ? 'shell' : e.state === 'needs-you' ? 'claude' : (lastTab(id) ?? 'claude');
+  /** Each tab's terminal, opened the first time the tab is shown. */
+  let termViews: Partial<Record<TermKind, TerminalView>> = {};
+  const termStatusOf: Partial<Record<TermKind, TermStatus>> = {};
   /** Bumped when the feed restarts, so answers to older requests are dropped. */
   let gen = 0;
   const pending: Pending[] = [];
@@ -209,25 +221,38 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   jump.addEventListener('click', () => scrollToEnd(true));
   feed.append(loading, msgs, askSlot, waitNote, typing, jump);
 
-  // Terminal mode: their live terminal (hosted), or why there isn't one.
+  // Terminal mode: their live terminals (Claude | Shell tabs on the screen), or why there isn't one.
+  const termTabsCtl = termTabs((k, focus) => showTab(k, focus));
+  const termWhere = el('span', { class: 'co-chat__termwhere', attrs: { hidden: true } });
   const termStatus = el('span', { class: 'co-chat__termstatus' });
   const termLed = el('i', { class: 'term-led', attrs: { 'aria-hidden': 'true' } });
-  const termRetry = button('Try again', { small: true, onClick: () => termView?.retry() });
-  termRetry.hidden = true;
+  const termRetry = button('Try again', { small: true, onClick: () => termViews[termTab]?.retry() });
+  const termFresh = button('New shell', { small: true, onClick: () => termViews.shell?.retry() });
+  termRetry.hidden = termFresh.hidden = true;
+  const termHint = el('span', { class: 'co-chat__termhint' });
   // Esc here leaves the quick look (unlike sitting down, where Esc goes to Claude), so stopping
   // them has its own button right by the terminal.
   const termInterrupt = needsServer(button('Interrupt', { small: true, icon: 'stop', onClick: () => void interrupt() }));
-  const termSlot = el('div', { class: 'co-chat__termslot' });
-  const termBar = el(
-    'div',
-    { class: 'co-chat__termbar' },
-    termLed,
-    termStatus,
-    el('span', { class: 'co-chat__termhint' }, el('kbd', { class: 'co-key' }, 'Esc'), ' back to the chat (not to Claude)'),
-    termRetry,
-    termInterrupt,
-  );
-  const termPane = el('div', { class: 'co-chat__term', attrs: { hidden: true } }, termSlot, termBar);
+  const termNote = el('div', { class: 'co-chat__termnote', attrs: { hidden: true } });
+  const termSlot = el('div', { class: 'co-chat__termslot' }, termNote);
+  const termBar = el('div', { class: 'co-chat__termbar' }, termWhere, termLed, termStatus, termHint, termRetry, termFresh, termInterrupt);
+  const termPane = el('div', { class: 'co-chat__term', attrs: { hidden: true } }, termTabsCtl.el, termSlot, termBar);
+  // Ctrl+` and Ctrl+] from the tabs and the bar's buttons too (inside a terminal, its onKey has
+  // them first). From out here a switch keeps you on the tabs: the next Enter must not land in a
+  // terminal. Esc there is the panel host's: back to the chat as well.
+  termPane.addEventListener('keydown', (ev) => {
+    if (ev.defaultPrevented) return;
+    if (isTabSwitch(ev)) {
+      ev.preventDefault();
+      if (ev.repeat) return;
+      showTab(termTab === 'claude' ? 'shell' : 'claude', false);
+      termTabsCtl.focus();
+    } else if (ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']')) {
+      ev.preventDefault();
+      setMode('chat');
+      shell.title.focus({ preventScroll: true });
+    }
+  });
   feed.after(termPane);
 
   // Composer (hosted) and the adopt card (external): both live in the footer.
@@ -439,78 +464,143 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
 
   // ---------------------------------------------------------------- terminal mode
 
-  const STATUS: Record<TermStatus, string> = {
-    connecting: 'Connecting…',
-    connected: 'Live',
-    reconnecting: 'Reconnecting…',
-    lost: 'Connection lost',
-    ended: 'Session ended',
-  };
+  /** The bar follows whichever tab is showing. */
+  function termChrome(): void {
+    const shellTab = termTab === 'shell';
+    const st = termViews[termTab] ? termStatusOf[termTab] : undefined;
+    termTabsCtl.set(termTab);
+    termStatus.textContent = st === 'ended' && shellTab ? 'Shell closed' : st ? STATUS_TEXT[st] : '';
+    // No light where there's no screen (their Claude tab when they run in your own terminal).
+    termLed.hidden = !st;
+    termLed.classList.toggle('on', st === 'connected');
+    termRetry.hidden = st !== 'lost';
+    termFresh.hidden = !shellTab || st !== 'ended';
+    termWhere.hidden = !shellTab;
+    termWhere.textContent = shellTab ? `Shell in ${tildify(e.cwd, opts.home ?? '')}` : '';
+    // (With no screen showing, Esc has nothing to be kept from.)
+    termHint.replaceChildren(keyCap('Esc'), !termViews[termTab] ? ' back to the chat' : shellTab ? ' back to the chat (not to the shell)' : ' back to the chat (not to Claude)');
+    // Stopping Claude, right by their screen (only theirs: never on the Shell tab).
+    termInterrupt.hidden = shellTab || !e.hosted || ended;
+  }
 
-  /** Fill the terminal pane for who they are now: a live terminal, or why there isn't one. */
-  function renderTerm(): void {
-    const canAttach = e.hosted && !ended && !!api.openTerminal;
-    if (canAttach && termView) return;
-    termView?.dispose();
-    termView = null;
-    termBar.hidden = !canAttach;
-    if (canAttach) {
-      // Live after a beat (or a click in it), never on the T that opened it: a reflexive Enter or
-      // 1 must not answer a prompt in their terminal.
-      const v = api.openTerminal!(id, {
-        hold: true,
-        onKey: (ev) => {
-          // Esc (or Ctrl+]) leaves the quick look; everything else is typed into their session.
-          const leave = (ev.key === 'Escape' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey) || (ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']'));
-          if (leave && ev.type === 'keydown') {
-            setMode('chat');
-            shell.title.focus({ preventScroll: true });
-          }
-          return leave;
-        },
-        onStatus: (st) => {
-          termStatus.textContent = STATUS[st];
-          termLed.classList.toggle('on', st === 'connected');
-          termRetry.hidden = st !== 'lost';
-        },
-        onEnd: (why, reason) => {
-          if (why === 'refused') termStatus.textContent = `Can't open their terminal${reason ? `: ${reason}` : ''}`;
-        },
-      });
-      termView = v;
-      termSlot.replaceChildren(v.el);
-      v.start();
+  /** A tab's terminal. `hold`: live after a beat (or a click in it), never on the T that opened the quick look. */
+  function openTermView(kind: TermKind, hold: boolean): TerminalView {
+    const v = api.openTerminal!(id, {
+      kind,
+      hold,
+      onKey: (ev) => {
+        // Ctrl+` flips tabs (once per press: a held one never repeats into the other terminal).
+        if (isTabSwitch(ev)) {
+          if (ev.type === 'keydown' && !ev.repeat) showTab(termTab === 'claude' ? 'shell' : 'claude');
+          return true;
+        }
+        // Esc (or Ctrl+]) leaves the quick look; everything else is typed into their terminal.
+        const leave = (ev.key === 'Escape' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey) || (ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']'));
+        if (leave && ev.type === 'keydown') {
+          setMode('chat');
+          shell.title.focus({ preventScroll: true });
+        }
+        return leave;
+      },
+      onStatus: (st) => {
+        termStatusOf[kind] = st;
+        if (kind === termTab) termChrome();
+      },
+      onEnd: (why, reason) => {
+        if (why !== 'refused' || kind !== termTab) return;
+        termStatusOf[kind] = 'lost';
+        termChrome();
+        termStatus.textContent = kind === 'shell' ? `No shell${reason ? `: ${reason}` : ''}` : `Can't open their terminal${reason ? `: ${reason}` : ''}`;
+      },
+    });
+    termViews[kind] = v;
+    termSlot.append(v.el);
+    v.start();
+    if (hold) {
       const release = () => {
         window.clearTimeout(holdTimer);
         v.el.removeEventListener('pointerdown', release);
-        if (termView === v) v.release();
+        if (termViews[kind] === v) v.release();
       };
       const holdTimer = window.setTimeout(release, TERM_HOLD_MS);
       v.el.addEventListener('pointerdown', release);
-      return;
     }
-    termSlot.replaceChildren(
-      el(
-        'div',
-        { class: 'co-chat__termnote' },
+    return v;
+  }
+
+  /**
+   * Fill the terminal pane for who they are now: the tab's live terminal, or why there isn't one.
+   * `switched`: a tab switch (the new terminal is live at once; the switch's own keys never
+   * repeat into it).
+   */
+  function renderTerm(switched = false): void {
+    // Their session ended: Claude's screen goes. A shell stays until it closes by itself, so
+    // you can finish typing there.
+    if (ended) dropView('claude');
+    const canAttach = !!api.openTerminal && (termTab === 'shell' ? !ended || !!termViews.shell : e.hosted && !ended);
+    for (const [k, v] of Object.entries(termViews)) v.el.hidden = k !== termTab;
+    termBar.hidden = !canAttach && ended;
+    termNote.hidden = canAttach;
+    // Rebuilt only when what it says changes (a roster update must not take its button's focus).
+    const noteKey = canAttach ? '' : `${ended}|${e.hosted}|${!!e.otherOffice}|${!!e.adopting}|${e.pid}|${e.displayName}`;
+    if (canAttach) termViews[termTab] ?? openTermView(termTab, !switched);
+    else if (noteKey !== termNote.dataset.key) {
+      termNote.dataset.key = noteKey;
+      const parts = [
         el('span', { html: icon('terminal', 32) }),
         ended
           ? el('p', null, `${e.displayName}'s session has ended.`)
-          : !e.hosted
-            ? el(
-                'p',
-                null,
-                el('strong', null, `${e.displayName} runs in their own terminal`),
-                ` (pid ${e.pid}), so there's no screen to show here. Bring them into the office and you can look in any time.`,
-              )
-            : el('p', null, "Their terminal can't be shown here."),
-        !e.hosted && !ended
+          : e.otherOffice
+            ? el('p', null, el('strong', null, `${e.displayName} works in another office`), ", so there's no Claude screen here. Their Shell tab works.")
+            : !e.hosted
+              ? el(
+                  'p',
+                  null,
+                  el('strong', null, `${e.displayName} runs in their own terminal`),
+                  ` (pid ${e.pid}), so there's no Claude screen here. Their Shell tab works, or bring them into the office and you can look in any time.`,
+                )
+              : el('p', null, "Their terminal can't be shown here."),
+        !e.hosted && !ended && !e.otherOffice
           ? e.adopting
             ? el('p', { class: 'co-muted' }, 'Waiting for them to type /exit in their terminal…')
             : needsServer(button('Bring into the office', { kind: 'primary', onClick: () => void adopt() }))
           : null,
-      ),
-    );
+      ];
+      // Its button was the keyboard's (Bring into the office, now waiting): the tabs take it, not the page.
+      const hadFocus = termNote.contains(document.activeElement);
+      termNote.replaceChildren(...parts.filter((n): n is HTMLElement => n !== null));
+      if (hadFocus) termTabsCtl.focus();
+    }
+    if (canAttach) termNote.dataset.key = '';
+    termChrome();
+  }
+
+  /**
+   * Show the tab you picked, and remember it for them (only where Claude could show); `focus`:
+   * and type in it (a click, Ctrl+` in a terminal). With no screen there, the keyboard waits on
+   * the tabs, never on a button a stray Space or Enter would press.
+   */
+  function showTab(kind: TermKind, focus = true): void {
+    if (closed || mode !== 'terminal') return;
+    termTab = kind;
+    if (e.hosted) setLastTab(id, kind);
+    renderTerm(true);
+    const v = termViews[kind];
+    v?.fit();
+    v?.forgetHeld();
+    if (!focus) return;
+    if (v) v.focus();
+    else termTabsCtl.focus();
+  }
+
+  /** One tab's terminal goes (its screen with it); if you were in it, the keyboard moves to the tabs. */
+  function dropView(kind: TermKind): void {
+    const v = termViews[kind];
+    if (!v) return;
+    const inside = v.el.contains(document.activeElement);
+    v.dispose();
+    delete termViews[kind];
+    if (inside && mode === 'terminal') termTabsCtl.focus();
   }
 
   function setMode(next: ChatMode): void {
@@ -522,13 +612,15 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     termPane.hidden = !term;
     segChat.setAttribute('aria-pressed', String(!term));
     segTerm.setAttribute('aria-pressed', String(term));
+    // Terminal mode has its own Interrupt, right by their screen.
+    interruptBtn.hidden = !e.hosted || ended || term;
     shell.foot.hidden = term || ended;
     if (term) {
       renderTerm();
-      termView?.focus();
+      termViews[termTab]?.focus();
     } else {
-      termView?.dispose();
-      termView = null;
+      for (const v of Object.values(termViews)) v.dispose();
+      termViews = {};
       scrollToEnd(true);
     }
     opts.onMode?.(mode);
@@ -673,10 +765,10 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     renderState();
     where.replaceChildren(el('span', { class: 'co-tag', html: icon('folder', 18) }, e.project));
     if (e.branch) where.append(el('span', { class: 'co-tag', html: icon('branch', 18) }, e.branch));
-    interruptBtn.hidden = !e.hosted || ended;
+    interruptBtn.hidden = !e.hosted || ended || mode === 'terminal';
     interruptBtn.disabled = e.state !== 'working';
     termInterrupt.disabled = e.state !== 'working';
-    sitBtn.hidden = !e.hosted || ended;
+    sitBtn.hidden = ended;
 
     // Typing while they work.
     const working = e.state === 'working' && !ended;
@@ -716,7 +808,15 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       if (waitingInTerminal) {
         waitNote.append(
           el('span', { html: icon('terminal', 22) }),
-          el('span', null, e.hosted ? `${e.displayName} is waiting in their terminal.` : `${e.displayName} is waiting in your own terminal (pid ${e.pid}). Answer them there.`),
+          el(
+            'span',
+            null,
+            e.hosted
+              ? `${e.displayName} is waiting in their terminal.`
+              : e.otherOffice
+                ? `${e.displayName} is waiting in another office. Answer them there.`
+                : `${e.displayName} is waiting in your own terminal (pid ${e.pid}). Answer them there.`,
+          ),
         );
         if (e.hosted) waitNote.append(needsServer(button('Sit at their computer', { small: true, kind: 'primary', onClick: () => api.sit(id) })));
         else
@@ -741,7 +841,11 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     if (mode === 'terminal') renderTerm();
     if (!e.hosted) {
       adoptCard.classList.toggle('is-waiting', !!e.adopting);
-      if (e.adopting) {
+      if (e.otherOffice) {
+        // Another office hired them: only that office can talk to them or bring them in.
+        adoptText.replaceChildren(el('strong', null, 'Hired in another office.'), ` Talk to ${e.displayName} there.`);
+        adoptBtn.hidden = true;
+      } else if (e.adopting) {
         adoptText.replaceChildren(
           el('span', { class: 'co-spinner', attrs: { 'aria-hidden': 'true' } }),
           el('span', null, el('strong', null, `Waiting for ${e.displayName}…`), ' Type ', el('code', null, '/exit'), " in their terminal: they'll walk in here with their whole conversation."),
@@ -800,8 +904,9 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
         return;
       }
       if (mode === 'terminal') {
-        if (termView) termView.focus();
-        else (termPane.querySelector<HTMLElement>('.co-btn') ?? shell.title).focus({ preventScroll: true });
+        const v = termViews[termTab];
+        if (v) v.focus();
+        else termTabsCtl.focus();
       } else if (e.hosted) input.focus({ preventScroll: true });
       else (adoptBtn.hidden || ended ? shell.title : adoptBtn).focus({ preventScroll: true });
     },
@@ -812,8 +917,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       closed = true;
       unsubOffline();
       window.clearTimeout(pollTimer);
-      termView?.dispose();
-      termView = null;
+      for (const v of Object.values(termViews)) v.dispose();
+      termViews = {};
       askView?.destroy();
       // A host animating it out (.is-out) removes it when that's done.
       if (!panel.classList.contains('is-out')) panel.remove();

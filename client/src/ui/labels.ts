@@ -15,6 +15,7 @@ import { el, type Markup } from './el';
 import { plainText, visibleText } from './markdown';
 import { employeeFace, faceSvg } from './faces';
 import { stateBadge, STATE_WORD } from './icons';
+import { coachWalk } from './coach';
 import { daydream, thoughtsOn } from './thoughts';
 
 /** Chatter bubbles: within this many metres of the manager, the nearest few only. */
@@ -34,6 +35,9 @@ const _cam = new THREE.Vector3();
 const _ndc = new THREE.Vector3();
 /** Bubbles keep this far inside the window, the HUD and an open panel. */
 const MARGIN = 12;
+/** How far the "!" hops (6 px, stretched) and a thought floats (3 px) above where it sits (theme.css). */
+const BANG_RISE = 8;
+const THOUGHT_RISE = 3;
 /** Bubble sizes are re-measured this often (frames); text changes are rare. */
 const MEASURE_EVERY = 6;
 
@@ -263,6 +267,8 @@ class Tag {
     // Off the screen, their edge face is the marker: no 3D "!" pulled in beside it.
     const bang = needs && e.phase !== 'leaving' && onScreen;
     this.set('bang', bang, () => (this.bang.hidden = !bang));
+    // Someone who needs you is drawn over everyone else's labels, nearer ones included.
+    this.obj.renderOrder = needs ? 1 : 0;
 
     // What the bubble says (UX.md §2.1): needs-you always; chatter only close up.
     let kind = '';
@@ -472,6 +478,8 @@ export class LabelLayer {
   /** Reused every frame. */
   private order: Tag[] = [];
   private targets: EdgeTarget[] = [];
+  /** People whose own "!" shows whole on screen this frame: they get no edge face as well. */
+  private bangSeen = new Set<EdgeTarget>();
   /** Clicked someone's needs-you bubble. */
   onBubbleClick: (e: EmployeeChar) => void = () => {};
 
@@ -556,6 +564,7 @@ export class LabelLayer {
   }
 
   update(manager: THREE.Vector3, camera: THREE.Camera): void {
+    coachWalk(manager.x, manager.z);
     camera.getWorldPosition(_cam);
     // Pills reach farther the farther out the camera is (UX.md §2.1).
     const reach = Math.max(10, _cam.distanceTo(manager) + 2);
@@ -644,6 +653,12 @@ export class LabelLayer {
     if (this.visible) this.clampBubbles(camera, now);
     // A bottom sheet (narrow windows) leaves no free edge for faces; the panel has the floor.
     const room = this.visible && this.inset?.bottom === undefined;
+    // One marker each: no edge face beside a "!" you can see (say, one slid out from under the panel).
+    if (this.bangSeen.size) {
+      let k = 0;
+      for (const tg of targets) if (!this.bangSeen.has(tg)) targets[k++] = tg;
+      targets.length = k;
+    }
     this.edges.updateEdgeIndicators(camera, { width: this.vw, height: this.vh, inset: this.inset }, room ? targets : []);
   }
 
@@ -678,10 +693,11 @@ export class LabelLayer {
       }
     }
     camera.updateMatrixWorld();
-    const stacks: { root: HTMLElement; anchor: THREE.Object3D }[] = [];
-    for (const t of this.order) if (t.cloud.el.parentElement) stacks.push({ root: t.cloud.el.parentElement, anchor: t.e.labelAnchor });
+    const placed: { el: HTMLElement; root: HTMLElement; box: Box; tag?: Tag }[] = [];
+    const stacks: { root: HTMLElement; anchor: THREE.Object3D; tag?: Tag }[] = [];
+    for (const t of this.order) if (t.cloud.el.parentElement) stacks.push({ root: t.cloud.el.parentElement, anchor: t.e.labelAnchor, tag: t });
     for (const t of this.regularTags.values()) if (t.obj.visible && t.cloud.el.parentElement) stacks.push({ root: t.cloud.el.parentElement, anchor: t.r.labelAnchor });
-    for (const { root, anchor } of stacks) {
+    for (const { root, anchor, tag } of stacks) {
       const bubbles = [...root.children].filter(
         (c): c is HTMLElement => c instanceof HTMLElement && !c.hidden && (c.classList.contains('co-bubble') || c.classList.contains('co-thought') || c.classList.contains('co-bang')),
       );
@@ -697,25 +713,43 @@ export class LabelLayer {
         for (const el of [...bubbles, ...(pill ? [pill] : [])]) this.unshift(el);
         continue;
       }
-      this.clampStack(items, root, ax, ay);
+      for (const p of this.clampStack(items, root, ax, ay)) placed.push({ ...p, root, tag });
     }
+    // Someone who needs you always wins: another person's chatter or thought that would sit on
+    // their bubble or their "!" steps aside until it's clear. (A speech bubble that has just
+    // turned into its owner's needs-you bubble drops the class here too.)
+    const needs = placed.filter((p) => p.el.classList.contains('co-bubble--needs') || (p.el.classList.contains('co-bang') && !p.el.classList.contains('co-bang--bump')));
+    for (const p of placed) {
+      const chatter = p.el.classList.contains('co-thought') || (p.el.classList.contains('co-bubble') && !p.el.classList.contains('co-bubble--needs'));
+      const under = chatter && needs.some((n) => n.root !== p.root && n.box.l < p.box.r && p.box.l < n.box.r && n.box.t < p.box.b && p.box.t < n.box.b);
+      if (under !== p.el.classList.contains('is-yielding')) p.el.classList.toggle('is-yielding', under);
+    }
+    this.bangSeen.clear();
+    for (const p of needs) if (p.tag && p.el.classList.contains('co-bang') && this.clear(p.box)) this.bangSeen.add(p.tag.target);
+  }
+
+  /** Whole in the window, and off the HUD and the panel (which would hide it). */
+  private clear(b: Box): boolean {
+    return b.l >= 0 && b.t >= 0 && b.r <= this.vw && b.b <= this.vh && !this.zones.some((z) => b.l < z.r && z.l < b.r && b.t < z.b && z.t < b.b);
   }
 
   /**
    * One label's bubbles move together up and down (so the "!", the cloud and the bubble never
    * overlap), and each slides sideways on its own (so each stays centred over the head if it can).
    */
-  private clampStack(items: HTMLElement[], root: HTMLElement, ax: number, ay: number): void {
-    const shifts: { el: HTMLElement; dx: number; dy: number }[] = [];
+  private clampStack(items: HTMLElement[], root: HTMLElement, ax: number, ay: number): { el: HTMLElement; box: Box }[] {
+    const shifts: { el: HTMLElement; dx: number; dy: number; box: Box }[] = [];
     for (const el of items) {
       let m = this.measured.get(el);
       if (!m || this.frame - m.at >= MEASURE_EVERY) {
         m = { w: el.offsetWidth, h: el.offsetHeight, top: el.offsetTop, rootH: root.offsetHeight, at: this.frame };
         this.measured.set(el, m);
       }
-      // Where it sits unshifted: centred over the head, at its place in the stack above it.
-      const box = { l: ax - m.w / 2, t: ay - m.rootH + m.top, r: ax + m.w / 2, b: ay - m.rootH + m.top + m.h };
-      shifts.push({ el, ...this.fit(box) });
+      // Where it sits unshifted: centred over the head, at its place in the stack above it, with
+      // room on top for its bob (the "!" hops, a thought floats), so it stays whole all the way up.
+      const rise = el.classList.contains('co-bang') ? BANG_RISE : el.classList.contains('co-thought') ? THOUGHT_RISE : 0;
+      const box = { l: ax - m.w / 2, t: ay - m.rootH + m.top - rise, r: ax + m.w / 2, b: ay - m.rootH + m.top + m.h };
+      shifts.push({ el, box, ...this.fit(box) });
     }
     // Down together by the most any of them needs (or up, if one would hang off the bottom).
     const down = Math.max(0, ...shifts.map((s) => s.dy));
@@ -727,6 +761,8 @@ export class LabelLayer {
       s.el.style.translate = key === '0,0' ? '' : `${Math.round(s.dx)}px ${Math.round(dy)}px`;
       s.el.style.setProperty('--shift', `${Math.round(s.dx)}px`);
     }
+    // Where each one ends up on screen (for the needs-you-wins pass).
+    return shifts.map((s) => ({ el: s.el, box: { l: s.box.l + s.dx, t: s.box.t + dy, r: s.box.r + s.dx, b: s.box.b + dy } }));
   }
 
   /** Back where CSS2D puts it. */

@@ -5,7 +5,7 @@ import { Body } from './body';
 import { pushOutOfBoxes, pushOutOfCircle } from './collide';
 import { managerLooks } from './looks';
 import { Rig } from './rig';
-import { angleDelta, clamp, damp } from './spring';
+import { angleDelta, clamp, damp, smoothstep } from './spring';
 
 export interface MoveIntent {
   /** −1..1 strafe (right +). */
@@ -21,6 +21,8 @@ export interface Bumpable {
   position: THREE.Vector3;
   radius: number;
   bump(dir: THREE.Vector3, strength: number): void;
+  /** In a seat (or getting in or out of one): they won't step aside, so auto-walks go round them. */
+  readonly atDesk?: boolean;
 }
 
 export type DebugPose = 'walk' | 'run' | 'jump';
@@ -34,6 +36,13 @@ export const MANAGER_RADIUS = 0.3;
 const _d = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _before = new THREE.Vector3();
+const _ahead = new THREE.Vector3();
+const _look = new THREE.Vector3();
+
+/** An auto-walk starts turning to whoever it's to this far from the end, so they arrive facing them. */
+const TURN_IN = 1.8;
+/** Room an auto-walk keeps past someone seated by its path, beyond touching. */
+const SEAT_CLEARANCE = 0.14;
 
 /** Random glances while standing around. Shared by everyone who idles. */
 export class Glancer {
@@ -54,6 +63,39 @@ export class Glancer {
   }
 }
 
+/** The point on segment a–b nearest `p` (XZ), into `out`. */
+function nearestOn(a: THREE.Vector3, b: THREE.Vector3, p: THREE.Vector3, out: THREE.Vector3): THREE.Vector3 {
+  const lx = b.x - a.x;
+  const lz = b.z - a.z;
+  const len2 = lx * lx + lz * lz;
+  const k = len2 > 1e-9 ? clamp(((p.x - a.x) * lx + (p.z - a.z) * lz) / len2, 0, 1) : 0;
+  return out.set(a.x + lx * k, 0, a.z + lz * k);
+}
+
+/**
+ * Corner `a` taken as a curve: already on the next leg (toward `b`), just past its start and
+ * close to its line. A corner on the far side of a desk row never counts (it's not close).
+ */
+function rounded(pos: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3): boolean {
+  const lx = b.x - a.x;
+  const lz = b.z - a.z;
+  const len = Math.hypot(lx, lz);
+  if (len < 1e-6) return true;
+  const along = ((pos.x - a.x) * lx + (pos.z - a.z) * lz) / len;
+  const off = Math.abs((pos.x - a.x) * lz - (pos.z - a.z) * lx) / len;
+  return along > 0 && along < len && off < 0.6;
+}
+
+export interface WalkOptions {
+  onArrive?: () => void;
+  /** Face this way on arrival (turning in over the last stretch). */
+  faceYaw?: number;
+  /** m/s, instead of walking or running by distance (a hustle). */
+  speed?: number;
+  /** Someone's live position: turned to over the last stretch and faced on arrival. */
+  faceAt?: THREE.Vector3;
+}
+
 export class Manager {
   readonly rig = new Rig(managerLooks());
   readonly body: Body;
@@ -65,6 +107,10 @@ export class Manager {
   debugPose: DebugPose | null = null;
   /** Fired on every footfall (for footstep sfx). */
   onStep: ((strength: number) => void) | null = null;
+  /** A jump leaves the floor (sfx). */
+  onJump: (() => void) | null = null;
+  /** Back on the floor after a jump; `strength` ≈ 1 for a full one (sfx). Comes with a footfall too. */
+  onLand: ((strength: number) => void) | null = null;
 
   private vy = 0;
   private height = 0;
@@ -74,6 +120,15 @@ export class Manager {
   private arrive: (() => void) | null = null;
   private arriveYaw: number | null = null;
   private pathSpeed: number | null = null;
+  /** Who an auto-walk is to (their live position): faced near the end and on arrival. */
+  private walkFace: THREE.Vector3 | null = null;
+  /** The heading an auto-walk ends on (toward walkFace, or the arrival yaw), and how far into turning to it (0..1). */
+  private endYaw: number | null = null;
+  private turnIn = 0;
+  /** Seconds an auto-walk has been stuck near its end (someone standing on it). */
+  private stalled = 0;
+  /** Seconds since the last auto-walk ended (the first-person view keeps settling on them a moment). */
+  private sinceWalk = Infinity;
   private faceYaw: number | null = null;
   private moveSpeed = 0;
   private run01 = 0;
@@ -82,6 +137,8 @@ export class Manager {
   private still = 0;
   private glance = new Glancer(0.8);
   private bumpUntil = new WeakMap<Bumpable, number>();
+  /** Everyone around, as of the last update (an auto-walk plans round the seated ones). */
+  private others: readonly Bumpable[] = [];
 
   constructor(
     private world: World,
@@ -106,6 +163,20 @@ export class Manager {
     return this.path !== null;
   }
 
+  /**
+   * On an auto-walk, or just off one and still turning to face whoever it was to. Not once you
+   * steer yourself: then the heading follows your keys (and the view), and a view chasing it
+   * would spin.
+   */
+  get walkSettling(): boolean {
+    return this.path !== null || (this.sinceWalk < 1.2 && this.faceYaw !== null);
+  }
+
+  /** The heading the body is turning to (not where it is mid-turn): what a following view aims at. */
+  get facingGoal(): number {
+    return this.body.heading.target;
+  }
+
   get airborne(): boolean {
     return !this.grounded;
   }
@@ -125,12 +196,20 @@ export class Manager {
     return this.body.sip / 0.95;
   }
 
-  /** Auto-walk along a path (from world.findPath). Any movement key cancels. `speed` overrides walk/run (hustle). */
-  walkPath(path: THREE.Vector3[], onArrive?: () => void, faceYaw?: number, speed?: number): void {
-    this.path = path.map((p) => p.clone().setY(0));
-    this.arrive = onArrive ?? null;
-    this.arriveYaw = faceYaw ?? null;
-    this.pathSpeed = speed ?? null;
+  /**
+   * Auto-walk along a path (from world.findPath). Any movement key cancels. The walk faces where
+   * it's going, head first; near the end it turns to `faceAt` (someone's live position) or
+   * `faceYaw`, so it arrives already facing them.
+   */
+  walkPath(path: THREE.Vector3[], opts: WalkOptions = {}): void {
+    this.path = this.aroundSeated(path.map((p) => p.clone().setY(0)), opts.faceAt ?? null);
+    this.arrive = opts.onArrive ?? null;
+    this.arriveYaw = opts.faceYaw ?? null;
+    this.pathSpeed = opts.speed ?? null;
+    this.walkFace = opts.faceAt ?? null;
+    this.endYaw = this.arriveYaw;
+    this.turnIn = 0;
+    this.stalled = 0;
     this.faceYaw = null;
   }
 
@@ -139,6 +218,9 @@ export class Manager {
     this.arrive = null;
     this.arriveYaw = null;
     this.pathSpeed = null;
+    this.walkFace = null;
+    this.endYaw = null;
+    this.turnIn = 0;
   }
 
   /** Turn to face a heading and hold it (until moving again). */
@@ -163,39 +245,58 @@ export class Manager {
     if (dt <= 0) return;
     const body = this.body;
     const pos = this.position;
+    this.others = others;
     body.begin();
 
     const hasInput = Math.abs(intent.x) + Math.abs(intent.y) > 0.01;
     if (hasInput && !this.frozen) {
       this.cancelWalk();
       this.faceYaw = null;
+      this.sinceWalk = Infinity;
     }
     let run = intent.run;
     _d.set(0, 0, 0);
     if (this.frozen || this.debugPose) {
       // no steering
     } else if (this.path) {
-      while (this.path.length && Math.hypot(pos.x - this.path[0].x, pos.z - this.path[0].z) < (this.path.length > 1 ? 0.4 : 0.12)) {
-        this.path.shift();
+      const path = this.path;
+      // A corner is done once it's within reach, or once we're round it (steering cuts it a little).
+      while (path.length && (Math.hypot(pos.x - path[0].x, pos.z - path[0].z) < (path.length > 1 ? 0.4 : 0.12) || (path.length > 1 && rounded(pos, path[0], path[1])))) {
+        path.shift();
       }
-      if (!this.path.length) {
+      let remaining = 0;
+      let prev = pos;
+      for (const p of path) {
+        remaining += Math.hypot(p.x - prev.x, p.z - prev.z);
+        prev = p;
+      }
+      // Near the end but not getting closer (someone's standing there): close enough.
+      this.stalled = remaining < 1 && this.moveSpeed < 0.15 ? this.stalled + dt : 0;
+      if (!path.length || remaining < 0.12 || this.stalled > 0.6) {
         const done = this.arrive;
-        if (this.arriveYaw !== null) this.faceYaw = this.arriveYaw;
+        // Already turned to them on the way in; hold it.
+        if (this.endYaw !== null) this.faceYaw = this.endYaw;
         this.cancelWalk();
         done?.();
       } else {
-        let remaining = 0;
-        let prev = pos;
-        for (const p of this.path) {
-          remaining += Math.hypot(p.x - prev.x, p.z - prev.z);
-          prev = p;
-        }
-        const tgt = this.path[0];
-        _dir.set(tgt.x - pos.x, 0, tgt.z - pos.z).normalize();
+        // Steer for a point a little way along the path, so corners are taken as curves.
+        this.along(clamp(this.moveSpeed * 0.2, 0.4, 1.0), _ahead);
+        _dir.set(_ahead.x - pos.x, 0, _ahead.z - pos.z);
+        if (_dir.lengthSq() < 1e-8) _dir.set(path[0].x - pos.x, 0, path[0].z - pos.z);
+        _dir.normalize();
         run = this.pathSpeed !== null ? this.pathSpeed > WALK : remaining > 6;
         const cruise = this.pathSpeed ?? (run ? RUN * 0.85 : WALK);
         const sp = Math.min(cruise, remaining * 2.6 + 0.5);
         _d.copy(_dir).multiplyScalar(sp);
+        // Who it's to: turn to them over the last stretch (their bearing from here, while it's well defined).
+        if (this.walkFace && Math.hypot(this.walkFace.x - pos.x, this.walkFace.z - pos.z) > 0.4) {
+          this.endYaw = Math.atan2(this.walkFace.x - pos.x, this.walkFace.z - pos.z);
+        }
+        this.turnIn = this.endYaw === null ? 0 : smoothstep((TURN_IN - remaining) / (TURN_IN - 0.3));
+        // Head first: eyes on the way ahead, then on them.
+        this.along(clamp(this.moveSpeed * 0.2, 0.4, 1.0) + 1.6, _look).setY(1.1);
+        if (this.walkFace && this.turnIn > 0) _look.lerp(_ahead.copy(this.walkFace).setY(1.0), this.turnIn);
+        body.lookAt(_look, 0.55);
       }
     } else if (hasInput) {
       const fx = -Math.sin(camYaw);
@@ -227,9 +328,11 @@ export class Manager {
       const pen = pushOutOfCircle(pos, MANAGER_RADIUS, o.position.x, o.position.z, o.radius);
       if (pen <= 0) continue;
       const sp = Math.hypot(this.velocity.x, this.velocity.z);
-      if (sp > 0.9 && t > (this.bumpUntil.get(o) ?? 0)) {
+      _dir.set(o.position.x - pos.x, 0, o.position.z - pos.z).normalize();
+      // On an auto-walk only walking into someone is a bump; brushing past them isn't.
+      const into = this.path ? this.velocity.x * _dir.x + this.velocity.z * _dir.z : sp;
+      if (into > 0.9 && t > (this.bumpUntil.get(o) ?? 0)) {
         this.bumpUntil.set(o, t + 0.9);
-        _dir.set(o.position.x - pos.x, 0, o.position.z - pos.z).normalize();
         o.bump(_dir, clamp(sp / RUN, 0.3, 1));
         body.shove(_dir.clone().negate(), clamp(sp / RUN, 0.2, 0.6) * 0.6);
         this.velocity.multiplyScalar(0.25);
@@ -238,10 +341,15 @@ export class Manager {
     const moved = Math.hypot(pos.x - _before.x, pos.z - _before.z) / dt;
     this.moveSpeed += (moved - this.moveSpeed) * damp(14, dt);
 
-    // Facing.
+    // Facing: where we're going; at the end of an auto-walk, turning in to whoever it's to. A
+    // held facing (arrived, or sat down) wins over the last of the stopping drift.
     const vSpeed = Math.hypot(this.velocity.x, this.velocity.z);
-    if (vSpeed > 0.25) body.heading.setTarget(Math.atan2(this.velocity.x, this.velocity.z));
-    else if (this.faceYaw !== null) body.heading.setTarget(this.faceYaw);
+    if (this.faceYaw !== null) body.heading.setTarget(this.faceYaw);
+    else if (vSpeed > 0.25) {
+      const going = Math.atan2(this.velocity.x, this.velocity.z);
+      body.heading.setTarget(this.path && this.endYaw !== null ? going + angleDelta(going, this.endYaw) * this.turnIn : going);
+    } else if (this.path && this.endYaw !== null && this.turnIn > 0) body.heading.setTarget(this.endYaw);
+    this.sinceWalk = this.path ? 0 : this.sinceWalk + dt;
 
     // Jump: a quick squash wind-up, then launch.
     if (intent.jump && this.grounded && this.jumpWindup < 0 && !this.frozen) {
@@ -259,6 +367,7 @@ export class Manager {
         body.spring('squash').kick(4.2);
         body.spring('armLRoll').kick(9);
         body.spring('armRRoll').kick(9);
+        this.onJump?.();
       }
     }
     if (!this.grounded) {
@@ -267,6 +376,7 @@ export class Manager {
       if (this.height <= 0) {
         this.height = 0;
         body.land(Math.abs(this.vy) * 0.9);
+        this.onLand?.(Math.abs(this.vy) / JUMP_V);
         this.onStep?.(1);
         this.vy = 0;
         this.grounded = true;
@@ -324,6 +434,94 @@ export class Manager {
     if (this.coffee > 0) this.coffee -= dt;
 
     body.update(dt);
+  }
+
+  /**
+   * The floor plan doesn't know that seated people's chairs stick out into the aisle, so a path
+   * can run right past (or through) them. Add a waypoint round each one it cuts past, on the
+   * side that's clear of furniture: up to twice per person (a corner beside them can need a
+   * second), never round `skip` (who the walk is to).
+   */
+  private aroundSeated(path: THREE.Vector3[], skip: THREE.Vector3 | null): THREE.Vector3[] {
+    const seated = this.others.filter((o) => o.atDesk && o.position !== skip);
+    const pts = [this.position.clone().setY(0), ...path];
+    const done = new Map<Bumpable, number>();
+    for (let n = 0; n < 8; n++) {
+      // The closest cut: whoever a leg passes nearest, inside the clearance.
+      let who: Bumpable | null = null;
+      let leg = -1;
+      let worst = Infinity;
+      for (const o of seated) {
+        if ((done.get(o) ?? 0) >= 2) continue;
+        for (let i = 0; i + 1 < pts.length; i++) {
+          nearestOn(pts[i], pts[i + 1], o.position, _ahead);
+          // Right where the leg starts (we're there already): no waypoint helps.
+          if (Math.hypot(_ahead.x - pts[i].x, _ahead.z - pts[i].z) < 0.01) continue;
+          const d = Math.hypot(_ahead.x - o.position.x, _ahead.z - o.position.z);
+          if (d < MANAGER_RADIUS + o.radius + SEAT_CLEARANCE && d < worst) {
+            worst = d;
+            who = o;
+            leg = i;
+          }
+        }
+      }
+      if (!who) break;
+      done.set(who, (done.get(who) ?? 0) + 1);
+      const w = this.stepRound(pts[leg], pts[leg + 1], who);
+      if (w) pts.splice(leg + 1, 0, w);
+    }
+    return pts.slice(1);
+  }
+
+  /** A waypoint beside `who`, clear of them, that the walk a → it → b reaches over open floor. */
+  private stepRound(a: THREE.Vector3, b: THREE.Vector3, who: Bumpable): THREE.Vector3 | null {
+    const p = who.position;
+    nearestOn(a, b, p, _ahead);
+    let nx = _ahead.x - p.x;
+    let nz = _ahead.z - p.z;
+    // Dead on the line: either side will do.
+    if (Math.hypot(nx, nz) < 1e-3) {
+      nx = a.z - b.z;
+      nz = b.x - a.x;
+    }
+    const len = Math.hypot(nx, nz) || 1;
+    // A little wider than the clearance where there's room: the walk cuts corners by up to ~0.3 m.
+    const clear = MANAGER_RADIUS + who.radius + SEAT_CLEARANCE;
+    for (const r of [clear + 0.2, clear + 0.05]) {
+      for (const side of [1, -1]) {
+        const w = new THREE.Vector3(p.x + (nx / len) * r * side, 0, p.z + (nz / len) * r * side);
+        if (this.openFloor(a, w) && this.openFloor(w, b)) return w;
+      }
+    }
+    return null;
+  }
+
+  /** Walking straight from a to b stays off the furniture. */
+  private openFloor(a: THREE.Vector3, b: THREE.Vector3): boolean {
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.15));
+    const r = MANAGER_RADIUS * 0.9;
+    for (let k = 0; k <= steps; k++) {
+      const x = a.x + ((b.x - a.x) * k) / steps;
+      const z = a.z + ((b.z - a.z) * k) / steps;
+      for (const c of this.world.colliders) if (x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ) return false;
+    }
+    return true;
+  }
+
+  /** The point `dist` metres further along the auto-walk's path (its end, if that's closer). */
+  private along(dist: number, out: THREE.Vector3): THREE.Vector3 {
+    let from = this.position;
+    let left = dist;
+    for (const p of this.path ?? []) {
+      const seg = Math.hypot(p.x - from.x, p.z - from.z);
+      if (seg >= left) {
+        const k = seg > 1e-6 ? left / seg : 0;
+        return out.set(from.x + (p.x - from.x) * k, 0, from.z + (p.z - from.z) * k);
+      }
+      left -= seg;
+      from = p;
+    }
+    return out.set(from.x, 0, from.z);
   }
 
   /** XZ distance from the manager to a point. */

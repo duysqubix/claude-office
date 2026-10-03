@@ -54,10 +54,13 @@ export function buildFloorLamp(b: Batch, color: string, d = D.floorLamp): void {
 }
 
 export function buildLights(ctx: WorldCtx): void {
-  const lamps: [number, number, string][] = [
+  // [x, z, colour, shade bottom height (default D.pendantLamp.bottomY)]
+  const lamps: [number, number, string, number?][] = [
     ...POD_SLOTS.filter((s) => !s.outdoor).map((s, i): [number, number, string] => [s.x, s.z, i % 2 ? '#FFC94A' : '#5CC8FF']),
-    [0, -7.7, '#FF7A6B'],
-    [0, -6.1, '#FF7A6B'],
+    // Over the Team Room table, on shorter cords: they hang above the line of sight to the top
+    // of the wall screen (which sits above the band on the wall).
+    [0, -7.45, '#FF7A6B', D.pendantLamp.teamRoomBottomY],
+    [0, -6.35, '#FF7A6B', D.pendantLamp.teamRoomBottomY],
     [-11.8, -6.9, '#6EDC9A'],
     [6.0, 7.6, '#FFC94A'],
     [10.8, -7.4, '#B48CFF'],
@@ -68,13 +71,15 @@ export function buildLights(ctx: WorldCtx): void {
     [12.6, 7.0, '#6EDC9A'],
   ];
   const pools: number[] = [];
-  lamps.forEach(([x, z, color], i) => {
-    tallProp(ctx, `pendant-${i}`, (b) => buildPendantLamp(b, color), { at: [x, z] }).userData.overhead = true;
+  lamps.forEach(([x, z, color, bottomY], i) => {
+    const d = bottomY === undefined ? D.pendantLamp : { ...D.pendantLamp, bottomY };
+    tallProp(ctx, `pendant-${i}`, (b) => buildPendantLamp(b, color, d), { at: [x, z] }).userData.overhead = true;
     pools.push(x, z);
   });
 
   for (const [x, z, color] of [
-    [-13.42, -8.45, '#FFD27F'],
+    // At the couch's south end (the fridge stays reachable), clear of the plant by the window.
+    [-13.42, -5.32, '#FFD27F'],
     [13.42, 5.3, '#FF9DCB'],
     [13.45, -8.5, '#B48CFF'],
   ] as const) {

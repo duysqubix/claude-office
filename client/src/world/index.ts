@@ -61,7 +61,7 @@ export function createWorld(engine: Engine): World {
 
   const building = buildBuilding(ctx);
   const props = buildProps(ctx);
-  buildOutdoor(ctx);
+  const outdoor = buildOutdoor(ctx);
   buildDecor(ctx);
   buildLights(ctx);
   const teamRoom = buildTeamRoom(ctx);
@@ -69,8 +69,17 @@ export function createWorld(engine: Engine): World {
   const interns = new InternSystem(ctx, internSlots);
   const deskSystem = new DeskSystem(ctx, desks);
   while (desks.length < INITIAL_DESKS) deskSystem.addPod(POD_SLOTS[deskSystem.podCount]);
+  // Empty slots hold placeholder decor until a pod moves in: indoors a reserved spot, in the
+  // garden the yard's meadow. A garden slot that already holds a pod drops its meadow now.
   POD_SLOTS.forEach((slot, i) => {
-    if (i >= deskSystem.podCount && !slot.outdoor) deskSystem.reserve(slot, buildReservedSpot(ctx, slot, 500 + i));
+    const decor = slot.outdoor ? outdoor.patch(slot) : i >= deskSystem.podCount ? buildReservedSpot(ctx, slot, 500 + i) : undefined;
+    if (!decor) return;
+    if (i >= deskSystem.podCount) return deskSystem.reserve(slot, decor);
+    for (const c of decor.colliders) {
+      const k = colliders.indexOf(c);
+      if (k >= 0) colliders.splice(k, 1);
+    }
+    decor.dispose();
   });
 
   root.add(ctx.statics.build({ name: 'statics' }));
@@ -147,6 +156,7 @@ export function createWorld(engine: Engine): World {
     },
     cameraBlockers: ctx.cameraBlockers,
     reception: { seat: props.reception.seat, yaw: props.reception.yaw, approach: props.reception.approach },
+    yard: outdoor.yard,
     interior: building.interior,
     isInside(p) {
       const r = building.interior;

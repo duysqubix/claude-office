@@ -119,7 +119,7 @@ export function findSlots(rig: Rig): Slots {
   }
 
   // Head children, in build order: shell, eyes, brow holders, cheeks, hair, glasses?, mouths.
-  const cheeks = head.children.filter((c) => (c as THREE.Mesh).isMesh && c.userData.fadeOrder === 4);
+  const cheeks = head.children.filter((c) => (c as THREE.Mesh).isMesh && c.userData.cheek === true);
   const shell = built(head, rig.eyes, rig.hair, rig.browL.parent, rig.browR.parent, ...cheeks, ...Object.values(mouths));
   if ((shell as THREE.Mesh | null)?.isMesh) s.head = { holder: head, procedural: [shell!, ...cheeks] };
   const hairAt = head.children.indexOf(rig.hair);

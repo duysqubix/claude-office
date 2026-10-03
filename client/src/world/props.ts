@@ -9,17 +9,26 @@ import type { OfficeStats } from './types';
 import { Batch, CanvasTex, ellipsize, fitText, font, G, rng, shade, type Vec3 } from './kit';
 import { aabb, footprint, type WallSide, type WorldCtx } from './ctx';
 import { wallFacingYaw } from './building';
-import { OFFICE } from './layout';
+import { OFFICE, TEAM_ROOM } from './layout';
 import D from './dimensions.json';
 import { inView, sparkle, type ScreenView } from './screens';
 import { buildMonitor } from './desks';
 import { couch } from './decor';
 import { catalogItem, findNode } from '../models';
 import { addModel, anchorOf, ownCanvas, swapModel, type SwapOptions } from './modelkit';
+import type { FadeItem } from './fader';
 
 const WALL_FACE = OFFICE.halfD; // |z| or |x| of the inside face of the walls
 /** The whiteboard hangs left of the Team Room. */
 const BOARD_X = -5.6;
+/**
+ * Wall-mounted models hang this far off the wall face, so their backs never z-fight it. Every
+ * wall item hangs fully above the mint band (dimensions.json building.bandY1, bandDepth), and
+ * furniture against a wall stands clear of it.
+ */
+export const MOUNT_GAP = 0.003;
+/** How far furniture standing against a wall keeps its back off the wall face (clear of the band). */
+const WALL_CLEAR = D.building.bandDepth + 0.006;
 
 export interface Props {
   setStats(stats: OfficeStats): void;
@@ -518,16 +527,16 @@ function buildManagerCorner(ctx: WorldCtx): void {
   // Bookshelf on the north wall: two catalog shelves side by side.
   const bx = 12.2;
   const r = rng(99);
-  const shelf = tallProp(ctx, 'bookshelf', (s) => buildBookshelf(s, r), { at: [bx, -WALL_FACE + D.bookshelf.d / 2 + 0.02] });
+  const shelf = tallProp(ctx, 'bookshelf', (s) => buildBookshelf(s, r), { at: [bx, -WALL_FACE + D.bookshelf.d / 2 + WALL_CLEAR + 0.01] });
   void swapModel(ctx, shelf, 'bookshelf', {
     fit: { w: D.bookshelf.w / 2, uniform: true },
     copies: [{ at: [-D.bookshelf.w / 4, 0, 0] }, { at: [D.bookshelf.w / 4, 0, 0] }],
   });
-  ctx.colliders.push(aabb(bx - D.bookshelf.w / 2, bx + D.bookshelf.w / 2, -WALL_FACE, -WALL_FACE + D.bookshelf.d + 0.02));
+  ctx.colliders.push(aabb(bx - D.bookshelf.w / 2, bx + D.bookshelf.w / 2, -WALL_FACE, -WALL_FACE + D.bookshelf.d + WALL_CLEAR + 0.03));
 
   // Filing cabinet: the Personnel Files (call back old sessions). The sign on top turns toward
   // the middle of the room so it reads from the usual camera.
-  const fx = OFFICE.halfW - 0.33;
+  const fx = OFFICE.halfW - 0.33 - WALL_CLEAR;
   const fz = -5.9;
   const signYaw = 0.6;
   const sign = filesSign(signYaw);
@@ -707,7 +716,7 @@ function buildBreakArea(ctx: WorldCtx): void {
   const wz = -WALL_FACE;
   const K = D.kitchen;
   const kx = -11.55;
-  const kz = wz + K.d / 2 + 0.02;
+  const kz = wz + K.d / 2 + WALL_CLEAR;
   const counter = staticProp(ctx, 'kitchen-counter', (b) => buildKitchenCounter(b), { at: [kx, kz] });
   void (async () => {
     // Two catalog modules sized to the counter, the right one mirrored so the sinks sit together.
@@ -765,7 +774,54 @@ function buildBreakArea(ctx: WorldCtx): void {
   const fz = wz + F.d / 2 + 0.03;
   const fr = rng(5);
   const fridge = tallProp(ctx, 'fridge', (s) => buildFridge(s, fr), { at: [fx, fz] });
-  void swapModel(ctx, fridge, 'fridge', { fit: { w: F.w, h: F.h, d: F.d } });
+  void (async () => {
+    // The same scale in X and Z, so the door turns without shearing: depth to the collider,
+    // height to the stand-in's.
+    const dims = (await catalogItem('fridge'))?.dims;
+    if (!dims) return;
+    const k = (F.d + 0.06) / dims.d;
+    // The model's liner is baked dark (the door covers it in the bake): it gets its own lit material.
+    const light = new THREE.MeshStandardMaterial({ name: 'Liner', color: '#F4FAFF', emissive: '#E8F6FF', emissiveIntensity: 0, roughness: 0.5 });
+    const m = await swapModel(ctx, fridge, 'fridge', { scale: [k, F.h / dims.h, k], separate: ['Liner'], materials: { Liner: light } });
+    const door = m && findNode(m, 'Door');
+    if (!m || !door) return;
+    // Shelves and a few snacks against the liner, inside the closed door (shown only when it opens).
+    const inside = (fill: (b: Batch) => void, name: string, parent: THREE.Object3D) => {
+      const b = new Batch();
+      fill(b);
+      const g = b.build({ name });
+      g.traverse((o) => ((o as THREE.Mesh).geometry ? ((o as THREE.Mesh).geometry.userData.owned = true) : undefined));
+      g.visible = false;
+      parent.add(g);
+      return g;
+    };
+    const shelves = inside(buildFridgeShelves, 'fridge-shelves', m);
+    // The door's inside (baked dark too) swings with the door.
+    const doorInside = inside(buildFridgeDoorInside, 'fridge-door-inside', door);
+    const fade = fridge.userData.fade as FadeItem | undefined;
+    if (fade) ctx.fader.attach(fade, [shelves, doorInside]);
+    let liner: THREE.Mesh | null = null;
+    m.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh && !Array.isArray(mesh.material) && mesh.material.name === 'Liner') liner = mesh;
+    });
+    // The door (hinged on its wall side) swings open while the manager stands in front of it, and
+    // the light comes on.
+    const front = fz + F.d / 2;
+    let open = 0;
+    ctx.tickers.push((dt) => {
+      const f = ctx.focus;
+      const goal = f.x < fx + 0.55 && f.z > front && f.z < front + 1.25 ? 1 : 0;
+      if (open === goal) return;
+      open += (goal - open) * (1 - Math.exp(-5 * dt));
+      if (Math.abs(goal - open) < 0.002) open = goal;
+      const e = open * open * (3 - 2 * open);
+      door.rotation.y = -1.45 * e;
+      shelves.visible = doorInside.visible = open > 0.04;
+      // The fader may have swapped in its own copy of the material: light whichever is current.
+      if (liner) ((liner as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = 0.75 * Math.min(1, open * 3);
+    });
+  })();
   ctx.colliders.push(footprint(fx, fz, F.w + 0.02, F.d + 0.06));
   ctx.blobs.add(fx, fz, 1.1, 1.1);
 
@@ -853,6 +909,37 @@ export function buildFridge(b: Batch, r: () => number, d = D.fridge): void {
   b.capsule(0.022, 0.32, '#FFFDF7', { at: [d.w / 2 - 0.1, d.h * 0.78, d.d / 2 + 0.02], finish: 'gloss' });
   b.capsule(0.022, 0.5, '#FFFDF7', { at: [d.w / 2 - 0.1, d.h * 0.4, d.d / 2 + 0.02], finish: 'gloss' });
   for (let i = 0; i < 5; i++) b.ball(0.035, ['#FF5A5F', '#FFC93C', '#6EDC9A', '#B48CFF', '#FF9DCB'][i], { at: [-0.2 + r() * 0.3, 0.9 + r() * 0.8, d.d / 2 + 0.01], scale: [1, 1, 0.45], cast: false });
+}
+
+/**
+ * Inside the catalog fridge, in its own (unscaled) frame: two shelves across the liner (front at
+ * z 0.356) with a milk carton, a jam jar, an apple and a cake slice.
+ */
+export function buildFridgeShelves(b: Batch): void {
+  const z = 0.368;
+  for (const y of [0.78, 1.2]) b.box(0.56, 0.018, 0.024, '#FFFFFF', { at: [0, y, z], r: 0.006, cast: false, finish: 'gloss' });
+  b.box(0.07, 0.15, 0.022, '#FFFDF8', { at: [-0.16, 0.865, z + 0.004], r: 0.008, cast: false, finish: 'plastic' });
+  b.box(0.072, 0.03, 0.023, '#5CC8FF', { at: [-0.16, 0.95, z + 0.004], r: 0.008, cast: false, finish: 'plastic' });
+  b.cyl(0.04, 0.04, 0.07, '#E63946', { at: [0.02, 1.245, z + 0.002], seg: 14, cast: false, finish: 'gloss', scale: [1, 1, 0.35] });
+  b.cyl(0.042, 0.042, 0.02, '#FFFDF7', { at: [0.02, 1.29, z + 0.002], seg: 14, cast: false, scale: [1, 1, 0.35] });
+  b.ball([0.04, 0.04, 0.014], '#6EDC9A', { at: [0.17, 0.83, z + 0.004], cast: false, finish: 'gloss' });
+  b.box(0.1, 0.05, 0.02, '#FFC1DA', { at: [0.17, 1.235, z + 0.004], rot: [0, 0, 0.1], r: 0.01, cast: false, finish: 'soft' });
+}
+
+/**
+ * The inside of the catalog fridge's door, in the Door node's frame (hinge at x 0, the door
+ * spanning +X, its inner face at z -0.035): a light panel with two ledges of bottles.
+ */
+export function buildFridgeDoorInside(b: Batch): void {
+  const z = -0.04;
+  b.box(0.6, 1.4, 0.006, '#EEF5F8', { at: [0.34, 0.97, z], r: 0.02, cast: false, finish: 'plastic' });
+  for (const [y, bottles] of [
+    [0.62, ['#7FD3FF', '#FFC94A']],
+    [1.12, ['#FF7A6B', '#6EDC9A', '#FFFDF8']],
+  ] as const) {
+    b.box(0.5, 0.05, 0.05, '#FFFFFF', { at: [0.34, y, z - 0.028], r: 0.012, cast: false, finish: 'gloss' });
+    bottles.forEach((c, i) => b.cyl(0.024, 0.024, 0.14, c, { at: [0.2 + i * 0.12, y + 0.1, z - 0.03], seg: 12, cast: false, finish: 'gloss' }));
+  }
 }
 
 /** Water cooler cabinet (the blue jug is a separate translucent mesh). Front +Z. */
@@ -987,7 +1074,7 @@ function buildWhiteboard(ctx: WorldCtx): { setStats(s: OfficeStats): void } {
   // Origin at the wall, board centre at y = 0, like the catalog whiteboard.
   const board = staticProp(ctx, 'whiteboard', (b) => buildWhiteboardFrame(b), { extra: [face] });
   placeOnWall(board, 'north', BOARD_X, W.centerY, 0);
-  void swapModel(ctx, board, 'whiteboard', { fit: { w: W.w, h: W.h, d: 0.13 }, paint: { Board: boardMat } });
+  void swapModel(ctx, board, 'whiteboard', { fit: { w: W.w, h: W.h, d: 0.13 }, paint: { Board: boardMat }, at: [0, 0, MOUNT_GAP] });
 
   ctx.interactables.push({
     id: 'whiteboard',
@@ -1240,8 +1327,8 @@ function buildPosters(ctx: WorldCtx): void {
   ];
   const ids = ['poster_ship_it', 'poster_compact', 'poster_tokens'];
   posters.forEach((p, i) => {
-    const picture = hangPicture(ctx, { side: 'north', u: p.u, y: P.centerY - 0.1, w: P.w, h: P.h, px: [400, 700], draw: p.draw });
-    void swapModel(ctx, picture, ids[i], { fit: { h: P.h, uniform: true } });
+    const picture = hangPicture(ctx, { side: 'north', u: p.u, y: P.centerY, w: P.w, h: P.h, px: [400, 700], draw: p.draw });
+    void swapModel(ctx, picture, ids[i], { fit: { h: P.h, uniform: true }, at: [0, 0, MOUNT_GAP] });
   });
 }
 
@@ -1300,7 +1387,8 @@ function buildClock(ctx: WorldCtx): void {
   });
   const group = new THREE.Group();
   group.name = 'clock';
-  placeOnWall(group, 'north', BOARD_X, D.clock.centerY, 0.06);
+  // In the solid bay right of the whiteboard: the bay above the board has a clerestory window.
+  placeOnWall(group, 'north', D.clock.x, D.clock.centerY, 0.06);
   const b = new Batch();
   buildClockRim(b);
   group.add(b.build({ name: 'clock-rim' }));
@@ -1329,14 +1417,14 @@ function buildClock(ctx: WorldCtx): void {
   // The catalog clock (origin at the wall back) brings its own hour and minute hands; our red
   // second hand stays, just in front of them.
   const size = (R + 0.05) * 2;
-  void swapModel(ctx, group, 'wall_clock', { fit: { w: size, uniform: true }, at: [0, 0, -0.06] }).then(async (m) => {
+  void swapModel(ctx, group, 'wall_clock', { fit: { w: size, uniform: true }, at: [0, 0, -0.06 + MOUNT_GAP] }).then(async (m) => {
     const hour = m && findNode(m, 'HourHand');
     const minute = m && findNode(m, 'MinuteHand');
     const centre = await anchorOf('wall_clock', 'center');
     if (!m || !hour || !minute || !centre) return;
     hourHand = hour;
     minuteHand = minute;
-    secondHand.position.z = centre.z * m.scale.z - 0.06 + 0.012;
+    secondHand.position.z = centre.z * m.scale.z - 0.06 + MOUNT_GAP + 0.012;
   });
   ctx.tickers.push(() => {
     const now = new Date();
@@ -1362,24 +1450,64 @@ type PlantKind = 'leafy' | 'fern' | 'palm';
 
 function buildPlants(ctx: WorldCtx): void {
   const spots: [number, number, number, PlantKind][] = [
-    [-3.05, -WALL_FACE + 0.45, 1.2, 'palm'],
-    [3.05, -WALL_FACE + 0.45, 1.1, 'leafy'],
+    [-3.05, -WALL_FACE + 0.6, 1.2, 'palm'],
+    [3.05, -WALL_FACE + 0.68, 1.1, 'leafy'],
     [-2.35, WALL_FACE - 0.45, 1.0, 'fern'],
     [2.35, WALL_FACE - 0.45, 1.0, 'fern'],
-    [-OFFICE.halfW + 0.5, WALL_FACE - 0.5, 1.3, 'palm'],
-    [OFFICE.halfW - 0.5, WALL_FACE - 0.5, 1.25, 'leafy'],
-    [-OFFICE.halfW + 0.5, -4.4, 1.15, 'leafy'],
-    [OFFICE.halfW - 0.5, -4.4, 1.2, 'palm'],
+    [-OFFICE.halfW + 0.75, WALL_FACE - 0.75, 1.3, 'palm'],
+    [OFFICE.halfW - 0.85, WALL_FACE - 0.85, 1.25, 'leafy'],
+    [-OFFICE.halfW + 0.55, -4.3, 1.15, 'leafy'],
+    [OFFICE.halfW - 0.6, -4.4, 1.2, 'palm'],
     [8.0, -WALL_FACE + 0.45, 1.0, 'fern'],
   ];
+  // The catalog plants spread wider than their pots: spots sit far enough from the walls that
+  // keepInside() rarely has to shrink them.
   spots.forEach(([x, z, s, kind], i) => {
     const r = rng(300 + i);
     const plant = tallProp(ctx, `plant-${i}`, (b) => buildPlant(b, kind, s, r), { at: [x, z], yaw: r() * 6 });
-    void swapModel(ctx, plant, ...PLANT_MODELS[kind](s, i));
+    void swapModel(ctx, plant, ...PLANT_MODELS[kind](s, i)).then((m) => {
+      if (m) keepInside(plant, m);
+    });
     sway(ctx, plant, kind === 'palm' ? 0.03 : 0.02, r());
     ctx.colliders.push(footprint(x, z, 0.62 * s, 0.62 * s));
     ctx.blobs.add(x, z, 0.9 * s, 0.9 * s, { shape: 'round' });
   });
+}
+
+/**
+ * Turn a plant model (and shrink it only if it must) so its leaves stay inside the room: clear of
+ * the walls and the band on them, with room for the sway. The pot stays on its spot and collider.
+ */
+function keepInside(group: THREE.Object3D, m: THREE.Object3D): void {
+  const margin = D.building.bandDepth + 0.05;
+  const lim = { minX: -OFFICE.halfW + margin, maxX: OFFICE.halfW - margin, minZ: -WALL_FACE + margin, maxZ: WALL_FACE - margin };
+  // Beside the Team Room, its glass walls bound the plant too.
+  const glass = TEAM_ROOM.partitionX - D.glassPartition.t / 2 - 0.05;
+  const p0 = group.position;
+  if (p0.z < TEAM_ROOM.partitionZ1 && Math.abs(p0.x) > glass && Math.abs(p0.x) < glass + 1.5) {
+    if (p0.x < 0) lim.maxX = Math.min(lim.maxX, -TEAM_ROOM.partitionX - D.glassPartition.t / 2 - 0.05);
+    else lim.minX = Math.max(lim.minX, TEAM_ROOM.partitionX + D.glassPartition.t / 2 + 0.05);
+  }
+  const p = group.position;
+  const tilt = group.rotation.clone();
+  group.rotation.set(0, tilt.y, 0);
+  const box = new THREE.Box3();
+  let best = { k: -1, yaw: 0 };
+  for (let a = 0; a < 12; a++) {
+    m.rotation.y = (a / 12) * Math.PI * 2;
+    group.updateMatrixWorld(true);
+    box.setFromObject(m, true);
+    let k = 1;
+    if (box.min.x < lim.minX) k = Math.min(k, (p.x - lim.minX) / (p.x - box.min.x));
+    if (box.max.x > lim.maxX) k = Math.min(k, (lim.maxX - p.x) / (box.max.x - p.x));
+    if (box.min.z < lim.minZ) k = Math.min(k, (p.z - lim.minZ) / (p.z - box.min.z));
+    if (box.max.z > lim.maxZ) k = Math.min(k, (lim.maxZ - p.z) / (box.max.z - p.z));
+    if (k > best.k) best = { k, yaw: m.rotation.y };
+  }
+  m.rotation.y = best.yaw;
+  if (best.k < 1) m.scale.multiplyScalar(best.k);
+  m.userData.insideScale = best.k;
+  group.rotation.copy(tilt);
 }
 
 /** The catalog plant for each kind, sized like the procedural one (s = 1: a 0.45 m pot). */

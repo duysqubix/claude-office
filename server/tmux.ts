@@ -1,10 +1,11 @@
 // Sessions hired in-game live in tmux sessions named office-<id8>; each employee's shell (the
-// Shell tab) lives in office-<id8>-sh. tmux owns them, so they survive a server restart and
-// can be attached from any terminal too. This module only ever touches those two kinds.
+// Shell tab) lives in office-<id8>-sh<port>, and a hot desk's shell in office-desk<port>-<NN>.
+// tmux owns them, so they survive a server restart and can be attached from any terminal too.
+// This module only ever touches those three kinds.
 import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
-import type { HirePermissionMode } from '../shared/protocol';
-import { PORT, TMUX_PREFIX } from './config';
+import { MAX_HOT_DESK, type HirePermissionMode } from '../shared/protocol';
+import { HOME, PORT, TMUX_PREFIX } from './config';
 import { cleanEnv, run, which } from './exec';
 import { cut } from './transcript';
 
@@ -15,7 +16,6 @@ export interface HostedPane {
   deadStatus?: number;
   /** Epoch ms the tmux session was created. */
   createdAt: number;
-  cwd: string;
 }
 
 /** What the office stamped on a tmux session when it hired someone (tmux session environment). */
@@ -48,44 +48,91 @@ export function claudePath(): string {
 
 const tmux = (args: string[], opts: { input?: string } = {}) => run(tmuxBin, args, { ...opts, timeoutMs: 5000 });
 
-/** An employee's shell session is their hire's name plus this. */
-const SHELL_SUFFIX = '-sh';
-const OFFICE_NAME = new RegExp(`^${TMUX_PREFIX}[0-9a-f]{8}(?:${SHELL_SUFFIX})?$`, 'i');
+/** An employee's shell session is their hire's name plus this: the port is in it, so two offices never share one. */
+const SHELL_SUFFIX = `-sh${PORT}`;
+const HIRE_NAME = new RegExp(`^${TMUX_PREFIX}[0-9a-f]{8}$`, 'i');
+/** This office's shells, and plain -sh ones from before shells were named per office (closed by their port stamp). */
+const SHELL_NAME = new RegExp(`^${TMUX_PREFIX}[0-9a-f]{8}-sh(?:${PORT})?$`, 'i');
+/** This office's hot desks only: the port is in the name, so two offices never touch each other's. */
+const DESK_NAME = new RegExp(`^${TMUX_PREFIX}desk${PORT}-[0-9]{2}$`);
 
-/** Only the names the office makes: office-<id8> (a hire) and office-<id8>-sh (a shell). */
+/**
+ * Only the names the office makes: office-<id8> (a hire), office-<id8>-sh<this port> (a shell)
+ * and office-desk<this port>-<NN> (a hot desk).
+ */
 export function isOfficeName(name: string): boolean {
-  return OFFICE_NAME.test(name);
+  return HIRE_NAME.test(name) || SHELL_NAME.test(name) || DESK_NAME.test(name);
 }
 
-const isShellName = (name: string) => isOfficeName(name) && name.endsWith(SHELL_SUFFIX);
+const isShellName = (name: string) => SHELL_NAME.test(name);
+const isHireName = (name: string) => HIRE_NAME.test(name);
 
 /** The tmux session of `sessionId`'s shell. */
 const shellName = (sessionId: string) => TMUX_PREFIX + sessionId.slice(0, 8).toLowerCase() + SHELL_SUFFIX;
 
-/** Every pane of every office hire's tmux session (none if the tmux server isn't running). */
-export async function listHosted(): Promise<HostedPane[]> {
+/** The tmux session of this office's shell at `desk` (0 to 99). */
+function deskName(desk: number): string {
+  if (!Number.isInteger(desk) || desk < 0 || desk > MAX_HOT_DESK) throw new Error(`Desks are numbered 0 to ${MAX_HOT_DESK}`);
+  return `${TMUX_PREFIX}desk${PORT}-${String(desk).padStart(2, '0')}`;
+}
+
+/**
+ * The port each hire's tmux session was stamped with (CLAUDE_OFFICE_PORT), by session name,
+ * pane pid and creation time: a stamp never changes, so each session is read once, and a new
+ * session under an old name is read again.
+ */
+const hirePorts = new Map<string, number>();
+
+export interface Hires {
+  /** Every pane of this office's hires. */
+  panes: HostedPane[];
+  /** Pids of the people in anyone else's hires: in their own terminal here, and not to be brought in. */
+  elsewhere: Set<number>;
+}
+
+/**
+ * The hires in tmux (none if the tmux server isn't running). Another office's hire (a dev copy
+ * on another port) is someone in their own terminal here: never typed into, attached to, let
+ * go, reaped or brought in. Hires from before the port stamp (older than 1.0.0) count for no
+ * office: nothing shows which office started them, so none may drive them; they still show up
+ * as people in their own terminal, and close from tmux like any other session.
+ */
+export async function listHosted(): Promise<Hires> {
   // Colon-separated, not tabs: tmux 3.3/3.4 (Debian 12, Ubuntu 24.04) print a tab in -F output
-  // as "_". Session names can't hold a colon; the path is last and keeps any of its own.
+  // as "_". Session names can't hold a colon, and the rest are numbers.
   const r = await tmux([
     'list-panes', '-a', '-F',
-    '#{session_name}:#{pane_pid}:#{pane_dead}:#{pane_dead_status}:#{session_created}:#{pane_current_path}',
+    '#{session_name}:#{pane_pid}:#{pane_dead}:#{pane_dead_status}:#{session_created}',
   ]);
-  if (r.code !== 0) return [];
-  const out: HostedPane[] = [];
+  const panes: HostedPane[] = [];
+  const elsewhere = new Set<number>();
+  if (r.code !== 0) return { panes, elsewhere };
+  const seen = new Set<string>();
   for (const line of r.stdout.split('\n')) {
-    const [name, pid, dead, status, created, ...path] = line.split(':');
-    const cwd = path.join(':');
-    if (!name || !isOfficeName(name) || isShellName(name)) continue;
-    out.push({
+    const [name, pid, dead, status, created] = line.split(':');
+    // Hires only: the roster reaps dead panes and lets go of these, never a shell or a desk.
+    if (!name || !isHireName(name)) continue;
+    const key = `${name}\t${pid}\t${created}`;
+    seen.add(key);
+    if (!hirePorts.has(key)) {
+      const env = await stamps(name);
+      // Unreadable just now (it closed meanwhile): not ours this poll, read again on the next.
+      if (env) hirePorts.set(key, Number(env.get('CLAUDE_OFFICE_PORT')));
+    }
+    if (hirePorts.get(key) !== PORT) {
+      if (dead !== '1') elsewhere.add(Number(pid));
+      continue;
+    }
+    panes.push({
       tmuxName: name,
       panePid: Number(pid),
       dead: dead === '1',
       deadStatus: status ? Number(status) : undefined,
       createdAt: Number(created) * 1000 || Date.now(),
-      cwd: cwd ?? '',
     });
   }
-  return out;
+  for (const key of hirePorts.keys()) if (!seen.has(key)) hirePorts.delete(key);
+  return { panes, elsewhere };
 }
 
 /** The environment the office stamped on one of its tmux sessions (null if it can't be read). */
@@ -163,11 +210,31 @@ function loginShell(env: NodeJS.ProcessEnv): string {
 
 /**
  * `sessionId`'s shell (the Shell tab): their login shell in `cwd`, in its own tmux session,
- * started the first time someone opens it. Stamped with this office's port, so each office
- * only ever closes the shells it started (see listShells). Returns the tmux name.
+ * started the first time someone opens it. Named and stamped with this office's port, so two
+ * offices never share one and each closes only its own (see listShells). Returns the tmux name.
  */
 export async function ensureShell(sessionId: string, cwd: string): Promise<string> {
   const name = shellName(sessionId);
+  // Their shell from before shells were named per office (1.0.1), if this office opened it:
+  // it carries on under the new name instead of being left behind.
+  const old = TMUX_PREFIX + sessionId.slice(0, 8).toLowerCase() + '-sh';
+  const env = await stamps(old);
+  if (Number(env?.get('CLAUDE_OFFICE_PORT')) === PORT && env?.get('CLAUDE_OFFICE_SHELL')?.toLowerCase() === sessionId.toLowerCase()) {
+    await tmux(['rename-session', '-t', `=${old}`, name]);
+  }
+  return ensureLoginShell(name, cwd, `CLAUDE_OFFICE_SHELL=${sessionId}`);
+}
+
+/**
+ * The shell at hot desk `desk` (0 to 99): your login shell in your home folder, started the
+ * first time you sit there, and still running after you stand up. Returns the tmux name.
+ */
+export function ensureDesk(desk: number): Promise<string> {
+  return ensureLoginShell(deskName(desk), HOME, `CLAUDE_OFFICE_DESK=${desk}`);
+}
+
+/** The login shell in tmux session `name`, in `cwd`, unless it's running already. `stamp`: one more VAR=value. */
+async function ensureLoginShell(name: string, cwd: string, stamp: string): Promise<string> {
   if ((await tmux(['has-session', '-t', `=${name}`])).code === 0) return name;
   await assertDirectory(cwd);
   const env = cleanEnv();
@@ -180,7 +247,7 @@ export async function ensureShell(sessionId: string, cwd: string): Promise<strin
     '-e', 'CLAUDE_OFFICE=1',
     // A claude started in here asks the office that opened the shell, like its hires do.
     '-e', `CLAUDE_OFFICE_PORT=${PORT}`,
-    '-e', `CLAUDE_OFFICE_SHELL=${sessionId}`,
+    '-e', stamp,
     // Two words after `--`: tmux execs it directly, no shell parsing.
     '--', loginShell(env), '-l',
   ]);
@@ -193,7 +260,23 @@ export async function ensureShell(sessionId: string, cwd: string): Promise<strin
   return name;
 }
 
-/** Office shells that are running: tmux name → the employee and office (port) they belong to. */
+/** The desks with one of this office's shells running, lowest first. */
+export async function listDesks(): Promise<number[]> {
+  const r = await tmux(['list-sessions', '-F', '#{session_name}']);
+  if (r.code !== 0) return [];
+  return r.stdout
+    .split('\n')
+    .filter((name) => DESK_NAME.test(name))
+    .map((name) => Number(name.slice(-2)))
+    .sort((a, b) => a - b);
+}
+
+/** Shut down this office's shell at `desk` (nothing happens if it has none). */
+export async function closeDesk(desk: number): Promise<void> {
+  await kill(deskName(desk));
+}
+
+/** This office's shells (and older plain -sh ones) that are running: tmux name → the employee and office (port) they belong to. */
 export async function listShells(): Promise<Map<string, { sessionId: string; port: number }>> {
   const out = new Map<string, { sessionId: string; port: number }>();
   const r = await tmux(['list-sessions', '-F', '#{session_name}']);
@@ -231,7 +314,7 @@ export async function hire(opts: {
 /** `claude --resume <id>` in `cwd`. */
 export async function rehire(opts: { sessionId: string; cwd: string; displayName: string }): Promise<{ tmuxName: string }> {
   const tmuxName = TMUX_PREFIX + opts.sessionId.slice(0, 8);
-  const existing = await listHosted();
+  const existing = (await listHosted()).panes;
   if (existing.some((p) => p.tmuxName === tmuxName && !p.dead)) throw new Error('Already in the office');
   if (existing.some((p) => p.tmuxName === tmuxName)) await kill(tmuxName);
   await newSession(tmuxName, opts.cwd, ['--resume', opts.sessionId], { sessionId: opts.sessionId, displayName: opts.displayName });

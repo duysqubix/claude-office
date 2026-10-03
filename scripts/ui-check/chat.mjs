@@ -192,6 +192,23 @@ try {
   check('Bring into the office calls adopt and waits', ext.adoptCalls === 1 && /Waiting for Claudette/.test(ext.waiting), ext.waiting);
   check('back as hosted: the live composer returns', ext.hostedComposer);
 
+  // Hired in another office: never "Bring into the office" (that office has them), and it says why.
+  const other = await page.evaluate(async () => {
+    const { view, emp } = window.__t;
+    view.update({ ...emp, hosted: false, otherOffice: true, state: 'idle', ask: undefined, adopting: false });
+    const el = view.el;
+    const visible = (b) => !b.hidden && b.getBoundingClientRect().width > 0;
+    const bring = () => [...el.querySelectorAll('.co-btn')].some((b) => visible(b) && b.textContent.includes('Bring into the office'));
+    const r = { footer: el.querySelector('.co-chat__adopt-text')?.textContent ?? '', bringChat: bring() };
+    view.setMode('terminal');
+    await new Promise((res) => setTimeout(res, 50));
+    r.bringTerm = bring();
+    view.setMode('chat');
+    view.update({ ...emp, hosted: true, otherOffice: false, state: 'idle', adopting: false, ask: undefined });
+    return r;
+  });
+  check('hired in another office: no "Bring into the office" anywhere, and it says why', !other.bringChat && !other.bringTerm && /another office/.test(other.footer), JSON.stringify(other));
+
   // Close stops polling.
   const polls = await page.evaluate(async () => {
     const { view, calls } = window.__t;

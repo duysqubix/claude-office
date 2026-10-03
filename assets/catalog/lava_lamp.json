@@ -5,7 +5,7 @@
   "artist": "Claude C\u00e9zanne",
   "priority": "P1",
   "status": "done",
-  "description": "Groovy lava lamp: translucent glowing bottle with emissive orange wax blobs",
+  "description": "Groovy lava lamp: a translucent glowing bottle the game fills with moving wax",
   "tags": [
     "desk",
     "lamp",
@@ -19,6 +19,56 @@
     "glow": [
       0,
       0.2,
+      0
+    ],
+    "glass_bottom": [
+      0,
+      0.112,
+      0
+    ],
+    "glass_top": [
+      0,
+      0.296,
+      0
+    ],
+    "glass_wall_0": [
+      0.034,
+      0.112,
+      0
+    ],
+    "glass_wall_1": [
+      0.04,
+      0.13,
+      0
+    ],
+    "glass_wall_2": [
+      0.0455,
+      0.165,
+      0
+    ],
+    "glass_wall_3": [
+      0.046,
+      0.185,
+      0
+    ],
+    "glass_wall_4": [
+      0.042,
+      0.22,
+      0
+    ],
+    "glass_wall_5": [
+      0.034,
+      0.26,
+      0
+    ],
+    "glass_wall_6": [
+      0.026,
+      0.29,
+      0
+    ],
+    "glass_wall_7": [
+      0.0241,
+      0.296,
       0
     ]
   },

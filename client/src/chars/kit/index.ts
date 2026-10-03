@@ -12,6 +12,7 @@
 //   await applyKit(rig);   // wears it regardless (previews)
 import * as THREE from 'three';
 import { model } from '../../models';
+import { ditherOf, ditherable, setDither } from '../dither';
 import type { Looks } from '../looks';
 import type { Rig } from '../rig';
 import RD from '../rig-dimensions.json';
@@ -65,18 +66,13 @@ export function dressRig(rig: Rig): void {
 // ---------------------------------------------------------------------------------------
 // Per-character state
 
-interface Native {
-  opacity: number;
-  transparent: boolean;
-}
-
 interface Dress {
   plan: KitPlan;
   done: Promise<boolean>;
   /** Set by dispose/strip: a pending load then does nothing. */
   cancelled: boolean;
-  /** The character's own kit materials and how they were authored. */
-  mats: Map<THREE.Material, Native>;
+  /** The character's own kit materials (they dither with the rig, chars/dither.ts). */
+  mats: Set<THREE.Material>;
   /** Clones by source material + tint, so both shoes share one material. */
   cache: Map<string, THREE.Material>;
   casters: THREE.Mesh[];
@@ -100,6 +96,38 @@ export function kitReport(rig: Rig): { plan: KitPlan; worn: readonly SlotName[] 
   return d ? { plan: d.plan, worn: d.worn } : null;
 }
 
+const _box = new THREE.Box3();
+const _m = new THREE.Matrix4();
+const _local = new THREE.Matrix4();
+const _identity = new THREE.Quaternion();
+
+/**
+ * How far the hair and hat this character is wearing reach behind the back of the skull, in
+ * metres (head space at scale 1): 0 for a bare head or a tuft, 0.04 for a bob, 0.22 for a
+ * backwards cap's brim. Measured from the visible parts' bounding boxes in their rest pose (the
+ * hair springs and bouncing bits left out), so it follows re-exported hairdos, and works the
+ * same on procedural hair. Lying-down poses use it to rest the head on the hair, not through it.
+ */
+export function kitBackDepth(rig: Rig): number {
+  let back = 0;
+  const visit = (o: THREE.Object3D, toHair: THREE.Matrix4) => {
+    if (!o.visible) return;
+    // Rest transform: a bouncing pivot's spring rotation (Follow) doesn't count.
+    _local.compose(o.position, o instanceof Follow ? _identity : o.quaternion, o.scale);
+    const m = toHair.clone().multiply(_local);
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh && mesh.geometry) {
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      _box.copy(mesh.geometry.boundingBox!).applyMatrix4(m);
+      back = Math.max(back, -_box.min.z - RD.head.r);
+    }
+    for (const c of o.children) visit(c, m);
+  };
+  // The hair joint sits on the head centre (its own transform is the hair spring, left out).
+  for (const c of rig.hair.children) visit(c, _m.identity());
+  return back;
+}
+
 /**
  * Dress `rig` in kit parts chosen from `looks` (default: the rig's own; the parts are always
  * fitted to the rig as it was built). Resolves true once at least one part is worn; false if
@@ -114,7 +142,7 @@ export function applyKit(rig: Rig, looks: Looks = rig.looks): Promise<boolean> {
     plan: planKit(looks),
     done: Promise.resolve(false),
     cancelled: false,
-    mats: new Map(),
+    mats: new Set(),
     cache: new Map(),
     casters: [],
     added: [],
@@ -149,7 +177,7 @@ export function stripKit(rig: Rig): void {
 function takeOff(d: Dress): void {
   d.cancelled = true;
   for (const o of d.added) o.removeFromParent();
-  for (const m of d.mats.keys()) m.dispose();
+  for (const m of d.mats) m.dispose();
   d.added.length = 0;
   d.casters.length = 0;
   d.mats.clear();
@@ -182,20 +210,12 @@ function adapt(rig: Rig, d: Dress): void {
   };
 }
 
-function applyOpacity(m: THREE.Material, native: Native, v: number): void {
-  const transparent = native.transparent || v < 0.999;
-  if (m.transparent !== transparent) {
-    m.transparent = transparent;
-    m.needsUpdate = true;
-  }
-  m.opacity = native.opacity * v;
-}
-
+/** Mirror the rig's fade onto the kit parts: the same screen-door dither as the rig's own materials. */
 function fade(d: Dress, a: number): void {
   const v = THREE.MathUtils.clamp(a, 0, 1);
   if (Math.abs(v - d.opacity) < 1e-3) return;
   d.opacity = v;
-  for (const [m, native] of d.mats) applyOpacity(m, native, v);
+  for (const m of d.mats) setDither(m, v >= 0.999 ? 1 : v);
   for (const c of d.casters) c.castShadow = v >= 0.999;
 }
 
@@ -218,7 +238,7 @@ function addRim(m: THREE.MeshStandardMaterial): void {
   m.customProgramCacheKey = () => 'office-kit-rim';
 }
 
-/** This character's copy of a kit material: tinted, rim-lit, registered for fading. */
+/** This character's copy of a kit material: tinted, rim-lit, dithering with the rig. */
 function own(d: Dress, src: THREE.Material, tint: string | undefined, rim: boolean, bare: boolean): THREE.Material {
   const key = `${src.uuid}|${tint ?? ''}|${rim}|${bare}`;
   const hit = d.cache.get(key);
@@ -232,9 +252,9 @@ function own(d: Dress, src: THREE.Material, tint: string | undefined, rim: boole
     if (tint && tint === d.plan.colors.skin) std.emissive.setRGB(std.color.r * 0.09, std.color.g * 0.045, std.color.b * 0.03);
     if (rim && !NO_RIM.has(m.name) && !m.transparent) addRim(std);
   }
-  const native = { opacity: m.opacity, transparent: m.transparent };
-  d.mats.set(m, native);
-  applyOpacity(m, native, d.opacity);
+  ditherable(m);
+  setDither(m, d.opacity >= 0.999 ? 1 : d.opacity);
+  d.mats.add(m);
   d.cache.set(key, m);
   return m;
 }
@@ -242,8 +262,6 @@ function own(d: Dress, src: THREE.Material, tint: string | undefined, rim: boole
 interface WearOpts {
   /** Material name → colour. */
   tint?: Record<string, string>;
-  /** Fade layer (as Rig.assignFadeOrder): 1 outer shells, 2 limbs and hair, 3 face and accessories. */
-  layer: 1 | 2 | 3;
   cast?: boolean;
   /** Fresnel rim like the procedural plastic (default true). */
   rim?: boolean;
@@ -260,10 +278,8 @@ function dressPart(d: Dress, part: THREE.Object3D, o: WearOpts): void {
     const owned = list.map((m) => own(d, m, o.tint?.[m.name], o.rim ?? true, !!o.bare?.includes(m.name)));
     mesh.material = Array.isArray(mesh.material) ? owned : owned[0];
     // See-through bits (cheeks, lenses) draw after the solid face, like the procedural cheeks.
-    const glass = owned.some((m) => d.mats.get(m)!.transparent);
-    mesh.userData.fadeOrder = glass ? 4 : o.layer;
-    mesh.userData.baseOrder = glass ? 1 : 0;
-    mesh.renderOrder = fading ? 10 + mesh.userData.fadeOrder : mesh.userData.baseOrder;
+    const glass = owned.some((m) => m.transparent);
+    mesh.renderOrder = glass ? 1 : 0;
     mesh.receiveShadow = false;
     mesh.castShadow = !!o.cast && !glass && !fading;
     if (o.cast && !glass) d.casters.push(mesh);
@@ -369,9 +385,9 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
   });
 
   const slots = findSlots(rig);
-  // Start at the rig's current fade (it may be walking in, half transparent).
+  // Start at the rig's current fade (it may be part-way through walking in).
   const skin = (slots.head?.procedural[0] as THREE.Mesh | undefined)?.material as THREE.Material | undefined;
-  if (skin) d.opacity = skin.opacity;
+  if (skin) d.opacity = ditherOf(skin);
 
   const C = P.colors;
   const hide = (objs: THREE.Object3D[]) => {
@@ -400,8 +416,8 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
   };
 
   // Head and face. Kit heads carry their own cheeks (hidden with the procedural head).
-  put('head', got.head, { tint: { Skin: C.skin }, layer: 1, cast: true });
-  const face: WearOpts = { layer: 3, rim: false };
+  put('head', got.head, { tint: { Skin: C.skin }, cast: true });
+  const face: WearOpts = { rim: false };
   if (got.eyes) {
     got.eyes.updateMatrixWorld(true);
     // The eye joints blink with scale.y and dart with their parent; their rest is position + rotation.
@@ -437,8 +453,8 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
     got.torso.scale.set(g, 1, g);
     const tint: Record<string, string> = { Shirt: C.shirt, Pants: C.pants };
     if (C.torsoAccent) tint.Accent = C.torsoAccent;
-    put('torso', got.torso, { tint, layer: 1, cast: true });
-    put('chest', chest, { tint, layer: 1, cast: true });
+    put('torso', got.torso, { tint, cast: true });
+    put('chest', chest, { tint, cast: true });
     // The shirt-and-tie torso has the tie built in.
     if (P.torso === 'char_torso_shirt_tie' && slots.tie) hide(slots.tie.procedural);
   }
@@ -446,7 +462,7 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
     // Modelled in pelvis space on a girth-1 torso; it rides the chest like the procedural one.
     got.lanyard.position.y = -RD.torso.chestPivotY;
     got.lanyard.scale.set(rig.looks.girth, 1, rig.looks.girth);
-    put('lanyard', got.lanyard, { tint: { Accent: C.lanyard }, layer: 3 });
+    put('lanyard', got.lanyard, { tint: { Accent: C.lanyard } });
   }
 
   // Limbs. Long sleeves paint the arm's skin the sleeve colour.
@@ -455,14 +471,14 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
   for (const side of [1, -1] as const) {
     const s = side === 1 ? 'L' : 'R';
     const limb = (p: 'upper' | 'fore' | 'hand' | 'thigh' | 'shin' | 'shoe') => `${p}${s}` as const;
-    put(limb('upper'), got[limb('upper')], { tint: { Shirt: C.sleeve, Skin: armSkin }, layer: 2, cast: true });
-    put(limb('fore'), got[limb('fore')], { tint: { Skin: armSkin }, layer: 2, cast: true });
-    put(limb('hand'), got[limb('hand')], { tint: { Skin: C.skin }, layer: 2, cast: true });
-    put(limb('thigh'), got[limb('thigh')], { tint: { Pants: C.pants, Skin: C.skin }, layer: 2, cast: true });
-    put(limb('shin'), got[limb('shin')], { tint: { Pants: C.shin }, layer: 2, cast: true });
+    put(limb('upper'), got[limb('upper')], { tint: { Shirt: C.sleeve, Skin: armSkin }, cast: true });
+    put(limb('fore'), got[limb('fore')], { tint: { Skin: armSkin }, cast: true });
+    put(limb('hand'), got[limb('hand')], { tint: { Skin: C.skin }, cast: true });
+    put(limb('thigh'), got[limb('thigh')], { tint: { Pants: C.pants, Skin: C.skin }, cast: true });
+    put(limb('shin'), got[limb('shin')], { tint: { Pants: C.shin }, cast: true });
     const shoe = got[limb('shoe')];
     if (shoe) shoe.rotation.y = side * toeOut;
-    put(limb('shoe'), shoe, { tint: { Shoes: C.shoes, Accent: C.shoeAccent }, layer: 2, cast: true });
+    put(limb('shoe'), shoe, { tint: { Shoes: C.shoes, Accent: C.shoeAccent }, cast: true });
   }
 
   // Hair and hat go on together (a kit hat over procedural hair, or the reverse, clips).
@@ -472,7 +488,7 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
       [got.hair, { Hair: C.hair, Accent: C.hairAccent }],
       [got.hat, { Accent: C.hat }],
     ] as const) {
-      if (!part || !put('hair', part, { tint, layer: 2, cast: true })) continue;
+      if (!part || !put('hair', part, { tint, cast: true })) continue;
       for (const n of JIGGLE_NODES) {
         const node = part.getObjectByName(n);
         if (!node?.parent) continue;
@@ -489,15 +505,15 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
   // Clear glasses are frames only, like the procedural ones: any lit lens, however faint,
   // greys out the dark eyes behind it. Sunglasses keep their dark lenses.
   if (P.glasses !== 'sunglasses') drop(got.glasses, 'Lens');
-  put('glasses', got.glasses, { tint: { Accent: C.glasses }, layer: 3, rim: false });
-  put('face', got.face, { tint: { Hair: C.hair }, layer: 3 });
+  put('glasses', got.glasses, { tint: { Accent: C.glasses }, rim: false });
+  put('face', got.face, { tint: { Hair: C.hair } });
 
   // Held items: the rig keeps the mug upright and the laptop out front; the kit models go inside.
   // A plain mug: no lettering, and no baked texture on the glaze (the lettering is in it too).
   if (!P.mugPrint) drop(got.mug, 'Print');
-  put('mug', got.mug, { tint: C.mugGlaze ? { Glaze: C.mugGlaze } : undefined, bare: P.mugPrint ? undefined : ['Glaze'], layer: 3, cast: true });
+  put('mug', got.mug, { tint: C.mugGlaze ? { Glaze: C.mugGlaze } : undefined, bare: P.mugPrint ? undefined : ['Glaze'], cast: true });
   if (got.laptop) got.laptop.position.y = -0.012; // the procedural laptop is centred on its base
-  put('laptop', got.laptop, { layer: 3, cast: true });
+  put('laptop', got.laptop, { cast: true });
 
   return d.worn.length > 0;
 }

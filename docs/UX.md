@@ -98,13 +98,17 @@ Contextual: the `[E]` prompt, bubbles, toasts, coach cards. On demand: panels, t
 - **On screen, always whole**: every bubble, cloud and "!" stays 12 px inside the window, clear of the HUD's corners
   and an open panel (the label's pieces move down together, each slides sideways; tails and puffs still point at the
   head). A head off the screen shows no speech or thought; needs-you has its edge face.
+- **Needs-you wins on screen too**: anyone else's speech or thought that would sit on a needs-you bubble or its "!"
+  (in front of them or behind) fades out (150 linear) until they're apart, and the needs-you label draws over every
+  other label, nearer ones included.
 - **"!" marker** (needs-you, above the bubble): 52 px amber disc, 4 px ink border, ink "!" 34/700; bobs 6 px every 900
   with a squash at the bottom; pops out when answered.
 - **Off-screen faces**: needs-you people whose head projects outside the safe rect (inset 24, top 184, bottom 120, right
   = an open panel's edge) or behind the camera get a 56 px edge disc: face on shirt colour, 4 px amber ring, 22 px "!"
   badge, 14 px notch toward them, name below; placed where the ray from screen centre to them (negated if behind) meets
   the rect, damped 12/s; discs within 60 px merge ("2"). Bob 4 px / 1.2 s; after 3 min, wiggle ±8° every 10 s. Hover:
-  "Go to Klaus (needs your permission)". Click → go to.
+  "Go to Klaus (needs your permission)". Click → go to. One marker each: while their own "!" shows whole on screen
+  (say, slid out from under the panel), they get no edge disc as well.
 - **Needs-you lines** (bubble, panel, edge tooltip, screen reader; line 1 is them, line 2 the fact). With an ask:
   `ask.title` ("Run a command?") / the first line of `detail` in 13 px monospace. Otherwise by `waitingFor`
   (case-insensitive): permission → "Can I do this?" / Needs your permission; input or question → "Quick question!" /
@@ -117,12 +121,17 @@ Contextual: the `[E]` prompt, bubbles, toasts, coach cards. On demand: panels, t
 
 1. Splash "Unlocking the front door…" until the world and first roster are in, then "Come on in!" (500) and it pops out
    (280); the manager turns to the camera and waves.
-2. Coach cards (bottom-left, 340 wide, one at a time, "Skip tips"): **"You're the manager."** "Walk with `W` `A` `S` `D`
-   or the arrows. Hold `Shift` to run, `Space` to jump. Drag to look around, scroll to zoom." [Got it] (done after 3 m
-   walked and one drag). **"These are your Claude Code sessions."** "Walk up to someone and press `E`." (empty office:
-   **"Nobody's in yet."** "Hire someone at reception, or run `claude` in any terminal."). First needs-you: **"A raised
-   hand means they're stuck."** "They can't go on until you answer. Press `Q` to go to them." First ask: **"You can
-   answer right here."** "Pick a button, or it goes back to their terminal in 1:30."
+2. Coach cards (`coach.ts`; bottom-left, 340 wide, one at a time, [Got it] and "Skip tips"; each also goes when you do
+   it): **"You're the manager."** "Walk with `W` `A` `S` `D` or the arrows. Hold `Shift` to run, `Space` to jump. Drag to
+   look around, scroll to zoom." (3 m walked). **"These are your Claude Code sessions."** "Walk up to someone and press
+   `E` to talk." (any person panel; empty office: **"Nobody's in yet."** "Hire someone at reception (`H`), or run
+   `claude` in any terminal."). **"Peek at their screen."** "Press `T` near someone…" (a quick look). **"See it through
+   your eyes."** "Press `V` for first person…". Once you can walk, someone's first raised hand jumps the queue: **"A
+   raised hand means they're stuck."** "…Press `Q` to go to them." The first time you stand at an empty desk with no
+   card up: **"This desk is free."** "Press `E` to use its computer: your own shell, in your home folder. It keeps
+   running after you stand up." (said once: it's done when you sit down or walk on). A card steps aside while a
+   needs-you bubble, its "!", an edge face or an open question is under it, and while you sit at a computer. Automated
+   pages need `?tips=1`.
 3. Then 3D tags (pill + bouncing ▼) over reception "Hire people here", the cabinet "Personnel files: call back past
    sessions", the whiteboard "Roster: who's doing what"; each goes after its first use. Help → "Show tips again".
 
@@ -160,7 +169,7 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   their terminal." and, if hosted, sits you down. Expired or answered elsewhere: "Moved to their terminal." or "Answered
   in their terminal." Failure: toast "Couldn't answer: <error>"; the card stays.
 
-### 3.4 Sit at their computer (hosted)
+### 3.4 Sit at their computer
 
 1. Panel out (160); the manager walks to 0.7 m behind the chair; the employee swivels ("Hey, boss!"); the camera eases
    over the shoulder (head + 0.35 right, 0.25 up, 0.5 back, at the screen; `setShot`, 900). Until the bezel settles,
@@ -170,12 +179,31 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
 3. Bezel #2E3440, 22 px frame, radius 28, ≤ 1280×820, ≥ 32 from the edges; xterm 14 px `ui-monospace, "SF Mono", Menlo`,
    bg #1B2330, fg #E6EDF5, cursor #7FD8FF. Chin (52, paper text): face 32, "Claudette's computer" 16/600, project; state
    LED; hint "Esc goes to Claude" at 70 %; secondary "Stand up" `Ctrl+]`.
+   **Two tabs** (issue #26) stand on the screen's top edge: **Claude** (their session) and **Shell** (a login shell in
+   their folder, opened the first time you look). Chunky folder tabs, 3 px ink, radius 12 on top: the one showing is
+   `--primary` and 4 px taller, the other paper-2; `Ctrl+`` (key cap beside them) switches from anywhere, once per
+   press. A mouse click on a tab puts you in that terminal; from the keyboard (Enter, Space, ←/→, Home/End) you stay on
+   the tabs, so the key that picked one never lands in it. On Shell the chin says "Shell in ~/project" and "Esc goes to
+   the shell"; `exit` there says "Shell closed" with [New shell]. You open where you last looked (per person, in this
+   browser); someone in your own terminal opens on Shell, and their Claude tab says why it's empty (no light). A click
+   on the monitor that isn't a button keeps the keyboard in the terminal; `Ctrl+]` stands you up wherever focus is.
 4. Every key goes to Claude (Esc, Tab, Ctrl+C, Ctrl+B: office tmux runs `prefix None`) except `Ctrl+]`; Cmd+C/V copy and
    paste; the wheel scrolls Claude's history (office tmux runs `mouse on`). Backdrop clicks refocus. Someone else needs
    you: the needs-you chip stays in the strip above the bezel (a reminder only; `Ctrl+]` stands you up).
 5. Stand up: bezel back into the monitor (260 ease-in), camera returns (900), game keys 150 after. `/term` closes
-   1000/1008 or they leave the roster: "Claudette's session has ended.", stand up after 2 s. Other drops:
-   "Reconnecting…" (1, 2, 4 s), then [Try again]. The chin says "Connecting…" until it opens.
+   1000/1008 or they leave the roster: "Claudette's session has ended.", and you stand up 2 s after it, or after your
+   last key if you're still typing (keys mid-word must never spill into the office). In their Shell you stay until
+   you're done there. Other drops: "Reconnecting…" (1, 2, 4 s), then [Try again]. The chin says "Connecting…" until it
+   opens.
+6. **Hot desks** (issue #47; `hotdesk.ts`, `ui/deskterm.ts`): any empty desk says "Use the computer" (`E`). You sit
+   behind its chair and the same monitor grows out of its screen, around one terminal and no tabs: your own login
+   shell in your home folder (tmux, kind `desk`). Chin: your face, "Hot desk" 16/600 / "Your shell in ~", the light
+   and status, hint "Esc goes to the shell", [Try again] once the connection is lost, [New shell] once it has exited
+   ("Shell closed"), [Shut down] (ends it on purpose and stands you up; if that fails, a toast and you stay), and
+   "Stand up" `Ctrl+]`. Keys as at someone's computer: until the bezel opens `Esc` cancels; then every key goes to the
+   shell (vim, less and claude need Esc). The shell runs on after you stand up: the desk is hot ("Hot desk" on its
+   nameplate, a prompt and cursor on its monitor), regulars never take it, a new session gets it only when no other
+   desk is free, and `E` there picks it up again. The frame is the plain 22 px one (no tabs above the screen).
 
 ### 3.5 Panels, the board, letting go, offline
 
@@ -183,7 +211,8 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   icon chips for project, branch, model, uptime, cost; "Context" bar (`pct`, "128k of 200k"; danger from 85 %: "Nearly
   full: expect a /compact"); rows Now, Working on, Last said, You asked, Interns (the chat has the conversation).
   Footer: primary "Talk" `E` (the chat), "Sit at their computer", danger text "Let go" far left; needs you without an
-  ask: primary "Sit down and answer" `E`. External: "Started in your own terminal (pid 66880)." and Talk only. **Help**
+  ask: primary "Sit down and answer" `E`. External: "Started in your own terminal (pid 66880)." with "Sit at their
+  computer" (their Shell tab) and Talk. **Help**
   (`?`): controls, legend, "Calmer motion".
 - **Chat** ("Talk" `E` in the employee panel; `chatpanel.ts`): their conversation as in Claude Code, polled every 1.2 s:
   assistant text as rich markdown (`markdown.ts`: GFM tables, task lists ☐/☑, code with colours and Copy; raw HTML stays
@@ -195,8 +224,11 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   Sit at their computer. Started elsewhere: read-only history and "Bring into the office" (`/api/adopt`; "Type /exit in
   their terminal: they'll walk in here with their whole conversation."), then a waiting state until they're back,
   hosted. **Quick look** (`T`, or Chat ⇄ Terminal in the header): their live terminal right in the panel, which widens to
-  60 %: no walk, no sit. Keys go to Claude; `Esc` (or `Ctrl+]`) comes back to the chat. Not hosted: "runs in their own
-  terminal" and "Bring into the office". Sitting down stays the immersive way in.
+  60 %: no walk, no sit, the same Claude | Shell tabs on the screen's top edge (§3.4). Keys go to the terminal; `Esc` (or
+  `Ctrl+]`) comes back to the chat. The bar under it: "Shell in ~/project" (Shell), the light, the Esc hint, and
+  Interrupt (Claude's screen only; the header drops its own while the terminal shows). It's as tall either way, so
+  their screen never jumps on a switch. Not hosted: Shell first; their Claude tab, a dark empty screen, says "runs in
+  their own terminal" with "Bring into the office". Sitting down stays the immersive way in.
 - **Roster** (`R`, button, whiteboard): mint panel "Roster", grouped Needs you, Working, Starting, Free, Asleep. Row 56:
   face 40, name 16/600, project, activity or `lastText` 14 ink-2; right: "12m" in state, "+2" interns. Click or Enter →
   go to. Footer "Hire someone" `H`. Empty: "Nobody's in yet." (as the first-run card).
@@ -286,8 +318,14 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
 ### 4.5 Sound
 
 WebAudio synth via `sfx.ts`'s `tone()`; master 0.55 → compressor; no retrigger within 120 (steps exempt); max 6 voices,
-stealing `step` first, never `ding`. Before the first gesture the Sound button shows a dot ("Click anywhere to turn on
-sound"). `M` mutes (`claude-office:muted`, master to 0 in 50). P1: pan by screen x (±0.6), fade with distance (≥ 35 %).
+stealing `step` first, never `ding`. Before the first gesture the Sound button shows a dot ("Sound (M): click anywhere
+to turn it on"). `M` mutes everything, the café music too (`claude-office:muted`, master to 0 in 50); the button follows a mute
+from another tab. P1: pan by screen x (±0.6), fade with distance (≥ 35 %). The music is `audio/` (docs/AUDIO.md).
+**Help → Music and sound** (`audio/controls.ts`, after Thought bubbles): the Music switch ("Coffee-shop tunes, made up
+as they play…"), then a row per volume (label 15/600, the chunky slider filled to its value, "55%" right-aligned,
+tabular), and one line under them (muted, "Click anywhere to turn on sound", or what's playing). From the UI: a toast
+shown → `pip` (bad → `error`; toasts held while seated get one pip on standing up), hire and call back → `bell`, let go
+→ `wahwah`; anything can `bus.emit('sfx', { name })`.
 
 | Name (use) | Recipe (wave, Hz, ms) | Gain |
 | --- | --- | --- |
@@ -314,7 +352,7 @@ sound"). `M` mutes (`claude-office:muted`, master to 0 in 50). P1: pan by screen
 | `T` | quick look at the targeted (else nearest) person's live terminal; with a chat open, Chat ⇄ Terminal |
 | `R` / `H` / `M` / `?` | roster / hire / sound / help |
 | `Esc` | clear a search field, then close the composer, the confirm, the panel; cancel a go to. Never at a terminal |
-| `Ctrl+]` | stand up from the computer |
+| `Ctrl+]` | stand up from a computer (theirs or a hot desk's) |
 
 - **Focus**: Tab is the browser's, never a game key, so every button, toast action and card is reachable. A panel you
   open (key, `E`, click) takes focus on its title, or its ask card; one opened by a go-to leaves focus on the canvas. In

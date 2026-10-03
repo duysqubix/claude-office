@@ -3,8 +3,10 @@
 // banner top-centre. Same calls as before, so the game loop just feeds it numbers.
 import type { Employee, EmployeeState, TeamStats } from '../../../shared/protocol';
 import type { RosterStore } from '../net';
+import { audio } from '../audio';
 import type { OfficeStats } from '../world/types';
 import { bus } from './bus';
+import { coachDone, coachPrompt } from './coach';
 import { hudButton, internChip, keyCap, needsChip, stateChip } from './components';
 import { waitingLines } from './dom';
 import { el } from './el';
@@ -60,6 +62,13 @@ export class Hud {
   private offlineSince = 0;
   private backTimer = 0;
   private hadNeeds = false;
+  private muted = false;
+  private soundLocked = false;
+  /** The Sound button's glyph on show (swapped only when it changes: a swap mid-click loses the click). */
+  private soundGlyph: 'sound' | 'soundOff' = 'sound';
+  /** When the speakers unlocked, and when the Sound button was last pressed: the press that unlocked them. */
+  private unlockedAt = -1e9;
+  private pressedAt = -2e9;
 
   constructor(
     host: HTMLElement,
@@ -81,7 +90,12 @@ export class Hud {
     this.meterSlot = el('span', { class: 'co-hud__meter', attrs: { hidden: true } });
     const left = el('div', { class: 'co-hud__left' }, badge, this.needsSlot, el('div', { class: 'co-hud__row' }, this.counts, this.meterSlot));
 
-    this.soundBtn = hudButton('sound', 'Sound', 'M', () => this.on.mute());
+    this.soundBtn = hudButton('sound', 'Sound', 'M', () => {
+      // The press that unlocked the speakers turns sound on, as the dot promised: it doesn't mute.
+      if (Math.abs(this.unlockedAt - this.pressedAt) < 100) return;
+      this.on.mute();
+    });
+    this.soundBtn.addEventListener('pointerdown', (ev) => (this.pressedAt = ev.timeStamp));
     const right = el(
       'div',
       { class: 'co-hud__right' },
@@ -116,6 +130,15 @@ export class Hud {
     store?.subscribe(() => this.renderPeople());
     this.renderPeople();
     this.tick();
+    // The speakers (audio/): the dot until the browser lets the page play, and M or another
+    // tab's mute showing on the button.
+    const sound = () => {
+      if (this.soundLocked && audio.unlocked) this.unlockedAt = performance.now();
+      if (this.soundLocked !== !audio.unlocked) this.setSoundLocked(!audio.unlocked);
+      if (this.muted !== audio.muted) this.setMuted(audio.muted);
+    };
+    audio.subscribe(sound);
+    sound();
   }
 
   setDemo(on: boolean): void {
@@ -134,9 +157,27 @@ export class Hud {
     this.renderMeter();
   }
 
+  /**
+   * Before the first click or key, browsers keep the page quiet: the Sound button wears a dot
+   * and says so (UX.md §4.5).
+   */
+  setSoundLocked(locked: boolean): void {
+    this.soundLocked = locked;
+    this.setMuted(this.muted);
+  }
+
   setMuted(m: boolean): void {
-    const label = m ? 'Sound is off (M)' : 'Sound is on (M)';
-    this.soundBtn.firstElementChild!.innerHTML = icon(m ? 'soundOff' : 'sound', 24);
+    this.muted = m;
+    // Muted says so first (the browser's lock doesn't matter then); locked: its name first (screen
+    // readers, the tooltip), then why it's quiet.
+    const locked = this.soundLocked && !m;
+    this.soundBtn.classList.toggle('is-locked', locked);
+    const label = m ? 'Sound is off (M)' : locked ? 'Sound (M): click anywhere to turn it on' : 'Sound is on (M)';
+    const glyph = m ? 'soundOff' : 'sound';
+    if (glyph !== this.soundGlyph) {
+      this.soundGlyph = glyph;
+      this.soundBtn.firstElementChild!.innerHTML = icon(glyph, 24);
+    }
     this.soundBtn.setAttribute('aria-label', label);
     this.soundBtn.setAttribute('data-co-tip', label);
     this.soundBtn.setAttribute('aria-pressed', String(m));
@@ -148,6 +189,7 @@ export class Hud {
       if (this.promptText) {
         this.promptWrap.hidden = true;
         this.promptText = '';
+        coachPrompt(null);
       }
       return;
     }
@@ -162,6 +204,7 @@ export class Hud {
       this.promptText = text;
       this.promptWrap.replaceChildren(el('div', { class: 'co-prompt' }, keyCap('E', true), text));
       this.promptWrap.hidden = false;
+      coachPrompt(text);
     }
   }
 
@@ -221,7 +264,13 @@ export class Hud {
     if (needs !== Number(this.needsKey || -1)) {
       this.needsKey = String(needs);
       const hadFocus = this.needsSlot.contains(document.activeElement);
-      const chip = needsChip(needs, { left: this.soonestAsk() ?? undefined, onClick: () => this.on.needsYou() });
+      const chip = needsChip(needs, {
+        left: this.soonestAsk() ?? undefined,
+        onClick: () => {
+          coachDone('q');
+          this.on.needsYou();
+        },
+      });
       // "Nobody needs you" slams in only when the last person was just answered.
       if (needs === 0 && !this.hadNeeds) chip.classList.add('is-static');
       this.hadNeeds = needs > 0;

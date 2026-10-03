@@ -19,7 +19,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Whether the run goes ahead is part of the key, so a run that will be skipped (a PR event
+  # without the release label) never cancels one that runs.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'release') }}
   cancel-in-progress: true
 
 jobs:
@@ -27,7 +29,7 @@ jobs:
     name: Browser checks
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
         with:

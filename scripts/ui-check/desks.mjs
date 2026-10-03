@@ -20,6 +20,8 @@ const executablePath = [process.env.CHROME_PATH, '/Applications/Google Chrome.ap
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const check = (name, ok, detail = '') => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
 
 /** A demo page that never reports presence, never hot-reloads and never POSTs. */
 async function open(url) {
@@ -51,6 +53,8 @@ async function open(url) {
   });
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
   await page.waitForFunction(() => window.office && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  // Once it's loaded (with request interception on, a throttled load never goes network-idle).
+  if (THROTTLE > 1) await (await page.target().createCDPSession()).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   await wait(1500);
   // The watch: every 100 ms, any desk with two people at it (getting in, sitting, getting
   // out), and the longest anyone has spent standing up.
@@ -252,6 +256,8 @@ try {
           regulars: o.regulars.list().length,
           // Every character in the scene (the manager too).
           inScene: o.engine.scene.children.filter((c) => c.name === 'character').length,
+          // People out in the yard who are out of view aren't in the scene at all (#48).
+          yardOutOfView: o.regulars.visitors().filter((v) => !v.rig.root.parent).length,
           shared: [...at].filter(([, n]) => n > 1).map(([d]) => d),
           notSeated: o.director.list().filter((e) => !e.seated).map((e) => `${e.data.displayName}:${e.phase}`),
         };
@@ -287,11 +293,11 @@ try {
     const after = await count();
     check('hidden tab: really hidden, no frames drawn during the churn', hid.hidden && after.hidden && after.frames === hid.frames, JSON.stringify({ hid: [hid.hidden, hid.frames], after: [after.hidden, after.frames] }));
     check('hidden tab with churn: the office keeps its desks', after.desks === before.desks, `${before.desks} → ${after.desks}`);
-    const expected = churn.roster + churn.interns + after.regulars + 1;
+    const expected = churn.roster + churn.interns + after.regulars + 1 - after.yardOutOfView;
     check(
       'hidden tab with churn: characters = roster + regulars (+ interns and you), nobody left behind',
       after.sessions === churn.roster && after.interns === churn.interns && after.regulars === before.regulars && after.inScene === expected,
-      JSON.stringify({ churn, sessions: after.sessions, interns: after.interns, regulars: [before.regulars, after.regulars], inScene: after.inScene, expected }),
+      JSON.stringify({ churn, sessions: after.sessions, interns: after.interns, regulars: [before.regulars, after.regulars], yardOutOfView: after.yardOutOfView, inScene: after.inScene, expected }),
     );
     check('hidden tab with churn: arrivals are at their desks, nobody shares one', after.notSeated.length === 0 && after.shared.length === 0, JSON.stringify({ notSeated: after.notSeated, shared: after.shared }));
     await page.bringToFront();

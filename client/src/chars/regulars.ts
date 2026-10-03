@@ -4,7 +4,8 @@
 // there are (Off / Some / Lively), who walks in and when, shifts, coffee breaks and who chats
 // with whom, and hands a desk back when a session needs it ("All yours!"). The people
 // themselves are RegularChar (chars/npc.ts). It also runs Mabel on the front desk
-// (chars/receptionist.ts), who has her own switch and is never part of the crowd.
+// (chars/receptionist.ts), who has her own switch and is never part of the crowd, and the
+// people out in the yard on their break (chars/yardfolk.ts, #48), who never hold a desk.
 import * as THREE from 'three';
 import { hash32 } from '../style/palette';
 import type { DeskSlot, OfficeApp, World } from '../world/types';
@@ -13,6 +14,8 @@ import { Chair } from './employee';
 import { RegularChar, type BreakSpot, type RegularProfile } from './npc';
 import { ReceptionistChar } from './receptionist';
 import { onReceptionist, onRegularsDensity, readReceptionist, readRegularsDensity, type RegularsDensity } from './regulars-setting';
+import { YardVisitor } from './visitor';
+import { MAX_VISITORS, Yardfolk } from './yardfolk';
 
 /** Never more than this many (frame budget). */
 export const MAX_REGULARS = 14;
@@ -198,6 +201,8 @@ export interface RegularsOptions {
   seed?: number;
   /** Mabel on the front desk. Default: her saved switch (`?receptionist` overrides it). */
   receptionist?: boolean;
+  /** The view, so people out in the yard and out of sight aren't drawn (#48). */
+  camera?: THREE.Camera;
   hooks?: RegularsHooks;
 }
 
@@ -239,6 +244,8 @@ export class Regulars implements DeskSharers {
   private deskCall = -1;
   /** Break spots that failed a check (furniture moved onto them), and when. */
   private badSpots = new Map<Spot, number>();
+  /** People on their break out in the yard (#48). */
+  private yard: Yardfolk;
 
   constructor(
     private world: World,
@@ -255,13 +262,20 @@ export class Regulars implements DeskSharers {
     // She's at her desk from the moment the page loads.
     if (this.receptionOn && this.receptionSpot) this.receptionist = this.hireReceptionist(true);
     this.unsubscribers = [onRegularsDensity((d) => this.setDensity(d)), onReceptionist((on) => (this.receptionOn = on))];
+    this.yard = new Yardfolk(world, scene, mulberry32(Math.floor(this.rand() * 2 ** 32)), this.hooks, () => this.nextProfile(), opts.camera ?? null);
   }
 
   /** Everyone here right now (walking in and heading home included), the receptionist too. */
   list(): RegularChar[] {
     const out: RegularChar[] = this.members.map((m) => m.r);
     if (this.receptionist) out.push(this.receptionist);
+    for (const v of this.yard.list()) out.push(v);
     return out;
+  }
+
+  /** Out in the yard on their break (#48). */
+  visitors(): YardVisitor[] {
+    return this.yard.list();
   }
 
   /** The crowd only (what Off / Some / Lively counts): never the receptionist. */
@@ -308,6 +322,10 @@ export class Regulars implements DeskSharers {
 
   /** E near a regular: a line from the shuffled deck. Never a panel, never the server. */
   chat(r: RegularChar): void {
+    if (r instanceof YardVisitor) {
+      r.chatWith(this.yard.line());
+      return;
+    }
     if (r === this.receptionist) {
       if (!this.deskDeck.length) this.deskDeck = shuffle([...DESK_QUIPS], this.rand);
       r.chatWith(this.deskDeck.pop()!);
@@ -324,6 +342,9 @@ export class Regulars implements DeskSharers {
   update(dt: number, t: number, manager: THREE.Vector3, managerHead: THREE.Vector3): void {
     this.clock += dt;
     this.frontDeskUpdate(dt, t, manager, managerHead);
+    // The yard holds no desks, so it needn't wait for the roster.
+    this.yard.setTarget(this.yardTarget(), this.isNight());
+    this.yard.update(dt, t, manager, managerHead);
     if (!this.started) {
       // Wait for the first roster, so nobody sits at a desk a session is about to come back
       // to; an office whose server is down still fills up after a few seconds.
@@ -358,6 +379,7 @@ export class Regulars implements DeskSharers {
 
   dispose(): void {
     for (const off of this.unsubscribers) off();
+    this.yard.dispose();
     for (const r of this.list()) {
       this.hooks.removed?.(r);
       r.dispose();
@@ -470,7 +492,8 @@ export class Regulars implements DeskSharers {
     }
   }
 
-  private holderOf(deskIndex: number): RegularChar | undefined {
+  /** The regular holding this desk (at it, on a break, or on their way to it), if any. */
+  holderOf(deskIndex: number): RegularChar | undefined {
     return this.members.find((m) => m.r.holdsDesk && m.r.desk.index === deskIndex)?.r;
   }
 
@@ -490,11 +513,13 @@ export class Regulars implements DeskSharers {
     return out;
   }
 
-  /** How many regulars this office wants. They only ever use desks no session is using. */
+  /** How many regulars this office wants. They only ever use desks no session is using (nor a hot desk, nor yours). */
   private target(): number {
     const d = this.density;
     if (d === 'off' || d === 0) return 0;
-    const capacity = this.world.desks.length - this.sessionDesks().size;
+    const busy = this.sessionDesks();
+    for (const i of this.director.hotDesks?.offLimits() ?? []) busy.add(i);
+    const capacity = this.world.desks.length - busy.size;
     const want = d === 'lively' ? capacity - 1 : d === 'some' ? Math.round(capacity / 2) : Math.min(d, capacity);
     return Math.max(0, Math.min(MAX_REGULARS, want));
   }
@@ -535,6 +560,7 @@ export class Regulars implements DeskSharers {
 
   private nextProfile(): RegularProfile | null {
     const here = new Set(this.members.map((m) => m.r.name));
+    for (const n of this.yard?.names() ?? []) here.add(n);
     const rested = NAMES.filter((n) => !here.has(n) && this.clock - (this.leftAt.get(n) ?? -1e9) > 120);
     const pool = rested.length ? rested : NAMES.filter((n) => !here.has(n));
     if (!pool.length) return null;
@@ -542,10 +568,20 @@ export class Regulars implements DeskSharers {
     return { id: `regular:${name.toLowerCase()}`, name, dept: DEPTS[hash32(name) % DEPTS.length][0] };
   }
 
+  /** How many out in the yard: about 10 lively, 5 some, none off; two or three night owls after 9 pm. */
+  private yardTarget(): number {
+    const d = this.density;
+    if (d === 'off' || d === 0) return 0;
+    const day = d === 'lively' ? MAX_VISITORS : d === 'some' ? Math.round(MAX_VISITORS / 2) : Math.min(MAX_VISITORS, Math.round((d * MAX_VISITORS) / MAX_REGULARS));
+    return this.isNight() ? Math.min(day, d === 'lively' ? 3 : 2) : day;
+  }
+
   /** A desk nobody is using, leaving the ones sessions came back to recently for them if possible. */
   private freeDesk(): DeskSlot | null {
     const taken = this.sessionDesks();
     for (const i of this.holding()) taken.add(i);
+    // Hot desks (your shell running there) and the desk you're sitting at are never theirs.
+    for (const i of this.director.hotDesks?.offLimits() ?? []) taken.add(i);
     const free = this.world.desks.filter((d) => !taken.has(d.index));
     if (!free.length) return null;
     const remembered = this.director.rememberedDesks();
@@ -591,6 +627,17 @@ export class Regulars implements DeskSharers {
   /** Off to the coffee machine or the water cooler, if there's room over there. */
   private startBreak(r: RegularChar): boolean {
     if (this.members.filter((m) => m.r.onBreak).length >= MAX_AWAY) return false;
+    // Now and then they take their coffee outside to the yard (and back to the desk after).
+    const out = this.rand() < 0.3 ? this.yard.borrowStand() : null;
+    if (out && reaches(this.world, r.desk.approach, out.at)) {
+      const fills = this.fills.filter((s) => !s.by).sort((a, b) => a.at.distanceTo(r.position) - b.at.distanceTo(r.position));
+      const fill = fills.length && this.rand() < 0.7 ? fills[0] : null;
+      if (!r.takeBreak(fill, out, 15 + this.rand() * 20)) return false;
+      r.coffeeOutside = true;
+      out.by = r;
+      if (fill) fill.by = r;
+      return true;
+    }
     const free = this.hangs.filter((s) => !s.by && this.clock - (this.badSpots.get(s) ?? -1e9) > 60);
     if (!free.length) return false;
     // Next to someone already standing there is a chat waiting to happen.
@@ -602,6 +649,7 @@ export class Regulars implements DeskSharers {
     const fills = this.fills.filter((s) => !s.by).sort((a, b) => a.at.distanceTo(hang.at) - b.at.distanceTo(hang.at));
     const fill = fills.length && this.rand() < 0.85 && this.spotOk(fills[0], hang.at) ? fills[0] : null;
     if (!r.takeBreak(fill, hang, 6 + this.rand() * 8)) return false;
+    r.coffeeOutside = false;
     hang.by = r;
     if (fill) fill.by = r;
     return true;

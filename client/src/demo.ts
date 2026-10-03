@@ -270,9 +270,11 @@ export function createDemoBackend(params: URLSearchParams): Backend {
     onNotice: null,
     onStats: null,
     onStatus: null,
+    onDesks: null,
     start() {
       backend.onStatus?.(true, 0);
       backend.onHello?.(HOME, 'demo');
+      emitDesks();
       emit();
       backend.onStats?.(stats());
       if (!quiet) {
@@ -358,8 +360,49 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       window.setTimeout(emit, 250);
       return { ok: true };
     },
-    terminal: (sessionId) => fakeTerminal(employees.find((e) => e.sessionId === sessionId)),
+    terminal: (id, _cols, _rows, kind) => {
+      if (kind === 'desk') return fakeShell(undefined, deskShell(Number(id)));
+      const e = employees.find((x) => x.sessionId === id);
+      return kind === 'shell' ? fakeShell(e) : fakeTerminal(e);
+    },
+    async closeDesk(desk): Promise<ApiResult> {
+      const shell = desks.get(desk);
+      if (!shell) return { ok: true };
+      desks.delete(desk);
+      emitDesks();
+      // Its terminals end, the way the office's do when a desk's shell is shut down.
+      for (const link of [...shell.links]) {
+        link.close();
+        link.onClose?.(1000, 'detached');
+      }
+      return { ok: true };
+    },
   };
+
+  /** Hot desks' pretend shells: started the first time you sit at a desk, there until exit or Shut down. */
+  const desks = new Map<number, DeskShell>();
+
+  function emitDesks(): void {
+    backend.onDesks?.([...desks.keys()].sort((a, b) => a - b));
+  }
+
+  /** The pretend shell at `desk` (the one from last time, if it's still open). */
+  function deskShell(desk: number): DeskShell {
+    const open = desks.get(desk);
+    if (open) return open;
+    const shell: DeskShell = {
+      screen: '',
+      links: new Set(),
+      exited() {
+        if (desks.get(desk) !== shell) return;
+        desks.delete(desk);
+        emitDesks();
+      },
+    };
+    desks.set(desk, shell);
+    emitDesks();
+    return shell;
+  }
 
   function clone(): Employee[] {
     return employees.map((e) => ({ ...e, interns: e.interns.map((i) => ({ ...i })), screen: e.screen ? [...e.screen] : undefined }));
@@ -496,6 +539,96 @@ export function createDemoBackend(params: URLSearchParams): Backend {
   }
 
   return backend;
+}
+
+/** A hot desk's pretend shell: everything it has shown (sitting down again shows it), and its open terminals. */
+interface DeskShell {
+  screen: string;
+  links: Set<TermLink>;
+  /** Someone typed exit. */
+  exited(): void;
+}
+
+/** Most of a hot desk's screen it keeps (whole lines, the newest). */
+const DESK_SCREEN = 8000;
+
+/** A toy shell for the Shell tab (a prompt in their folder) or a hot desk (in your home folder): a few commands answer. */
+function fakeShell(e: Employee | undefined, desk?: DeskShell): TermLink {
+  const green = '\x1b[32m';
+  const blue = '\x1b[34m';
+  const dim = '\x1b[2m';
+  const reset = '\x1b[0m';
+  const dir = desk ? '~' : `~/${e?.project ?? 'somewhere'}`;
+  const prompt = () => `${green}you@office${reset} ${blue}${dir}${reset} % `;
+  const answers: Record<string, string> = desk
+    ? {
+        pwd: HOME,
+        ls: `${blue}Desktop${reset}  ${blue}Documents${reset}  ${blue}Downloads${reset}  ${blue}projects${reset}`,
+        'git status': 'fatal: not a git repository (or any of the parent directories): .git',
+        whoami: 'you',
+      }
+    : {
+        pwd: `${HOME}/${e?.project ?? 'somewhere'}`,
+        ls: `README.md  package.json  ${blue}src${reset}  ${blue}tests${reset}`,
+        'git status': `On branch ${e?.branch ?? 'main'}\r\nnothing to commit, working tree clean`,
+        whoami: 'you',
+      };
+  let line = '';
+  let closed = false;
+  const link: TermLink = {
+    onOpen: null,
+    onData: null,
+    onClose: null,
+    send(msg) {
+      if (closed || msg.t !== 'in') return;
+      for (const ch of msg.d) {
+        if (ch === '\r') {
+          const cmd = line.trim();
+          line = '';
+          out('\r\n');
+          if (cmd === 'exit') {
+            closed = true;
+            desk?.exited();
+            window.setTimeout(() => link.onClose?.(1000, 'detached'), 120);
+            return;
+          }
+          if (cmd) out(`${answers[cmd] ?? `${dim}(demo shell) ${cmd.split(' ')[0]}: pretend it worked${reset}`}\r\n`);
+          out(prompt());
+        } else if (ch === '\x7f') {
+          if (line) {
+            line = line.slice(0, -1);
+            out('\b \b');
+          }
+        } else if (ch === '\x03') {
+          line = '';
+          out(`^C\r\n${prompt()}`);
+        } else if (ch >= ' ') {
+          line += ch;
+          out(ch);
+        }
+      }
+    },
+    close() {
+      closed = true;
+      desk?.links.delete(link);
+    },
+  };
+  const out = (s: string) => {
+    if (desk) {
+      const all = desk.screen + s;
+      desk.screen = all.length > DESK_SCREEN ? all.slice(all.indexOf('\n', all.length - DESK_SCREEN) + 1) : all;
+    }
+    link.onData?.(s);
+  };
+  desk?.links.add(link);
+  window.setTimeout(() => {
+    link.onOpen?.();
+    // Back at a hot desk: its screen as you left it.
+    if (desk?.screen) link.onData?.(desk.screen);
+    else if (desk) out(`${dim}※ Demo office: a pretend shell at this desk, in ~. Try ls or pwd; exit closes it.${reset}\r\n\r\n${prompt()}`);
+    else out(`${dim}※ Demo office: a pretend shell in ${dir}. Try ls, pwd or git status.${reset}\r\n\r\n${prompt()}`);
+  }, 250);
+  return link;
 }
 
 /** A toy terminal: Claude Code's welcome box, echo, and a cheerful fake reply. */

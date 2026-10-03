@@ -229,7 +229,7 @@ body.seated .co-needs .co-key {
 }
 .term-bezel {
   width: 100%;
-  padding: 22px 22px 16px;
+  padding: 12px 22px 16px;
   border: 4px solid var(--ink);
   border-bottom: 0;
   border-radius: 28px 28px 0 0;
@@ -237,7 +237,8 @@ body.seated .co-needs .co-key {
   box-shadow: inset 0 0 0 3px #3b4252;
 }
 .term-screen {
-  height: min(calc(100vh - 290px), 720px);
+  /* (The tabs above it take 40 px of the bezel.) */
+  height: min(calc(100vh - 320px), 690px);
   padding: 10px 6px 10px 12px;
   overflow: hidden;
   border: 3px solid #151b26;
@@ -317,6 +318,42 @@ body.seated .co-needs .co-key {
   opacity: 0.7;
   font: 400 13px/16px var(--co-font);
   white-space: nowrap;
+}
+/* Someone who runs in your own terminal: no Claude screen here, a note instead. */
+.term-note {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #d8dee9;
+  font: 400 15px/22px var(--co-font);
+  text-align: center;
+}
+.term-note p {
+  max-width: 460px;
+  margin: 0;
+}
+/* One terminal and no tabs (a hot desk, ui/deskterm.ts): an even frame, and the screen takes the room. */
+.term-bezel:not(:has(> .term-tabbar)) {
+  padding-top: 22px;
+}
+.term-bezel:not(:has(> .term-tabbar)) > .term-screen {
+  height: min(calc(100vh - 290px), 720px);
+}
+/* At their computer the monitor is big: so are its tabs. */
+.term-bezel .term-tab {
+  height: 36px;
+  padding: 0 16px 0 12px;
+  font-size: 15px;
+}
+.term-bezel .term-tab[aria-selected='true'] {
+  height: 40px;
+}
+.term-bezel .term-tab .co-icon {
+  width: 20px;
+  height: 20px;
 }
 .term-neck {
   width: 120px;
@@ -419,7 +456,8 @@ body.seated .co-needs .co-key {
   .co-hud__prompt {
     bottom: 24px;
   }
-  .term-hint {
+  .term-hint,
+  .term-tabbar .co-key {
     display: none;
   }
 }
@@ -434,4 +472,25 @@ body.seated .co-needs .co-key {
 html.co-calm .term-monitor,
 html.co-calm .splash-logo {
   animation: none;
+}
+
+/* First-run tips (coach.ts): bottom-left, one card at a time; they step aside for needs-you. */
+.co-coachwrap {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 15;
+  pointer-events: auto;
+  transition: opacity 200ms linear, visibility 0s;
+}
+.co-coachwrap.is-away {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 200ms linear, visibility 0s 200ms;
+}
+.co-coachwrap:empty {
+  display: none;
+}
+body.seated .co-coachwrap {
+  display: none;
 }
