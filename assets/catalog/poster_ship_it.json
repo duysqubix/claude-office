@@ -21,5 +21,6 @@
       0.03
     ]
   },
-  "mount": "wall: origin is the back centre"
+  "mount": "wall: origin is the back centre",
+  "notes": "Fixed by flicker: the cloud puffs are 2.5 mm flatter, so the rocket's flame sits in front of them instead of sharing a plane with one and flickering."
 }

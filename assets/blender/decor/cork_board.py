@@ -12,11 +12,16 @@ NAME = "cork_board"
 AO_RES = 512
 AO_DISTANCE = 0.04
 W, H = 0.86, 0.58
+# Print on a note stands this far off its paper (the photo's hill and sun twice as far, on its
+# sky). Any closer and the game can't tell the layers apart from across the office.
+INK = 0.002
 META = dict(
     name="Cork board", category="decor", priority="P1",
     description="Cork pinboard with notes, a polaroid and an index card on coloured push pins",
     tags=["wall", "notes", "office"], tintable=["Accent"],
     anchors_bl={"center": (0, -0.03, 0)}, mount="wall: origin is the back centre",
+    notes="Fixed by flicker: the print on the notes stands 2 mm off the paper (was 0.3 mm), so "
+          "the notes no longer shimmer through their writing from across the office.",
 )
 
 
@@ -61,34 +66,34 @@ def build():
     face = wallkit.framed("Board", W, H, M["cork"], M["frame"], tube=0.024)
 
     def todo(y):
-        D.text("Todo_Txt", "TODO", 0.02, M["ink"], loc=(0, y - 0.0003, 0.028), depth=0, res=2)
+        D.text("Todo_Txt", "TODO", 0.02, M["ink"], loc=(0, y - INK, 0.028), depth=0, res=2)
         for i, w in enumerate((0.07, 0.06, 0.075)):
             D.face(f"Todo_L{i}", D.rrect_pts(w, 0.006, 0.003, steps=1), M["ink"],
-                   loc=(0, y - 0.0003, 0.002 - i * 0.02), rot=D.FRONT)
+                   loc=(0, y - INK, 0.002 - i * 0.02), rot=D.FRONT)
 
     def heart(y):
-        D.face("Heart", D.heart_pts(0.05, 24), M["red"], loc=(0, y - 0.0003, -0.008), rot=D.FRONT)
+        D.face("Heart", D.heart_pts(0.05, 24), M["red"], loc=(0, y - INK, -0.008), rot=D.FRONT)
 
     def polaroid(y):
         D.face("Pol_Sky", D.rrect_pts(0.1, 0.09, 0.002, steps=1), M["sky"],
-               loc=(0, y - 0.0003, 0.012), rot=D.FRONT)
+               loc=(0, y - INK, 0.012), rot=D.FRONT)
         D.face("Pol_Hill", [(-0.05, -0.033), (0.05, -0.033), (0.05, -0.005), (0.015, 0.01),
-                            (-0.02, -0.012), (-0.05, -0.002)], M["hill"], loc=(0, y - 0.0006, 0.0),
+                            (-0.02, -0.012), (-0.05, -0.002)], M["hill"], loc=(0, y - 2 * INK, 0.0),
                rot=D.FRONT)
-        D.face("Pol_Sun", D.circle_pts(0.012, 14), M["sun"], loc=(0.022, y - 0.0006, 0.035),
+        D.face("Pol_Sun", D.circle_pts(0.012, 14), M["sun"], loc=(0.022, y - 2 * INK, 0.035),
                rot=D.FRONT)
 
     def card(y):
         D.face("Card_Head", D.rrect_pts(0.15, 0.005, 0.0025, steps=1), M["red"],
-               loc=(0, y - 0.0003, 0.026), rot=D.FRONT)
+               loc=(0, y - INK, 0.026), rot=D.FRONT)
         for i in range(3):
             D.face(f"Card_L{i}", D.rrect_pts(0.15, 0.003, 0.0015, steps=1), M["line"],
-                   loc=(0, y - 0.0003, 0.006 - i * 0.017), rot=D.FRONT)
+                   loc=(0, y - INK, 0.006 - i * 0.017), rot=D.FRONT)
 
     def memo(y):
         for i, w in enumerate((0.08, 0.1, 0.06, 0.09)):
             D.face(f"Memo_L{i}", D.rrect_pts(w, 0.006, 0.003, steps=1), M["ink"],
-                   loc=(-0.045 + w / 2, y - 0.0003, 0.03 - i * 0.022), rot=D.FRONT)
+                   loc=(-0.045 + w / 2, y - INK, 0.03 - i * 0.022), rot=D.FRONT)
 
     note("Note_Todo", M, "yellow", 0.11, 0.11, -0.29, 0.1, -7, face, "pinR", todo)
     note("Note_Heart", M, "pink", 0.1, 0.1, 0.3, -0.12, 6, face, "pinB", heart)
