@@ -161,12 +161,14 @@ export async function readOfficeMeta(tmuxName: string): Promise<OfficeMeta | nul
 }
 
 /**
- * Is hire session `tmuxName` running but not this office's (another office's, or stamped by
- * none)? The roster's map can be a poll old, so this is checked again right before acting.
+ * Is hire session `tmuxName` running but not this office's (another office's, stamped by none,
+ * or there but unreadable just now)? The roster's map can be a poll old, so this is checked
+ * again right before acting.
  */
 export async function hireTakenElsewhere(tmuxName: string): Promise<boolean> {
   const env = await stamps(tmuxName);
-  return !!env && Number(env.get('CLAUDE_OFFICE_PORT')) !== PORT;
+  if (!env) return (await tmux(['has-session', '-t', `=${tmuxName}`])).code === 0;
+  return Number(env.get('CLAUDE_OFFICE_PORT')) !== PORT;
 }
 
 export async function assertDirectory(cwd: string): Promise<void> {
@@ -326,25 +328,38 @@ export async function hire(opts: {
 /** Someone else's tmux session holds the name a call-back needs (rehire). */
 export class NameTaken extends Error {}
 
-/** Every pane of `tmuxName` has exited and it carries no office's port: nobody's, with nothing running. */
-async function deadAndUnstamped(tmuxName: string): Promise<boolean> {
-  const r = await tmux(['list-panes', '-s', '-t', `=${tmuxName}`, '-F', '#{pane_dead}']);
+/** This office's own hire is running under that name: they're here already. */
+export class AlreadyHere extends Error {}
+
+/**
+ * Who holds tmux session `tmuxName`, read once: the port of the office that stamped it (null
+ * when none did, undefined when the stamp can't be read right now), and whether everything in
+ * it has exited. Null when there's no such session.
+ */
+async function holder(tmuxName: string): Promise<{ port: number | null | undefined; dead: boolean } | null> {
+  const panes = await tmux(['list-panes', '-s', '-t', `=${tmuxName}`, '-F', '#{pane_dead}']);
+  if (panes.code !== 0) return null;
   const env = await stamps(tmuxName);
-  return r.code === 0 && r.stdout.split('\n').filter(Boolean).every((d) => d === '1') && !!env && !env.has('CLAUDE_OFFICE_PORT');
+  return { port: env ? Number(env.get('CLAUDE_OFFICE_PORT')) || null : undefined, dead: panes.stdout.split('\n').filter(Boolean).every((d) => d === '1') };
 }
 
 /** `claude --resume <id>` in `cwd`. */
 export async function rehire(opts: { sessionId: string; cwd: string; displayName: string }): Promise<{ tmuxName: string }> {
   const tmuxName = TMUX_PREFIX + opts.sessionId.slice(0, 8);
   const existing = (await listHosted()).panes;
-  if (existing.some((p) => p.tmuxName === tmuxName && !p.dead)) throw new Error('Already in the office');
+  if (existing.some((p) => p.tmuxName === tmuxName && !p.dead)) throw new AlreadyHere('Already in the office');
   if (existing.some((p) => p.tmuxName === tmuxName)) await kill(tmuxName);
-  else if ((await tmux(['has-session', '-t', `=${tmuxName}`])).code === 0) {
-    // Not ours: another office's hire, or a dead one from before the port stamp, which can go.
-    if (!(await deadAndUnstamped(tmuxName))) {
-      throw new NameTaken(`They're still in another office's tmux session ${tmuxName}: let them go there (or tmux kill-session -t ${tmuxName}), then try again`);
+  else {
+    // Not in this office's list: whose is it? (Never advise killing a session someone's running in.)
+    const held = await holder(tmuxName);
+    if (held && held.port === PORT && !held.dead) throw new AlreadyHere('Already in the office');
+    if (held && held.port === undefined) throw new NameTaken(`tmux session ${tmuxName} is in the way, and whose it is can't be read right now: try again in a moment`);
+    if (held && held.port && held.port !== PORT) {
+      throw new NameTaken(held.dead ? `An old session from the office on port ${held.port} is still there: tmux kill-session -t ${tmuxName}` : `They're in the office on port ${held.port} right now: let them go there first`);
     }
-    await kill(tmuxName);
+    if (held && held.port === null && !held.dead) throw new NameTaken(`They're running in tmux session ${tmuxName}, which no office started: let them finish there first`);
+    // Left: this office's own dead hire, or a dead one from before the port stamp. Nothing runs in it.
+    if (held) await kill(tmuxName);
   }
   await newSession(tmuxName, opts.cwd, ['--resume', opts.sessionId], { sessionId: opts.sessionId, displayName: opts.displayName });
   return { tmuxName };
@@ -363,19 +378,178 @@ export function pasteSafe(text: string): string {
   return text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 }
 
-/** Type `text` into the session (bracketed paste) and press Enter. */
-export async function say(tmuxName: string, text: string): Promise<void> {
+/**
+ * How far say() got: all of it; stopped before the paste (a question open, their terminal away
+ * from its prompt, or unsent text already in their box); stopped before Enter; or Enter didn't
+ * send, leaving the text in their box.
+ */
+export type Said = 'sent' | 'not-pasted' | 'draft' | 'not-sent' | 'held';
+
+/**
+ * Type `text` into the session's input box (bracketed paste) and press Enter. Claude can raise a
+ * question at any moment, and Enter on one of its dialogs would answer it (a permission prompt's
+ * first choice is Yes), so `asking` (what the office knows) and the screen are checked right
+ * before the paste, and again right before Enter, which waits until the box shows the text: a
+ * dialog hides the box (keeping the text in it for later). Sent, the text leaves the box.
+ */
+export async function say(tmuxName: string, text: string, asking: (stage: 'paste' | 'enter') => Promise<boolean> = async () => false): Promise<Said> {
   if (!isOfficeName(tmuxName)) throw new Error('Not an office session');
   const clean = pasteSafe(text);
   if (!clean.trim()) throw new Error('Nothing to say');
+  if (await asking('paste')) return 'not-pasted';
+  const box = await inputBox(tmuxName);
+  if (box === null) return 'not-pasted';
+  if (!box.empty) return 'draft';
+  // A last word starting with : or @ opens an emoji or file menu, whose pick Enter would take,
+  // and after a last \ Enter starts a new line: a space after either keeps Enter for sending.
+  const typing = /(^|\s)[:@]\S*$|\\$/.test(clean) ? `${clean} ` : clean;
   const buffer = `office-say-${process.pid}-${randomUUID()}`;
-  const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: clean });
+  const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: typing });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
   const paste = await tmux(['paste-buffer', '-p', '-d', '-b', buffer, '-t', `=${tmuxName}:`]);
   if (paste.code !== 0) throw new Error(paste.stderr.trim() || 'tmux paste-buffer failed');
-  // Give Claude Code's input a beat to take the paste before submitting.
-  await new Promise((r) => setTimeout(r, 150));
+  // Give Claude Code's input a beat to take the paste, and up to a second more to draw it.
+  for (let look = 0; ; look++) {
+    await new Promise((r) => setTimeout(r, look ? 100 : 150));
+    if (await asking('enter')) return 'not-sent';
+    if (!(await dialogOnScreen(tmuxName, typing))) break;
+    if (look === 8) return 'not-sent';
+  }
   await tmux(['send-keys', '-t', `=${tmuxName}:`, 'Enter']);
+  // Sent, the text leaves the box: it empties, shows a suggested reply, or gives way to what a
+  // command opens. Still there a second later (all of it, or how it starts), Enter did something
+  // else there.
+  for (let look = 0; look < 10; look++) {
+    await new Promise((r) => setTimeout(r, 100));
+    const after = await inputBox(tmuxName);
+    if (after === null || after.empty || !(holds(after.typed, typing) || flat(after.typed).startsWith(flat(typing).slice(0, 16)))) return 'sent';
+  }
+  return 'held';
+}
+
+/**
+ * The input box's edges: rules across (2.x: the top one with their name in it, or only the name
+ * once the pane is narrow) or a ╭─╮ box (1.x).
+ */
+const TOP_EDGE = /^\s*[╭┌]?─{2,}|─$/;
+const BOTTOM_EDGE = /^\s*[╰└]?─{8,}[╯┘]?$/;
+/** The input box's first line starts with the prompt glyph (1.x: past the box's side), or what a typed ! (shell mode) or # (memory mode, before 2.1) turns it into. */
+const BOX_HEAD = /^(?:│\s*)?([❯>!#])(?=\s|$)/;
+/** A hint under the box that Enter does something else for now: a focused footer pill ("Enter to view tasks"), the agents view ("enter to return", "enter to create"). */
+const ENTER_ELSEWHERE = /(?<![\w+-])enter to (?:view tasks|return|create|open)\b/i;
+/** A paste or an image Claude Code folded into one token in the box: "[Pasted text #1 +39 lines]", "[Image #2]". */
+const FOLDED = /\[(?:Pasted text|\.\.\.Truncated text|Image|✦ Team setup guide) #\d/;
+/** Claude Code's own words in an empty box: its "Try …" example and its hints about queued messages. */
+const PLACEHOLDER = /^(?:Try ".*"|Press (?:up|Enter) to (?:edit|select)\b.*)$/;
+/** The footer hint Claude Code shows under the box only while nothing is typed in it. */
+const EMPTY_HINT = /\? for shortcuts/;
+
+/** Text as the box shows it, to compare: Claude Code composes accents and drops zero-width characters, and wrapping adds spaces. */
+const flat = (s: string) => s.normalize('NFC').replace(/[\s\p{Cf}]/gu, '');
+
+/** Whether the box shows exactly `typing` (however it wraps it), or for a paste long enough to fold (over 800 characters or 3 lines) only its "[Pasted text #N]". */
+function holds(typed: string, typing: string): boolean {
+  const folds = typing.length > 800 || typing.split('\n').length > 3;
+  return flat(typed) === flat(typing) || (folds && /^\[(?:Pasted text|\.\.\.Truncated text) #\d+[^\]]*\]$/.test(typed));
+}
+
+/**
+ * Would Enter answer one of Claude Code's dialogs, or send something else, rather than send
+ * `typing` from its input box? Yes while the box isn't on screen (a dialog or menu has the keys:
+ * it hides the box) or Enter does something else under it, and yes unless the box holds exactly
+ * `typing`. With no `typing`, only whether the box is out of reach.
+ */
+export async function dialogOnScreen(tmuxName: string, typing = ''): Promise<boolean> {
+  const box = await inputBox(tmuxName);
+  return box === null || (!!typing && !holds(box.typed, typing));
+}
+
+/**
+ * Claude Code's input box on `tmuxName`'s screen: what's in it as drawn (`typed`), and whether
+ * that's nothing but ghost text (`empty`). Null if the box isn't on screen, or a hint under it
+ * says Enter does something else. The box is the last prompt line right under a rule, down to
+ * the next plain rule: a dialog's choices and the echoes of sent messages never sit right under
+ * a rule. Ghost text ("Try …", a suggested reply, an argument hint) follows the cursor, drawn
+ * dim. Without any styles (NO_COLOR) it's drawn plain, so with the cursor at its start or not
+ * drawn (their terminal unfocused) it's known by Claude Code's own words, or by the footer hint
+ * shown only while nothing is typed. Anything else counts as typed, and so does a folded paste.
+ */
+async function inputBox(tmuxName: string): Promise<{ typed: string; empty: boolean } | null> {
+  const r = await tmux(['capture-pane', '-p', '-e', '-t', `=${tmuxName}:`]);
+  if (r.code !== 0) return null;
+  const rows = screenRows(r.stdout);
+  for (let top = rows.length - 1; top > 0; top--) {
+    if (!BOX_HEAD.test(rows[top].text) || !TOP_EDGE.test(rows[top - 1].text)) continue;
+    const bottom = rows.findIndex((row, i) => i > top && BOTTOM_EDGE.test(row.text));
+    if (bottom < 0) continue;
+    if (rows.slice(bottom + 1).some((row) => ENTER_ELSEWHERE.test(row.text))) return null;
+    const box = rows.slice(top, bottom);
+    // A row without the prompt glyph or a 1.x box's sides. In shell mode, the ! was typed.
+    const inside = (s: string, i: number) => (i ? s.replace(/^\s*│/, '') : s.replace(BOX_HEAD, '')).replace(/\s*│$/, '').trim();
+    const glyph = BOX_HEAD.exec(box[0].text)?.[1];
+    const mode = glyph === '!' || glyph === '#' ? glyph : '';
+    const typed = mode + box.map((row, i) => inside(row.typed, i)).join('\n').trim();
+    // Claude Code draws the box's edge in a colour, unless it draws no styles at all.
+    const cursor = box.findIndex((row) => row.cursor >= 0);
+    const atStart = cursor < 0 || (cursor === 0 && !inside(box[0].text.slice(0, box[0].cursor), 0));
+    const known = PLACEHOLDER.test(box.map((row, i) => inside(row.text, i)).join('')) || rows.slice(bottom + 1).some((row) => EMPTY_HINT.test(row.text));
+    const placeholder = !rows[top - 1].styled && atStart && known;
+    const folded = FOLDED.test(box.map((row) => row.text).join('\n'));
+    return { typed: placeholder ? '' : typed, empty: !mode && !folded && (placeholder || !typed) };
+  }
+  return null;
+}
+
+/**
+ * `capture-pane -e` output as rows: `text` as drawn; `typed`, what's left once ghost text is out:
+ * all the cells before the cursor (the first inverse cell, at `cursor`; -1 for none), the ones
+ * after it unless drawn dim; `styled`, whether any cell is dim or coloured. Attributes carry
+ * over from one row to the next, as tmux writes them.
+ */
+function screenRows(out: string): { text: string; typed: string; cursor: number; styled: boolean }[] {
+  const rows: { text: string; typed: string; cursor: number; styled: boolean }[] = [];
+  let text = '';
+  let undim = '';
+  let after = '';
+  let cursor = -1;
+  let styled = false;
+  let dim = false;
+  let inverse = false;
+  let colour = false;
+  const row = () => rows.push({ text: text.trimEnd(), typed: (cursor < 0 ? undim : text.slice(0, cursor) + after).trimEnd(), cursor, styled });
+  for (const [token, sgr] of out.matchAll(/\x1b\[([\d;:]*)m|\x1b\[[\d;:?<=>]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b.?|\n|[^\x1b\n]+/g)) {
+    if (token === '\n') {
+      row();
+      text = undim = after = '';
+      cursor = -1;
+      styled = false;
+    } else if (sgr !== undefined) {
+      const codes = sgr.split(';');
+      for (let i = 0; i < codes.length; i++) {
+        const c = codes[i];
+        if (c === '' || c === '0') dim = inverse = colour = false;
+        else if (c === '2' || c === '22') dim = c === '2';
+        else if (c === '7' || c === '27') inverse = c === '7';
+        else if (/^(3[0-7]|39|9[0-7])$/.test(c)) colour = c !== '39';
+        // 38;5;n and 38;2;r;g;b (and 48, 58 for the background and underline): colours, whose
+        // numbers aren't attributes.
+        else if (c === '38' || c === '48' || c === '58') {
+          colour ||= c === '38';
+          i += codes[i + 1] === '5' ? 2 : codes[i + 1] === '2' ? 4 : 0;
+        }
+      }
+    } else if (token[0] !== '\x1b') {
+      if (inverse && cursor < 0) cursor = text.length;
+      if (dim || colour) styled = true;
+      text += token;
+      if (!dim && !inverse) {
+        undim += token;
+        if (cursor >= 0) after += token;
+      }
+    }
+  }
+  row();
+  return rows;
 }
 
 /** Press Esc in the session (Claude Code's interrupt). */

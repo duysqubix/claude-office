@@ -57,7 +57,8 @@ export class FramePlayer implements Player {
   }
 
   activate(): void {
-    void this.command('activate');
+    // Only a hint for the browser's autoplay rules: no frame or no answer is fine.
+    void this.command('activate').catch(() => {});
   }
 
   play(what: PlayRequest): Promise<void> {

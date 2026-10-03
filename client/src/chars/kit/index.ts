@@ -16,7 +16,7 @@ import { ditherOf, ditherable, setDither } from '../dither';
 import type { Looks } from '../looks';
 import type { Rig } from '../rig';
 import RD from '../rig-dimensions.json';
-import { bakeParts, disposeBaked, perVertexFinish, setFar, type BakePart, type Baked, type Look } from './bake';
+import { bakeParts, bakedMaterial, disposeBaked, rimTerm, setFar, unbakeable, type BakePart, type Baked, type Look } from './bake';
 import { planKit, type KitPlan } from './plan';
 import { findSlots, type SlotName } from './slots';
 
@@ -90,7 +90,7 @@ interface Dress {
   /** Every kit part with the slot it went into (for baking). */
   pieces: { slot: SlotName; part: THREE.Object3D }[];
   /** The parts merged into one skinned mesh (#57), and the parts' own materials while hidden. */
-  baked: { baked: Baked; swapped: Map<THREE.Mesh, THREE.Material> } | null;
+  baked: { baked: Baked; swapped: Map<THREE.Mesh, THREE.Material>; glass: Map<THREE.Mesh, THREE.Material> } | null;
 }
 
 const dressed = new WeakMap<Rig, Dress>();
@@ -103,38 +103,41 @@ const LOD = switches.get('lod') !== '0';
 const toBake = new Map<Rig, Dress>();
 /** Baked, for the distance switch. */
 const bakedRigs = new Map<Rig, Dress>();
-/** Bakes per frame (each takes a few milliseconds). */
-const BAKES_PER_FRAME = 2;
-/** One draw beyond FAR_AT metres from the camera, one per look again inside NEAR_AT. */
-const FAR_AT = 6;
-const NEAR_AT = 5.5;
+/** Milliseconds of baking a frame (at least one character a frame while any wait). */
+const BAKE_BUDGET_MS = 3;
+/**
+ * One draw beyond FAR_AT metres from the camera, one per texture again inside NEAR_AT. The far
+ * look differs only in texture detail finer than a vertex; from 8 m it can't be told apart.
+ */
+const FAR_AT = 10;
+const NEAR_AT = 8;
 const _cam = new THREE.Vector3();
 const _at = new THREE.Vector3();
 
 /**
- * Once a frame. Bakes newly dressed characters, a couple a frame, in view or not (a yard visitor
- * is out of the scene while out of view, and shouldn't hitch the frame they walk into it), and
- * draws baked characters far from `camera` as one draw. A rig whose parts were taken out of it
- * (the first-person arm borrows the manager-look rig's shoulder) is left as it is.
+ * Once a frame. Bakes newly dressed characters, a few milliseconds' worth a frame, in view or
+ * not (a yard visitor is out of the scene while out of view, and shouldn't hitch the frame they
+ * walk into it), and draws baked characters far from `camera` as one draw (never the manager:
+ * the camera lives around them). A rig whose parts were taken out of it (the first-person arm
+ * borrows the manager-look rig's shoulder) is left as it is.
  */
 export function updateKit(camera: THREE.Camera): void {
-  let budget = BAKES_PER_FRAME;
+  const t0 = performance.now();
   for (const [rig, d] of toBake) {
-    if (budget <= 0) break;
     toBake.delete(rig);
     if (!intact(rig, d)) continue;
-    budget--;
     if (bakeRig(rig) > 0) bakedRigs.set(rig, d);
+    if (performance.now() - t0 >= BAKE_BUDGET_MS) break;
   }
   if (!LOD) return;
   camera.getWorldPosition(_cam);
   for (const [rig, d] of bakedRigs) {
     const b = d.baked?.baked;
-    if (!b) continue;
+    if (!b || rig.looks.role === 'manager') continue;
     const dist = rig.root.getWorldPosition(_at).distanceTo(_cam);
     const far = b.mesh.material === b.far;
-    if (!far && dist > FAR_AT) setFar(b, true);
-    else if (far && dist < NEAR_AT) setFar(b, false);
+    if (!far && dist > FAR_AT) drawFar(d, true);
+    else if (far && dist < NEAR_AT) drawFar(d, false);
   }
 }
 
@@ -285,9 +288,59 @@ const under = (rig: Rig, o: THREE.Object3D): boolean => {
 /** Every part still on the character (the first-person arm takes the shoulder out of its rig). */
 const intact = (rig: Rig, d: Dress): boolean => d.pieces.every(({ part }) => under(rig, part));
 
+/** Textures already warned about (dev): one warning each. */
+const warned = new WeakSet<THREE.Texture>();
+
+/** Whether the bake can take a part with this texture (bake.ts unbakeable); in dev, says once why not. */
+function bakesWith(mesh: THREE.Mesh, map: THREE.Texture | null): boolean {
+  const why = map ? unbakeable(map) : null;
+  if (!map || !why) return true;
+  if (import.meta.env.DEV && !warned.has(map)) {
+    warned.add(map);
+    console.warn(`[kit] ${mesh.name || 'a part'} stays its own draw: its texture ${map.name || '(unnamed)'} ${why}`);
+  }
+  return false;
+}
+
+/**
+ * The translucent blush, baked opaque: its colour over the head's skin, with the skin's warm
+ * glow, rim and finish showing through as much as it lets them.
+ */
+function blush(mesh: THREE.Mesh, m: THREE.MeshStandardMaterial): BakePart['finish'] {
+  const skin = mesh.parent?.children.find((o) => (o as THREE.Mesh).isMesh && ((o as THREE.Mesh).material as THREE.Material).name === 'Skin') as THREE.Mesh | undefined;
+  const s = skin?.material as THREE.MeshStandardMaterial | undefined;
+  if (!s) return undefined;
+  const a = m.opacity;
+  return {
+    color: s.color.clone().lerp(m.color, a),
+    emissive: s.emissive.clone().multiplyScalar(s.emissiveIntensity * (1 - a)).add(m.emissive.clone().multiplyScalar(m.emissiveIntensity * a)),
+    roughness: THREE.MathUtils.lerp(s.roughness, m.roughness, a),
+    rim: s.userData.rim === true ? 1 - a : 0,
+  };
+}
+
+/** Joints whose scale the rig animates (squash, hair spring, blinks, arm stretch), and their rest. */
+function restPose(rig: Rig): () => void {
+  const scaled = [rig.squash, rig.hair, rig.eyeL, rig.eyeR];
+  const arms = [rig.armL, rig.armR, rig.elbowL, rig.elbowR];
+  // setArmStretch scales the arm segments (children of the shoulders and elbows) and moves the elbows and wrists.
+  const stretched = [...arms.flatMap((a) => a.children), rig.elbowL, rig.elbowR, rig.handL, rig.handR];
+  const scales = [...scaled, ...stretched].map((o) => [o, o.scale.clone(), o.position.clone()] as const);
+  for (const o of scaled) o.scale.set(1, 1, 1);
+  rig.setArmStretch(1, 1);
+  rig.setArmStretch(-1, 1);
+  return () => {
+    for (const [o, s, p] of scales) {
+      o.scale.copy(s);
+      o.position.copy(p);
+    }
+  };
+}
+
 /**
  * Merge the rig's worn kit parts into one skinned mesh (chars/kit/bake.ts): one draw per
- * texture and rim up close, one in all far away (kitFar). Parts moved out of the character (the
+ * texture up close, one in all far away (kitFar). It's bound in the rest pose (a blink or a
+ * stretch at that moment doesn't stay in the mesh). Parts moved out of the character (the
  * first-person arm) stay as they are. Undone by unbakeRig, stripKit and dispose. updateKit does
  * this for every dressed character; returns how many near draws it takes (0: none).
  */
@@ -295,7 +348,6 @@ export function bakeRig(rig: Rig, opts: { far?: boolean } = {}): number {
   const d = dressed.get(rig);
   if (!d) return 0;
   unbake(d);
-  const skin = new THREE.Color(d.plan.colors.skin);
   const parts: BakePart[] = [];
   for (const { part } of d.pieces) {
     if (!under(rig, part)) continue;
@@ -305,9 +357,10 @@ export function bakeRig(rig: Rig, opts: { far?: boolean } = {}): number {
       if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.visible) return;
       const m = mesh.material as THREE.MeshStandardMaterial;
       if (!m.visible || !m.isMeshStandardMaterial) return;
-      // The translucent blush goes in opaque, pre-blended over the skin it sits on.
-      const color = m.transparent && m.name === 'Cheek' ? skin.clone().lerp(m.color, m.opacity) : undefined;
-      parts.push({ mesh, color });
+      // A texture the bake can't draw the same way: that part stays its own draw.
+      if (!bakesWith(mesh, m.map)) return;
+      // Translucent parts (the blush) stay their own draws up close; far away they're baked in, opaque.
+      parts.push({ mesh, casts: d.casters.includes(mesh), farOnly: m.transparent, finish: m.transparent && m.name === 'Cheek' ? blush(mesh, m) : undefined });
     });
   }
   const own = (m: THREE.MeshStandardMaterial): THREE.Material => {
@@ -316,41 +369,57 @@ export function bakeRig(rig: Rig, opts: { far?: boolean } = {}): number {
     d.mats.add(m);
     return m;
   };
-  const baked = bakeParts(rig.root, parts, {
-    near(look: Look) {
-      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, map: look.map, side: look.side });
-      m.name = `Baked ${look.map ? 'textured' : 'flat'}${look.rim ? '' : ' face'}`;
-      if (look.rim) addRim(m);
-      perVertexFinish(m);
-      return own(m);
-    },
-    far() {
-      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
-      m.name = 'Baked far';
-      addRim(m);
-      perVertexFinish(m, true);
-      return own(m);
-    },
-  });
+  const back = restPose(rig);
+  let baked: Baked | null;
+  try {
+    baked = bakeParts(rig.root, parts, {
+      near(look: Look) {
+        const m = bakedMaterial({ map: look.map, side: look.side, far: false });
+        m.name = `Baked ${look.map ? (look.map.name || 'textured') : 'flat'}`;
+        return own(m);
+      },
+      far() {
+        const m = bakedMaterial({ map: null, side: THREE.FrontSide, far: true });
+        m.name = 'Baked far';
+        return own(m);
+      },
+    });
+  } finally {
+    // Even if the merge throws, the rig doesn't stay at rest.
+    back();
+  }
   if (!baked) return 0;
   const swapped = new Map<THREE.Mesh, THREE.Material>();
-  for (const { mesh } of parts) {
-    swapped.set(mesh, mesh.material as THREE.Material);
-    mesh.material = HIDDEN;
+  const glass = new Map<THREE.Mesh, THREE.Material>();
+  for (const { mesh, farOnly } of parts) {
+    if (farOnly) glass.set(mesh, mesh.material as THREE.Material);
+    else {
+      swapped.set(mesh, mesh.material as THREE.Material);
+      mesh.material = HIDDEN;
+    }
   }
-  if (baked.mesh.castShadow) {
+  // It casts if its parts did (decided when they were put on, not by their shadows right now: a
+  // character dressed while fading in has every shadow off for the moment).
+  if (parts.some((p) => p.casts)) {
     baked.mesh.castShadow = d.opacity >= 0.999;
     d.casters.push(baked.mesh);
   }
-  if (opts.far) setFar(baked, true);
-  d.baked = { baked, swapped };
+  d.baked = { baked, swapped, glass };
+  if (opts.far) drawFar(d, true);
   return baked.near.length;
 }
 
 /** Draw a baked character as one draw (far away) or one per look (near). */
 export function kitFar(rig: Rig, far: boolean): void {
-  const b = dressed.get(rig)?.baked?.baked;
-  if (b) setFar(b, far);
+  const d = dressed.get(rig);
+  if (d) drawFar(d, far);
+}
+
+/** Far: the baked mesh in one draw, translucent parts baked in. Near: one draw per look, and the translucent parts draw themselves. */
+function drawFar(d: Dress, far: boolean): void {
+  if (!d.baked) return;
+  setFar(d.baked.baked, far);
+  for (const [mesh, mat] of d.baked.glass) mesh.material = far ? HIDDEN : mat;
 }
 
 /** Back to the separate parts. */
@@ -361,12 +430,10 @@ export function unbakeRig(rig: Rig): void {
 
 function unbake(d: Dress): void {
   if (!d.baked) return;
-  const { baked, swapped } = d.baked;
-  for (const [mesh, mat] of swapped) mesh.material = mat;
-  for (const mat of [...baked.near, baked.far]) {
-    d.mats.delete(mat);
-    mat.dispose();
-  }
+  const { baked, swapped, glass } = d.baked;
+  for (const [mesh, mat] of [...swapped, ...glass]) mesh.material = mat;
+  // Only this character's own (the far-only group draws with a shared invisible material).
+  for (const mat of [...baked.near, baked.far]) if (d.mats.delete(mat)) mat.dispose();
   d.casters = d.casters.filter((c) => c !== baked.mesh);
   disposeBaked(baked);
   d.baked = null;
@@ -381,14 +448,11 @@ const NO_RIM = new Set(['Eye', 'EyeShine', 'Mouth', 'Teeth', 'Tongue', 'Cheek', 
 /** The procedural rig's soft-plastic fresnel rim (rig.ts `plastic`), for kit materials. */
 function addRim(m: THREE.MeshStandardMaterial): void {
   m.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <emissivemap_fragment>',
-      `#include <emissivemap_fragment>
-      float rimF = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
-      totalEmissiveRadiance += diffuseColor.rgb * 0.3 * pow(rimF, 2.6) + vec3(0.055, 0.05, 0.045) * pow(rimF, 5.0);`,
-    );
+    shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${rimTerm()}`);
   };
   m.customProgramCacheKey = () => 'office-kit-rim';
+  // Baking keeps it per vertex.
+  m.userData.rim = true;
 }
 
 /** This character's copy of a kit material: tinted, rim-lit, dithering with the rig. */

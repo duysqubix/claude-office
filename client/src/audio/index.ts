@@ -10,7 +10,7 @@
 //   audio.subscribe(fn)          any change: prefs, unlocked, what's playing
 //   audio.handOver(source)       an external player takes the music; call the result to hand back
 import { limiter, murmurBuffer } from './fx';
-import { MusicPlayer } from './music';
+import { MusicPlayer, prepareTune } from './music';
 import { rng } from './rng';
 
 export interface AudioPrefs {
@@ -29,9 +29,12 @@ export interface AudioPrefs {
 export interface ExternalSource {
   /** Shown in Help ("Playing from Spotify"). */
   readonly name: string;
-  /** 0–1: the music volume with mute, Music off and ducking already applied. Called on every change. */
+  /**
+   * 0–1: the music volume with mute, another tab's turn and ducking already applied (Help's Music
+   * switch is the band's: a source you started plays with it off). Called on every change.
+   */
   setLevel(level: number): void;
-  /** The office takes the speakers back (Music turned off, or another source took over). */
+  /** The office takes the speakers back (Music switched off, another source took over, or another office tab took the music). */
   release(): void;
 }
 
@@ -169,12 +172,19 @@ class Speakers {
         if (m.at > this.claimAt || (m.at === this.claimAt && m.id > this.id)) {
           this.yielded = true;
           this.stopMusic(2);
-        } else if (this.player) this.claim();
+          // An outside player here (Spotify) gives way too.
+          const ext = this.external;
+          this.external = null;
+          ext?.release();
+          if (ext) this.emit();
+        } else if (this.player || this.external) this.claim();
       };
     } catch {
       // no BroadcastChannel: every tab plays
     }
     if (import.meta.env.DEV && params.has('debug')) Object.assign(window, { officeAudio: this });
+    // The first tune, written while the page is idle: the click that starts the music only plays it.
+    prepareTune(this.seed, this.nextTune, isEvening());
   }
 
   subscribe(fn: () => void): () => void {
@@ -219,6 +229,8 @@ class Speakers {
     this.external = source;
     if (old && old !== source) old.release();
     this.stopMusic(2);
+    // This tab has the music now: the other office tabs give way, as they do to the band.
+    this.claim();
     this.levels();
     this.emit();
     return () => {
@@ -357,8 +369,8 @@ class Speakers {
     this.levels();
     if (this.musicWanted()) this.startMusic();
     else if (!next.muted) this.stopMusic(1.5);
-    if (!this.musicWanted() && this.external && (!next.music || this.musicParam === '0')) {
-      // Music off: whoever had the speakers stops too.
+    if (this.external && was.music && !next.music) {
+      // Music switched off: whoever had the speakers stops too.
       const ext = this.external;
       this.external = null;
       ext.release();
@@ -369,7 +381,9 @@ class Speakers {
   /** Every gain follows prefs and ducking. `musicRamp`: how long the music takes to get there. */
   private levels(instant = false, musicRamp = 0.2): void {
     const music = volumeGain(this.p.musicVolume) * (this.ducked ? DUCK : 1);
-    this.external?.setLevel(this.musicOn() ? music : 0);
+    // A source you started plays with Music off (switching it off stops it, in applyPrefs); mute
+    // and another tab's turn silence it.
+    this.external?.setLevel(!this.p.muted && !this.yielded ? music : 0);
     const ctx = this.ctx;
     if (!ctx || !this.master || !this.musicBus || !this.sfxBus) return;
     const now = ctx.currentTime;
@@ -447,6 +461,8 @@ class Speakers {
     g.setValueAtTime(g.value, now);
     g.linearRampToValueAtTime(0, now + fade);
     p.stop(now + fade + 0.05);
+    // And the tune it would start with next time (unmute, Music on), while things are quiet.
+    prepareTune(this.seed, this.nextTune, isEvening());
     this.emit();
   }
 

@@ -14,6 +14,7 @@ import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, Serve
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
 import { HOME, HOST, IS_PROD, PORT, ROOT, THINK_DIR } from './config';
+import { sessionStatus } from './registry';
 import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
@@ -21,7 +22,7 @@ import { run } from './exec';
 import { ShellKeeper } from './shells';
 import { SpotifyLink } from './spotify';
 import { ThoughtService } from './thoughts';
-import { assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
+import { AlreadyHere, assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -224,7 +225,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       });
       const displayName = roster.nameForNewHire(sessionId);
       const { tmuxName } = await rehire({ sessionId, cwd: past.digest.cwd, displayName }).catch((err: unknown) => {
-        throw err instanceof NameTaken ? new HttpError(409, err.message) : err;
+        throw err instanceof NameTaken || err instanceof AlreadyHere ? new HttpError(409, err.message) : err;
       });
       roster.addPendingHire({ sessionId, tmuxName, cwd: past.digest.cwd, displayName });
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
@@ -263,9 +264,15 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const text = typeof body.text === 'string' ? pasteSafe(body.text.slice(0, MAX_TEXT)).trim() : '';
       if (!text) throw new HttpError(400, 'Say something');
       const tmuxName = await hiredHere(sessionId, 'They work in your own terminal; talk to them there');
-      // With a dialog open, the Enter after the paste would pick the dialog's default answer.
-      if (roster.find(sessionId)?.state === 'needs-you') throw new HttpError(409, 'They have a question open. Sit at their computer to answer it.');
-      await say(tmuxName, text);
+      // With a question open, the Enter after the paste would answer it, and a permission
+      // prompt's first choice is Yes. Claude can ask at any moment, so say() looks right before
+      // it pastes and again right before Enter. `asked`: whether a question is what stopped it.
+      let asked = false;
+      const said = await say(tmuxName, text, async () => (asked = await asking(sessionId)));
+      if (said === 'not-pasted') throw new HttpError(409, asked ? 'They have a question open. Sit at their computer to answer it.' : "Their terminal isn't at the prompt. Sit at their computer to see what's on it.");
+      if (said === 'draft') throw new HttpError(409, "There's unsent text in their box. Sit at their computer to send or clear it.");
+      if (said === 'not-sent') throw new HttpError(409, asked ? 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.' : "Your message didn't show up in their box. Sit at their computer to check it.");
+      if (said === 'held') throw new HttpError(409, "Enter didn't send your message: it's still in their box. If Claude asked something just then, check what Enter did. Sit at their computer to see.");
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/desk/close': {
@@ -282,6 +289,17 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
 function uuidFrom(v: unknown): string {
   if (typeof v !== 'string' || !UUID.test(v)) throw new HttpError(400, 'Bad session id');
   return v.toLowerCase();
+}
+
+/**
+ * Has Claude asked something that Enter would answer, as far as the office knows? An in-game ask,
+ * the roster (a poll old), or Claude Code's own status read fresh from its registry file. That
+ * file can trail the dialog by a few frames, so say() reads the screen as well.
+ */
+async function asking(sessionId: string): Promise<boolean> {
+  const e = roster.find(sessionId);
+  if (asks.forSession(sessionId) || e?.state === 'needs-you') return true;
+  return !!e?.pid && (await sessionStatus(e.pid, sessionId)) === 'waiting';
 }
 
 /** The tmux session of someone this office hired, else 400 `refused`. Its stamp is read again here: the roster's map can be a poll old. */
@@ -671,7 +689,8 @@ function shutdown(): void {
   for (const ws of rosterSockets.clients) ws.close(1001, 'office closing');
   void vite?.close();
   server.close();
-  setTimeout(() => process.exit(0), 300).unref();
+  // A Spotify sign-in being saved reaches the disk first (at most a second, #28).
+  void spotify.flush().then(() => setTimeout(() => process.exit(0), 300).unref());
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

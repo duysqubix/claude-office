@@ -39,6 +39,25 @@ function surface(ctx: BaseAudioContext, kit: Kit): Promise<AudioBuffer> {
 
 /** The band's overall level into the hub (before the music volume). */
 const LEVEL = 1.55;
+/** A visit's opening tunes, written in idle moments before the music starts: seed:index:night → tune. */
+const prepared = new Map<string, Tune>();
+const preparedKey = (seed: number, index: number, night: boolean) => `${seed}:${index}:${night ? 1 : 0}`;
+
+/**
+ * Write tune `index` of a visit now, in an idle moment, so a player starting with it doesn't
+ * compose in its first pump (that's inside the click that starts the music, with cold code).
+ */
+export function prepareTune(seed: number, index: number, night: boolean): void {
+  const key = preparedKey(seed, index, night);
+  if (prepared.has(key)) return;
+  const idle = (window as { requestIdleCallback?: Window['requestIdleCallback'] }).requestIdleCallback;
+  const write = () => {
+    if (!prepared.has(key)) prepared.set(key, followUp(null, seed, index, night));
+  };
+  if (idle) idle(write, { timeout: 4000 });
+  else window.setTimeout(write, 0);
+}
+
 /** A breath between tunes, in beats. */
 const GAP_BEATS = 2;
 /** How often the evening level is re-checked (seconds of audio time). */
@@ -304,8 +323,12 @@ export class MusicPlayer {
     if (this.tune && this.bar === this.tune.bars.length - 8) this.composeAhead();
     if (!this.tune || this.bar >= this.tune.bars.length) {
       if (this.tune) this.barTime += (GAP_BEATS * 60) / this.tune.bpm;
-      // Evening tunes are slower and softer; the clock decides at each new tune.
-      this.tune = this.upcoming ?? followUp(this.tune, this.opts.seed, this.tuneIndex, this.opts.night());
+      // Evening tunes are slower and softer; the clock decides at each new tune. The opening
+      // one was usually written ahead (prepareTune), the rest while the last one played.
+      const night = this.opts.night();
+      const key = preparedKey(this.opts.seed, this.tuneIndex, night);
+      this.tune = this.upcoming ?? (!this.tune ? prepared.get(key) : undefined) ?? followUp(this.tune, this.opts.seed, this.tuneIndex, night);
+      prepared.delete(key);
       this.upcoming = null;
       this.opts.onTune?.(this.tune, this.tuneIndex);
       this.tuneIndex++;

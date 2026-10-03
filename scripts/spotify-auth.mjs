@@ -2,11 +2,15 @@
 // localhost. No network, no Spotify account, no office. It walks the PKCE sign-in (the S256
 // challenge must match the verifier), checks the state is single-use and runs out, that the
 // tokens land in an owner-only file, that a refresh without a new refresh token keeps the old
-// one, that refreshes never run twice at once, and that a revoked sign-in signs you out. Then two
-// real offices (a throwaway HOME, ports of their own, never yours): each keeps its own sign-in.
+// one, that refreshes never run twice at once, and that a revoked sign-in signs you out. With a
+// pretend fetch: a failing Spotify is asked once, not hammered (and a 429's Retry-After heeded);
+// a save on its way reaches the disk before shutdown, and a cut-short one leaves no copy; signing
+// out during a refresh hands out no token. Then two real offices (a throwaway HOME, ports of
+// their own, never yours): each keeps its own sign-in.
 //   node --import tsx scripts/spotify-auth.mjs
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -252,6 +256,204 @@ try {
   r = await call(make({ file: junk }), 'status');
   check('a broken file counts as not signed in', r.body.connected === false && r.body.clientId === null, JSON.stringify(r.body));
 
+  // ---------------------------------------------------------------------------- Spotify failing; saving; signing out
+  // A pretend fetch (so each call to Spotify is counted) and a scratch sign-in file each.
+  const fake = (answer) => {
+    const f = async (url, init) => {
+      f.calls++;
+      return answer(f.calls, String(url), init);
+    };
+    f.calls = 0;
+    return f;
+  };
+  const reply = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** Wait for `cond` (a state, not a time): the probes below never race the code they test. */
+  const waitFor = async (cond, ms = 5000) => {
+    for (const t0 = performance.now(); !cond(); await sleep(1)) if (performance.now() - t0 > ms) throw new Error(`waited ${ms} ms for ${cond}`);
+  };
+  let n = 0;
+  /** A link signed in from a scratch file: its access token runs out `inMs` from now (on our clock). */
+  const scratch = (fetch, inMs) => {
+    const f = join(dir, `probe-${++n}.json`);
+    writeFileSync(f, JSON.stringify({ clientId: CLIENT, refreshToken: 'R-probe', accessToken: 'A-probe', expiresAt: clock + inMs }), { mode: 0o600 });
+    return { link: make({ file: f, fetch }), file: f };
+  };
+  const tokens = (f) => JSON.parse(readFileSync(f, 'utf8'));
+
+  // L2: Spotify's token endpoint is down (a 503). Nobody hammers it.
+  {
+    const down = fake(() => reply(503, { error: 'server_error', error_description: 'Service unavailable' }));
+    const { link: near } = scratch(down, 30_000);
+    const asks = [];
+    for (let i = 0; i < 5; i++) asks.push(await call(near, 'token'));
+    check('Spotify down, the token near its end: five asks make one call to Spotify, and get the token that still lasts', down.calls === 1 && asks.every((a) => a.status === 200 && a.body.accessToken === 'A-probe'), `${down.calls} call(s); ${asks.map((a) => a.status).join(' ')}`);
+    const gone = fake(() => reply(503, { error: 'server_error' }));
+    const { link: late } = scratch(gone, -1000);
+    const fails = [];
+    for (let i = 0; i < 5; i++) fails.push(await call(late, 'token'));
+    const quiet = gone.calls;
+    clock += 10_001;
+    await call(late, 'token');
+    check('Spotify down, the token run out: five asks make one call (each says why), and it asks again after 10 s', quiet === 1 && fails.every((a) => a.status >= 500 && /Spotify said/.test(a.body.error)) && gone.calls === 2, `${quiet} call(s), then ${gone.calls}; ${fails.map((a) => a.status).join(' ')}`);
+    const slow = fake(() => reply(429, { error: 'too_many_requests' }, { 'Retry-After': '30' }));
+    const { link: busy } = scratch(slow, -1000);
+    await call(busy, 'token');
+    clock += 20_000;
+    await call(busy, 'token');
+    const within = slow.calls;
+    clock += 11_000;
+    await call(busy, 'token');
+    check('a 429 with Retry-After: 30 is heeded: no call for 30 s, then one', within === 1 && slow.calls === 2, `${within} call(s) in 20 s, ${slow.calls} after 31 s`);
+    const back = fake((k) => (k === 1 ? reply(503, { error: 'server_error' }) : reply(200, { access_token: 'A-back', expires_in: 3600 })));
+    const { link: mend } = scratch(back, -1000);
+    await call(mend, 'token');
+    clock += 10_001;
+    const ok = await call(mend, 'token');
+    const again = await call(mend, 'token');
+    check('…and once Spotify answers again, the new token, and no more waiting', ok.status === 200 && ok.body.accessToken === 'A-back' && again.body.accessToken === 'A-back' && back.calls === 2, `${ok.status} ${ok.body.accessToken}, ${back.calls} calls`);
+  }
+
+  // L3: the sign-in settles on disk before the office stops; a cut-short save leaves nothing behind.
+  {
+    const { link: saving } = scratch(fake(() => reply(503, {})), 3600_000);
+    saving.writing = sleep(300);
+    let t0 = performance.now();
+    await saving.flush(1000);
+    const waited = performance.now() - t0;
+    saving.writing = new Promise(() => {});
+    t0 = performance.now();
+    await saving.flush(150);
+    const capped = performance.now() - t0;
+    check('flush() waits for a save on its way (300 ms) and gives up at its cap (150 ms)', waited >= 280 && waited < 1500 && capped >= 140 && capped < 1000, `${Math.round(waited)} ms, ${Math.round(capped)} ms`);
+    // A token asked for just as the office stops (its sign-in still being read): flush() waits for
+    // the refresh it starts and the save that makes. Called at once, with no sleep in between.
+    const rot = fake(() => reply(200, { access_token: 'A-rot', expires_in: 3600, refresh_token: 'R-rot' }));
+    const { link: turning, file: turned } = scratch(rot, -1000);
+    const asked = call(turning, 'token');
+    await turning.flush();
+    const onDisk = tokens(turned).refreshToken;
+    const got = await asked;
+    check('…a token asked for as the office stops: the refresh token Spotify just replaced is on disk once flush() returns', onDisk === 'R-rot' && got.body.accessToken === 'A-rot', `${onDisk}, ${got.body.accessToken}`);
+    // A refresh still out at Spotify when the office stops: flush() waits for the answer, and its save.
+    let answerLate;
+    const late = fake(() => new Promise((r) => (answerLate = r)));
+    const { link: pending, file: pendingFile } = scratch(late, -1000);
+    const asked2 = call(pending, 'token');
+    await waitFor(() => late.calls === 1);
+    const flushed = pending.flush(1000);
+    answerLate(reply(200, { access_token: 'A-late2', expires_in: 3600, refresh_token: 'R-late' }));
+    await flushed;
+    const onDisk2 = tokens(pendingFile).refreshToken;
+    await asked2;
+    check('…a refresh still waiting on Spotify when the office stops: flush() waits for its answer and its save', onDisk2 === 'R-late', onDisk2);
+    // …and a Spotify that never answers never holds a shutdown past the cap.
+    const never = fake(() => new Promise(() => {}));
+    const { link: stuck } = scratch(never, -1000);
+    void call(stuck, 'token');
+    await waitFor(() => never.calls === 1);
+    t0 = performance.now();
+    await stuck.flush(150);
+    const held = performance.now() - t0;
+    check('…and a Spotify that never answers holds a shutdown no longer than the cap', held >= 140 && held < 1000, `${Math.round(held)} ms`);
+    const left = join(dir, 'left');
+    mkdirSync(left);
+    const mine = join(left, 'spotify-4799.json');
+    writeFileSync(mine, JSON.stringify({ clientId: CLIENT, refreshToken: 'R-mine' }), { mode: 0o600 });
+    // Pids for sure: one that has exited (a finished `true`), and running ones (this script, and its parent).
+    const dead = spawnSync('true').pid;
+    const files = {
+      [`spotify-4799.json.${dead}.tmp`]: false, // its office is gone: removed
+      [`spotify-4799.json.${process.pid}.tmp`]: true, // a running office, still saving: kept
+      [`spotify-4799.json.${process.ppid}.tmp`]: false, // a running pid, but over a minute old: removed
+      'spotify-4799.json.bak': true,
+      'spotify-4798.json.777.tmp': true, // another office's
+      'notes.tmp': true,
+    };
+    for (const f of Object.keys(files)) writeFileSync(join(left, f), '{"refreshToken":"R-old"}', { mode: 0o600 });
+    const old = (Date.now() - 2 * 60_000) / 1000;
+    utimesSync(join(left, `spotify-4799.json.${process.ppid}.tmp`), old, old);
+    await call(make({ file: mine }), 'status');
+    const after = Object.fromEntries(Object.keys(files).map((f) => [f, existsSync(join(left, f))]));
+    check(
+      'on start, a cut-short save’s copy goes if its office isn’t running or it’s over a minute old; a running office’s fresh copy and other files stay',
+      Object.entries(files).every(([f, keep]) => after[f] === keep),
+      JSON.stringify(after),
+    );
+  }
+
+  // L4: signing out while a refresh is on its way.
+  {
+    let answer;
+    const held = fake(() => new Promise((r) => (answer = r)));
+    const { link: out1, file: f1 } = scratch(held, -1000);
+    const asked = call(out1, 'token');
+    // The refresh is out at Spotify.
+    await waitFor(() => held.calls === 1);
+    await call(out1, 'logout');
+    answer(reply(200, { access_token: 'A-late', expires_in: 3600 }));
+    const r1 = await asked;
+    check('signing out while Spotify answers a refresh: no token, and "You signed out" (not Spotify)', r1.status === 401 && !r1.body.accessToken && /^You signed out/.test(r1.body.error) && !tokens(f1).accessToken, JSON.stringify({ status: r1.status, error: r1.body.error, file: tokens(f1) }));
+    const quick = fake(() => reply(200, { access_token: 'A-saved', expires_in: 3600 }));
+    const { link: out2, file: f2 } = scratch(quick, -1000);
+    await call(out2, 'status');
+    // The disk is held: the refresh is still saving when you sign out, whatever the timing.
+    let release2;
+    out2.writing = new Promise((r) => (release2 = r));
+    const asked2 = call(out2, 'token');
+    // Spotify has answered and the refresh is saving (the sign-in in memory is the new one).
+    await waitFor(() => out2.saved?.accessToken === 'A-saved');
+    const lo2 = call(out2, 'logout');
+    await waitFor(() => out2.signOuts === 1);
+    release2();
+    const r2 = await asked2;
+    await lo2;
+    check('signing out while the refresh is being saved: that token isn’t handed out, and the file ends signed out', r2.status === 401 && !r2.body.accessToken && /^You signed out/.test(r2.body.error) && !tokens(f2).accessToken && !tokens(f2).refreshToken, JSON.stringify({ status: r2.status, error: r2.body.error, file: tokens(f2) }));
+
+    // Signing out and in again while an old refresh is out at Spotify: the waiting caller gets the
+    // new sign-in (as status says), not "You signed out". Call 1 is the old refresh, held; call 2
+    // is the new sign-in's code exchange.
+    let answerOld;
+    const again = fake((k) => (k === 1 ? new Promise((r) => (answerOld = r)) : reply(200, { access_token: 'A-again', expires_in: 3600, refresh_token: 'R-again' })));
+    const { link: out3, file: f3 } = scratch(again, -1000);
+    const asked3 = call(out3, 'token');
+    await waitFor(() => again.calls === 1);
+    await call(out3, 'logout');
+    const st3 = new URL((await call(out3, 'login', { clientId: CLIENT })).body.url).searchParams.get('state');
+    const back3 = await callback(out3, `code=again&state=${st3}`);
+    answerOld(reply(200, { access_token: 'A-old-2', expires_in: 3600, refresh_token: 'R-old-2' }));
+    const r3 = await asked3;
+    const s3 = await call(out3, 'status');
+    check(
+      'signing out and in again while an old refresh waits on Spotify: the waiting caller gets the new sign-in',
+      back3.status === 200 && r3.status === 200 && r3.body.accessToken === 'A-again' && s3.body.connected === true && tokens(f3).refreshToken === 'R-again',
+      JSON.stringify({ status: r3.status, token: r3.body.accessToken ?? r3.body.error, connected: s3.body.connected, disk: tokens(f3).refreshToken }),
+    );
+    // …and the same while that old refresh is being saved.
+    const again2 = fake((k) => reply(200, k === 1 ? { access_token: 'A-old-3', expires_in: 3600, refresh_token: 'R-old-3' } : { access_token: 'A-again2', expires_in: 3600, refresh_token: 'R-again2' }));
+    const { link: out4, file: f4 } = scratch(again2, -1000);
+    await call(out4, 'status');
+    // The disk is held until you've signed out and in again.
+    let release4;
+    out4.writing = new Promise((r) => (release4 = r));
+    const asked4 = call(out4, 'token');
+    await waitFor(() => out4.saved?.accessToken === 'A-old-3');
+    const lo4 = call(out4, 'logout');
+    await waitFor(() => out4.signOuts === 1);
+    const st4 = new URL((await call(out4, 'login', { clientId: CLIENT })).body.url).searchParams.get('state');
+    const cb4 = callback(out4, `code=again2&state=${st4}`);
+    await waitFor(() => out4.saved?.accessToken === 'A-again2');
+    release4();
+    const r4 = await asked4;
+    const back4 = await cb4;
+    await lo4;
+    check(
+      '…and while that old refresh is being saved: the new sign-in, in memory and on disk',
+      back4.status === 200 && r4.status === 200 && r4.body.accessToken === 'A-again2' && tokens(f4).refreshToken === 'R-again2',
+      JSON.stringify({ status: r4.status, token: r4.body.accessToken ?? r4.body.error, disk: tokens(f4).refreshToken }),
+    );
+  }
+
   // ---------------------------------------------------------------------------- one sign-in per office
   // Two offices on one machine (the same HOME, two ports): office A is signed in, office B isn't.
   // B sees no sign-in, and B signing out leaves A's file alone. Nothing here talks to Spotify:
@@ -280,7 +482,10 @@ try {
     );
     check('no office keeps a sign-in in a file without its port', !existsSync(join(home.home, '.claude-office', 'spotify.json')));
   } finally {
+    // With nothing being saved, an office still stops promptly.
+    const t0 = Date.now();
     for (const o of offices) await o.stop();
+    if (offices.length === 2) check('two offices stop promptly (nothing being saved)', Date.now() - t0 < 4000, `${Date.now() - t0} ms`);
     home.cleanup();
   }
 } catch (err) {

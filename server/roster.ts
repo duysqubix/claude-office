@@ -8,7 +8,7 @@ import { projectName } from './archive';
 import { activeInterns } from './interns';
 import { assignNames, pickName } from './names';
 import { claudeProcessCount, readRegistry, type RegistryEntry } from './registry';
-import { capture, kill, listHosted, NameTaken, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
+import { AlreadyHere, capture, kill, listHosted, NameTaken, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
 import { TranscriptTail } from './transcript';
 
 /** A hire we started that Claude hasn't registered yet. */
@@ -21,6 +21,8 @@ interface PendingHire {
 }
 
 const TRUST_PROMPT = /trust (the files in )?this folder|Do you trust/i;
+/** A blocked move into the office tries again this often (each try runs a few tmux commands). */
+const ADOPT_RETRY_MS = 5000;
 
 /** Open in-game questions per session (server/asks.ts). */
 export interface AskSource {
@@ -48,9 +50,10 @@ export class Roster extends EventEmitter {
   private warnedUnreadable = false;
   /**
    * External sessions waiting to move into the office (resumed in tmux once they exit).
-   * `blocked`: why the last try couldn't, while someone else's tmux session holds their name.
+   * `blocked`: why the last try couldn't, while someone else's tmux session holds their name;
+   * `retryAt`: when to try again.
    */
-  private adoptions = new Map<string, { cwd: string; displayName: string; until: number; blocked?: string }>();
+  private adoptions = new Map<string, { cwd: string; displayName: string; until: number; blocked?: string; retryAt?: number }>();
 
   constructor(private readonly asks?: AskSource) {
     super();
@@ -193,16 +196,24 @@ export class Roster extends EventEmitter {
         this.adoptions.delete(id);
         continue;
       }
-      if (liveIds.has(id) || this.pending.has(id)) continue;
+      if (liveIds.has(id) || this.pending.has(id) || now < (a.retryAt ?? 0)) continue;
       try {
         const { tmuxName } = await rehire({ sessionId: id, cwd: a.cwd, displayName: a.displayName });
         this.adoptions.delete(id);
         this.pending.set(id, { sessionId: id, tmuxName, cwd: a.cwd, displayName: a.displayName, startedAt: now });
         this.notice('info', `${a.displayName} is moving into the office`);
       } catch (err) {
-        // Someone else's tmux session holds their name: try again every poll until the window ends.
+        // Someone else's tmux session holds their name: say so once, then try again every few
+        // seconds, quietly, until the window ends.
         if (err instanceof NameTaken) {
+          if (!a.blocked) this.notice('warn', `${a.displayName} can't move in yet: ${err.message}. The office keeps trying for ${Math.ceil((a.until - now) / 60_000)} more minutes.`);
           a.blocked = err.message;
+          a.retryAt = now + ADOPT_RETRY_MS;
+          continue;
+        }
+        // This office already has them (their session came back here meanwhile): nothing left to do.
+        if (err instanceof AlreadyHere) {
+          this.adoptions.delete(id);
           continue;
         }
         this.adoptions.delete(id);

@@ -49,20 +49,26 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
       }),
   );
   const live = await liveProcesses(entries.map((e) => e.pid));
+  const digits = entries.filter((e) => /^\d+$/.test(String(e.procStart ?? '')));
+  const most = digits.length ? await mostTicks() : null;
   const ticks = new Map(
-    await Promise.all(entries.filter((e) => /^\d+$/.test(String(e.procStart ?? ''))).map(async (e) => [e.pid, await startTicks(e.pid)] as const)),
+    await Promise.all(digits.filter((e) => most !== null && Number(e.procStart) <= most).map(async (e) => [e.pid, await startTicks(e.pid)] as const)),
   );
+  const boot = await bootedAt();
   return withGrace(entries.filter((e) => {
     const p = live.get(e.pid);
     if (!p) return false;
     // Registry files can outlive their process, and pids get recycled. Claude records when the
     // process started as procStart. On Linux that's clock ticks since boot, exact: only that
-    // very process is this session. On macOS it's ps's lstart (in UTC): a match proves it's
-    // the same process. Otherwise accept anything that is still a claude binary.
+    // very process is this session (all digits but more than the machine has ticked since boot
+    // is some other format, so it gets the checks below). On macOS it's ps's lstart (in UTC): a
+    // match proves it's the same process. Otherwise accept anything that is still a claude binary,
+    // unless the session started before the machine booted (Linux): its pid is another's now.
     const start = String(e.procStart ?? '');
     const t = ticks.get(e.pid);
     if (t) return t === start;
     if (start && squash(start) === squash(p.lstart)) return true;
+    if (boot !== null && (e.startedAt ?? Infinity) < boot) return false;
     return /claude/i.test(basename(p.comm));
   }));
 }
@@ -78,6 +84,44 @@ async function startTicks(pid: number): Promise<string | null> {
     return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19] ?? null;
   } catch {
     return null;
+  }
+}
+
+let bootMs: number | null | undefined;
+
+/** When the machine booted, in ms (btime in /proc/stat, to the second). Null without /proc (macOS). */
+async function bootedAt(): Promise<number | null> {
+  if (bootMs === undefined) {
+    try {
+      const m = /^btime (\d+)$/m.exec(await readFile('/proc/stat', 'utf8'));
+      bootMs = m ? Number(m[1]) * 1000 : null;
+    } catch {
+      bootMs = null;
+    }
+  }
+  return bootMs;
+}
+
+let clockTicks = 0;
+
+/** The most clock ticks a process can have started at: uptime × CLK_TCK. Null without /proc (macOS). */
+async function mostTicks(): Promise<number | null> {
+  try {
+    const uptime = Number((await readFile('/proc/uptime', 'utf8')).split(' ')[0]);
+    clockTicks ||= Number((await run('getconf', ['CLK_TCK'])).stdout.trim()) || 100;
+    return Number.isFinite(uptime) ? Math.ceil((uptime + 1) * clockTicks) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** `sessionId`'s status in Claude Code's registry right now ("busy", "idle" or "waiting"), read from its file. */
+export async function sessionStatus(pid: number, sessionId: string): Promise<string | undefined> {
+  try {
+    const e = JSON.parse(await readFile(join(SESSIONS_DIR, `${pid}.json`), 'utf8')) as RegistryEntry;
+    return e.sessionId === sessionId ? e.status : undefined;
+  } catch {
+    return undefined;
   }
 }
 
