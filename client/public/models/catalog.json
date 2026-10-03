@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-03T10:18:19.821Z",
+  "generated": "2026-10-03T12:22:19.840Z",
   "totals": {
     "all": 253,
     "done": 253
@@ -4259,7 +4259,7 @@
         "Flag"
       ],
       "textures": 1,
-      "bytes": 79144
+      "bytes": 72824
     },
     {
       "id": "grass_tuft",
