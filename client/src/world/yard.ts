@@ -183,9 +183,9 @@ export function buildYard(world: WorldCtx): Outdoor {
     new Scatter(ctx, id, id, (b) => b.add(paverGeometry(STONES[id][0], STONES[id][1], 0.06, 0.09, 0.014), '#F4E6CC', { cast: false, finish: 'matte', flat: true }), { shadows: false });
   const scatter: Scatters = {
     stones: { stepping_stone_a: stone('stepping_stone_a'), stepping_stone_b: stone('stepping_stone_b'), stepping_stone_c: stone('stepping_stone_c') },
-    tufts: new Scatter(ctx, 'yard-tufts', 'grass_tuft', (b) => buildGrassTuft(b, rng(5)), { shadows: false, bend: true }),
-    tallGrass: new Scatter(ctx, 'tall-grass', 'tall_grass', (b) => buildTallGrass(b, rng(17)), { shadows: false, fit: { h: 0.75, uniform: true }, bend: true }),
-    wildflowers: new Scatter(ctx, 'wildflowers', 'wildflowers', (b) => buildWildflowers(b, rng(40)), { shadows: false, fit: { w: 0.5, uniform: true }, bend: true }),
+    tufts: new Scatter(ctx, 'yard-tufts', 'grass_tuft', (b) => buildGrassTuft(b, rng(5)), { shadows: false, bend: true, chunk: CHUNK }),
+    tallGrass: new Scatter(ctx, 'tall-grass', 'tall_grass', (b) => buildTallGrass(b, rng(17)), { shadows: false, fit: { h: 0.75, uniform: true }, bend: true, chunk: CHUNK }),
+    wildflowers: new Scatter(ctx, 'wildflowers', 'wildflowers', (b) => buildWildflowers(b, rng(40)), { shadows: false, fit: { w: 0.5, uniform: true }, bend: true, chunk: CHUNK }),
     ferns: new Scatter(ctx, 'ground-ferns', null, (b) => buildGroundFern(b, rng(23)), { shadows: false, bend: true }),
     bushes: new Scatter(ctx, 'yard-bushes', 'bush_round', (b) => buildBush(b, 0.62, rng(31)), { shadows: false }),
     blooms: new Scatter(ctx, 'flowering-bushes', 'bush_flowering', (b) => buildFloweringBush(b, rng(60)), { shadows: false, fit: { w: 1.3, uniform: true } }),
@@ -845,10 +845,31 @@ function layPavers(curve: THREE.CatmullRomCurve3, scatter: Scatters, plot: Plot)
 // ---------------------------------------------------------------------------------------------
 // Instanced scenery
 
+/**
+ * Side of the square cells the big scatters (the meadow's flowers, grass and tufts) draw in (m).
+ * Each cell is its own set of instanced meshes with its own bounds, so only the cells in view
+ * draw; a cell with only a few copies joins its nearest big neighbour, to keep draw calls down.
+ */
+const CHUNK = 12;
+const CHUNK_MIN = 16;
+
 interface Spot {
   m: THREE.Matrix4;
   /** The garden pod slot it grows on (meadows), cleared when a pod moves in. */
   slot?: PodSlot;
+  /** The cell it's drawn in, and its copy's index there. */
+  chunk: Chunk;
+  at: number;
+}
+
+/** One cell of a scatter: its copies, drawn procedurally until the catalog model's take over. */
+interface Chunk {
+  /** Cell centre (x, z). */
+  x: number;
+  z: number;
+  spots: Spot[];
+  procedural: THREE.InstancedMesh[];
+  model: InstancedModel | null;
 }
 
 /** Soft plants within this reach of the manager lean away as they pass (m). */
@@ -863,14 +884,15 @@ const _axis = new THREE.Vector3();
 
 /**
  * Repeated garden scenery, every copy drawn instanced: a procedural clump (built once by `fill`)
- * at each spot, replaced by catalog model `id` when (and only if) it loads. Copies on a garden
- * pod slot go when a pod moves in. Soft plants (`bend`) lean away from the manager walking
- * through them and spring back after, so legs never just pass through the leaves.
+ * at each spot, replaced by catalog model `id` when (and only if) it loads. With `chunk`, the
+ * copies draw in square cells of that size that cull on their own (the merged model geometry is
+ * shared by every cell). Copies on a garden pod slot go when a pod moves in. Soft plants (`bend`)
+ * lean away from the manager walking through them and spring back after, so legs never just pass
+ * through the leaves.
  */
 class Scatter {
   private spots: Spot[] = [];
-  private procedural: THREE.InstancedMesh[] = [];
-  private model: InstancedModel | null = null;
+  private readonly chunks = new Map<number, Chunk>();
   /** Spot indices by 1 m cell, for finding the plants round the manager. */
   private grid = new Map<number, number[]>();
   /** Copies leaning right now: the lean and its speed, which way, where it's headed, and the lean last drawn. */
@@ -881,52 +903,80 @@ class Scatter {
     private readonly name: string,
     private readonly id: string | null,
     private readonly fill: (b: Batch) => void,
-    private readonly opts: InstancedOptions & { bend?: boolean } = {},
+    private readonly opts: InstancedOptions & { bend?: boolean; chunk?: number } = {},
   ) {}
 
   /** A copy at (x, z) turned by `yaw` and scaled by `s` (uniform or per axis). */
   add(x: number, z: number, yaw: number, s: number | THREE.Vector3, slot?: PodSlot, y = 0): void {
     const k = typeof s === 'number' ? new THREE.Vector3(s, s, s) : s;
-    this.spots.push({ m: placement(x, y, z, yaw).scale(k), slot });
+    const size = this.opts.chunk ?? 0;
+    const gx = size > 0 ? Math.floor(x / size) : 0;
+    const gz = size > 0 ? Math.floor(z / size) : 0;
+    const key = cell(gx, gz);
+    let chunk = this.chunks.get(key);
+    if (!chunk) this.chunks.set(key, (chunk = { x: (gx + 0.5) * size, z: (gz + 0.5) * size, spots: [], procedural: [], model: null }));
+    const spot: Spot = { m: placement(x, y, z, yaw).scale(k), slot, chunk, at: chunk.spots.length };
+    chunk.spots.push(spot);
+    this.spots.push(spot);
   }
 
   /** Draw every copy: procedural now, the catalog model's once it loads. */
   build(): void {
-    const n = this.spots.length;
-    if (n === 0) return;
+    if (this.spots.length === 0) return;
+    this.mergeSmallChunks();
     const b = new Batch();
     this.fill(b);
-    const group = b.build({ name: this.name });
-    for (const child of group.children) {
-      const src = child as THREE.Mesh;
-      const inst = new THREE.InstancedMesh(src.geometry, src.material, n);
-      inst.name = src.name;
-      inst.castShadow = src.castShadow && this.opts.shadows !== false;
-      inst.receiveShadow = true;
-      this.procedural.push(inst);
-      this.ctx.root.add(inst);
-    }
-    this.sync();
-    if (!this.id) return;
-    void instancedModel(this.id, this.spots.map((s) => s.m), this.opts).then((m) => {
-      if (!m) return;
-      for (const inst of this.procedural) {
-        inst.geometry.dispose();
-        inst.dispose();
-        inst.removeFromParent();
+    const proto = b.build({ name: this.name });
+    const chunks = [...this.chunks.values()];
+    for (const chunk of chunks) {
+      for (const child of proto.children) {
+        const src = child as THREE.Mesh;
+        const inst = new THREE.InstancedMesh(src.geometry, src.material, chunk.spots.length);
+        inst.name = src.name;
+        inst.castShadow = src.castShadow && this.opts.shadows !== false;
+        inst.receiveShadow = true;
+        chunk.procedural.push(inst);
+        this.ctx.root.add(inst);
       }
-      this.procedural = [];
-      this.model = m;
-      this.ctx.root.add(m.group);
-      this.sync();
-    });
+      this.syncChunk(chunk);
+    }
+    this.syncGrid();
+    if (!this.id) return;
+    // The clump's geometry is shared by every chunk: it goes once the last one has its model.
+    let procedural = chunks.length;
+    for (const chunk of chunks) {
+      void instancedModel(this.id, chunk.spots.map((s) => s.m), this.opts).then((m) => {
+        if (!m) return;
+        for (const inst of chunk.procedural) {
+          inst.dispose();
+          inst.removeFromParent();
+        }
+        chunk.procedural = [];
+        if (--procedural === 0) for (const child of proto.children) (child as THREE.Mesh).geometry.dispose();
+        chunk.model = m;
+        this.ctx.root.add(m.group);
+        this.syncChunk(chunk);
+      });
+    }
   }
 
-  /** Drop the copies growing on `slot` (a pod moved in). */
+  /** Drop the copies growing on `slot` (a pod moved in). Only the chunks they were in redraw. */
   clear(slot: PodSlot): void {
-    const before = this.spots.length;
-    this.spots = this.spots.filter((s) => s.slot !== slot);
-    if (this.spots.length !== before) this.sync();
+    if (!this.spots.some((s) => s.slot === slot)) return;
+    // Anything mid-lean stands up first: the spots are about to be renumbered.
+    for (const [i, b] of this.bent) if (b.drawn !== 0) this.place(this.spots[i], this.spots[i].m);
+    const hit = new Set<Chunk>();
+    this.spots = this.spots.filter((s) => {
+      if (s.slot !== slot) return true;
+      hit.add(s.chunk);
+      return false;
+    });
+    for (const chunk of hit) {
+      chunk.spots = chunk.spots.filter((s) => s.slot !== slot);
+      chunk.spots.forEach((s, i) => (s.at = i));
+      this.syncChunk(chunk);
+    }
+    this.syncGrid();
   }
 
   /**
@@ -959,15 +1009,14 @@ class Scatter {
     if (this.bent.size === 0) return;
     const steps = Math.max(1, Math.ceil(dt * 120));
     const h = dt / steps;
-    let moved = false;
     for (const [i, b] of this.bent) {
-      const m = this.spots[i].m;
+      const spot = this.spots[i];
+      const m = spot.m;
       if (Math.abs(b.angle - b.goal) < 1e-3 && Math.abs(b.vel) < 1e-2) {
         // Settled: upright again (and done with), or holding its lean while the manager stands there.
         if (b.goal === 0) {
           this.bent.delete(i);
-          if (b.drawn !== 0) this.place(i, m);
-          moved ||= b.drawn !== 0;
+          if (b.drawn !== 0) this.place(spot, m);
           continue;
         }
         if (Math.abs(b.ax - b.drawnAx) + Math.abs(b.az - b.drawnAz) < 0.02) continue;
@@ -985,43 +1034,65 @@ class Scatter {
       const z = m.elements[14];
       _r.makeRotationAxis(_axis.set(b.az, 0, -b.ax), b.angle);
       _m.copy(_t.makeTranslation(x, 0, z)).multiply(_r).multiply(_t.makeTranslation(-x, 0, -z)).multiply(m);
-      this.place(i, _m);
-      moved = true;
+      this.place(spot, _m);
     }
-    if (moved) for (const inst of this.procedural) inst.instanceMatrix.needsUpdate = true;
   }
 
-  private place(i: number, m: THREE.Matrix4): void {
-    for (const inst of this.procedural) inst.setMatrixAt(i, m);
-    this.model?.setPlacement(i, m);
+  private place(spot: Spot, m: THREE.Matrix4): void {
+    for (const inst of spot.chunk.procedural) {
+      inst.setMatrixAt(spot.at, m);
+      inst.instanceMatrix.needsUpdate = true;
+    }
+    spot.chunk.model?.setPlacement(spot.at, m);
   }
 
-  private sync(): void {
-    const n = this.spots.length;
-    this.bent.clear();
-    this.grid.clear();
-    if (this.opts.bend) {
-      this.spots.forEach((s, i) => {
-        const k = cell(Math.floor(s.m.elements[12]), Math.floor(s.m.elements[14]));
-        const list = this.grid.get(k);
-        if (list) list.push(i);
-        else this.grid.set(k, [i]);
-      });
+  /** A cell with only a few copies joins the nearest cell with plenty: fewer, fuller draws. */
+  private mergeSmallChunks(): void {
+    if (!this.opts.chunk) return;
+    const big = [...this.chunks.values()].filter((c) => c.spots.length >= CHUNK_MIN);
+    if (big.length === 0) return;
+    for (const [key, chunk] of this.chunks) {
+      if (chunk.spots.length >= CHUNK_MIN) continue;
+      const into = big.reduce((best, c) => (Math.hypot(c.x - chunk.x, c.z - chunk.z) < Math.hypot(best.x - chunk.x, best.z - chunk.z) ? c : best));
+      for (const s of chunk.spots) {
+        s.chunk = into;
+        s.at = into.spots.length;
+        into.spots.push(s);
+      }
+      this.chunks.delete(key);
     }
-    for (const inst of this.procedural) {
-      this.spots.forEach((s, i) => inst.setMatrixAt(i, s.m));
+  }
+
+  /** Every copy of `chunk` at rest, sized and bounded to what it holds now. */
+  private syncChunk(chunk: Chunk): void {
+    const n = chunk.spots.length;
+    for (const inst of chunk.procedural) {
+      chunk.spots.forEach((s, i) => inst.setMatrixAt(i, s.m));
       inst.count = n;
       inst.instanceMatrix.needsUpdate = true;
       inst.computeBoundingSphere();
     }
-    const model = this.model;
+    const model = chunk.model;
     if (!model) return;
-    this.spots.forEach((s, i) => model.setPlacement(i, s.m));
+    chunk.spots.forEach((s, i) => model.setPlacement(i, s.m));
     model.group.traverse((o) => {
       const inst = o as THREE.InstancedMesh;
       if (!inst.isInstancedMesh) return;
       inst.count = n;
       inst.computeBoundingSphere();
+    });
+  }
+
+  /** Spot indices by 1 m cell, for the plants round the manager (leans in progress start over). */
+  private syncGrid(): void {
+    this.bent.clear();
+    this.grid.clear();
+    if (!this.opts.bend) return;
+    this.spots.forEach((s, i) => {
+      const k = cell(Math.floor(s.m.elements[12]), Math.floor(s.m.elements[14]));
+      const list = this.grid.get(k);
+      if (list) list.push(i);
+      else this.grid.set(k, [i]);
     });
   }
 }
