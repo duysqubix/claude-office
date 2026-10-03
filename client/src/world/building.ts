@@ -339,8 +339,12 @@ function buildDoor(ctx: WorldCtx, half: number) {
   const frame = ctx.statics;
   const dark = PALETTE.doorFrame;
   const DH = OFFICE.doorH;
-  // Wall above the door up to the ceiling, with the same band and cornice as its neighbours.
-  frame.box(half * 2, H - DH, T, PALETTE.wall, { at: [0, (H + DH) / 2, zc], r: 0.03, finish: 'matte' });
+  // Wall above the door up to the ceiling, with the same band and cornice as its neighbours. Its
+  // underside is buried 0.06 up inside the door header, catalog (DH..DH + 0.24) and fallback
+  // alike. Level with the header's own underside, the two downward faces shared a plane and
+  // z-fought overhead as you walked through.
+  const lintel = DH + 0.06;
+  frame.box(half * 2, H - lintel, T, PALETTE.wall, { at: [0, (H + lintel) / 2, zc], r: 0.03, finish: 'matte' });
   frame.box(half * 2, 0.12, T + 0.08, TRIM, { at: [0, H - 0.06, zc], r: 0.04 });
   // Chunky dark frame: two posts and a header, and a threshold strip on the floor. Frame and
   // panels share a group centred in the doorway, like the catalog sliding_door that replaces them.
@@ -350,7 +354,7 @@ function buildDoor(ctx: WorldCtx, half: number) {
   ctx.root.add(door);
   const df = new Batch();
   for (const s of [-1, 1]) df.box(D.door.frameW, DH + 0.12, T + 0.14, dark, { at: [s * (OFFICE.doorHalf + 0.04), (DH + 0.12) / 2, 0], r: 0.05 });
-  df.box(half * 2 + 0.12, 0.16, T + 0.14, dark, { at: [0, DH + 0.06, 0], r: 0.05 });
+  df.box(half * 2 + 0.12, 0.16, T + 0.14, dark, { at: [0, lintel, 0], r: 0.05 });
   df.box(OFFICE.doorHalf * 2, 0.02, T + 0.1, shade(dark, 0.25), { at: [0, 0.008, 0], r: 0.008, cast: false });
   door.add(df.build({ name: 'door-frame' }));
 
@@ -474,12 +478,13 @@ function buildRoof(ctx: WorldCtx): void {
   const od = HD + T + 0.12;
   r.box(ow * 2, B.roofT, od * 2, ROOF, { at: [0, H + B.roofT / 2 + 0.02, 0], r: 0.08, finish: 'matte', tex: 'speckle' });
   // Membrane seams and a darker gutter inside the parapet, so the big flat roof reads as a
-  // surface from the street rather than a grey void.
-  for (let z = -od + 2.4; z < od - 1.5; z += 2.6) {
-    r.box(ow * 2 - 1.1, 0.014, 0.06, shade(ROOF, -0.045), { at: [0, top + 0.027, z], r: 0.007, cast: false, finish: 'matte' });
-  }
+  // surface from the street rather than a grey void. The seams stop at the side gutters: their
+  // tops are level, so a seam that ran on into a gutter would z-fight with it.
   const gw = 0.34;
   const gutter = shade(ROOF, -0.07);
+  for (let z = -od + 2.4; z < od - 1.5; z += 2.6) {
+    r.box(ow * 2 - (B.parapetT + gw) * 2, 0.014, 0.06, shade(ROOF, -0.045), { at: [0, top + 0.027, z], r: 0.007, cast: false, finish: 'matte' });
+  }
   for (const s of [-1, 1]) {
     r.box(ow * 2 - B.parapetT * 2, 0.014, gw, gutter, { at: [0, top + 0.027, s * (od - B.parapetT - gw / 2)], r: 0.007, cast: false, finish: 'matte' });
     r.box(gw, 0.014, od * 2 - B.parapetT * 2 - gw * 2, gutter, { at: [s * (ow - B.parapetT - gw / 2), top + 0.027, 0], r: 0.007, cast: false, finish: 'matte' });
