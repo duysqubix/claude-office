@@ -470,10 +470,15 @@ try {
       // not Linux
     }
     const comm = spawnSync('ps', ['-o', 'comm=', '-p', String(reg.pid)], { encoding: 'utf8' }).stdout.trim();
+    // macOS writes ps's lstart in UTC, Linux the start time in clock ticks (/proc/<pid>/stat
+    // field 22): either one, matching this very process, proves to the office a pid wasn't reused.
+    const format = squashed === lstart ? 'ps lstart in UTC' : ticks && squashed === ticks ? '/proc start ticks' : '';
     check(
-      "procStart is `ps` lstart in UTC (the office's proof a pid wasn't reused)",
-      squashed === lstart,
-      squashed === lstart ? lstart : `procStart ${JSON.stringify(reg.procStart)}${ticks && squashed === ticks ? ' (/proc start ticks)' : ''} vs lstart "${lstart}": the office falls back to the process name (${comm})`,
+      "procStart is this process's start time: `ps` lstart in UTC (macOS) or /proc start ticks (Linux), the office's proof a pid wasn't reused",
+      !!format,
+      format
+        ? `${format}: ${squashed}`
+        : `procStart ${JSON.stringify(reg.procStart)} vs lstart "${lstart}"${ticks ? ` and start ticks ${ticks}` : ''}: ${ticks && /^\d+$/.test(squashed) ? "the office takes it for a reused pid and won't show this session" : `the office falls back to the process name (${comm})`}`,
       { note: true },
     );
   }

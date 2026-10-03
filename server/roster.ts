@@ -8,7 +8,7 @@ import { projectName } from './archive';
 import { activeInterns } from './interns';
 import { assignNames, pickName } from './names';
 import { claudeProcessCount, readRegistry, type RegistryEntry } from './registry';
-import { capture, kill, listHosted, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
+import { capture, kill, listHosted, NameTaken, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
 import { TranscriptTail } from './transcript';
 
 /** A hire we started that Claude hasn't registered yet. */
@@ -46,8 +46,11 @@ export class Roster extends EventEmitter {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private warnedUnreadable = false;
-  /** External sessions waiting to move into the office (resumed in tmux once they exit). */
-  private adoptions = new Map<string, { cwd: string; displayName: string; until: number }>();
+  /**
+   * External sessions waiting to move into the office (resumed in tmux once they exit).
+   * `blocked`: why the last try couldn't, while someone else's tmux session holds their name.
+   */
+  private adoptions = new Map<string, { cwd: string; displayName: string; until: number; blocked?: string }>();
 
   constructor(private readonly asks?: AskSource) {
     super();
@@ -186,16 +189,23 @@ export class Roster extends EventEmitter {
     const inOtherOffices = new Set(reg.filter((e) => elsewhere.has(e.pid)).map((e) => e.sessionId));
     for (const [id, a] of this.adoptions) {
       if (now > a.until || inOtherOffices.has(id)) {
+        if (now > a.until && a.blocked) this.notice('warn', `Couldn't bring ${a.displayName} in: ${a.blocked}`);
         this.adoptions.delete(id);
         continue;
       }
       if (liveIds.has(id) || this.pending.has(id)) continue;
-      this.adoptions.delete(id);
       try {
         const { tmuxName } = await rehire({ sessionId: id, cwd: a.cwd, displayName: a.displayName });
+        this.adoptions.delete(id);
         this.pending.set(id, { sessionId: id, tmuxName, cwd: a.cwd, displayName: a.displayName, startedAt: now });
         this.notice('info', `${a.displayName} is moving into the office`);
       } catch (err) {
+        // Someone else's tmux session holds their name: try again every poll until the window ends.
+        if (err instanceof NameTaken) {
+          a.blocked = err.message;
+          continue;
+        }
+        this.adoptions.delete(id);
         this.notice('warn', `Couldn't bring ${a.displayName} in: ${err instanceof Error ? err.message : err}`);
       }
     }
@@ -319,12 +329,14 @@ export class Roster extends EventEmitter {
     return since;
   }
 
-  /** A hosted claude exited: report a crash, then remove the dead tmux session. */
+  /** A hosted claude exited: report a crash or a kill, then remove the dead tmux session. */
   private async reap(p: HostedPane): Promise<void> {
-    if (p.deadStatus && p.deadStatus !== 0) {
+    const signal = p.deadSignal && (/^\d+$/.test(p.deadSignal) ? `signal ${p.deadSignal}` : `SIG${p.deadSignal.toUpperCase()}`);
+    const how = signal ? `stopped by ${signal}` : p.deadStatus ? `exit ${p.deadStatus}` : '';
+    if (how) {
       const lines = await capture(p.tmuxName, 6, 120);
       const why = lines.filter((l) => !/^Pane is dead/.test(l)).slice(-2).join(' ').trim();
-      this.notice('warn', `A hire in ${p.tmuxName} quit (exit ${p.deadStatus})${why ? `: ${why}` : ''}`);
+      this.notice('warn', `A hire in ${p.tmuxName} quit (${how})${why ? `: ${why}` : ''}`);
     }
     await kill(p.tmuxName).catch(() => {});
   }

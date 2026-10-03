@@ -14,6 +14,8 @@ export interface HostedPane {
   panePid: number;
   dead: boolean;
   deadStatus?: number;
+  /** The signal that ended it, if one did (then there's no exit status): a name on macOS ("kill"), a number on Linux. */
+  deadSignal?: string;
   /** Epoch ms the tmux session was created. */
   createdAt: number;
 }
@@ -99,24 +101,24 @@ export interface Hires {
  */
 export async function listHosted(): Promise<Hires> {
   // Colon-separated, not tabs: tmux 3.3/3.4 (Debian 12, Ubuntu 24.04) print a tab in -F output
-  // as "_". Session names can't hold a colon, and the rest are numbers.
+  // as "_". Session names can't hold a colon, and the rest are numbers or a signal's name.
   const r = await tmux([
     'list-panes', '-a', '-F',
-    '#{session_name}:#{pane_pid}:#{pane_dead}:#{pane_dead_status}:#{session_created}',
+    '#{session_name}:#{pane_pid}:#{pane_dead}:#{pane_dead_status}:#{pane_dead_signal}:#{session_created}',
   ]);
   const panes: HostedPane[] = [];
   const elsewhere = new Set<number>();
   if (r.code !== 0) return { panes, elsewhere };
   const seen = new Set<string>();
   for (const line of r.stdout.split('\n')) {
-    const [name, pid, dead, status, created] = line.split(':');
+    const [name, pid, dead, status, signal, created] = line.split(':');
     // Hires only: the roster reaps dead panes and lets go of these, never a shell or a desk.
     if (!name || !isHireName(name)) continue;
     const key = `${name}\t${pid}\t${created}`;
     seen.add(key);
     if (!hirePorts.has(key)) {
-      const env = await stamps(name);
-      // Unreadable just now (it closed meanwhile): not ours this poll, read again on the next.
+      // Unreadable twice (it closed meanwhile): not ours this poll, read again on the next.
+      const env = (await stamps(name)) ?? (await stamps(name));
       if (env) hirePorts.set(key, Number(env.get('CLAUDE_OFFICE_PORT')));
     }
     if (hirePorts.get(key) !== PORT) {
@@ -128,6 +130,7 @@ export async function listHosted(): Promise<Hires> {
       panePid: Number(pid),
       dead: dead === '1',
       deadStatus: status ? Number(status) : undefined,
+      deadSignal: signal || undefined,
       createdAt: Number(created) * 1000 || Date.now(),
     });
   }
@@ -155,6 +158,15 @@ export async function readOfficeMeta(tmuxName: string): Promise<OfficeMeta | nul
   const sessionId = env.get('CLAUDE_OFFICE_SESSION');
   if (!sessionId || !UUID.test(sessionId)) return null;
   return { sessionId, displayName: env.get('CLAUDE_OFFICE_NAME') || undefined, cwd: env.get('CLAUDE_OFFICE_CWD') || undefined };
+}
+
+/**
+ * Is hire session `tmuxName` running but not this office's (another office's, or stamped by
+ * none)? The roster's map can be a poll old, so this is checked again right before acting.
+ */
+export async function hireTakenElsewhere(tmuxName: string): Promise<boolean> {
+  const env = await stamps(tmuxName);
+  return !!env && Number(env.get('CLAUDE_OFFICE_PORT')) !== PORT;
 }
 
 export async function assertDirectory(cwd: string): Promise<void> {
@@ -311,12 +323,29 @@ export async function hire(opts: {
   return { tmuxName };
 }
 
+/** Someone else's tmux session holds the name a call-back needs (rehire). */
+export class NameTaken extends Error {}
+
+/** Every pane of `tmuxName` has exited and it carries no office's port: nobody's, with nothing running. */
+async function deadAndUnstamped(tmuxName: string): Promise<boolean> {
+  const r = await tmux(['list-panes', '-s', '-t', `=${tmuxName}`, '-F', '#{pane_dead}']);
+  const env = await stamps(tmuxName);
+  return r.code === 0 && r.stdout.split('\n').filter(Boolean).every((d) => d === '1') && !!env && !env.has('CLAUDE_OFFICE_PORT');
+}
+
 /** `claude --resume <id>` in `cwd`. */
 export async function rehire(opts: { sessionId: string; cwd: string; displayName: string }): Promise<{ tmuxName: string }> {
   const tmuxName = TMUX_PREFIX + opts.sessionId.slice(0, 8);
   const existing = (await listHosted()).panes;
   if (existing.some((p) => p.tmuxName === tmuxName && !p.dead)) throw new Error('Already in the office');
   if (existing.some((p) => p.tmuxName === tmuxName)) await kill(tmuxName);
+  else if ((await tmux(['has-session', '-t', `=${tmuxName}`])).code === 0) {
+    // Not ours: another office's hire, or a dead one from before the port stamp, which can go.
+    if (!(await deadAndUnstamped(tmuxName))) {
+      throw new NameTaken(`They're still in another office's tmux session ${tmuxName}: let them go there (or tmux kill-session -t ${tmuxName}), then try again`);
+    }
+    await kill(tmuxName);
+  }
   await newSession(tmuxName, opts.cwd, ['--resume', opts.sessionId], { sessionId: opts.sessionId, displayName: opts.displayName });
   return { tmuxName };
 }

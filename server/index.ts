@@ -20,7 +20,7 @@ import { attachTerminal } from './terminal';
 import { run } from './exec';
 import { ShellKeeper } from './shells';
 import { ThoughtService } from './thoughts';
-import { assertDirectory, closeDesk, ensureDesk, ensureShell, hire, initTmux, interrupt, kill, listDesks, newSessionId, pasteSafe, rehire, say } from './tmux';
+import { assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -55,6 +55,8 @@ const CSP_PROD = [
   `connect-src 'self' blob: ${[...ALLOWED_HOSTS].map((h) => `ws://${h}`).join(' ')}`,
   "object-src 'none'",
   "base-uri 'none'",
+  // The game has no forms that submit anywhere; default-src doesn't cover this one.
+  "form-action 'none'",
   "frame-ancestors 'none'",
 ].join('; ');
 
@@ -204,14 +206,15 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
         throw new HttpError(410, `Their old desk is gone: ${past.digest.cwd}`);
       });
       const displayName = roster.nameForNewHire(sessionId);
-      const { tmuxName } = await rehire({ sessionId, cwd: past.digest.cwd, displayName });
+      const { tmuxName } = await rehire({ sessionId, cwd: past.digest.cwd, displayName }).catch((err: unknown) => {
+        throw err instanceof NameTaken ? new HttpError(409, err.message) : err;
+      });
       roster.addPendingHire({ sessionId, tmuxName, cwd: past.digest.cwd, displayName });
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/fire': {
       const sessionId = uuidFrom(body.sessionId);
-      const tmuxName = roster.tmuxNameFor(sessionId);
-      if (!tmuxName) throw new HttpError(400, 'Only people hired in the office can be let go from here');
+      const tmuxName = await hiredHere(sessionId, 'Only people hired in the office can be let go from here');
       await kill(tmuxName);
       void shells.close(sessionId);
       void roster.tick();
@@ -219,8 +222,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     }
     case '/api/interrupt': {
       const sessionId = uuidFrom(body.sessionId);
-      const tmuxName = roster.tmuxNameFor(sessionId);
-      if (!tmuxName) throw new HttpError(400, 'They work in your own terminal; interrupt them there');
+      const tmuxName = await hiredHere(sessionId, 'They work in your own terminal; interrupt them there');
       await interrupt(tmuxName);
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
@@ -243,8 +245,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const sessionId = uuidFrom(body.sessionId);
       const text = typeof body.text === 'string' ? pasteSafe(body.text.slice(0, MAX_TEXT)).trim() : '';
       if (!text) throw new HttpError(400, 'Say something');
-      const tmuxName = roster.tmuxNameFor(sessionId);
-      if (!tmuxName) throw new HttpError(400, 'They work in your own terminal; talk to them there');
+      const tmuxName = await hiredHere(sessionId, 'They work in your own terminal; talk to them there');
       // With a dialog open, the Enter after the paste would pick the dialog's default answer.
       if (roster.find(sessionId)?.state === 'needs-you') throw new HttpError(409, 'They have a question open. Sit at their computer to answer it.');
       await say(tmuxName, text);
@@ -264,6 +265,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
 function uuidFrom(v: unknown): string {
   if (typeof v !== 'string' || !UUID.test(v)) throw new HttpError(400, 'Bad session id');
   return v.toLowerCase();
+}
+
+/** The tmux session of someone this office hired, else 400 `refused`. Its stamp is read again here: the roster's map can be a poll old. */
+async function hiredHere(sessionId: string, refused: string): Promise<string> {
+  const tmuxName = roster.tmuxNameFor(sessionId);
+  if (!tmuxName || (await hireTakenElsewhere(tmuxName))) throw new HttpError(400, refused);
+  return tmuxName;
 }
 
 /** A hot desk's number from plain digits: a whole number 0 to 99 ("03", "+3", "3.0" and "1e1" are not), else null. */
@@ -474,7 +482,14 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     if (kind === 'claude') {
       const tmuxName = sessionId ? roster.tmuxNameFor(sessionId) : undefined;
       if (!tmuxName) ws.close(1008, 'Not an office session');
-      else attachTerminal(ws, tmuxName, cols, rows);
+      else {
+        // Its stamp is read again first: the roster's map can be a poll old.
+        const ours = async () => {
+          if (await hireTakenElsewhere(tmuxName)) throw new Error('Not an office session');
+          return tmuxName;
+        };
+        openShell(ws, ours, cols, rows, 'No terminal');
+      }
       return;
     }
     if (kind === 'desk') {
@@ -509,8 +524,11 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
   });
 });
 
-/** Attach `ws` to the shell `start` finds or starts. Starting one takes a moment: keep what the browser sends meanwhile. */
-function openShell(ws: WebSocket, start: () => Promise<string>, cols: number, rows: number): void {
+/**
+ * Attach `ws` to the tmux session `start` finds or starts. Starting one takes a moment: keep
+ * what the browser sends meanwhile. If `start` fails, the socket closes with `refused: why`.
+ */
+function openShell(ws: WebSocket, start: () => Promise<string>, cols: number, rows: number, refused = 'No shell'): void {
   const early: [RawData, boolean][] = [];
   let held = 0;
   const hold = (data: RawData, binary: boolean) => {
@@ -529,7 +547,7 @@ function openShell(ws: WebSocket, start: () => Promise<string>, cols: number, ro
       },
       (err: unknown) => {
         // Close reasons are capped at 123 bytes.
-        const why = `No shell: ${err instanceof Error ? err.message : String(err)}`;
+        const why = `${refused}: ${err instanceof Error ? err.message : String(err)}`;
         ws.close(1008, Buffer.from(why).subarray(0, 120).toString());
       },
     )

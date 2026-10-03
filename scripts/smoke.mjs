@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import http from 'node:http';
+import net from 'node:net';
 import { homedir } from 'node:os';
 import WebSocket from 'ws';
 
@@ -300,6 +301,26 @@ try {
   check('rejects cross-origin POST', crossOrigin.status === 403, String(crossOrigin.status));
   const form = await request('/api/hire', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'cwd=/' });
   check('rejects non-JSON POST', form.status === 415, String(form.status));
+
+  // A request target no URL can hold (`//a:99999`): 400, and as a WebSocket upgrade the socket is
+  // dropped. The upgrade is only sent once the GET says this office has that fix: before 1.1 it
+  // took the office down.
+  const raw = (head) =>
+    new Promise((resolve) => {
+      const s = net.connect(PORT, '127.0.0.1', () => s.write(head));
+      let data = '';
+      const done = () => resolve(data.split('\r\n')[0]);
+      s.on('data', (d) => (data += d));
+      s.on('close', done);
+      s.on('error', done);
+      setTimeout(() => s.destroy(), 3000);
+    });
+  const badGet = await raw(`GET //a:99999 HTTP/1.1\r\nHost: 127.0.0.1:${PORT}\r\nConnection: close\r\n\r\n`);
+  const badUpgrade = /^HTTP\/1\.1 400/.test(badGet)
+    ? await raw(`GET //a:99999 HTTP/1.1\r\nHost: 127.0.0.1:${PORT}\r\nOrigin: ${BASE}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n`)
+    : 'not sent';
+  const stillUp = (await request('/api/roster').catch(() => ({ status: 0 }))).status;
+  check('a request target no URL can hold: 400, an upgrade is dropped, and the office stays up', /^HTTP\/1\.1 400/.test(badGet) && badUpgrade === '' && stillUp === 200, `GET → ${badGet || 'nothing'}; upgrade → ${badUpgrade || 'dropped'}; roster ${stillUp}`);
 
   const messages = await new Promise((resolve) => {
     const got = [];

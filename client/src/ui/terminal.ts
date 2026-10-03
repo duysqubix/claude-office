@@ -26,6 +26,8 @@ export const OPEN_MS = 460;
 const RETRY_MS = [1000, 2000, 4000];
 /** After their session ends, the message stays this long before you stand up. */
 const ENDED_MS = 2000;
+/** Keys and pastes go to the pty in pieces this long (UTF-16 units), far under the office's 8 MiB message cap. */
+const INPUT_CHUNK = 64 * 1024;
 
 const THEME = {
   background: '#1B2330',
@@ -126,7 +128,15 @@ export class TerminalView {
     // Focus left and came back: whatever was held then counts as held from before.
     term.textarea?.addEventListener('blur', () => this.held.clear());
     term.onData((d) => {
-      if (this.live) this.link?.send({ t: 'in', d });
+      if (!this.live) return;
+      // A big paste goes in pieces, each ending on a whole character (never half a surrogate pair).
+      for (let i = 0; i < d.length; ) {
+        let end = Math.min(d.length, i + INPUT_CHUNK);
+        const last = d.charCodeAt(end - 1);
+        if (end < d.length && last >= 0xd800 && last <= 0xdbff) end--;
+        this.link?.send({ t: 'in', d: d.slice(i, end) });
+        i = end;
+      }
     });
     term.onResize(({ cols, rows }) => this.link?.send({ t: 'resize', cols, rows }));
     // Panels change width (Chat ⇄ Terminal) and windows resize: follow the box.
