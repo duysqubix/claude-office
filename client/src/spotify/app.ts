@@ -15,8 +15,8 @@ import { LIKED, type Playlist, type Track } from './types';
 import './laptop.css';
 
 const isStandUp = (ev: KeyboardEvent) => ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']');
-/** Where Space is the control's own key (a button, a field, the sliders), not play/pause. */
-const OWN_SPACE = 'button, a, input, textarea, select, [role="slider"]';
+/** Where Space types (text fields): everywhere else on the laptop it plays and pauses. */
+const TYPING = 'input:not([type="range"]), textarea, select';
 const DASHBOARD = 'https://developer.spotify.com/dashboard';
 
 const INK = '#2B2D42';
@@ -107,7 +107,11 @@ export class LaptopApp {
     layer.addEventListener('pointerdown', (ev) => {
       if (ev.target === layer) ev.preventDefault();
     });
-    // Esc and Ctrl+] from anywhere; Space plays or pauses unless a control wants it.
+    // Esc and Ctrl+] from anywhere. Once you're signed in, Space plays and pauses wherever the
+    // keyboard is (a song you just clicked, a playlist), except in a text field; Enter still
+    // presses the button it's on.
+    const space = (ev: KeyboardEvent) =>
+      ev.code === 'Space' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && this.store.state.phase === 'ready' && !(ev.target as Element | null)?.closest?.(TYPING);
     const keys = (ev: KeyboardEvent) => {
       if (this.layer !== layer || ev.defaultPrevented || ev.isComposing) return;
       if (ev.key === 'Escape' || isStandUp(ev)) {
@@ -116,14 +120,25 @@ export class LaptopApp {
         if (!ev.repeat) this.close();
         return;
       }
-      if (ev.code === 'Space' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !(ev.target as Element | null)?.closest?.(OWN_SPACE)) {
+      if (space(ev)) {
+        // Not a click on the focused button too (that would start its song again).
         ev.preventDefault();
         ev.stopPropagation();
-        if (!ev.repeat && this.store.state.phase === 'ready') void this.store.toggle();
+        if (!ev.repeat) void this.store.toggle();
       }
     };
+    // A button clicks on Space's keyup: that one never reaches it either.
+    const keyup = (ev: KeyboardEvent) => {
+      if (this.layer !== layer || !space(ev)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
     document.addEventListener('keydown', keys, true);
-    this.cleanups.push(() => document.removeEventListener('keydown', keys, true));
+    document.addEventListener('keyup', keyup, true);
+    this.cleanups.push(() => {
+      document.removeEventListener('keydown', keys, true);
+      document.removeEventListener('keyup', keyup, true);
+    });
     this.cleanups.push(this.store.subscribe(() => this.render()));
     // The volume slider and the sound note follow the office's speakers (M, Help).
     this.cleanups.push(audio.subscribe(() => this.render()));

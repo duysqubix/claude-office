@@ -10,6 +10,10 @@
 // - first time: the setup steps (the redirect URI with this office's port), a bad Client ID, then
 //   signed in; no Premium, and an app Spotify refuses: a kind message, and the band plays on;
 // - names from Spotify are text, never markup; the demo never talks to Spotify;
+// - Space plays and pauses wherever the keyboard is (a song you clicked, a playlist); Help's Music
+//   off is the band's switch (Spotify plays, Music stays off); a song that won't start leaves the
+//   one playing alone, with the speakers; a player that drops out and stays gone stops the song
+//   here; another office tab used later takes the music; an older connect's late answer is ignored;
 // - the real office page: nothing of Spotify's on a normal load; turned on, Spotify's SDK runs in
 //   the player frame (its own loopback origin), never in the office page, and asks the office for
 //   its token over postMessage (needs the network for Spotify's SDK; skipped without).
@@ -214,7 +218,8 @@ try {
     check('focus inside the laptop never ducks the music', !m.speakers.ducked, JSON.stringify(m.speakers));
 
     const song = await page.evaluate(() => document.querySelectorAll('.sp-row .sp-row__name')[2]?.textContent);
-    await click(page, '.sp-row', 2);
+    // A real click: the song's row keeps the keyboard, as it does for you.
+    await (await page.$$('.sp-row'))[2].click();
     m = await until(page, () => ({ done: window.office.laptop.store.state.now?.paused === false }), null, 6000).then(() => look(page));
     check('a song plays: now playing shows its title, artist and cover; its row is marked', m.nowName === song && m.nowArtist.length > 0 && m.nowCover && m.nowRow === song && m.toggle === 'Pause', JSON.stringify({ song, now: m.nowName, artist: m.nowArtist, row: m.nowRow, toggle: m.toggle }));
     await wait(2500);
@@ -243,17 +248,33 @@ try {
     const afterPrev = await look(page);
     check('next and previous', afterNext.nowName !== song && afterNext.nowName.length > 0 && afterPrev.nowName === song, `${song} → ${afterNext.nowName} → ${afterPrev.nowName}`);
 
-    // Space (outside a control): pause; the band comes back. Space again: Spotify again.
-    await page.evaluate(() => document.querySelector('.sp-screen').focus());
+    // Space with the keyboard still on the song you clicked: pause (never that song again from the
+    // top); the band comes back. Space again: Spotify again.
+    const onRow = await page.evaluate(() => {
+      const s = window.office.laptop.store.state.now;
+      return { row: document.activeElement?.classList.contains('sp-row') ?? false, at: s.positionMs + (s.paused ? 0 : performance.now() - s.at) };
+    });
     await page.keyboard.press('Space');
     await wait(1500);
     m = await look(page);
+    const kept = await page.evaluate(() => window.office.laptop.store.state.now?.positionMs ?? 0);
+    check('Space on the song you just clicked pauses it (it doesn’t start again)', onRow.row && m.store.paused === true && m.store.track === song && kept >= onRow.at - 500, JSON.stringify({ focusOnRow: onRow.row, before: Math.round(onRow.at), after: Math.round(kept), paused: m.store.paused, track: m.store.track }));
     check('Space pauses: "Play" again, the row stops jiggling, the band gets the speakers back', m.store.paused === true && m.toggle === 'Play' && m.speakers.by === 'band' && m.speakers.band, JSON.stringify({ paused: m.store.paused, toggle: m.toggle, speakers: m.speakers }));
     check('…and the E prompt goes back to "Use your laptop"', m.label === 'Use your laptop', m.label);
     await page.keyboard.press('Space');
     await wait(1200);
     m = await look(page);
     check('Space again: playing, and Spotify has the speakers again', m.store.paused === false && m.speakers.by === 'external' && !m.speakers.band, JSON.stringify({ paused: m.store.paused, speakers: m.speakers }));
+    // Enter still presses the button it's on: a song row plays that song.
+    const fifth = await page.evaluate(() => {
+      const b = document.querySelectorAll('.sp-row')[4];
+      b.focus();
+      return b.querySelector('.sp-row__name').textContent;
+    });
+    await page.keyboard.press('Enter');
+    await until(page, (name) => ({ done: window.office.laptop.store.state.now?.track?.name === name && !window.office.laptop.store.state.now.paused }), fifth, 5000);
+    m = await look(page);
+    check('Enter on a song still plays that song', m.store.track === fifth && m.store.paused === false, JSON.stringify({ want: fifth, track: m.store.track }));
 
     // Help says so.
     const help = await page.evaluate(async () => {
@@ -318,6 +339,14 @@ try {
     await wait(500);
     m = await look(page);
     check('sitting down again: still signed in, still playing', m.open && m.lists.length === 6 && m.store.paused === false, JSON.stringify({ open: m.open, lists: m.lists.length, paused: m.store.paused }));
+    const onList = await page.evaluate(() => document.activeElement?.classList.contains('sp-list') ?? false);
+    await page.keyboard.press('Space');
+    await wait(900);
+    const sat = await look(page);
+    await page.keyboard.press('Space');
+    await wait(900);
+    m = await look(page);
+    check('sat down again (the keyboard on a playlist): Space pauses, and plays again', onList && sat.store.paused === true && sat.current === m.current && m.store.paused === false, JSON.stringify({ onList, paused: sat.store.paused, then: m.store.paused, playlist: [sat.current, m.current] }));
     await ctrl(page, 'BracketRight');
     await wait(900);
     m = await look(page);
@@ -381,11 +410,26 @@ try {
     await page.evaluate(() => document.getElementById('scene').focus());
     await page.keyboard.press('KeyX');
     await until(page, () => ({ done: !!document.querySelector('.sp-notice:not([hidden])') }), null, 8000);
-    await click(page, '.sp-row', 0);
-    await wait(1500);
+    // The band's whole fade-in (its gain reads 1 for a moment before the ramp starts).
+    await wait(6000);
+    // Click two songs, and listen: the café band never stops, never fades, never changes tune.
+    const band = await page.evaluate(async () => {
+      const a = window.officeAudio;
+      const tune = () => a.state().tune;
+      const before = tune();
+      const seen = [];
+      const t0 = performance.now();
+      for (const [at, click] of [[0, 0], [50, -1], [600, 3], [700, -1], [1500, -1], [3000, -1]]) {
+        await new Promise((r) => setTimeout(r, Math.max(0, at - (performance.now() - t0))));
+        if (click >= 0) document.querySelectorAll('.sp-row')[click].click();
+        else seen.push({ band: a.state().playing, fade: Math.round((a.state().fade ?? 0) * 100) / 100, by: a.nowPlaying.by, same: tune() === before });
+      }
+      return seen;
+    });
     const m = await look(page);
     check('no Premium: a kind message about Premium; playlists still show', /Premium/.test(m.notice) && m.rows > 0, m.notice);
     check('…nothing plays and the café band keeps the speakers', m.store.track === null && m.speakers.by === 'band', JSON.stringify({ track: m.store.track, speakers: m.speakers }));
+    check('…clicking songs never interrupts the band (no fade, no new tune)', band.every((b) => b.band && b.by === 'band' && b.same && b.fade > 0.9), JSON.stringify(band));
     check('no page errors (no Premium)', !errors(logs).length, errors(logs).join(' | '));
     await page.close();
   }
@@ -442,6 +486,142 @@ try {
     const hud = await page.evaluate(() => document.querySelectorAll('.co-hud__prompt img, .co-hud__prompt b').length);
     check('…the E prompt too', said.startsWith('Spotify: <img') && hud === 0 && !(await page.evaluate(() => window.__pwned === 1)), said);
     check('no page errors (names)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
+  // ------------------------------------------------------------------ Help's Music off is the band's switch
+  {
+    const { page, logs } = await open();
+    await page.evaluate(() => document.getElementById('scene').focus());
+    await page.keyboard.press('KeyX');
+    await wait(800);
+    await page.evaluate(() => window.officeAudio.setPref('music', false));
+    await wait(2000);
+    await page.evaluate(() => {
+      const p = window.office.laptop.store.service.player;
+      const set = p.setVolume.bind(p);
+      window.__levels = [];
+      p.setVolume = (v) => {
+        window.__levels.push(v);
+        set(v);
+      };
+    });
+    await page.evaluate(AT_DESK);
+    await wait(400);
+    await pressE(page);
+    await until(page, () => ({ done: document.querySelectorAll('.sp-modal .sp-row').length > 0 }), null, 15_000);
+    await click(page, '.sp-row', 1);
+    await until(page, () => ({ done: window.office.laptop.store.state.now?.paused === false }), null, 6000);
+    await wait(800);
+    const on = await page.evaluate(() => ({ by: window.officeAudio.nowPlaying.by, level: window.__levels.at(-1), music: window.officeAudio.prefs.music, saved: localStorage.getItem('claude-office:music') }));
+    check('Music off in Help: a song still plays (Spotify has the speakers, at the music volume), and Music stays off', on.by === 'external' && on.level > 0 && on.music === false && on.saved === '0', JSON.stringify(on));
+    await click(page, '.sp-round--play');
+    await wait(3000);
+    const off = await page.evaluate(() => ({ paused: window.office.laptop.store.state.now?.paused, by: window.officeAudio.nowPlaying.by, band: window.officeAudio.state().playing, music: window.officeAudio.prefs.music, saved: localStorage.getItem('claude-office:music') }));
+    check('…pause it: the band stays off, and so does Music (saved off)', off.paused === true && off.by === 'none' && !off.band && off.music === false && off.saved === '0', JSON.stringify(off));
+    // Music on, play, then switch Music off in Help: Spotify stops too.
+    await page.evaluate(() => window.officeAudio.setPref('music', true));
+    await click(page, '.sp-round--play');
+    await until(page, () => ({ done: window.office.laptop.store.state.now?.paused === false && window.officeAudio.nowPlaying.by === 'external' }), null, 6000);
+    await page.evaluate(() => window.officeAudio.setPref('music', false));
+    await wait(1200);
+    const stopped = await page.evaluate(() => ({ paused: window.office.laptop.store.state.now?.paused, by: window.officeAudio.nowPlaying.by }));
+    check('…and switching Music off while Spotify plays pauses it', stopped.paused === true && stopped.by === 'none', JSON.stringify(stopped));
+    await page.evaluate(() => localStorage.removeItem('claude-office:music'));
+    check('no page errors (Music off)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
+  // ------------------------------------------------------------------ a play that fails; the player dropping out
+  {
+    const { page, logs } = await open('&laptop=1');
+    await page.evaluate(() => document.getElementById('scene').focus());
+    await page.keyboard.press('KeyX');
+    await until(page, () => ({ done: document.querySelectorAll('.sp-modal .sp-row').length > 0 }), null, 15_000);
+    await click(page, '.sp-row', 2);
+    await until(page, () => ({ done: window.office.laptop.store.state.now?.paused === false && window.officeAudio.nowPlaying.by === 'external' }), null, 6000);
+    const playing = await page.evaluate(() => window.office.laptop.store.state.now.track.name);
+    // Spotify refuses the next song (a 502, say): the one playing plays on, with the speakers.
+    await page.evaluate(() => {
+      const p = window.office.laptop.store.service.player;
+      const real = p.play.bind(p);
+      let once = true;
+      p.play = (what) => {
+        if (!once) return real(what);
+        once = false;
+        return Promise.reject(new Error('Spotify said 502'));
+      };
+    });
+    await click(page, '.sp-row', 5);
+    await wait(1500);
+    let m = await look(page);
+    await wait(5500);
+    const later = await look(page);
+    check(
+      'a song that won’t start: the one playing plays on and keeps the speakers, and the laptop says why',
+      m.store.track === playing && m.store.paused === false && m.speakers.by === 'external' && /502/.test(m.notice) && later.store.paused === false && later.speakers.by === 'external' && !later.speakers.band,
+      JSON.stringify({ track: m.store.track, paused: m.store.paused, by: m.speakers.by, notice: m.notice, later: { paused: later.store.paused, by: later.speakers.by } }),
+    );
+    // The player drops out (Spotify's not_ready) and comes back soon: the song plays on.
+    await page.evaluate(() => window.office.laptop.store.service.player.events.gone());
+    await wait(1000);
+    await page.evaluate(() => window.office.laptop.store.service.player.events.ready());
+    await wait(4500);
+    m = await look(page);
+    check('the player drops out and is back within a moment: the song plays on', m.store.paused === false && m.speakers.by === 'external' && m.store.device === 'ready', JSON.stringify({ paused: m.store.paused, by: m.speakers.by, device: m.store.device }));
+    // …and when it stays gone: the song has stopped here, and the band gets the speakers back.
+    await page.evaluate(() => window.office.laptop.store.service.player.events.gone());
+    await wait(4800);
+    m = await look(page);
+    check('…and when it stays gone: paused on the laptop, the band back, the prompt back to "Use your laptop"', m.store.paused === true && m.toggle === 'Play' && m.speakers.by === 'band' && m.label === 'Use your laptop', JSON.stringify({ paused: m.store.paused, toggle: m.toggle, by: m.speakers.by, label: m.label }));
+    check('no page errors (failures)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
+  // ------------------------------------------------------------------ two office tabs: one plays
+  {
+    const A = await open('&laptop=1');
+    await A.page.evaluate(() => document.getElementById('scene').focus());
+    await A.page.keyboard.press('KeyX');
+    await until(A.page, () => ({ done: document.querySelectorAll('.sp-modal .sp-row').length > 0 }), null, 15_000);
+    await click(A.page, '.sp-row', 2);
+    await until(A.page, () => ({ done: window.officeAudio.nowPlaying.by === 'external' }), null, 6000);
+    const B = await open();
+    await B.page.bringToFront();
+    await B.page.evaluate(() => document.getElementById('scene').focus());
+    await B.page.keyboard.press('KeyX');
+    await wait(3000);
+    const a = await look(A.page);
+    const b = await B.page.evaluate(() => ({ band: window.officeAudio.state().playing, by: window.officeAudio.nowPlaying.by }));
+    check('two office tabs: using the other one pauses Spotify here, and the other tab’s band plays', a.store.paused === true && a.speakers.by !== 'external' && b.band && b.by === 'band', JSON.stringify({ A: { paused: a.store.paused, by: a.speakers.by }, B: b }));
+    check('no page errors (two tabs)', !errors(A.logs).length && !errors(B.logs).length, [...errors(A.logs), ...errors(B.logs)].join(' | '));
+    await A.page.close();
+    await B.page.close();
+  }
+
+  // ------------------------------------------------------------------ an old connect's late answer
+  {
+    const { page, logs } = await open();
+    // Two connects in a row (Spotify refused the first one's token, so it connects again): the
+    // first one's late "no" and its late events must not undo the second one.
+    const r = await page.evaluate(async () => {
+      const store = window.office.laptop.store;
+      const p = store.service.player;
+      const calls = [];
+      p.connect = (events) => new Promise((resolve) => calls.push({ resolve, events }));
+      store.connect();
+      store.onProblem('auth', 'refused');
+      calls[1].events.ready();
+      calls[1].resolve(true);
+      await new Promise((res) => setTimeout(res, 20));
+      calls[0].resolve(false);
+      calls[0].events.problem('premium', 'late');
+      calls[0].events.gone();
+      await new Promise((res) => setTimeout(res, 50));
+      return { connects: calls.length, device: store.state.device, notice: store.state.notice, broken: store.broken };
+    });
+    check('a second connect wins: the first one’s late answer and events change nothing', r.connects === 2 && r.device === 'ready' && r.notice === null && r.broken === null, JSON.stringify(r));
+    check('no page errors (connects)', !errors(logs).length, errors(logs).join(' | '));
     await page.close();
   }
 

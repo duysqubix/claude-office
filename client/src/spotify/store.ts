@@ -1,7 +1,8 @@
 // The laptop's Spotify as one state the screen draws (#28): signed in or not, your playlists,
-// the one on screen, and what's playing. It also hands the office speakers to Spotify while
-// it plays (audio.handOver: the café band fades out, Help says "Playing from Spotify") and
-// takes them back when it stops. Problems become a kind message; the band keeps playing.
+// the one on screen, and what's playing. It also hands the office speakers to Spotify while it
+// plays (audio.handOver: the café band fades out, Help says "Playing from Spotify"), from the
+// moment a song really plays, and takes them back when it stops. Problems become a kind message:
+// a song that plays on keeps the speakers, and with nothing playing the café band plays on.
 import type { SpotifyStatus } from '../../../shared/spotify';
 import { audio } from '../audio/index';
 import { SpotifyError, type PlayerProblem, type PlayerState, type PlayRequest, type Playlist, type SpotifyService, type TrackPage } from './types';
@@ -39,6 +40,8 @@ const SIGN_IN_MS = 10 * 60_000;
 const POLL_MS = 1500;
 /** After pressing play, a paused state this soon after is Spotify loading, not you pausing. */
 const START_GRACE_MS = 6000;
+/** Spotify dropped the player (offline, say): this long without it coming back, the song has stopped here. */
+const GONE_MS = 4000;
 
 export const NOTICES: Record<Notice['kind'], string> = {
   premium: 'Spotify Premium is needed to play music here. Your playlists still show, and the café band keeps playing.',
@@ -52,6 +55,14 @@ export const NOTICES: Record<Notice['kind'], string> = {
 };
 
 const messageOf = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/** Where the song is now: Spotify's last word, plus the time since if it's playing. */
+const positionOf = (now: PlayerState) => Math.max(0, Math.min(now.positionMs + (now.paused ? 0 : performance.now() - now.at), now.durationMs || Infinity));
+
+interface Waiter {
+  resolve(): void;
+  reject(err: Error): void;
+}
 
 export class SpotifyStore {
   state: LaptopState = {
@@ -77,8 +88,11 @@ export class SpotifyStore {
   private pollUntil = 0;
   private startingUntil = 0;
   private graceTimer = 0;
+  private goneTimer = 0;
   private authRetryAt = -Infinity;
-  private waiters: (() => void)[] = [];
+  private waiters: Waiter[] = [];
+  /** Which connect is the current one: a slower, older one's answer is ignored. */
+  private connectGen = 0;
   private library = false;
   /** The player can't play for this account or browser (until you sign in again). */
   private broken: 'premium' | 'browser' | null = null;
@@ -105,6 +119,12 @@ export class SpotifyStore {
   /** Spotify has the office speakers. */
   get hasSpeakers(): boolean {
     return this.handBack !== null;
+  }
+
+  /** A song plays here right now. */
+  private get playing(): boolean {
+    const now = this.state.now;
+    return !!now?.track && !now.paused;
   }
 
   /** For the setup form: the Client ID that signed in last, else the one you last tried. */
@@ -188,11 +208,15 @@ export class SpotifyStore {
     }
   }
 
-  /** Play `list`, from its track `index` (call inside the click). */
+  /**
+   * Play `list`, from its track `index` (call inside the click). The speakers stay the café
+   * band's until the song really plays (onState takes them then).
+   */
   async play(list: Playlist, index?: number): Promise<void> {
+    // Spotify can't play here (no Premium, no DRM): say so again, and leave the band be.
+    if (this.broken) return this.onProblem(this.broken, '');
     this.service.player.activate();
     this.set({ starting: true, notice: null });
-    this.take();
     this.grace();
     try {
       let tracks = this.cache.get(list.id)?.tracks ?? [];
@@ -210,24 +234,25 @@ export class SpotifyStore {
       await this.service.player.play(req);
     } catch (err) {
       this.set({ starting: false });
-      this.giveBack();
+      // The song that was playing (if any) plays on, and keeps the speakers.
+      if (!this.playing) this.giveBack();
       this.fail(err);
     }
   }
 
   /** Play or pause (call inside the click). Nothing playing yet: the playlist on screen. */
   async toggle(): Promise<void> {
-    this.service.player.activate();
     const now = this.state.now;
     if (!now?.track) {
       const list = this.list;
       if (list) await this.play(list);
       return;
     }
-    if (now.paused) {
-      this.take();
-      this.grace();
-    } else this.startingUntil = 0;
+    if (now.paused && this.broken) return this.onProblem(this.broken, '');
+    this.service.player.activate();
+    // Resuming: the speakers come with the playing state. Pausing: the band may have them back at once.
+    if (now.paused) this.grace();
+    else this.startingUntil = 0;
     await this.service.player.toggle().catch((err: unknown) => this.fail(err));
   }
 
@@ -264,6 +289,9 @@ export class SpotifyStore {
   }
 
   private reset(): void {
+    // Whatever the last connect still says, it's over.
+    this.connectGen++;
+    window.clearTimeout(this.goneTimer);
     this.service.player.disconnect();
     this.cache.clear();
     this.broken = null;
@@ -306,41 +334,80 @@ export class SpotifyStore {
 
   private connect(): void {
     if (this.state.device === 'starting' || this.state.device === 'ready') return;
+    // Only this connect's answers count from now on (an older one may still be on its way).
+    const gen = ++this.connectGen;
+    const current = () => gen === this.connectGen;
     this.set({ device: 'starting' });
     this.service.player
       .connect({
         ready: () => {
+          if (!current()) return;
+          window.clearTimeout(this.goneTimer);
           this.set({ device: 'ready' });
-          for (const w of this.waiters.splice(0)) w();
+          for (const w of this.waiters.splice(0)) w.resolve();
         },
-        gone: () => this.set({ device: 'starting' }),
-        state: (s) => this.onState(s),
-        problem: (kind, message) => this.onProblem(kind, message),
+        gone: () => {
+          if (current()) this.gone();
+        },
+        state: (s) => {
+          if (current()) this.onState(s);
+        },
+        problem: (kind, message) => {
+          if (current()) this.onProblem(kind, message);
+        },
       })
       .then(
         (ok) => {
-          if (!ok) this.set({ device: 'failed', notice: { kind: 'browser', text: NOTICES.browser } });
+          if (!current() || ok) return;
+          this.set({ device: 'failed', notice: { kind: 'browser', text: NOTICES.browser } });
+          for (const w of this.waiters.splice(0)) w.reject(new SpotifyError(NOTICES.browser, 'other'));
         },
-        (err: unknown) => this.set({ device: 'failed', notice: { kind: 'offline', text: messageOf(err) } }),
+        (err: unknown) => {
+          if (!current()) return;
+          this.set({ device: 'failed', notice: { kind: 'offline', text: messageOf(err) } });
+          for (const w of this.waiters.splice(0)) w.reject(new SpotifyError(messageOf(err), 'offline'));
+        },
       );
   }
 
-  /** Resolves once the player can take a song (or fails after `ms`). */
+  /** Spotify dropped the player (offline, say). Back soon: carry on; not back: the song stopped here. */
+  private gone(): void {
+    this.set({ device: 'starting' });
+    window.clearTimeout(this.goneTimer);
+    this.goneTimer = window.setTimeout(() => {
+      if (this.state.device === 'ready') return;
+      const now = this.state.now;
+      if (now?.track && !now.paused) this.set({ now: { ...now, paused: true, positionMs: positionOf(now), at: performance.now() }, starting: false });
+      this.giveBack();
+    }, GONE_MS);
+  }
+
+  /** Resolves once the player can take a song (or fails after `ms`, or as soon as it can't). */
   private whenReady(ms = 10_000): Promise<void> {
     if (this.state.device === 'ready') return Promise.resolve();
-    if (this.broken) return Promise.reject(new SpotifyError(NOTICES[this.broken], this.broken === 'premium' ? 'premium' : 'other'));
+    if (this.broken) return Promise.reject(this.brokenError(this.broken));
     if (this.state.device === 'off' || this.state.device === 'failed') this.connect();
     return new Promise((resolve, reject) => {
+      const w: Waiter = {
+        resolve: () => {
+          window.clearTimeout(t);
+          resolve();
+        },
+        reject: (err) => {
+          window.clearTimeout(t);
+          reject(err);
+        },
+      };
       const t = window.setTimeout(() => {
-        this.waiters = this.waiters.filter((w) => w !== done);
+        this.waiters = this.waiters.filter((x) => x !== w);
         reject(new SpotifyError('The laptop’s player didn’t start. Try again in a moment.', 'other'));
       }, ms);
-      const done = () => {
-        window.clearTimeout(t);
-        resolve();
-      };
-      this.waiters.push(done);
+      this.waiters.push(w);
     });
+  }
+
+  private brokenError(kind: 'premium' | 'browser'): SpotifyError {
+    return new SpotifyError(NOTICES[kind], kind === 'premium' ? 'premium' : 'other');
   }
 
   private onState(s: PlayerState | null): void {
@@ -366,8 +433,10 @@ export class SpotifyStore {
     if (kind === 'premium' || kind === 'browser') {
       this.broken = kind;
       this.set({ device: 'failed' });
+      // Anyone waiting to play hears why now, not after a timeout.
+      for (const w of this.waiters.splice(0)) w.reject(this.brokenError(kind));
     }
-    if (!(this.state.now?.track && !this.state.now.paused)) this.giveBack();
+    if (!this.playing) this.giveBack();
     if (message) console.warn(`[spotify] ${kind}: ${message}`);
     this.set({ starting: false, notice: { kind, text: NOTICES[kind] } });
   }
@@ -396,28 +465,27 @@ export class SpotifyStore {
     this.startingUntil = performance.now() + START_GRACE_MS;
     window.clearTimeout(this.graceTimer);
     this.graceTimer = window.setTimeout(() => {
-      const now = this.state.now;
-      if (!(now?.track && !now.paused)) {
-        this.set({ starting: false });
-        this.giveBack();
-      }
+      if (this.playing) return;
+      this.set({ starting: false });
+      this.giveBack();
     }, START_GRACE_MS + 100);
   }
 
-  /** Spotify takes the office speakers: the café band fades out, and Spotify gets the music level. */
+  /**
+   * A song plays: Spotify takes the office speakers (the café band fades out) and gets the music
+   * level. Help's Music switch is the band's: Spotify plays with it off, and leaves it as it was.
+   */
   private take(): void {
     if (this.handBack) return;
     this.handBack = audio.handOver({
       name: 'Spotify',
       setLevel: (level) => this.service.player.setVolume(level),
       release: () => {
-        // The office wants them back (Music turned off in Help): pause.
+        // The office wants them back (Music switched off in Help, or another office tab took the music): pause.
         this.handBack = null;
         void this.service.player.pause().catch(() => {});
       },
     });
-    // You pressed play, so you want music: with Music switched off, Spotify would be silent.
-    if (!audio.prefs.music) audio.setPref('music', true);
   }
 
   /** The café band gets the speakers back (it fades in); Spotify goes quiet until it has them again. */

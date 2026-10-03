@@ -687,7 +687,8 @@ function shutdown(): void {
   for (const ws of rosterSockets.clients) ws.close(1001, 'office closing');
   void vite?.close();
   server.close();
-  setTimeout(() => process.exit(0), 300).unref();
+  // A Spotify sign-in being saved reaches the disk first (at most a second, #28).
+  void spotify.flush().then(() => setTimeout(() => process.exit(0), 300).unref());
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
