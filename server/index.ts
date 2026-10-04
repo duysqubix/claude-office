@@ -646,7 +646,13 @@ async function main(): Promise<void> {
   // Spotify's player frame gets a port of its own (#28), before the first page asks for the CSP.
   await spotify.startPlayer([...ALLOWED_ORIGINS]).catch((err: unknown) => console.warn('[spotify] no player frame:', err));
   roster.start();
+  // Only a failed listen ends the office. Once it's serving, an error here (accepting a
+  // connection with every file descriptor in use, say) is logged and it carries on.
   server.on('error', (err: NodeJS.ErrnoException) => {
+    if (server.listening) {
+      console.error('[office] server error, still serving:', err);
+      return;
+    }
     if (err.code === 'EADDRINUSE') console.error(`[office] Port ${PORT} is busy. Is the office already open? Try PORT=4778 npm run dev`);
     else console.error('[office]', err);
     process.exit(1);
