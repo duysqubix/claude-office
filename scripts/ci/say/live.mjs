@@ -12,7 +12,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import WebSocket from 'ws';
 import { freePort, makeHome, startOffice, wait } from '../office.mjs';
-import { blocks, lastUser, said, startPretendApi, text } from '../pretend-api.mjs';
+import { blocks, lastUser, said, startPretendApi, text, typed } from '../pretend-api.mjs';
 
 const CLAUDE = process.env.CLAUDE_BIN || spawnSync('sh', ['-c', 'command -v claude'], { encoding: 'utf8' }).stdout?.trim();
 if (!CLAUDE) {
@@ -48,7 +48,8 @@ const until = async (fn, ms, every = 50) => {
 // makes), bgbash (a background task, for the footer pill), ask (a question), plan (leave plan
 // mode). SLOW<ms> holds the reply that long. Anything else gets "Mock reply.", which prompt
 // suggestions then offer back as a suggested reply.
-const heard = [];
+/** What a person typed, for each of Claude's turns (not prompt suggestions'), in order. */
+const prompts = [];
 const requests = [];
 let toolN = 0;
 const use = (name, input) => ({ type: 'tool_use', id: `toolu_say_${++toolN}`, name, input });
@@ -66,7 +67,7 @@ function reply(j) {
   if (format?.type === 'json_schema') return { content: [text(JSON.stringify(fit(format.schema)))] };
   const words = said(j);
   requests.push(words);
-  if (has('Bash') && !/SUGGESTION MODE/.test(words)) heard.push(words);
+  if (has('Bash') && !/SUGGESTION MODE/.test(words)) prompts.push(typed(j));
   const delay = Number(/SLOW(\d+)/.exec(words)?.[1] ?? 0);
   if (/FACTS:bgbash/.test(words) && has('Bash')) return { content: [use('Bash', { command: 'sleep 300', description: 'Wait in the background', run_in_background: true })], delay };
   if (/FACTS:bash/.test(words) && has('Bash')) return { content: [use('Bash', { command: `touch approved-${toolN + 1}.txt`, description: 'Make a file' })], delay };
@@ -222,7 +223,7 @@ async function openOffice(api, extraEnv = {}) {
     const shown = () => until(() => boxLine(who.t)?.plain.includes('Mock reply.'), 8000);
     if (await shown()) return true;
     await say(who, again);
-    await until(() => heard.some((w) => w.includes(again)), 8000);
+    await got(again);
     await idle(who.sid);
     return !!(await shown());
   };
@@ -243,7 +244,16 @@ async function openOffice(api, extraEnv = {}) {
   return { home, office, version, setTheme, raw, tail, kinds, roster, keys, typeIn, paste, boxLine, clear, idle, trust, hire, say, suggestion, fire, attach };
 }
 
-const got = async (words, ms = 8000) => !!(await until(() => heard.some((w) => w.includes(words)), ms));
+/** The space say() adds after a last :word, @word or \ (so Enter sends rather than picks from a menu), which Claude Code drops. */
+const SPACED = /(^|\s)[:@]\S*$|\\$/;
+/**
+ * Whether Claude got exactly `words`, as the whole of a turn: nothing picked from a menu, no
+ * ghost text taken along, nothing left out. Only the space say() adds after a last :word, @word
+ * or \ may come too.
+ */
+const got = async (words, ms = 8000) => !!(await until(() => prompts.some((p) => p === words || (SPACED.test(words) && p === `${words} `)), ms));
+/** The last thing Claude got, for a check's detail. */
+const lastGot = () => (prompts.length ? JSON.stringify(prompts.at(-1)).slice(0, 160) : 'nothing yet');
 const PERMISSION = /Esc to cancel · Tab to amend/;
 const approved = (dir) => readdirSync(dir).filter((f) => f.startsWith('approved-'));
 
@@ -270,13 +280,13 @@ try {
   await wait(1000);
   const placeholder = boxLine(A.t)?.plain;
   const s1 = await say(A, 'hello there');
-  check('the first message, over the "Try …" placeholder: 200, Claude gets it', s1.status === 200 && (await got('hello there')), `${s1.status} ${s1.error}; the box was: ${placeholder}`);
+  check('the first message, over the "Try …" placeholder: 200, Claude gets it', s1.status === 200 && (await got('hello there')), `${s1.status} ${s1.error}; the box was: ${placeholder}; Claude got ${lastGot()}`);
   await idle(A.sid);
   // Prompt suggestions offer the pretend API's "Mock reply." back as ghost text.
   const suggested = await o.suggestion(A, 'one more, for a suggestion');
   const box = boxLine(A.t)?.plain;
   const s2 = await say(A, 'second message');
-  check(`the next${suggested ? ', over a suggested reply' : ''}: 200, Claude gets it`, s2.status === 200 && (await got('second message')), `${s2.status} ${s2.error}; the box was: ${box}`);
+  check(`the next${suggested ? ', over a suggested reply' : ''}: 200, Claude gets it`, s2.status === 200 && (await got('second message')), `${s2.status} ${s2.error}; the box was: ${box}; Claude got ${lastGot()}`);
   if (!suggested) check('Claude Code offers a suggested reply to Say over', false, `none after two turns; the box: ${box}`, { note: true });
   await idle(A.sid);
   await wait(600);
@@ -288,7 +298,7 @@ try {
   await clear(A.t);
   const long = Array.from({ length: 40 }, (_, i) => `line ${i + 1} of a long message`).join('\n');
   const s4 = await say(A, long);
-  check('a 40-line message: 200, all 40 lines arrive', s4.status === 200 && (await got('line 40 of a long message')) && heard.some((w) => w.includes('line 1 of a long')), `${s4.status} ${s4.error}`);
+  check('a 40-line message: 200, all 40 lines arrive', s4.status === 200 && (await got(long)), `${s4.status} ${s4.error}; Claude got ${lastGot()}`);
   await idle(A.sid);
   await clear(A.t);
   typeIn(A.t, '!');
@@ -307,7 +317,7 @@ try {
     await idle(A.sid);
     await clear(A.t);
     const r = await say(A, words);
-    check(`${JSON.stringify(words)}: 200, arrives as typed (no menu pick)`, r.status === 200 && (await got(words)) && !heard.some((w) => w.includes('🎉')), `${r.status} ${r.error} (${r.ms} ms); box now: ${tail(A.t, 3)}`);
+    check(`${JSON.stringify(words)}: 200, arrives as typed (no menu pick)`, r.status === 200 && (await got(words)), `${r.status} ${r.error} (${r.ms} ms); Claude got ${lastGot()}; box now: ${tail(A.t, 3)}`);
   }
   await idle(A.sid);
   await clear(A.t);
@@ -321,7 +331,7 @@ try {
   keys(A.t, 'Enter');
   await wait(600);
   const q = await say(A, 'queued while you work');
-  check('while Claude works: 200 (queued), and it arrives after', q.status === 200 && (await got('queued while you work', 15_000)), `${q.status} ${q.error} (${q.ms} ms); ${tail(A.t, 4)}`);
+  check('while Claude works: 200 (queued), and it arrives after', q.status === 200 && (await got('queued while you work', 15_000)), `${q.status} ${q.error} (${q.ms} ms); Claude got ${lastGot()}; ${tail(A.t, 4)}`);
   await idle(A.sid);
   await clear(A.t);
 
@@ -401,7 +411,7 @@ try {
   ]) {
     const ws = await attach(W, cols, rows);
     const r = await say(W, `narrow ${cols}`);
-    check(`their terminal ${cols}×${rows} (the top rule is only their name, or less): 200`, r.status === 200 && (await got(`narrow ${cols}`)), `${r.status} ${r.error}`);
+    check(`their terminal ${cols}×${rows} (the top rule is only their name, or less): 200`, r.status === 200 && (await got(`narrow ${cols}`)), `${r.status} ${r.error}; Claude got ${lastGot()}`);
     await idle(W.sid);
     ws.close();
     await wait(1200);
@@ -412,7 +422,7 @@ try {
   await wait(700);
   const help = /for shortcuts|shift \+ tab/.test(raw(Q.t));
   const h = await say(Q, 'while the shortcuts show');
-  check('the "?" shortcuts help showing: 200', help && h.status === 200 && (await got('while the shortcuts show')), `${h.status} ${h.error}`);
+  check('the "?" shortcuts help showing: 200', help && h.status === 200 && (await got('while the shortcuts show')), `${h.status} ${h.error}; Claude got ${lastGot()}`);
   await idle(Q.sid);
   paste(Q.t, 'FACTS:bgbash');
   await wait(250);
@@ -431,7 +441,7 @@ try {
   keys(Q.t, 'Up');
   await wait(700);
   const up = await say(Q, 'after Up');
-  check('…back in the box (Up): 200', up.status === 200 && (await got('after Up')), `${up.status} ${up.error}`);
+  check('…back in the box (Up): 200', up.status === 200 && (await got('after Up')), `${up.status} ${up.error}; Claude got ${lastGot()}`);
   await idle(Q.sid);
   keys(Q.t, 'Left');
   await wait(900);
@@ -470,7 +480,7 @@ try {
     const who = await hire(`Theme ${theme}`);
     const shown = tail(who.t, 3);
     const r = await say(who, `first words, ${theme}`);
-    check(`${theme}: the first message, over the "Try …" placeholder: 200`, r.status === 200 && (await got(`first words, ${theme}`)), `${r.status} ${r.error}; box was: ${shown}`);
+    check(`${theme}: the first message, over the "Try …" placeholder: 200`, r.status === 200 && (await got(`first words, ${theme}`)), `${r.status} ${r.error}; box was: ${shown}; Claude got ${lastGot()}`);
     await fire(who);
   }
 
@@ -481,7 +491,7 @@ try {
   for (const [i, words] of ['thanks ❤️ 👍🏽 café 日本語 👨‍👩‍👧', 'new ones 🫨 🪿 🫠'].entries()) {
     const U = await hire(`Unicode Tester ${i + 1}`);
     const r = await say(U, words);
-    check(`${JSON.stringify(words)}: 200, arrives as typed`, r.status === 200 && (await got(words)), `${r.status} ${r.error} (${r.ms} ms); box now: ${tail(U.t, 3)}`);
+    check(`${JSON.stringify(words)}: 200, arrives as typed`, r.status === 200 && (await got(words)), `${r.status} ${r.error} (${r.ms} ms); Claude got ${lastGot()}; box now: ${tail(U.t, 3)}`);
     await fire(U);
   }
 } catch (err) {
@@ -497,12 +507,12 @@ try {
   section(`Say into Claude Code ${m.version} with NO_COLOR`);
   const who = await hire('Mono Tester');
   const r1 = await say(who, 'first words, no colour');
-  check('the first message, over a plain "Try …": 200', r1.status === 200 && (await got('first words, no colour')), `${r1.status} ${r1.error}`);
+  check('the first message, over a plain "Try …": 200', r1.status === 200 && (await got('first words, no colour')), `${r1.status} ${r1.error}; Claude got ${lastGot()}`);
   await idle(who.sid);
   const suggested = await m.suggestion(who, 'one more, no colour');
   const box = boxLine(who.t)?.plain;
   const r2 = await say(who, 'second words');
-  check(`the next${suggested ? ', over a plain suggested reply' : ''}: 200`, r2.status === 200 && (await got('second words')), `${r2.status} ${r2.error}; the box was: ${box}`);
+  check(`the next${suggested ? ', over a plain suggested reply' : ''}: 200`, r2.status === 200 && (await got('second words')), `${r2.status} ${r2.error}; the box was: ${box}; Claude got ${lastGot()}`);
   if (!suggested) check('Claude Code offers a suggested reply to Say over', false, `none after two turns; the box: ${box}`, { note: true });
   await idle(who.sid);
   m.home.tmux('set-option', '-g', 'focus-events', 'on');
@@ -512,15 +522,16 @@ try {
   ws.close();
   await wait(1500);
   const r3 = await say(who, 'unfocused words');
-  check('their terminal unfocused (no cursor drawn): 200', r3.status === 200 && (await got('unfocused words')), `${r3.status} ${r3.error}; ${tail(who.t, 3)}`);
+  check('their terminal unfocused (no cursor drawn): 200', r3.status === 200 && (await got('unfocused words')), `${r3.status} ${r3.error}; Claude got ${lastGot()}; ${tail(who.t, 3)}`);
   await idle(who.sid);
   typeIn(who.t, 'half-typed note');
   await wait(500);
   const r4 = await say(who, 'over the top');
   check('a draft typed at their computer: 409 "unsent text", box untouched', r4.status === 409 && /unsent text/.test(r4.error) && boxLine(who.t)?.plain === '❯ half-typed note', `${r4.status} ${r4.error}; box: ${boxLine(who.t)?.plain}`);
   await clear(who.t);
-  const r5 = await say(who, 'line one of three\nline two of three\nline three of three');
-  check('a 3-line message: 200, all 3 lines arrive', r5.status === 200 && (await got('line three of three')) && heard.some((w) => w.includes('line one of three')), `${r5.status} ${r5.error}`);
+  const three = 'line one of three\nline two of three\nline three of three';
+  const r5 = await say(who, three);
+  check('a 3-line message: 200, all 3 lines arrive', r5.status === 200 && (await got(three)), `${r5.status} ${r5.error}; Claude got ${lastGot()}`);
   await fire(who);
 } catch (err) {
   if (!stopping) check('ran to the end (NO_COLOR)', false, String(err?.stack ?? err).split('\n').slice(0, 3).join(' / '));
