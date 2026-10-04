@@ -464,6 +464,15 @@ export async function dialogOnScreen(tmuxName: string, typing = ''): Promise<boo
   return box === null || (!!typing && !holds(box.typed, typing));
 }
 
+/** The folder-trust prompt a new hire meets first, in 2.1's words and 1.x's. */
+const TRUST_PROMPT = /Accessing workspace:|Quick safety check|Do you trust the files in this folder/i;
+
+/** Is the folder-trust prompt up on `tmuxName`: its words on screen, and no input box (Claude's own replies could quote them)? */
+export async function trustPromptUp(tmuxName: string): Promise<boolean> {
+  const r = await tmux(['capture-pane', '-p', '-t', `=${tmuxName}:`]);
+  return r.code === 0 && TRUST_PROMPT.test(r.stdout) && (await inputBox(tmuxName)) === null;
+}
+
 /**
  * Claude Code's input box on `tmuxName`'s screen: what's in it as drawn (`typed`), and whether
  * that's nothing but ghost text (`empty`). Null if the box isn't on screen, or a hint under it
