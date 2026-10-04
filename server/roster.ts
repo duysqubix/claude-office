@@ -150,6 +150,9 @@ export class Roster extends EventEmitter {
 
     const livePanes = panes.filter((p) => !p.dead);
     const paneByPid = new Map(livePanes.map((p) => [p.panePid, p.tmuxName]));
+    // Screens and stamps are read through each hire's pin (tmux.ts pin), so a session that takes
+    // the name meanwhile is never read in its place.
+    const pinByName = new Map(livePanes.map((p) => [p.tmuxName, p.id]));
     await Promise.all(panes.filter((p) => p.dead).map((p) => this.reap(p)));
 
     // Forget sessions that left.
@@ -177,7 +180,7 @@ export class Roster extends EventEmitter {
     const pendingPanes = new Set([...this.pending.values()].map((h) => h.tmuxName));
     for (const p of livePanes) {
       if (registeredPids.has(p.panePid) || pendingPanes.has(p.tmuxName)) continue;
-      if (!this.officeMeta.has(p.tmuxName)) this.officeMeta.set(p.tmuxName, await readOfficeMeta(p.tmuxName));
+      if (!this.officeMeta.has(p.tmuxName)) this.officeMeta.set(p.tmuxName, await readOfficeMeta(p.id));
       const meta = this.officeMeta.get(p.tmuxName);
       if (!meta || liveIds.has(meta.sessionId)) continue;
       this.pending.set(meta.sessionId, {
@@ -240,12 +243,17 @@ export class Roster extends EventEmitter {
         }
         await t.update();
         if ((slow || !this.interns.has(e.sessionId)) && t.path) this.interns.set(e.sessionId, await activeInterns(t.path, e.sessionId, t));
-        const tmuxName = this.hostedBySession.get(e.sessionId);
-        if (tmuxName && (slow || !this.screens.has(e.sessionId))) this.screens.set(e.sessionId, await capture(tmuxName));
+        const pin = pinByName.get(this.hostedBySession.get(e.sessionId) ?? '');
+        if (pin && (slow || !this.screens.has(e.sessionId))) this.screens.set(e.sessionId, await capture(pin));
       }),
     );
     const pendingScreens = new Map<string, string[]>();
-    await Promise.all([...this.pending.values()].map(async (h) => pendingScreens.set(h.sessionId, await capture(h.tmuxName))));
+    await Promise.all(
+      [...this.pending.values()].map(async (h) => {
+        const pin = pinByName.get(h.tmuxName);
+        pendingScreens.set(h.sessionId, pin ? await capture(pin) : []);
+      }),
+    );
 
     const names = assignNames([
       ...reg.map((e) => ({ sessionId: e.sessionId, startedAt: e.startedAt, name: e.name, nameSource: e.nameSource })),
