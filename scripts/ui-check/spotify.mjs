@@ -146,7 +146,8 @@ const click = (page, sel, i = 0) => page.evaluate((sel, i) => document.querySele
  * is asking the office where the player frame is. Requests to Spotify go through, recorded with
  * the frame that made them.
  */
-async function openLive() {
+async function openLive({ failFirstSdk = false } = {}) {
+  let failed = false;
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
   const logs = [];
@@ -173,6 +174,11 @@ async function openLive() {
     // A frame's own page loads into it: who asked is the frame around it.
     const from = req.isNavigationRequest() ? req.frame()?.parentFrame()?.url() : req.frame()?.url();
     if (/spotify\.com|scdn\.co|spotifycdn\.com/.test(u)) spotify.push({ url: u, from: from ?? '' });
+    // The first load of Spotify's SDK script fails, as on a flaky connection.
+    if (failFirstSdk && !failed && u.startsWith('https://sdk.scdn.co/spotify-player.js')) {
+      failed = true;
+      return void req.abort();
+    }
     const write = req.method() !== 'GET' && req.method() !== 'HEAD' && u.includes('/api/');
     if (write && new URL(u).pathname !== '/api/spotify/status') return void req.abort();
     void req.continue();
@@ -625,6 +631,69 @@ try {
     await page.close();
   }
 
+  // ------------------------------------------------------------------ #104: a sign-out while songs load
+  {
+    const { page, logs } = await open('&laptop=1');
+    await until(page, () => ({ done: document.querySelectorAll('.sp-modal .sp-list').length === 6 && document.querySelectorAll('.sp-modal .sp-row').length > 0 }), null, 15_000);
+    const r = await page.evaluate(async () => {
+      const store = window.office.laptop.store;
+      const svc = store.service;
+      const real = svc.tracks.bind(svc);
+      let calls = 0;
+      let release = null;
+      // The next song list is held until we say so (it answers after you've signed out).
+      svc.tracks = (list) => {
+        calls++;
+        if (release) return real(list);
+        return new Promise((res) => (release = () => res(real(list))));
+      };
+      const focus = store.state.playlists.find((p) => p.name === 'Deep Focus Desk');
+      const loading = store.select(focus.id);
+      await store.signOut();
+      release();
+      await loading;
+      await new Promise((res) => setTimeout(res, 100));
+      const out = { cached: store.cache.size, tracks: store.state.tracks?.tracks.length ?? null, phase: store.state.phase };
+      // Signed in again (another account, say): that playlist's songs come fresh, not the old account's.
+      await store.signIn('0123456789abcdef0123456789abcdef', null);
+      for (const t0 = performance.now(); !(store.state.phase === 'ready' && store.state.playlists) && performance.now() - t0 < 10_000; ) await new Promise((res) => setTimeout(res, 100));
+      const before = calls;
+      await store.select(focus.id);
+      return { ...out, refetched: calls > before, again: store.state.phase };
+    });
+    check('#104: songs that answer after you sign out are dropped; signed in again, they come fresh (not the old account’s)', r.cached === 0 && r.tracks === null && r.phase === 'setup' && r.refetched && r.again === 'ready', JSON.stringify(r));
+    check('no page errors (#104 sign-out)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
+  // ------------------------------------------------------------------ #104: Spotify refuses the token mid-song, and the player can't come back
+  {
+    const { page, logs } = await open('&laptop=1');
+    await page.evaluate(() => document.getElementById('scene').focus());
+    await page.keyboard.press('KeyX');
+    await until(page, () => ({ done: document.querySelectorAll('.sp-modal .sp-row').length > 0 }), null, 15_000);
+    await click(page, '.sp-row', 2);
+    await until(page, () => ({ done: window.office.laptop.store.state.now?.paused === false && window.officeAudio.nowPlaying.by === 'external' }), null, 6000);
+    const r = await page.evaluate(async () => {
+      const store = window.office.laptop.store;
+      // Connecting again with a fresh token fails.
+      store.service.player.connect = async () => false;
+      store.onProblem('auth', 'token refused');
+      await new Promise((res) => setTimeout(res, 2500));
+      const a = window.officeAudio;
+      return {
+        playing: !!store.state.now?.track && !store.state.now.paused,
+        by: a.nowPlaying.by,
+        band: a.state().playing,
+        toggle: document.querySelector('.sp-round--play')?.getAttribute('aria-label'),
+        label: window.office.world.interactables.find((i) => i.kind === 'laptop')?.label,
+      };
+    });
+    check('#104: the token refused mid-song and no player after: the laptop stops saying it plays, and the café band has the speakers back', !r.playing && r.by === 'band' && r.band && r.toggle === 'Play' && r.label === 'Use your laptop', JSON.stringify(r));
+    check('no page errors (#104 auth)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
   check('the demo office never talked to Spotify', outside.length === 0, outside.slice(0, 3).join(', '));
 
   // ------------------------------------------------------------------ the player frame (the real office page)
@@ -678,6 +747,33 @@ try {
       check('turned off: the frame goes', gone === 0, String(gone));
     }
     check('no page errors (the player frame)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
+  // ------------------------------------------------------------------ #104: Spotify's SDK fails to load once
+  {
+    const { page, logs, spotify } = await openLive({ failFirstSdk: true });
+    const r = await page.evaluate(async () => {
+      const { FramePlayer } = await import('/src/spotify/frame.ts');
+      const st = await (await fetch('/api/spotify/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+      const asked = [];
+      const player = new FramePlayer({ origin: () => st.player, token: async (refresh) => (asked.push(refresh), 'not-a-real-token'), play: async () => {}, state: (raw) => raw });
+      const events = { ready() {}, gone() {}, state() {}, problem() {} };
+      const attempt = () =>
+        Promise.race([player.connect(events).then((ok) => `connect ${ok}`, (e) => `error ${e.message}`), new Promise((res) => setTimeout(() => res('still connecting'), 20_000))]);
+      const first = await attempt();
+      await new Promise((res) => setTimeout(res, 500));
+      // The next Play connects again.
+      const second = await attempt();
+      const frames = document.querySelectorAll('iframe.sp-player-frame').length;
+      player.disconnect();
+      return { first, second, asked: asked.length, frames };
+    });
+    const loads = spotify.filter((q) => q.url.startsWith('https://sdk.scdn.co/spotify-player.js')).length;
+    // A retry that fails to load the SDK too means no network here: nothing to say about the frame.
+    if (/didn’t load/.test(r.second)) console.log(`  (Spotify's SDK didn't load on the retry either, no network?: the #104 frame check is skipped: ${JSON.stringify(r)})`);
+    else check('#104: Spotify’s SDK fails to load once: the next connect makes a fresh frame, the SDK loads and asks for its token', /error/.test(r.first) && !/still connecting|error/.test(r.second) && r.asked > 0 && r.frames === 1, JSON.stringify({ ...r, loads }));
+    check('no page errors (#104 frame)', !errors(logs).length, errors(logs).join(' | '));
     await page.close();
   }
 } catch (err) {

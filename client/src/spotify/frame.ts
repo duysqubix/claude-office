@@ -201,6 +201,8 @@ export class FramePlayer implements Player {
         this.waiting.delete(id);
         w.reject(new SpotifyError('Spotify’s player didn’t load. Check your connection, or an ad blocker.', 'offline'));
       }
+      // And this frame never will: the next connect makes a fresh one, which loads the SDK again.
+      this.disconnect();
     } else if (name === 'csp') console.warn('[spotify] the player frame’s CSP blocked', String(d.directive).slice(0, 60), String(d.blocked).slice(0, 200));
     else if (PROBLEMS[name] && Object.hasOwn(PROBLEMS, name)) this.events?.problem(PROBLEMS[name], message);
   }
