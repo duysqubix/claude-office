@@ -22,7 +22,7 @@ import { run } from './exec';
 import { ShellKeeper } from './shells';
 import { SpotifyLink } from './spotify';
 import { ThoughtService } from './thoughts';
-import { AlreadyHere, assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say } from './tmux';
+import { AlreadyHere, assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say, trustPromptUp } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -268,7 +268,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       // prompt's first choice is Yes. Claude can ask at any moment, so say() looks right before
       // it pastes and again right before Enter. `asked`: whether a question is what stopped it.
       let asked = false;
-      const said = await say(tmuxName, text, async () => (asked = await asking(sessionId)));
+      const said = await say(tmuxName, text, async () => (asked = await asking(sessionId, tmuxName)));
       if (said === 'not-pasted') throw new HttpError(409, asked ? 'They have a question open. Sit at their computer to answer it.' : "Their terminal isn't at the prompt. Sit at their computer to see what's on it.");
       if (said === 'draft') throw new HttpError(409, "There's unsent text in their box. Sit at their computer to send or clear it.");
       if (said === 'not-sent') throw new HttpError(409, asked ? 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.' : "Your message didn't show up in their box. Sit at their computer to check it.");
@@ -294,12 +294,14 @@ function uuidFrom(v: unknown): string {
 /**
  * Has Claude asked something that Enter would answer, as far as the office knows? An in-game ask,
  * the roster (a poll old), or Claude Code's own status read fresh from its registry file. That
- * file can trail the dialog by a few frames, so say() reads the screen as well.
+ * file can trail the dialog by a few frames, so say() reads the screen as well. Before it has a
+ * registry file, a new hire meets the folder-trust prompt, which the roster flags a poll later.
  */
-async function asking(sessionId: string): Promise<boolean> {
+async function asking(sessionId: string, tmuxName: string): Promise<boolean> {
   const e = roster.find(sessionId);
   if (asks.forSession(sessionId) || e?.state === 'needs-you') return true;
-  return !!e?.pid && (await sessionStatus(e.pid, sessionId)) === 'waiting';
+  if (!e?.pid) return trustPromptUp(tmuxName);
+  return (await sessionStatus(e.pid, sessionId)) === 'waiting';
 }
 
 /** The tmux session of someone this office hired, else 400 `refused`. Its stamp is read again here: the roster's map can be a poll old. */
