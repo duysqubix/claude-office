@@ -4,6 +4,9 @@
 // evening tunes are slower and softer; no page errors; and the music costs the main thread
 // next to nothing (frame times with music on vs off). Demo office only (?demo=1).
 //   GAME_BASE=http://127.0.0.1:4778 node scripts/ui-check/audio.mjs
+// JANK_MS=5 adds that much main-thread work per frame while the music plays (JANK_AT=frame, the
+// default: in every frame; JANK_AT=pump: inside the music's own pumps), and PUMP_MS=1 that much to
+// every pump of the scheduler, to prove the two frame-budget checks still fail on real costs.
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -18,6 +21,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 /** CPU_THROTTLE=4 runs every page on a 4× slower CPU (like a small CI runner). */
 const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);
+/** Made-up jank for proving the jank check (see the top): where it goes, and how many ms a frame. */
+const JANK_MS = Number(process.env.JANK_MS ?? 0);
+const JANK = JANK_MS > 0 ? (process.env.JANK_AT === 'pump' ? { pump: JANK_MS } : { frame: JANK_MS }) : null;
+const PUMP_MS = Number(process.env.PUMP_MS ?? 0);
+/** The frame-budget office's music: a busy tune (90th percentile of notes a second), the same every run. */
+const MUSIC_SEED = 358;
 /** Each page's DevTools session: a throttle set through one session is only lifted through it. */
 const sessions = new WeakMap();
 const throttle = async (page, rate) => {
@@ -55,9 +64,17 @@ async function open(query = '') {
     // Frame timing: when each frame ran, and how long the game's own frame took.
     const raf = window.requestAnimationFrame.bind(window);
     window.__frames = { on: false, busy: [], ts: [] };
+    window.__jank = null;
+    let jankedAt = -1;
     window.requestAnimationFrame = (cb) =>
       raf((t) => {
         const t0 = performance.now();
+        // JANK_AT=frame: extra work in every frame (once a frame), as if the music cost it.
+        const j = window.__jank?.frame;
+        if (j && t !== jankedAt) {
+          jankedAt = t;
+          while (performance.now() - t0 < j);
+        }
         cb(t);
         const f = window.__frames;
         if (f.on) {
@@ -68,8 +85,10 @@ async function open(query = '') {
   });
   // Daytime unless a check asks otherwise: the real clock would make an evening run differ.
   const hour = /[?&]hour=/.test(query) ? '' : '&hour=12';
-  await page.goto(`${BASE}/?demo=1&quiet=1&debug=1${hour}${query}`, { waitUntil: 'networkidle2', timeout: 30_000 });
-  await page.waitForFunction(() => window.office && window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  // Loaded, then ready (the splash gone): a busy machine can take a long while to go network-idle.
+  const slow = Math.max(1, THROTTLE);
+  await page.goto(`${BASE}/?demo=1&quiet=1&debug=1${hour}${query}`, { waitUntil: 'load', timeout: 30_000 * slow });
+  await page.waitForFunction(() => window.office && window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 30_000 * slow });
   // Once it's loaded: a throttled load takes ages to go network-idle.
   await throttle(page, THROTTLE);
   await instrument(page);
@@ -79,24 +98,37 @@ async function open(query = '') {
 
 /** Time every pump of the game's music player: the first (music start), and those in a frames() window. */
 const instrument = (page) =>
-  page.evaluate(async () => {
+  page.evaluate(async (extra) => {
     const { MusicPlayer } = await window.__live('/src/audio/music.ts');
     const pump = MusicPlayer.prototype.pump;
     window.__pumps = { first: null, window: null };
+    let last = performance.now();
     MusicPlayer.prototype.pump = function (until) {
       const t0 = performance.now();
+      // A music-off turn of the frame-budget check: no scheduling at all (the player waits, so the
+      // next turn carries on in the same groove), and none of the made-up work either.
+      if (window.__pumpsPaused) {
+        last = t0;
+        return;
+      }
+      // JANK_AT=pump: the same jank inside the music's own work, for the frames since the last pump.
+      const j = window.__jank?.pump;
+      if (j) while (performance.now() - t0 < j * Math.min(10, (t0 - last) / (1000 / 60)));
+      last = t0;
+      // PUMP_MS: a fixed extra cost in every pump (the scheduler check must notice).
+      if (extra) while (performance.now() - t0 < extra);
       pump.call(this, until);
       const ms = performance.now() - t0;
       window.__pumps.first ??= ms;
       window.__pumps.window?.push(ms);
     };
-  });
+  }, PUMP_MS);
 
 /** Reload, the way open() loads: unthrottled until the office is up, then slow again. */
 async function reload(page) {
   await throttle(page, 1);
-  await page.reload({ waitUntil: 'networkidle2' });
-  await page.waitForFunction(() => window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 20_000 });
+  await page.reload({ waitUntil: 'load', timeout: 30_000 * Math.max(1, THROTTLE) });
+  await page.waitForFunction(() => window.office && window.officeAudio && document.getElementById('splash')?.classList.contains('gone'), { timeout: 30_000 * Math.max(1, THROTTLE) });
   await throttle(page, THROTTLE);
   await instrument(page);
 }
@@ -143,8 +175,10 @@ async function frames(page, ms) {
   const gaps = f.ts.slice(1).map((t, i) => t - f.ts[i]).sort((a, b) => a - b);
   const q = (a, p) => a[Math.min(a.length - 1, Math.floor(a.length * p))] ?? NaN;
   const busy = f.busy.slice().sort((a, b) => a - b);
+  const pumpMs = f.pumps.reduce((a, b) => a + b, 0);
   return {
     fps: (gaps.length / ms) * 1000,
+    meanFrame: f.ts.length > 1 ? (f.ts[f.ts.length - 1] - f.ts[0]) / (f.ts.length - 1) : NaN,
     p50: q(gaps, 0.5),
     p95: q(gaps, 0.95),
     p99: q(gaps, 0.99),
@@ -152,12 +186,13 @@ async function frames(page, ms) {
     // Only this window's pumps (the player's own stats run from its start, when it composed and
     // built its first bars while the page was still settling).
     pumps: f.pumps.length,
-    pumpMs: f.pumps.reduce((a, b) => a + b, 0),
+    pumpMs,
+    // What the music's own scheduling cost each frame of this window.
+    musicPerFrame: pumpMs / Math.max(1, f.ts.length),
     maxPump: Math.max(0, ...f.pumps),
     dropped: after.music?.dropped ?? 0,
   };
 }
-const fmt = (x) => `${x.fps.toFixed(0)} fps, frame p50 ${x.p50.toFixed(1)} / p95 ${x.p95.toFixed(1)} / p99 ${x.p99.toFixed(1)} ms, game JS ${x.busy.toFixed(2)} ms`;
 
 try {
   // ---------------------------------------------------------------- before and after a gesture
@@ -398,41 +433,132 @@ try {
   check('sound effects come out of the speakers, and M silences them', fx.bell > -60 && fx.bell > fx.quiet + 20 && fx.muted <= -150, `dBFS: silence ${fx.quiet}, bell ${fx.bell}, bell while muted ${fx.muted}`);
 
   // ---------------------------------------------------------------- frame-time budget
-  // One seeded office, music on and off in turns (sounds stay on), so the halves compare fairly.
+  // One seeded office playing the same busy tune every run, in its groove (past the intro's four
+  // bars of keys alone), then the music on and off in twelve short turns: off is the scheduler
+  // paused and the speakers suspended (no pumps, no audio thread: nothing of the music runs), on is
+  // the same groove carrying on. Turns that short and close together see the same machine, however
+  // its load swings (a busy CI runner, other work on the box); every music-on turn is compared with
+  // the music-off turns either side of it, and the medians of those differences are what's judged.
   await page.close();
-  page = await open('&seed=5');
+  page = await open(`&seed=5&musicseed=${MUSIC_SEED}`);
   await gesture(page);
-  await wait(6000);
-  const runs = { on: [], off: [] };
-  for (const mode of ['on', 'off', 'on', 'off']) {
-    await page.evaluate((on) => window.officeAudio.setPref('music', on), mode === 'on');
-    await wait(mode === 'on' ? 6000 : 2500);
-    runs[mode].push(await frames(page, 5000));
+  await wait(13_000);
+  const turns = [];
+  for (let i = 0; i < 12; i++) {
+    const on = i % 2 === 0;
+    await page.evaluate(
+      async (on, jank) => {
+        window.__jank = on ? jank : null;
+        const ctx = window.officeAudio.ctx;
+        if (on) {
+          await ctx.resume();
+          window.__pumpsPaused = false;
+        } else {
+          window.__pumpsPaused = true;
+          await ctx.suspend();
+        }
+      },
+      on,
+      JANK,
+    );
+    await wait(500);
+    turns.push({ on, ...(await frames(page, 3000)) });
   }
+  await page.evaluate(async () => {
+    window.__jank = null;
+    await window.officeAudio.ctx.resume();
+    window.__pumpsPaused = false;
+  });
   await clearPrefs(page);
-  const avg = (list, k) => list.reduce((a, x) => a + x[k], 0) / list.length;
-  const sum = (list, k) => list.reduce((a, x) => a + x[k], 0);
-  const merged = (list) => ({ fps: avg(list, 'fps'), p50: avg(list, 'p50'), p95: avg(list, 'p95'), p99: avg(list, 'p99'), busy: avg(list, 'busy') });
-  const base = merged(runs.off);
-  const band = merged(runs.on);
-  const pumps = sum(runs.on, 'pumps');
-  const pumpMs = sum(runs.on, 'pumpMs');
-  const perSecond = pumpMs / 10;
-  const worst = Math.max(...runs.on.map((x) => x.maxPump));
-  const dropped = Math.max(...runs.on.map((x) => x.dropped));
-  console.log(`  frames, music off: ${fmt(base)}`);
+  const med = (a) => {
+    const v = [...a].sort((x, y) => x - y);
+    const m = v.length >> 1;
+    return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+  };
+  const onTurns = turns.filter((t) => t.on);
+  const offTurns = turns.filter((t) => !t.on);
+  const offMed = (k) => med(offTurns.map((t) => t[k]));
+  /** Median over the music-on turns of (that turn − the mean of the music-off turns either side). */
+  const delta = (k) =>
+    med(
+      turns.flatMap((t, i) => {
+        if (!t.on) return [];
+        const next = [turns[i - 1], turns[i + 1]].filter((x) => x && !x.on);
+        return [t[k] - next.reduce((a, x) => a + x[k], 0) / next.length];
+      }),
+    );
+  // The yardstick: the game's own JS a frame, music off, on this machine at this moment. A slow or
+  // busy machine (a CI runner, CPU_THROTTLE) slows the music's work just as much, so budgets in
+  // shares of it hold anywhere, where fixed milliseconds swing with the machine.
+  const frameJs = offMed('busy');
+  const live = {
+    perSecond: med(onTurns.map((t) => t.pumpMs / 3)),
+    worst: Math.max(...onTurns.map((x) => x.maxPump)),
+  };
+  const dropped = Math.max(...onTurns.map((x) => x.dropped));
   const startPump = await page.evaluate(() => window.__pumps.first);
-  console.log(`  frames, music on:  ${fmt(band)}; scheduler ${pumps} pumps, ${pumpMs.toFixed(1)} ms in 10 s (${perSecond.toFixed(2)} ms per second, ${(pumpMs / Math.max(1, pumps)).toFixed(3)} ms per pump), worst ${worst.toFixed(1)} ms; music start's first pump ${startPump?.toFixed(1)} ms`);
+
+  // The scheduler's own cost, timed where nothing else can add to it: the real pump() on fresh
+  // offline contexts (no rendering thread holding the graph, no frames between pumps), over 16 s
+  // of the same tune's groove, three times; the medians count. Live pump times on a loaded machine
+  // also carry its preemption, other code's garbage collection and the audio thread's lock.
+  const bench = await page.evaluate(async (seed) => {
+    const { MusicPlayer } = await window.__live('/src/audio/music.ts');
+    const reps = [];
+    for (let r = 0; r < 3; r++) {
+      const ctx = new OfflineAudioContext(2, 44100 * 30, 44100);
+      const p = new MusicPlayer(ctx, { seed, night: () => false, crackle: false });
+      p.output.connect(ctx.destination);
+      // As the speakers start it: a beat of grace for the first notes' human timing.
+      p.start(0.15);
+      for (let t = 0; t < 12.5; t += 0.1) p.pump(t + 0.8);
+      const ms = [];
+      for (let t = 12.5; t < 28.5; t += 0.1) {
+        const t0 = performance.now();
+        p.pump(t + 0.8);
+        ms.push(performance.now() - t0);
+      }
+      reps.push({ perSecond: ms.reduce((a, b) => a + b, 0) / 16, worst: Math.max(...ms), notes: p.stats.scheduled });
+    }
+    return reps;
+  }, MUSIC_SEED);
+  const sched = { perSecond: med(bench.map((r) => r.perSecond)), worst: med(bench.map((r) => r.worst)) };
+
+  console.log(`  frames, music off (median of ${offTurns.length}): ${offMed('fps').toFixed(0)} fps, frame ${offMed('meanFrame').toFixed(1)} ms mean / ${offMed('p95').toFixed(1)} ms p95, game JS ${offMed('busy').toFixed(2)} ms`);
+  console.log(`  music on, median change: frame ${delta('meanFrame') >= 0 ? '+' : ''}${delta('meanFrame').toFixed(2)} ms mean / ${delta('p95') >= 0 ? '+' : ''}${delta('p95').toFixed(2)} ms p95, game JS ${delta('busy') >= 0 ? '+' : ''}${delta('busy').toFixed(2)} ms; the music's own ${med(onTurns.map((t) => t.musicPerFrame)).toFixed(3)} ms a frame${JANK ? `; made-up jank ${JSON.stringify(JANK)}` : ''}`);
+  console.log(`  scheduler: ${sched.perSecond.toFixed(3)} ms per second of music (${((100 * sched.perSecond) / frameJs).toFixed(1)}% of a game frame's JS), worst pump ${sched.worst.toFixed(2)} ms (offline, median of ${bench.length}: ${bench.map((r) => r.perSecond.toFixed(3)).join(' / ')}); live ${live.perSecond.toFixed(2)} ms/s, worst ${live.worst.toFixed(1)} ms; music start's first pump ${startPump?.toFixed(1)} ms${PUMP_MS ? `; made-up ${PUMP_MS} ms a pump` : ''}`);
+  // Jank is the music costing the game frames. Always judged: the music's own main-thread time a
+  // frame, and the game's frame work, which the music mustn't touch. Frame times too when the game
+  // holds the display's 60 Hz: below that the machine is already dropping frames, frame times
+  // swing by more than any music could add, and only a gross change counts.
+  const vsync = 1000 / 60;
+  const keepsUp = offMed('meanFrame') <= vsync * 1.1;
+  const own = med(onTurns.map((t) => t.musicPerFrame));
+  const why = [];
+  if (own > 0.1 * frameJs) why.push(`the music's own ${own.toFixed(2)} ms a frame > ${(0.1 * frameJs).toFixed(2)} (a tenth of the game's)`);
+  const js = delta('busy');
+  const jsLimit = 1 + 0.03 * frameJs;
+  if (js > jsLimit) why.push(`game JS +${js.toFixed(2)} ms > ${jsLimit.toFixed(2)}`);
+  const frame = delta('meanFrame');
+  const frameLimit = keepsUp ? 0.05 * offMed('meanFrame') + 0.5 : 0.25 * offMed('meanFrame') + 2;
+  if (frame > frameLimit) why.push(`frame +${frame.toFixed(2)} ms > ${frameLimit.toFixed(2)}`);
+  const p95 = delta('p95');
+  if (keepsUp && p95 > 0.1 * offMed('p95') + 1) why.push(`p95 +${p95.toFixed(2)} ms > ${(0.1 * offMed('p95') + 1).toFixed(2)}`);
+  // The comparison only means something if the off turns really were music-free.
+  const offPumps = offTurns.reduce((a, t) => a + t.pumps, 0);
+  check('frame budget: the music-off turns are music-free (no scheduler pumps)', offPumps === 0, `${offPumps} pumps in ${offTurns.length} off turns, ${onTurns.reduce((a, t) => a + t.pumps, 0)} in ${onTurns.length} on turns`);
   check(
-    'frame budget: the music adds no jank (frame p95 within 10% + 1 ms of music off)',
-    band.p95 <= base.p95 * 1.1 + 1 && band.fps >= base.fps * 0.93,
-    `p95 ${base.p95.toFixed(1)} → ${band.p95.toFixed(1)} ms, ${base.fps.toFixed(0)} → ${band.fps.toFixed(0)} fps, game JS ${base.busy.toFixed(2)} → ${band.busy.toFixed(2)} ms`,
+    `frame budget: the music adds no jank (own time, game JS${keepsUp ? ', frame times' : ''}; interleaved medians)`,
+    why.length === 0,
+    why.length ? why.join('; ') : `${keepsUp ? 'game keeps up at' : 'overloaded machine at'} ${offMed('fps').toFixed(0)} fps; own ${own.toFixed(3)} ms a frame, game JS ${js >= 0 ? '+' : ''}${js.toFixed(2)} ms, frame ${frame >= 0 ? '+' : ''}${frame.toFixed(2)} ms${keepsUp ? `, p95 ${p95 >= 0 ? '+' : ''}${p95.toFixed(2)} ms` : ''}`,
   );
-  // Milliseconds of main thread scale with the CPU: on a 4× slower one, 4× the budget.
-  const slow = Math.max(1, THROTTLE);
-  check(`frame budget: the scheduler uses under ${2 * slow} ms of main thread per second`, perSecond < 2 * slow && worst < 8 * slow, `${perSecond.toFixed(2)} ms/s, worst pump ${worst.toFixed(1)} ms${slow > 1 ? ` (CPU ${slow}× slower)` : ''}`);
+  check(
+    "frame budget: a second of music costs the scheduler under a fifth of one game frame (timed offline)",
+    sched.perSecond < 0.2 * frameJs && sched.worst < frameJs,
+    `${sched.perSecond.toFixed(3)} ms per second of music = ${((100 * sched.perSecond) / frameJs).toFixed(1)}% of a ${frameJs.toFixed(2)} ms game frame; worst pump ${sched.worst.toFixed(2)} ms`,
+  );
   check('no late (dropped) notes', dropped === 0, `${dropped} dropped`);
-  // (The last turn above was music off: back on, and the murmur comes with it.)
+  // (The speakers are back on after the last turn; the murmur plays with the band.)
   await page.evaluate(() => window.officeAudio.setPref('music', true));
   await wait(1000);
   s = await state(page);
