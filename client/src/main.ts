@@ -869,8 +869,9 @@ function runOffice(): void {
     // Fully dissolved: skip drawing altogether (every pixel would be discarded anyway).
     if (managerFade <= 0) manager.rig.root.visible = false;
     world.updateOcclusion(engine.camera, manager.position);
-    // Newly dressed characters merged into one mesh each (a couple a frame); far ones in one draw.
-    updateKit(engine.camera);
+    // Newly dressed characters merged into one mesh each (a couple a frame; all at once behind the
+    // splash, where nobody sees the long frame); far ones in one draw.
+    updateKit(engine.camera, splashUp ? Infinity : undefined);
 
     const stats = director.stats();
     const sk = JSON.stringify(stats);

@@ -121,44 +121,17 @@ function texelsOf(map: THREE.Texture): Texels | null {
   let t: Texels | null = null;
   const img = map.image as (CanvasImageSource & { width?: number; height?: number }) | undefined;
   try {
-    const w = img?.width ?? 0;
-    const h = img?.height ?? 0;
-    if (img && w && h) {
-      // An OffscreenCanvas reads back in a fraction of a millisecond (a page canvas's first
-      // readback costs tens); then a box filter down to FAR_TEXELS square.
-      const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
+    if (img && img.width && img.height) {
+      // The canvas averages the texture as it draws it small (within 2/255 of a box filter), and
+      // an OffscreenCanvas reads back in a fraction of a millisecond (a page canvas's first
+      // readback costs tens): about 0.3 ms a texture, with no script loop to warm up.
+      const s = FAR_TEXELS;
+      const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(s, s) : Object.assign(document.createElement('canvas'), { width: s, height: s });
       const g = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
       if (g) {
-        g.drawImage(img, 0, 0);
-        const src = g.getImageData(0, 0, w, h).data;
-        const s = FAR_TEXELS;
-        const data = new Uint8ClampedArray(s * s * 4);
-        for (let y = 0; y < s; y++) {
-          const y0 = Math.floor((y * h) / s);
-          const y1 = Math.max(y0 + 1, Math.floor(((y + 1) * h) / s));
-          for (let x = 0; x < s; x++) {
-            const x0 = Math.floor((x * w) / s);
-            const x1 = Math.max(x0 + 1, Math.floor(((x + 1) * w) / s));
-            let r = 0;
-            let gg = 0;
-            let b = 0;
-            for (let yy = y0; yy < y1; yy++) {
-              for (let xx = x0; xx < x1; xx++) {
-                const o = (yy * w + xx) * 4;
-                r += src[o];
-                gg += src[o + 1];
-                b += src[o + 2];
-              }
-            }
-            const n = (y1 - y0) * (x1 - x0);
-            const o = (y * s + x) * 4;
-            data[o] = r / n;
-            data[o + 1] = gg / n;
-            data[o + 2] = b / n;
-            data[o + 3] = 255;
-          }
-        }
-        t = { size: s, data };
+        g.imageSmoothingQuality = 'high';
+        g.drawImage(img, 0, 0, s, s);
+        t = { size: s, data: g.getImageData(0, 0, s, s).data };
       }
     }
   } catch {
@@ -166,6 +139,15 @@ function texelsOf(map: THREE.Texture): Texels | null {
   }
   texelCache.set(map, t);
   return t;
+}
+
+/**
+ * Read these textures' far-look colours now (cheap, and remembered per texture), so that baking
+ * a character later doesn't: the kit calls it as a character is dressed, behind the splash for
+ * everyone there at the start.
+ */
+export function warmTexels(maps: Iterable<THREE.Texture>): void {
+  for (const map of maps) texelsOf(map);
 }
 
 /** Bilinear sample (clamped; glTF uvs, v down from the top) into out[o..o+2] as sRGB bytes. */
@@ -260,6 +242,18 @@ export function bakedMaterial(opts: { map: THREE.Texture | null; side: THREE.Sid
 // Geometry
 
 const u8 = (v: number) => Math.round(THREE.MathUtils.clamp(v, 0, 1) * 255);
+
+/**
+ * An attribute's numbers, to index directly in the vertex loop (cheaper than a getX call for
+ * each): its own array, or a copy if it's interleaved or normalized.
+ */
+function numbers(a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): ArrayLike<number> {
+  if (!(a as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute && !a.normalized) return (a as THREE.BufferAttribute).array;
+  const out = new Float32Array(a.count * a.itemSize);
+  for (let i = 0; i < a.count; i++) for (let k = 0; k < a.itemSize; k++) out[i * a.itemSize + k] = a.getComponent(i, k);
+  return out;
+}
+
 const _m = new THREE.Matrix4();
 const _nm = new THREE.Matrix3();
 const _c = new THREE.Color();
@@ -350,17 +344,22 @@ export function bakeParts(owner: THREE.Object3D, parts: BakePart[], mats: Materi
       const eg = Math.round(THREE.MathUtils.clamp(_e.g / EMISSIVE_MAX, 0, 1) * 65535);
       const eb = Math.round(THREE.MathUtils.clamp(_e.b / EMISSIVE_MAX, 0, 1) * 65535);
       const texels = mat.map && U ? texelsOf(mat.map) : null;
+      const pa = numbers(P);
+      const na = numbers(N);
+      const ua = U ? numbers(U) : null;
+      const ca = VC ? numbers(VC) : null;
+      const cs = VC ? VC.itemSize : 0;
       for (let i = 0; i < n; i++) {
         const v = v0 + i;
-        const x = P.getX(i);
-        const y = P.getY(i);
-        const z = P.getZ(i);
+        const x = pa[i * 3];
+        const y = pa[i * 3 + 1];
+        const z = pa[i * 3 + 2];
         pos[v * 3] = me[0] * x + me[4] * y + me[8] * z + me[12];
         pos[v * 3 + 1] = me[1] * x + me[5] * y + me[9] * z + me[13];
         pos[v * 3 + 2] = me[2] * x + me[6] * y + me[10] * z + me[14];
-        const a = N.getX(i);
-        const b = N.getY(i);
-        const c = N.getZ(i);
+        const a = na[i * 3];
+        const b = na[i * 3 + 1];
+        const c = na[i * 3 + 2];
         let nx = ne[0] * a + ne[3] * b + ne[6] * c;
         let ny = ne[1] * a + ne[4] * b + ne[7] * c;
         let nz = ne[2] * a + ne[5] * b + ne[8] * c;
@@ -371,13 +370,13 @@ export function bakeParts(owner: THREE.Object3D, parts: BakePart[], mats: Materi
         nor[v * 3] = Math.round(nx * 32767);
         nor[v * 3 + 1] = Math.round(ny * 32767);
         nor[v * 3 + 2] = Math.round(nz * 32767);
-        if (U) {
-          uvs[v * 2] = U.getX(i);
-          uvs[v * 2 + 1] = U.getY(i);
+        if (ua) {
+          uvs[v * 2] = ua[i * 2];
+          uvs[v * 2 + 1] = ua[i * 2 + 1];
           if (texels) sampleInto(texels, uvs[v * 2], uvs[v * 2 + 1], tex, v * 4);
         }
-        if (VC) {
-          _c.setRGB(lin[0] * VC.getX(i), lin[1] * VC.getY(i), lin[2] * VC.getZ(i)).convertLinearToSRGB();
+        if (ca) {
+          _c.setRGB(lin[0] * ca[i * cs], lin[1] * ca[i * cs + 1], lin[2] * ca[i * cs + 2]).convertLinearToSRGB();
           col[v * 4] = u8(_c.r);
           col[v * 4 + 1] = u8(_c.g);
           col[v * 4 + 2] = u8(_c.b);
@@ -450,6 +449,9 @@ export function bakeParts(owner: THREE.Object3D, parts: BakePart[], mats: Materi
 export function setFar(b: Baked, far: boolean): void {
   b.mesh.material = far ? b.far : b.near;
 }
+
+/** How many draws it takes up close (the far-only group draws nothing there). */
+export const nearDraws = (b: Baked): number => b.near.filter((m) => m !== NOT_NEAR).length;
 
 export function disposeBaked(b: Baked): void {
   b.mesh.removeFromParent();
