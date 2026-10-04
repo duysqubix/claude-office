@@ -64,6 +64,7 @@ def materials():
 # ---------------------------------------------------------------- the box
 
 def box(M):
+    # A full-size base carries the drop (as before); build() then swaps in the visible one.
     parts = [lib.rbox("Box_Bottom", (W, DP, T), (0, 0, T / 2), M["kraft"], r=0.004, seg=1)]
     for sy in (-1, 1):
         parts.append(lib.rbox(f"Box_Wall{sy}", (W, T, H), (0, sy * (DP / 2 - T / 2), H / 2),
@@ -151,8 +152,10 @@ def book(name, M, w, d, t, cover):
     before = D.snapshot()
     for z in (0.0016, t - 0.0016):
         lib.rbox(f"{name}_Board{z:.4f}", (w, d, 0.0032), (0, 0, z), M[cover], r=0.0012, seg=1)
-    lib.rbox(f"{name}_Spine", (0.008, d, t), (-w / 2 + 0.004, 0, t / 2), M[cover], r=0.0035,
-             seg=2)
+    # The spine's ends sit inside the boards: full height, its top lay flush with the cover's
+    # and shimmered (#107).
+    lib.rbox(f"{name}_Spine", (0.008, d, t - 0.0032), (-w / 2 + 0.004, 0, t / 2), M[cover],
+             r=0.0035, seg=2)
     lib.rbox(f"{name}_Pages", (w - 0.01, d - 0.005, t - 0.0062), (0.002, 0, t / 2), M["paper"],
              r=0.0012, seg=1)
     for x in (-w / 2 + 0.025, -w / 2 + 0.04):
@@ -359,6 +362,17 @@ def build():
     colliders = [(ob, "BOX") for ob in box(M) + flaps(M)]
     scribbles(M)
     pack(M, colliders)
+    # The visible base sits inside the walls: full size, its underside and outer faces lay
+    # flush with the walls' and shimmered (#107).
+    D._drop(colliders[0][0])
+    lib.rbox("Box_Bottom", (W - 2 * T, DP - 2 * T, T), (0, 0, T / 2), M["kraft"], r=0.004, seg=1)
+    # The books' gold bands stand 2 mm off their covers (0.2 mm shimmered, #107); lifted after
+    # the drop so the stack lands exactly where it did.
+    for name in ("BookA", "BookB", "BookC"):
+        me = bpy.data.objects[name].data
+        gold = {i for i, m in enumerate(me.materials) if m == M["gold"]}
+        for v in {v for p in me.polygons if p.material_index in gold for v in p.vertices}:
+            me.vertices[v].co.z += 0.0018
     # One leaf has already given up.
     D.prism("Plant_Fallen", leaf_pts(0.075, 0.044), 0.005, M["leafSad"],
             loc=(-0.2, -0.235, 0.0), rot=(0, 0, math.radians(35)), r=0.002, seg=1)
@@ -376,4 +390,4 @@ def leaf_pts(length, width, n=16):
 
 
 def finalize(id):
-    return D.finalize(id, AO_RES, AO_DISTANCE, meta=META)
+    return D.finalize(id, AO_RES, AO_DISTANCE, meta=META, heal=True)
