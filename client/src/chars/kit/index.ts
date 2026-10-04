@@ -16,7 +16,7 @@ import { ditherOf, ditherable, setDither } from '../dither';
 import type { Looks } from '../looks';
 import type { Rig } from '../rig';
 import RD from '../rig-dimensions.json';
-import { bakeParts, bakedMaterial, disposeBaked, rimTerm, setFar, unbakeable, type BakePart, type Baked, type Look } from './bake';
+import { bakeParts, bakedMaterial, disposeBaked, nearDraws, rimTerm, setFar, unbakeable, warmTexels, type BakePart, type Baked, type Look } from './bake';
 import { planKit, type KitPlan } from './plan';
 import { findSlots, type SlotName } from './slots';
 
@@ -119,15 +119,17 @@ const _at = new THREE.Vector3();
  * not (a yard visitor is out of the scene while out of view, and shouldn't hitch the frame they
  * walk into it), and draws baked characters far from `camera` as one draw (never the manager:
  * the camera lives around them). A rig whose parts were taken out of it (the first-person arm
- * borrows the manager-look rig's shoulder) is left as it is.
+ * borrows the manager-look rig's shoulder) is left as it is. `budgetMs` Infinity bakes everyone
+ * waiting at once: behind the splash, where a page's first bakes belong (they run before the
+ * browser has optimized the code, several times slower than the rest).
  */
-export function updateKit(camera: THREE.Camera): void {
+export function updateKit(camera: THREE.Camera, budgetMs = BAKE_BUDGET_MS): void {
   const t0 = performance.now();
   for (const [rig, d] of toBake) {
     toBake.delete(rig);
     if (!intact(rig, d)) continue;
     if (bakeRig(rig) > 0) bakedRigs.set(rig, d);
-    if (performance.now() - t0 >= BAKE_BUDGET_MS) break;
+    if (performance.now() - t0 >= budgetMs) break;
   }
   if (!LOD) return;
   camera.getWorldPosition(_cam);
@@ -302,6 +304,18 @@ function bakesWith(mesh: THREE.Mesh, map: THREE.Texture | null): boolean {
   return false;
 }
 
+/** The textures baking this character reads for its far look. */
+function texturesOf(d: Dress): Set<THREE.Texture> {
+  const maps = new Set<THREE.Texture>();
+  for (const { part } of d.pieces)
+    part.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      const map = m && !Array.isArray(m) && (m as THREE.MeshStandardMaterial).isMeshStandardMaterial ? (m as THREE.MeshStandardMaterial).map : null;
+      if (map && !unbakeable(map)) maps.add(map);
+    });
+  return maps;
+}
+
 /**
  * The translucent blush, baked opaque: its colour over the head's skin, with the skin's warm
  * glow, rim and finish showing through as much as it lets them.
@@ -406,7 +420,7 @@ export function bakeRig(rig: Rig, opts: { far?: boolean } = {}): number {
   }
   d.baked = { baked, swapped, glass };
   if (opts.far) drawFar(d, true);
-  return baked.near.length;
+  return nearDraws(baked);
 }
 
 /** Draw a baked character as one draw (far away) or one per look (near). */
@@ -733,7 +747,12 @@ async function wear(rig: Rig, d: Dress): Promise<boolean> {
   if (got.laptop) got.laptop.position.y = -0.012; // the procedural laptop is centred on its base
   put('laptop', got.laptop, { cast: true });
 
-  // Merged into one mesh by updateKit, once they stand in the scene.
-  if (BAKE && d.worn.length) toBake.set(rig, d);
+  if (d.worn.length) {
+    // The far look's texture colours, read now while dressing (behind the splash for everyone
+    // there at the start) rather than in the frame that bakes them.
+    warmTexels(texturesOf(d));
+    // Merged into one mesh by updateKit, once they stand in the scene.
+    if (BAKE) toBake.set(rig, d);
+  }
   return d.worn.length > 0;
 }
