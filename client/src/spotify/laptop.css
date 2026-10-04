@@ -27,7 +27,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(1080px, calc(100vw - 48px));
+  /* The deck is 64 px wider than the lid: room for it inside the modal's 24 px sides at any width. */
+  width: min(1080px, calc(100vw - 112px));
   animation: monitor-in 420ms var(--spring-soft);
 }
 .sp-lid {
@@ -50,8 +51,9 @@
   background: #151b26;
 }
 .sp-screen {
-  height: min(calc(100vh - 210px), 620px);
-  min-height: 360px;
+  /* The whole laptop (the lid's frame, the deck and its shadow add about 105 px) fits the window's
+     height between the modal's paddings, down to small windows. */
+  height: clamp(160px, calc(100vh - 210px), 620px);
   overflow: hidden;
   border: 3px solid #151b26;
   border-radius: 14px;
@@ -92,6 +94,8 @@
 }
 .sp-stand {
   min-height: 34px;
+  /* At the deck's right end, also when the hint beside it is hidden (narrow windows). */
+  margin-left: auto;
 }
 
 /* ---------------------------------------------------------------- frames and views */
@@ -763,6 +767,48 @@
   .sp-art--big {
     width: 72px;
     height: 72px;
+  }
+}
+
+/* Short windows: a slimmer top bar, player bar and playlist header leave the songs more room. */
+@media (max-height: 560px) {
+  .sp-top {
+    min-height: 42px;
+    padding-block: 3px;
+  }
+  .sp-top__logo svg {
+    width: 24px;
+    height: 24px;
+  }
+  .sp-bar {
+    gap: 12px;
+    padding: 6px 14px 8px;
+  }
+  .sp-now__art .sp-art {
+    width: 44px;
+    height: 44px;
+  }
+  .sp-transport {
+    gap: 4px;
+  }
+  .sp-round {
+    width: 34px;
+    height: 34px;
+  }
+  .sp-round--play {
+    width: 44px;
+    height: 44px;
+  }
+  .sp-tracks {
+    padding-top: 8px;
+  }
+  .sp-art--big {
+    width: 56px;
+    height: 56px;
+  }
+  .sp-head__name {
+    font-size: 20px;
+    line-height: 24px;
   }
 }
 
