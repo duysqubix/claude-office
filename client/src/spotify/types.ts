@@ -99,7 +99,8 @@ export interface SpotifyService {
 }
 
 /** Why something failed, worded for the laptop's screen. `kind` picks how the laptop shows it. */
-export type ProblemKind = 'offline' | 'signedout' | 'refused' | 'premium' | 'notfound' | 'busy' | 'other';
+/** `outdated`: the office's server has no such call (it's older than this page: it hasn't restarted since an update). */
+export type ProblemKind = 'offline' | 'signedout' | 'refused' | 'premium' | 'notfound' | 'busy' | 'outdated' | 'other';
 
 export class SpotifyError extends Error {
   constructor(

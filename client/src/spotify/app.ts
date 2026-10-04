@@ -153,11 +153,13 @@ export class LaptopApp {
     document.body.classList.add('seated');
     this.render();
     TerminalOverlay.growFrom(laptop, this.from);
+    this.store.setShown(true);
     void this.store.wake();
   }
 
   close(): void {
     if (!this.layer) return;
+    this.store.setShown(false);
     for (const c of this.cleanups.splice(0)) c();
     const layer = this.layer;
     const laptop = this.laptop;
@@ -223,6 +225,7 @@ function loadingView(): View {
 
 function offlineView(store: SpotifyStore): View {
   const why = el('p', { class: 'co-muted' });
+  const asking = el('p', { class: 'co-muted' }, 'The laptop keeps asking by itself, and carries on the moment the office answers.');
   const retry = button('Try again', { kind: 'primary', small: true, onClick: () => void store.wake() });
   const root = el(
     'div',
@@ -230,12 +233,15 @@ function offlineView(store: SpotifyStore): View {
     el('span', { class: 'sp-bigicon', html: ICON.logo(56) }),
     el('h2', null, 'The office’s Spotify isn’t answering'),
     why,
+    asking,
     retry,
   );
   return {
     el: el('div', { class: 'sp-frame' }, topBar(), root),
     update(s) {
       why.textContent = s.setupError || 'Is the office still running?';
+      // Not for an office that's older than this page: that waits for a restart and Try again.
+      asking.hidden = !s.asking;
     },
     focus: () => retry.focus(),
   };
