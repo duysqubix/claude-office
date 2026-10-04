@@ -74,8 +74,10 @@ def back_rest(M):
     rx = W / 2 - 0.07
     parts = []
     for s in (-1, 1):
-        parts.append(lib.rbox(f"BackSide{s}", (0.05, BACK_LEN, 0.05),
-                              (s * rx, BACK_LEN / 2, -0.025), M["wood"], r=0.016, seg=2))
+        # Tops 4 mm under the slats' (bottoms where they were): flush, the two fought for
+        # depth along the rest's sides, just under the cushion's rounded edge.
+        parts.append(lib.rbox(f"BackSide{s}", (0.05, BACK_LEN, 0.046),
+                              (s * rx, BACK_LEN / 2, -0.027), M["wood"], r=0.016, seg=2))
     for i in range(5):
         y = 0.08 + i * (BACK_LEN - 0.12) / 4
         parts.append(lib.rbox(f"Slat{i}", (2 * rx + 0.04, 0.1, 0.025), (0, y, -0.0125),
