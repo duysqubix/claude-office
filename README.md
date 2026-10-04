@@ -39,7 +39,9 @@ until then); `M` mutes it.
 Code (`claude`) on your PATH, and `tmux` if you want to hire, resume or let go of sessions
 from inside the game, or use the Shell tab and hot desks. On Linux and WSL, `npm install`
 compiles the terminal module, so it also needs build tools (Debian/Ubuntu:
-`sudo apt install build-essential python3`).
+`sudo apt install build-essential python3`). Use tmux 3.4 or newer if you can: with Debian
+12's tmux 3.3a, some newer emoji knock Claude Code's own screen out of step, and the office
+then won't type into that session until it redraws.
 
 ### Windows (WSL2)
 
