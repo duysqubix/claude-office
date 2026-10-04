@@ -653,12 +653,13 @@ def rr_ring(name, outer, inner, depth, loc=(0, 0, 0), material=None, seg=6, beve
 
 def text_mesh(name, body, size, depth, loc=(0, 0, 0), rot=(0, 0, 0), material=None,
               bevel=0.0, bevel_res=2, res_u=4, spacing=1.0, align="CENTER", offset=0.0,
-              back=False):
+              back=False, kerning=None):
     """Raised rounded letters. The text lies in local XY facing +Z (rot=(pi/2, 0, 0) stands it
     up facing -Y), centred on loc horizontally and vertically, `depth` thick in total.
     `offset` fattens (+) or thins (-) the glyph outlines: a fat dark copy behind a normal one
     gives chunky two-tone sign letters. The back caps (local -Z, against the surface the
-    letters sit on) are dropped unless `back`."""
+    letters sit on) are dropped unless `back`. `kerning` ({character index: amount}) opens the
+    gap after single letters, e.g. where two fattened outlines would overlap."""
     font = bpy.data.fonts.load(FONT, check_existing=True)
     cu = bpy.data.curves.new(name + "_text", "FONT")
     cu.body = body
@@ -672,6 +673,8 @@ def text_mesh(name, body, size, depth, loc=(0, 0, 0), rot=(0, 0, 0), material=No
     cu.align_y = "CENTER"
     cu.space_character = spacing
     cu.offset = offset
+    for i, amount in (kerning or {}).items():
+        cu.body_format[i].kerning = amount
     tmp = bpy.data.objects.new(name + "_text", cu)
     lib.coll().objects.link(tmp)
     dg = bpy.context.evaluated_depsgraph_get()

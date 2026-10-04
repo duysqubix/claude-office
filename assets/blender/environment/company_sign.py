@@ -49,12 +49,13 @@ def panel(M):
 
 def letters(M):
     up = (math.pi / 2, 0, 0)
-    for text, size, z, spacing in (("CLAUDE", 0.34, PANEL_Z + 0.09, 1.04),
-                                   ("OFFICE", 0.19, PANEL_Z - 0.21, 1.3)):
+    # A little more room after CLAUDE's L: its fat outline overlapped the A's, flush.
+    for text, size, z, spacing, kern in (("CLAUDE", 0.34, PANEL_Z + 0.09, 1.04, {1: 5}),
+                                         ("OFFICE", 0.19, PANEL_Z - 0.21, 1.3, None)):
         _env.text_mesh(f"{text}Outline", text, size, 0.04, (0.2, FACE_Y - 0.01, z), up,
-                       M["outline"], res_u=2, spacing=spacing, offset=size * 0.05)
+                       M["outline"], res_u=2, spacing=spacing, offset=size * 0.05, kerning=kern)
         _env.text_mesh(f"{text}Face", text, size, 0.05, (0.2, FACE_Y - 0.026, z), up,
-                       M["cream"], res_u=2, spacing=spacing)
+                       M["cream"], res_u=2, spacing=spacing, kerning=kern)
 
 
 def sparkle(M):
@@ -65,8 +66,11 @@ def sparkle(M):
         length = 0.25 if i % 2 == 0 else 0.18
         d = 0.05 + length / 2
         pos = (cx + math.sin(a) * d, cz + math.cos(a) * d)
-        lib.rbox(f"RayOut{i}", (0.1, 0.035, length + 0.03), (pos[0], FACE_Y - 0.012, pos[1]),
-                 M["outline"], r=0.016, seg=1, rot=(0, a, 0))
+        # Every other outline stands 2 mm prouder, so neighbours never overlap flush.
+        lift = 0.002 * (i % 2)
+        lib.rbox(f"RayOut{i}", (0.1, 0.035 + lift, length + 0.03),
+                 (pos[0], FACE_Y - 0.012 - lift / 2, pos[1]), M["outline"], r=0.016, seg=1,
+                 rot=(0, a, 0))
         lib.rbox(f"Ray{i}", (0.07, 0.04, length), (pos[0], FACE_Y - 0.03, pos[1]), M["cream"],
                  r=0.03, seg=2, rot=(0, a, 0))
     lib.cyl("SparkleHub", 0.07, 0.05, (cx, FACE_Y - 0.032, cz), M["cream"], r=0.015, seg=2,
