@@ -11,6 +11,15 @@ export const blocks = (m) => (typeof m?.content === 'string' ? [text(m.content)]
 export const lastUser = (j) => (j?.messages ?? []).findLast((m) => m?.role === 'user');
 /** What the latest user turn says: its text blocks, joined. */
 export const said = (j) => blocks(lastUser(j)).filter((b) => b?.type === 'text').map((b) => b.text).join('\n');
+/** The <system-reminder>s Claude Code puts with what a person typed: a block of their own, or at the start or end of theirs. */
+const REMINDERS = /^\s*<system-reminder>[\s\S]*?<\/system-reminder>\s*|\s*<system-reminder>[\s\S]*?<\/system-reminder>\s*$/g;
+/** What a person typed, as the latest user turn carries it: its text without Claude Code's <system-reminder>s. */
+export const typed = (j) =>
+  blocks(lastUser(j))
+    .filter((b) => b?.type === 'text')
+    .map((b) => b.text.replace(REMINDERS, ''))
+    .filter(Boolean)
+    .join('\n');
 
 /** Start it on a free port. `usage` is what every reply reports; count_tokens answers with its input total. */
 export function startPretendApi(reply, { usage = { input_tokens: 1000, output_tokens: 20 } } = {}) {
