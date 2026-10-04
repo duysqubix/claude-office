@@ -17,7 +17,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const mod = await import(require.resolve('puppeteer-core'));
 const puppeteer = mod.default ?? mod;
-const BASE = process.env.GAME_BASE ?? process.env.UI_KIT_BASE ?? 'http://127.0.0.1:4777';
+const BASE = (await import('./base.mjs')).officeBase('GAME_BASE', 'UI_KIT_BASE');
 const executablePath = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean).find((p) => existsSync(p));
 const ONLY = process.env.CROWD_ONLY ?? '';
 const THROTTLE = Number(process.env.CPU_THROTTLE ?? 0);

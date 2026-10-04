@@ -1,9 +1,14 @@
 // Behaviour checks for the co- UI modules (client/src/ui): the dev UI kit, then the game itself
 // in the demo office (game.mjs; GAME_LIVE=1 adds read-only screenshots of the live office).
-//   npm run dev   (or any server on 4777), then:   node scripts/ui-check.mjs
-// UI_KIT_BASE=http://127.0.0.1:4778 node scripts/ui-check.mjs   for a dev server on another port.
+//   PORT=4778 npm run dev, then:   node scripts/ui-check.mjs
+// UI_KIT_BASE / GAME_BASE point the suites at a dev office on another port (default: 4778).
+// They never run against your own game on 4777 unless UI_CHECK_ALLOW_4777=1 (ui-check/base.mjs).
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+// Refuse 4777 once, here, rather than once per suite.
+const { officeBase } = await import('./ui-check/base.mjs');
+console.log(`ui kit at ${officeBase('UI_KIT_BASE')}, game at ${officeBase('GAME_BASE', 'UI_KIT_BASE')}`);
 
 const suites = ['kit', 'asks', 'chat', 'markdown', 'game', 'regulars', 'desks', 'crowd', 'yard', 'shell', 'hotdesk', 'audio', 'camera', 'spotify'];
 let failed = 0;
