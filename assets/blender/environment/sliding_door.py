@@ -67,13 +67,17 @@ def panel(M, node, sx):
     """One glass panel; sx = -1 for the left one (its meeting edge is at x = 0)."""
     cx = sx * PANEL_W / 2
     w, h = PANEL_W, PANEL_H
-    lib.rbox(f"{node}_RailTop", (w, RAIL, RAIL), (cx, 0, h - RAIL / 2), M["frame"], r=0.025,
-             seg=2)
-    lib.rbox(f"{node}_RailBottom", (w, RAIL, RAIL * 1.7), (cx, 0, RAIL * 0.85), M["frame"],
-             r=0.025, seg=2)
+    # Nothing lies flush with anything else, so no two faces fight for depth: the rails end
+    # inside the stiles and stop 2 mm short of the panel's top and bottom, the stiles stand 2 mm
+    # proud of the rails, and the outer stile keeps 4 mm back from the post's inner face.
+    lib.rbox(f"{node}_RailTop", (w - RAIL, RAIL, RAIL), (cx, 0, h - RAIL / 2 - 0.002),
+             M["frame"], r=0.025, seg=2)
+    lib.rbox(f"{node}_RailBottom", (w - RAIL, RAIL, RAIL * 1.7), (cx, 0, RAIL * 0.85 + 0.002),
+             M["frame"], r=0.025, seg=2)
     for e in (-1, 1):
-        lib.rbox(f"{node}_Stile{e + 1}", (RAIL, RAIL, h), (cx + e * (w / 2 - RAIL / 2), 0, h / 2),
-                 M["frame"], r=0.025, seg=2)
+        sw = RAIL - (0.004 if e == sx else 0.0)
+        lib.rbox(f"{node}_Stile{e + 1}", (sw, RAIL + 0.004, h),
+                 (cx + e * (w / 2 - sw / 2), 0, h / 2), M["frame"], r=0.025, seg=2)
     gw, gh = w - 2 * RAIL + 0.02, h - RAIL * 2.7 + 0.02
     lib.rbox(f"{node}_Glass", (gw, 0.02, gh), (cx, 0, RAIL * 1.7 + gh / 2 - 0.01), M["glass"],
              r=0.006, seg=1)
