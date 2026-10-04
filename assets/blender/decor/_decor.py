@@ -12,6 +12,7 @@ import os
 
 import bmesh
 import bpy
+import numpy as np
 from mathutils import Euler, Matrix, Vector
 
 import lib
@@ -671,8 +672,118 @@ def _drop(ob):
     bpy.data.meshes.remove(me)
 
 
+def _srgb(v):
+    return 12.92 * v if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055
+
+
+def heal_thin_ao(objs, img, distance, ground="floor", rays=32):
+    """Faces too thin for the AO atlas (no texel centre inside them) show whatever the bake
+    left next to them, often black. Give each its own AO instead: ray-cast here like the bake
+    (cosine-weighted, out to `distance`, against the same ground), then point all its UVs at
+    a smooth texel of a big face that already holds that value. The atlas and every face with
+    texels of its own stay exactly as baked."""
+    from mathutils.bvhtree import BVHTree
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    ao = px.reshape(h, w, 4)[..., 0]
+    # Which texel centres lie inside a triangle, and how many each face owns.
+    gx, gy = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    covered = np.zeros((h, w), bool)
+    owned = {}
+    for o in objs:
+        me = o.data
+        me.calc_loop_triangles()
+        uv = me.uv_layers["AO"].data
+        for t in me.loop_triangles:
+            (u0, v0), (u1, v1), (u2, v2) = ((uv[l].uv.x * w, uv[l].uv.y * h) for l in t.loops)
+            x0, x1 = max(int(min(u0, u1, u2)), 0), min(int(max(u0, u1, u2)) + 1, w)
+            y0, y1 = max(int(min(v0, v1, v2)), 0), min(int(max(v0, v1, v2)) + 1, h)
+            d = (v1 - v2) * (u0 - u2) + (u2 - u1) * (v0 - v2)
+            n = 0
+            if abs(d) > 1e-12 and x0 < x1 and y0 < y1:
+                cx, cy = gx[y0:y1, x0:x1], gy[y0:y1, x0:x1]
+                a = ((v1 - v2) * (cx - u2) + (u2 - u1) * (cy - v2)) / d
+                b = ((v2 - v0) * (cx - u2) + (u0 - u2) * (cy - v2)) / d
+                inside = (a >= 0) & (b >= 0) & (a + b <= 1)
+                covered[y0:y1, x0:x1] |= inside
+                n = int(inside.sum())
+            owned[(o.name, t.polygon_index)] = owned.get((o.name, t.polygon_index), 0) + n
+    # Palette: covered texels deep inside smooth regions, sorted by value.
+    ok = covered.copy()
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            ok &= np.roll(np.roll(covered, dy, 0), dx, 1)
+    lo, hi = ao.copy(), ao.copy()
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            s = np.roll(np.roll(ao, dy, 0), dx, 1)
+            lo, hi = np.minimum(lo, s), np.maximum(hi, s)
+    ok &= (hi - lo) < 0.03
+    ok[0, :] = ok[-1, :] = ok[:, 0] = ok[:, -1] = False
+    ys, xs = np.nonzero(ok)
+    order = np.argsort(ao[ys, xs])
+    pal_v, pal_x, pal_y = ao[ys, xs][order], xs[order], ys[order]
+    if not len(pal_v):
+        return 0
+    # Occluders: the whole asset plus the bake's ground.
+    verts, polys = [], []
+    for o in objs:
+        base = len(verts)
+        verts += [o.matrix_world @ v.co for v in o.data.vertices]
+        polys += [[base + i for i in p.vertices] for p in o.data.polygons]
+    base = len(verts)
+    g = 10.0
+    verts += [Vector(c) for c in ((-g, 0, -g), (g, 0, -g), (g, 0, g), (-g, 0, g))] if ground == "wall" \
+        else [Vector(c) for c in ((-g, -g, 0), (g, -g, 0), (g, g, 0), (-g, g, 0))]
+    polys.append([base, base + 1, base + 2, base + 3])
+    bvh = BVHTree.FromPolygons(verts, polys)
+    # Cosine-weighted hemisphere directions (z up), fixed so builds stay reproducible.
+    golden = math.pi * (3 - math.sqrt(5))
+    dirs = []
+    for i in range(rays):
+        r = math.sqrt((i + 0.5) / rays)
+        dirs.append(Vector((r * math.cos(i * golden), r * math.sin(i * golden),
+                            math.sqrt(max(0.0, 1 - r * r)))))
+    healed = 0
+    for o in objs:
+        me = o.data
+        uv = me.uv_layers["AO"].data
+        mats = me.materials
+        rot = o.matrix_world.to_3x3()
+        for p in me.polygons:
+            if owned.get((o.name, p.index), 0):
+                continue
+            m = mats[p.material_index] if mats else None
+            if m is None or m.get("emissive") or m.get("no_ao") or m.name.split("@")[0] in lib.UV_PLANAR:
+                continue
+            nrm = (rot @ p.normal).normalized()
+            tangent = nrm.orthogonal().normalized()
+            frame = Matrix((tangent, nrm.cross(tangent), nrm)).transposed()
+            centre = o.matrix_world @ p.center
+            pts = [centre] + [centre + ((o.matrix_world @ me.vertices[v].co) - centre) * 0.85
+                              for v in p.vertices]
+            vals = []
+            for q in pts:
+                start = q + nrm * 0.0002
+                hits = sum(1 for d in dirs if bvh.ray_cast(start, frame @ d, distance)[0] is not None)
+                vals.append(1 - hits / rays)
+            # What you see of a sliver is its least-buried part (a pen tip above the mug). In
+            # 24 steps, so neighbouring slivers share a texel and the GLB keeps their vertices
+            # shared.
+            target = round(_srgb(float(np.percentile(vals, 75))) * 24) / 24
+            k = min(int(np.searchsorted(pal_v, target)), len(pal_v) - 1)
+            if k and abs(pal_v[k - 1] - target) < abs(pal_v[k] - target):
+                k -= 1
+            u, v = (pal_x[k] + 0.5) / w, (pal_y[k] + 0.5) / h
+            for li in p.loop_indices:
+                uv[li].uv = (u, v)
+            healed += 1
+    return healed
+
+
 def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=False,
-             preview=None):
+             preview=None, heal=False):
     """lib.finalize plus decor extras (animated parts: tag them with lib.node in build()).
 
     planar  material names whose faces get per-direction planar 0..1 UVs (two-sided `Label`,
@@ -682,13 +793,18 @@ def finalize(name, ao_res=256, ao_distance=0.06, meta=None, planar=(), wall=Fals
     meta    lib.sidecar kwargs (artist defaults to Claude Cézanne).
     preview callable that adds preview-only parts after export (e.g. a sample name on a
             blank Label); they are removed again after the render.
+    heal    faces too thin for the AO atlas get their own ray-cast AO (heal_thin_ao): for
+            models packed with slivers whose atlas is mostly sub-texel.
     """
     c = lib.coll()
     ob = lib.join_asset(name)
     objs = lib.asset_objects(ob)
     tris = lib.tri_count(ob)
 
-    lib.bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
+    img = lib.bake_ao(ob, ao_res, ao_distance, ground="wall" if wall else "floor")
+    if heal:
+        print(f"[decor] {name}: {heal_thin_ao(objs, img, ao_distance, 'wall' if wall else 'floor')} "
+              f"faces too thin for the AO atlas take their own ray-cast AO")
     # The unwrap scales islands to the atlas bounds; with the default REPEAT wrap, texels on
     # the border filter in the opposite edge (a thin dark seam). Clamp instead.
     for o in objs:
