@@ -235,7 +235,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const id = await hiredHere(sessionId, 'Only people hired in the office can be let go from here');
       if (id) await kill(id);
       void shells.close(sessionId);
-      void roster.tick();
+      void roster.tick().catch((err) => console.error('[roster] tick failed:', err));
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/interrupt': {
@@ -422,7 +422,7 @@ rosterSockets.on('connection', (ws) => {
   // Hot desks before the roster: regulars sit down once the first roster is in, and never at one.
   send(ws, { type: 'desks', open: openDesks });
   send(ws, { type: 'roster', employees: roster.employees, now: Date.now() });
-  void stats.build(roster.employees, roster).then((s) => send(ws, { type: 'stats', stats: s }));
+  void stats.build(roster.employees, roster).then((s) => send(ws, { type: 'stats', stats: s })).catch((err) => console.error('[stats] build failed:', err));
 });
 
 // Hot desks: which desks have a shell running. Checked when a desk's terminal opens or closes
