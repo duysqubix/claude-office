@@ -5,14 +5,18 @@ import type { WebSocket } from 'ws';
 import type { TermClientMessage } from '../shared/protocol';
 import { HOME } from './config';
 import { cleanEnv } from './exec';
-import { isOfficeTarget, tmuxPath, tmuxTarget } from './tmux';
+import { attachArgs, isOfficeTarget, tmuxPath } from './tmux';
 
 const clampDim = (n: unknown, lo: number, hi: number, dflt: number) => {
   const v = Math.floor(Number(n));
   return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
 };
 
-/** Attach `ws` to one of the office's tmux sessions: a shell or desk by name, a hire by the id its stamp was read with. */
+/**
+ * Attach `ws` to one of the office's tmux sessions: a shell or desk by name, a hire pinned down
+ * along with its stamp, which tmux checks as it attaches (see attachArgs: not that session any
+ * more, the client ends at once and this socket closes).
+ */
 export function attachTerminal(ws: WebSocket, target: string, cols: number, rows: number): void {
   ws.on('error', () => ws.terminate());
   if (!isOfficeTarget(target)) {
@@ -27,7 +31,7 @@ export function attachTerminal(ws: WebSocket, target: string, cols: number, rows
 
   let term: IPty;
   try {
-    term = pty.spawn(tmuxPath(), ['attach-session', '-t', tmuxTarget(target)], {
+    term = pty.spawn(tmuxPath(), attachArgs(target), {
       name: 'xterm-256color',
       cols: clampDim(cols, 20, 400, 120),
       rows: clampDim(rows, 5, 200, 36),

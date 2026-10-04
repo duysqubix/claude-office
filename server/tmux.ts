@@ -11,7 +11,7 @@ import { cut } from './transcript';
 
 export interface HostedPane {
   tmuxName: string;
-  /** Its session's tmux id: what to act on, as nothing that takes the name since can be reached through it. */
+  /** Its session pinned down (see PINNED): what to act on, as nothing that takes the name or the id since can be reached through it. */
   id: string;
   panePid: number;
   dead: boolean;
@@ -68,17 +68,57 @@ export function isOfficeName(name: string): boolean {
   return HIRE_NAME.test(name) || SHELL_NAME.test(name) || DESK_NAME.test(name);
 }
 
-/** A tmux session id ($12): tmux doesn't hand one out twice while its server runs, so it reaches only the session it was read from, even after another takes the name. */
-const SESSION_ID = /^\$\d+$/;
+/**
+ * A tmux session pinned down (see pin): `$12@4242/office-1a2b3c4d`, its id, the pid of the tmux
+ * server it was read on, and its name. tmux doesn't hand an id out twice while its server runs,
+ * but a server started after that one exits counts from $0 again: only all three are that session.
+ */
+const PINNED = /^(\$\d+)@(\d+)\/(.+)$/;
 
-/** One of the office's sessions: by name, or by the id read along with its stamp (see ownHire). */
-export function isOfficeTarget(target: string): boolean {
-  return isOfficeName(target) || SESSION_ID.test(target);
+function unpin(target: string): { id: string; server: string; name: string } | null {
+  const m = PINNED.exec(target);
+  return m && isOfficeName(m[3]) ? { id: m[1], server: m[2], name: m[3] } : null;
 }
 
-/** tmux's `-t` for `target`: the session with exactly that name, or with that id. */
-export function tmuxTarget(target: string): string {
-  return SESSION_ID.test(target) ? target : `=${target}`;
+/**
+ * A format that's 1 while the session it's expanded for is still `p`: the same id, on the same
+ * server, under the same name. The id too, as for an id that's gone, tmux expands a format for
+ * the session of a client attached somewhere instead (yours, sitting at their call-back, say).
+ */
+const still = (p: { id: string; server: string; name: string }) =>
+  `#{&&:#{==:#{session_id},${p.id}},#{&&:#{==:#{pid},${p.server}},#{==:#{session_name},${p.name}}}}`;
+
+/** One of the office's sessions: by name, or pinned down along with its stamp (see ownHire). */
+export function isOfficeTarget(target: string): boolean {
+  return isOfficeName(target) || unpin(target) !== null;
+}
+
+/** tmux's `-t` for `target`: the session with exactly that name, or the id it was pinned with. */
+function tmuxTarget(target: string): string {
+  return unpin(target)?.id ?? `=${target}`;
+}
+
+/**
+ * tmux's arguments for command `args` on `target`. On a pinned session the command runs inside
+ * tmux, and only if the session with that id there is still on the same server under the same
+ * name, checked in the same step; if not, nothing happens and nothing is printed. So a session
+ * that has the id since (a new server's first, say: someone's own shell) is never touched.
+ */
+function guarded(target: string, args: string[]): string[] {
+  const p = unpin(target);
+  if (!p) return args;
+  // Single-quoted for tmux's command parser, which then takes each one as it is: one with a quote
+  // or a line break in it wouldn't be.
+  if (args.some((a) => /['\n\r]/.test(a))) throw new Error('A quote or line break in a guarded tmux command');
+  return ['if-shell', '-F', '-t', `${p.id}:`, still(p), args.map((a) => `'${a}'`).join(' ')];
+}
+
+/** Run tmux command `args` on `target` (see guarded). */
+const on = (target: string, args: string[]) => tmux(guarded(target, args));
+
+/** tmux's arguments to attach a client to `target` (see guarded). */
+export function attachArgs(target: string): string[] {
+  return guarded(target, ['attach-session', '-t', tmuxTarget(target)]);
 }
 
 const isShellName = (name: string) => SHELL_NAME.test(name);
@@ -119,16 +159,17 @@ export async function listHosted(): Promise<Hires> {
   // as "_". Session names can't hold a colon, and the rest are ids ($12), numbers or a signal's name.
   const r = await tmux([
     'list-panes', '-a', '-F',
-    '#{session_name}:#{session_id}:#{pane_pid}:#{pane_dead}:#{pane_dead_status}:#{pane_dead_signal}:#{session_created}',
+    '#{session_name}:#{session_id}:#{pane_pid}:#{pane_dead}:#{pane_dead_status}:#{pane_dead_signal}:#{session_created}:#{pid}',
   ]);
   const panes: HostedPane[] = [];
   const elsewhere = new Set<number>();
   if (r.code !== 0) return { panes, elsewhere };
   const seen = new Set<string>();
   for (const line of r.stdout.split('\n')) {
-    const [name, id, pid, dead, status, signal, created] = line.split(':');
+    const [name, tmuxId, pid, dead, status, signal, created, server] = line.split(':');
     // Hires only: the roster reaps dead panes and lets go of these, never a shell or a desk.
     if (!name || !isHireName(name)) continue;
+    const id = `${tmuxId}@${server}/${name}`;
     const key = `${name}\t${pid}\t${created}`;
     seen.add(key);
     if (!hirePorts.has(key)) {
@@ -154,11 +195,11 @@ export async function listHosted(): Promise<Hires> {
   return { panes, elsewhere };
 }
 
-/** The environment the office stamped on one of its tmux sessions, by name or id (null if it can't be read). */
+/** The environment the office stamped on one of its tmux sessions, by name or pinned (null if it can't be read, or it's no longer the one pinned). */
 async function stamps(target: string): Promise<Map<string, string> | null> {
   if (!isOfficeTarget(target)) return null;
-  const r = await tmux(['show-environment', '-t', `${tmuxTarget(target)}:`]);
-  if (r.code !== 0) return null;
+  const r = await on(target, ['show-environment', '-t', `${tmuxTarget(target)}:`]);
+  if (r.code !== 0 || !r.stdout) return null;
   const env = new Map<string, string>();
   for (const line of r.stdout.split('\n')) {
     const eq = line.indexOf('=');
@@ -177,22 +218,23 @@ export async function readOfficeMeta(tmuxName: string): Promise<OfficeMeta | nul
 }
 
 /**
- * The tmux session called `tmuxName` right now, pinned down: its id, and what the office stamped
- * on it read by that id (null if unreadable just now). Whatever then acts on the id reaches the
- * session whose stamp was read, even if another takes the name meanwhile. Null if there's none.
+ * The tmux session called `tmuxName` right now, pinned down (see PINNED), and what the office
+ * stamped on it, read through the pin (null if unreadable just now). Whatever then acts on the
+ * pin reaches the session whose stamp was read or nothing: never one that takes the name
+ * meanwhile, nor one a new tmux server hands the id to. Null if there's none.
  */
 async function pin(tmuxName: string): Promise<{ id: string; env: Map<string, string> | null } | null> {
   if (!isOfficeName(tmuxName)) return null;
-  const r = await tmux(['display-message', '-p', '-t', `=${tmuxName}:`, '#{session_id}']);
-  const id = r.stdout.trim();
-  return r.code === 0 && SESSION_ID.test(id) ? { id, env: await stamps(id) } : null;
+  const r = await tmux(['display-message', '-p', '-t', `=${tmuxName}:`, '#{session_id}@#{pid}']);
+  const id = `${r.stdout.trim()}/${tmuxName}`;
+  return r.code === 0 && unpin(id) ? { id, env: await stamps(id) } : null;
 }
 
 /**
- * Hire session `tmuxName`'s id to act on, if it's this office's (see pin). Null if it's running
- * but not this office's (another office's, stamped by none, or unreadable just now), undefined
- * if it isn't running. The roster's map can be a poll old, so this is read again right before
- * acting.
+ * Hire session `tmuxName` pinned down to act on, if it's this office's (see pin). Null if it's
+ * running but not this office's (another office's, stamped by none, or unreadable just now),
+ * undefined if it isn't running. The roster's map can be a poll old, so this is read again right
+ * before acting.
  */
 export async function ownHire(tmuxName: string): Promise<string | null | undefined> {
   const p = await pin(tmuxName);
@@ -368,8 +410,8 @@ export class AlreadyHere extends Error {}
 async function holder(tmuxName: string): Promise<{ id: string; port: number | null | undefined; dead: boolean } | null> {
   const p = await pin(tmuxName);
   if (!p) return null;
-  const panes = await tmux(['list-panes', '-s', '-t', p.id, '-F', '#{pane_dead}']);
-  if (panes.code !== 0) return null;
+  const panes = await on(p.id, ['list-panes', '-s', '-t', tmuxTarget(p.id), '-F', '#{pane_dead}']);
+  if (panes.code !== 0 || !panes.stdout.trim()) return null;
   return { id: p.id, port: p.env ? Number(p.env.get('CLAUDE_OFFICE_PORT')) || null : undefined, dead: panes.stdout.split('\n').filter(Boolean).every((d) => d === '1') };
 }
 
@@ -399,21 +441,21 @@ export async function rehire(opts: { sessionId: string; cwd: string; displayName
   return { tmuxName };
 }
 
-/** End one of the office's tmux sessions, by name or by the id ownHire read. */
+/** End one of the office's tmux sessions, by name or pinned down by ownHire. */
 export async function kill(target: string): Promise<void> {
   if (!isOfficeTarget(target)) throw new Error('Refusing to touch a tmux session the office did not create');
-  await tmux(['kill-session', '-t', `${tmuxTarget(target)}:`]);
+  await on(target, ['kill-session', '-t', `${tmuxTarget(target)}:`]);
 }
 
 /**
- * End the session with id `id` (read from a dead hire) if everything in it is still dead: one
- * step inside tmux, so a live session can't take its place in between. That covers one more
- * case: a dead session that was the last in its tmux server, which then exits, and a restarted
- * server hands its id to a new session (another office's call-back, say).
+ * End the session pinned as `id` (a dead hire) if everything in it is still dead: one step inside
+ * tmux, so a live session can't take its place in between, and neither can a session a new tmux
+ * server hands the id to once the old one exits (another office's call-back, say).
  */
 export async function killDead(id: string): Promise<void> {
-  if (!SESSION_ID.test(id)) throw new Error('Not a tmux session id');
-  await tmux(['if-shell', '-F', '-t', `${id}:`, '#{pane_dead}', `kill-session -t '${id}'`]);
+  const p = unpin(id);
+  if (!p) throw new Error('Not a pinned tmux session');
+  await tmux(['if-shell', '-F', '-t', `${p.id}:`, `#{&&:#{pane_dead},${still(p)}}`, `kill-session -t '${p.id}'`]);
 }
 
 /**
@@ -426,8 +468,8 @@ export function pasteSafe(text: string): string {
 
 /**
  * How far say() got: all of it; stopped before the paste (a question open, their terminal away
- * from its prompt, or unsent text already in their box); stopped before Enter; or Enter didn't
- * send, leaving the text in their box.
+ * from its prompt or gone, or unsent text already in their box); stopped before Enter; or Enter
+ * didn't send, leaving the text in their box.
  */
 export type Said = 'sent' | 'not-pasted' | 'draft' | 'not-sent' | 'held';
 
@@ -452,8 +494,12 @@ export async function say(target: string, text: string, asking: (stage: 'paste' 
   const buffer = `office-say-${process.pid}-${randomUUID()}`;
   const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: typing });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
-  const paste = await tmux(['paste-buffer', '-p', '-d', '-b', buffer, '-t', `${tmuxTarget(target)}:`]);
+  const paste = await on(target, ['paste-buffer', '-p', '-d', '-b', buffer, '-t', `${tmuxTarget(target)}:`]);
+  // Pasted, -d has dropped the text from tmux. Still there, it wasn't pasted (it failed, or that's
+  // no longer the session pinned), and it mustn't stay there either.
+  const left = (await tmux(['delete-buffer', '-b', buffer])).code === 0;
   if (paste.code !== 0) throw new Error(paste.stderr.trim() || 'tmux paste-buffer failed');
+  if (left) return 'not-pasted';
   // Give Claude Code's input a beat to take the paste, and up to a second more to draw it.
   for (let look = 0; ; look++) {
     await new Promise((r) => setTimeout(r, look ? 100 : 150));
@@ -461,7 +507,7 @@ export async function say(target: string, text: string, asking: (stage: 'paste' 
     if (!(await dialogOnScreen(target, typing))) break;
     if (look === 8) return 'not-sent';
   }
-  await tmux(['send-keys', '-t', `${tmuxTarget(target)}:`, 'Enter']);
+  await on(target, ['send-keys', '-t', `${tmuxTarget(target)}:`, 'Enter']);
   // Sent, the text leaves the box: it empties, shows a suggested reply, or gives way to what a
   // command opens. Still there a second later (all of it, or how it starts), Enter did something
   // else there.
@@ -576,7 +622,7 @@ const TRUST_PROMPT = /Accessing workspace:|Quick safety check|Do you trust the f
 
 /** Is the folder-trust prompt up on `target`: its words on screen, and no input box (Claude's own replies could quote them)? */
 export async function trustPromptUp(target: string): Promise<boolean> {
-  const r = await tmux(['capture-pane', '-p', '-t', `${tmuxTarget(target)}:`]);
+  const r = await on(target, ['capture-pane', '-p', '-t', `${tmuxTarget(target)}:`]);
   return r.code === 0 && TRUST_PROMPT.test(r.stdout) && (await inputBox(target)) === null;
 }
 
@@ -591,7 +637,7 @@ export async function trustPromptUp(target: string): Promise<boolean> {
  * shown only while nothing is typed. Anything else counts as typed, and so does a folded paste.
  */
 async function inputBox(target: string): Promise<{ typed: string; empty: boolean } | null> {
-  const r = await tmux(['capture-pane', '-p', '-e', '-t', `${tmuxTarget(target)}:`]);
+  const r = await on(target, ['capture-pane', '-p', '-e', '-t', `${tmuxTarget(target)}:`]);
   if (r.code !== 0) return null;
   const rows = screenRows(r.stdout);
   for (let top = rows.length - 1; top > 0; top--) {
@@ -676,12 +722,12 @@ function screenRows(out: string): { text: string; typed: string; cursor: number;
 /** Press Esc in the session (Claude Code's interrupt). */
 export async function interrupt(target: string): Promise<void> {
   if (!isOfficeTarget(target)) throw new Error('Not an office session');
-  await tmux(['send-keys', '-t', `${tmuxTarget(target)}:`, 'Escape']);
+  await on(target, ['send-keys', '-t', `${tmuxTarget(target)}:`, 'Escape']);
 }
 
 /** Last lines of the visible screen, for the desk monitor. */
 export async function capture(target: string, maxLines = 18, maxCols = 80): Promise<string[]> {
-  const r = await tmux(['capture-pane', '-p', '-t', `${tmuxTarget(target)}:`]);
+  const r = await on(target, ['capture-pane', '-p', '-t', `${tmuxTarget(target)}:`]);
   if (r.code !== 0) return [];
   const lines = r.stdout.split('\n').map((l) => l.replace(/\s+$/, ''));
   while (lines.length && !lines[lines.length - 1]) lines.pop();
