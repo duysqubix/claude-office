@@ -50,7 +50,15 @@ export function claudePath(): string {
   return claudeBin;
 }
 
-const tmux = (args: string[], opts: { input?: string } = {}) => run(tmuxBin, args, { ...opts, timeoutMs: 5000 });
+/**
+ * The office's tmux server, named on every call. Inside tmux, $TMUX ("<socket>,<pid>,<n>") names
+ * it: calls that keep $TMUX reach it anyway, but an attach runs without $TMUX (see terminal.ts),
+ * so on its own it would reach the default server, which a tmux -L or -S server isn't.
+ */
+const SOCKET = process.env.TMUX?.split(',')[0] ?? '';
+const withSocket = (args: string[]) => (SOCKET ? ['-S', SOCKET, ...args] : args);
+
+const tmux = (args: string[], opts: { input?: string } = {}) => run(tmuxBin, withSocket(args), { ...opts, timeoutMs: 5000 });
 
 /** An employee's shell session is their hire's name plus this: the port is in it, so two offices never share one. */
 const SHELL_SUFFIX = `-sh${PORT}`;
@@ -120,7 +128,7 @@ const on = (target: string, ...commands: string[][]) => tmux(guarded(target, ...
 
 /** tmux's arguments to attach a client to `target` (see guarded). */
 export function attachArgs(target: string): string[] {
-  return guarded(target, ['attach-session', '-t', tmuxTarget(target)]);
+  return withSocket(guarded(target, ['attach-session', '-t', tmuxTarget(target)]));
 }
 
 const isShellName = (name: string) => SHELL_NAME.test(name);
