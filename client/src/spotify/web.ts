@@ -20,6 +20,10 @@ const MAX_PLAYLISTS = 200;
 const MAX_NAME = 200;
 /** A token is fetched again this long before it runs out. */
 const EARLY_MS = 30_000;
+/** An office call with no answer by now counts as "can't reach the office" (a token may wait on Spotify for 10 s). */
+const OFFICE_MS = 15_000;
+/** What a 404 from the office means: its server predates these calls (it hasn't restarted since an update). */
+export const OUTDATED = 'This office’s server is older than this page. Restart the office (npm start) and press Try again.';
 
 // ---------------------------------------------------------------------------------------------
 // The office (sign-in and tokens)
@@ -31,11 +35,14 @@ async function office<T>(action: string, body: Record<string, unknown> = {}): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
+      // A browser without AbortSignal.timeout just waits (rather than every call failing).
+      signal: AbortSignal.timeout?.(OFFICE_MS),
     });
   } catch {
     throw new SpotifyError('Can’t reach the office', 'offline');
   }
   const j = (await r.json().catch(() => null)) as ({ ok?: boolean; error?: string; connected?: boolean } & T) | null;
+  if (r.status === 404) throw new SpotifyError(OUTDATED, 'outdated', 404);
   if (!r.ok || !j?.ok) throw new SpotifyError(j?.error ?? `The office said ${r.status}`, j?.connected === false ? 'signedout' : 'other', r.status);
   return j;
 }

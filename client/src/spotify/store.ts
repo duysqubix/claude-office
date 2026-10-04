@@ -33,6 +33,8 @@ export interface LaptopState {
   notice: Notice | null;
   /** A play request is on its way. */
   starting: boolean;
+  /** Offline: the laptop keeps asking the office again by itself (an older server gets one quiet re-check instead). */
+  asking: boolean;
 }
 
 /** Signing in waits this long for you at Spotify. */
@@ -42,6 +44,9 @@ const POLL_MS = 1500;
 const START_GRACE_MS = 6000;
 /** Spotify dropped the player (offline, say): this long without it coming back, the song has stopped here. */
 const GONE_MS = 4000;
+/** "Isn't answering" on screen: the office is asked again after this, then a little later each time, up to the max. */
+const RETRY_FIRST_MS = 2000;
+const RETRY_MAX_MS = 10_000;
 
 export const NOTICES: Record<Notice['kind'], string> = {
   premium: 'Spotify Premium is needed to play music here. Your playlists still show, and the café band keeps playing.',
@@ -55,6 +60,8 @@ export const NOTICES: Record<Notice['kind'], string> = {
 };
 
 const messageOf = (err: unknown) => (err instanceof Error ? err.message : String(err));
+/** The office's server is older than this page (it said 404): asking again won't help until it restarts. */
+const outdated = (err: unknown) => err instanceof SpotifyError && err.kind === 'outdated';
 
 /** Where the song is now: Spotify's last word, plus the time since if it's playing. */
 const positionOf = (now: PlayerState) => Math.max(0, Math.min(now.positionMs + (now.paused ? 0 : performance.now() - now.at), now.durationMs || Infinity));
@@ -80,6 +87,7 @@ export class SpotifyStore {
     now: null,
     notice: null,
     starting: false,
+    asking: false,
   };
   private subs = new Set<() => void>();
   private handBack: (() => void) | null = null;
@@ -95,6 +103,14 @@ export class SpotifyStore {
   private connectGen = 0;
   /** Which sign-in this is: songs and playlists that answer after a sign-out are dropped. */
   private session = 0;
+  /** Which ask of the office ("where do things stand?") is the current one: an older one's answer, good or bad, is dropped. */
+  private statusGen = 0;
+  /** The laptop app is open (the only time "isn't answering" asks again by itself). */
+  private shown = false;
+  private retryTimer = 0;
+  private retryDelay = RETRY_FIRST_MS;
+  /** 404s in a row from an older server: one quick re-check, then it waits for a restart and Try again. */
+  private staleAnswers = 0;
   private library = false;
   /** The player can't play for this account or browser (until you sign in again). */
   private broken: 'premium' | 'browser' | null = null;
@@ -138,15 +154,33 @@ export class SpotifyStore {
   async wake(): Promise<void> {
     const { phase } = this.state;
     if (phase === 'waiting' || (phase === 'ready' && this.library)) return;
-    this.set({ phase: 'loading' });
+    window.clearTimeout(this.retryTimer);
+    const gen = ++this.statusGen;
+    // Asking again: "can't reach the office" is old news (a failure says it again).
+    this.set({ phase: 'loading', ...(phase === 'offline' ? { setupError: '' } : {}) });
     try {
       const status = await this.service.status();
-      this.set({ status });
+      // The laptop closed meanwhile (the next open asks again), or opened again and asked anew: old news.
+      if (gen !== this.statusGen) return;
+      this.set({ status, asking: false });
       if (status.connected) await this.enter();
       else this.set({ phase: 'setup' });
     } catch (err) {
+      if (gen !== this.statusGen) return;
       this.set({ phase: 'offline', setupError: messageOf(err) });
+      // An older server gets one quiet re-check; anything else, the laptop keeps asking.
+      this.staleAnswers = outdated(err) ? 1 : 0;
+      this.retrySoon(true);
     }
+  }
+
+  /** The laptop app opened or closed. While it's open on "isn't answering", the office is asked again by itself. */
+  setShown(shown: boolean): void {
+    this.shown = shown;
+    if (shown) return this.retrySoon(true);
+    // Closed: no more asking, and an answer still on its way starts nothing (the next open asks again).
+    this.statusGen++;
+    window.clearTimeout(this.retryTimer);
   }
 
   /**
@@ -286,6 +320,46 @@ export class SpotifyStore {
   }
 
   // ---------------------------------------------------------------------------------------
+
+  /** "Isn't answering" on screen: ask again in a moment (2 s, then a little longer each time, up to 10 s). */
+  private retrySoon(first = false): void {
+    window.clearTimeout(this.retryTimer);
+    if (!this.shown || this.state.phase !== 'offline') return;
+    if (first) this.retryDelay = RETRY_FIRST_MS;
+    const delay = this.retryDelay;
+    this.retryDelay = Math.min(RETRY_MAX_MS, Math.round(delay * 1.6));
+    this.retryTimer = window.setTimeout(() => void this.askAgain(), delay);
+    // An older server gets one quiet re-check: the screen says to restart it, not that it keeps asking.
+    const asking = this.staleAnswers === 0;
+    if (this.state.asking !== asking) this.set({ asking });
+  }
+
+  /** Ask the office again, quietly (no "Opening Spotify…" in between). Answered: on to the setup steps or your library. */
+  private async askAgain(): Promise<void> {
+    if (!this.shown || this.state.phase !== 'offline') return;
+    const gen = ++this.statusGen;
+    // Try again asked since (its answer is the newer one), or the laptop closed: this answer, good or bad, is dropped.
+    const current = () => gen === this.statusGen && this.state.phase === 'offline';
+    let status: SpotifyStatus;
+    try {
+      status = await this.service.status();
+    } catch (err) {
+      if (!current()) return;
+      this.set({ setupError: messageOf(err) });
+      if (outdated(err)) {
+        // Checked again and still the older server: no use asking until it restarts (Try again).
+        if (++this.staleAnswers >= 2) return this.set({ asking: false });
+        return this.retrySoon(true);
+      }
+      this.staleAnswers = 0;
+      this.retrySoon();
+      return;
+    }
+    if (!current()) return;
+    this.set({ status, setupError: '', asking: false });
+    if (status.connected) await this.enter();
+    else this.set({ phase: 'setup' });
+  }
 
   private set(patch: Partial<LaptopState>): void {
     this.state = { ...this.state, ...patch };

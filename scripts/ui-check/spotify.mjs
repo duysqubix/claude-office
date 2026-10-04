@@ -14,6 +14,10 @@
 //   off is the band's switch (Spotify plays, Music stays off); a song that won't start leaves the
 //   one playing alone, with the speakers; a player that drops out and stays gone stops the song
 //   here; another office tab used later takes the music; an older connect's late answer is ignored;
+// - an office that doesn't answer: the laptop asks again by itself, a little later each time, and
+//   stops once closed; an older ask's late answer never overrules a newer one (Try again, closing
+//   the laptop, opening it twice); an office whose server is older than the page (404) says to
+//   restart it, and is checked only once more;
 // - the real office page: nothing of Spotify's on a normal load; turned on, Spotify's SDK runs in
 //   the player frame (its own loopback origin), never in the office page, and asks the office for
 //   its token over postMessage (needs the network for Spotify's SDK; skipped without).
@@ -146,7 +150,7 @@ const click = (page, sel, i = 0) => page.evaluate((sel, i) => document.querySele
  * is asking the office where the player frame is. Requests to Spotify go through, recorded with
  * the frame that made them.
  */
-async function openLive({ failFirstSdk = false } = {}) {
+async function openLive({ failFirstSdk = false, older = null } = {}) {
   let failed = false;
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
@@ -180,6 +184,11 @@ async function openLive({ failFirstSdk = false } = {}) {
       return void req.abort();
     }
     const write = req.method() !== 'GET' && req.method() !== 'HEAD' && u.includes('/api/');
+    // An office older than this page: no such call (404), as its server answered before the update.
+    if (older && req.method() === 'POST' && new URL(u).pathname === '/api/spotify/status') {
+      older.calls++;
+      if (older.on) return void req.respond({ status: 404, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ ok: false, error: 'Not found' }) });
+    }
     if (write && new URL(u).pathname !== '/api/spotify/status') return void req.abort();
     void req.continue();
   });
@@ -694,6 +703,134 @@ try {
     await page.close();
   }
 
+  // ------------------------------------------------------------------ #130: the office doesn't answer once
+  {
+    const { page, logs } = await open();
+    // The next status call fails, as when the office is restarting.
+    await page.evaluate(() => {
+      const svc = window.office.laptop.store.service;
+      const real = svc.status.bind(svc);
+      window.__statusCalls = 0;
+      window.__failStatus = 1;
+      svc.status = () => {
+        window.__statusCalls++;
+        if (window.__failStatus > 0) {
+          window.__failStatus--;
+          return Promise.reject(new Error('Can’t reach the office'));
+        }
+        return real();
+      };
+    });
+    await page.evaluate(AT_DESK);
+    await wait(400);
+    await pressE(page);
+    const down = await until(page, () => ({ done: document.querySelector('.sp-screen')?.dataset.phase === 'offline', text: document.querySelector('.sp-view')?.textContent ?? '' }), null, 15_000);
+    const tryAgain = await page.evaluate(() => [...document.querySelectorAll('.sp-modal button')].some((b) => b.textContent.trim() === 'Try again'));
+    const t0 = Date.now();
+    const back = await until(page, () => ({ done: document.querySelector('.sp-screen')?.dataset.phase === 'ready' && document.querySelectorAll('.sp-modal .sp-list').length === 6 }), null, 12_000);
+    const took = Date.now() - t0;
+    check(
+      '#130: the office doesn’t answer once: "isn’t answering" (Try again still there), then the laptop carries on by itself, with no click',
+      !!down?.done && /isn’t answering/.test(down.text) && tryAgain && !!back?.done && took < 6000,
+      JSON.stringify({ offline: !!down?.done, tryAgain, recovered: !!back?.done, took, calls: await page.evaluate(() => window.__statusCalls) }),
+    );
+    check('no page errors (#130)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
+  // ------------------------------------------------------------------ #130: asking again by itself, and late answers
+  {
+    const { page, logs } = await open();
+    // Every status call waits for the check to answer it: ok (the demo office's own answer), setup
+    // (the office isn't signed in) or down. Each call keeps when it was asked and answered.
+    await page.evaluate(() => {
+      const svc = window.office.laptop.store.service;
+      const real = svc.status.bind(svc);
+      window.__asks = [];
+      svc.status = () =>
+        new Promise((resolve, reject) => {
+          const ask = { at: performance.now(), answered: 0 };
+          const done = (fn) => () => ((ask.answered = performance.now()), fn());
+          ask.ok = done(() => real().then(resolve, reject));
+          ask.setup = done(() => real().then((s) => resolve({ ...s, connected: false }), reject));
+          ask.down = done(() => reject(new Error('Can’t reach the office')));
+          window.__asks.push(ask);
+        });
+    });
+    const asked = (n) => until(page, (n) => ({ done: window.__asks.length >= n }), n, 15_000);
+    const answer = (i, how) => page.evaluate((i, how) => window.__asks[i]?.[how](), i, how);
+    const state = () =>
+      page.evaluate(() => {
+        const s = window.office.laptop.store.state;
+        return { phase: s.phase, asking: s.asking, lists: document.querySelectorAll('.sp-modal .sp-list').length, asks: window.__asks.length };
+      });
+    const sit = async () => {
+      await page.evaluate(AT_DESK);
+      await wait(400);
+      await pressE(page);
+    };
+    const stand = async () => {
+      await page.keyboard.press('Escape');
+      await wait(900);
+    };
+    const tryAgain = () => page.evaluate(() => [...document.querySelectorAll('.sp-modal button')].find((b) => b.textContent.trim() === 'Try again')?.click());
+
+    // The office doesn't answer: the laptop asks again after 2 s, then 3.2 s.
+    await sit();
+    await asked(1);
+    await answer(0, 'down');
+    await asked(2);
+    await answer(1, 'down');
+    await asked(3);
+    const gaps = await page.evaluate(() => [1, 2].map((i) => Math.round(window.__asks[i].at - window.__asks[i - 1].answered)));
+    check('#130: the laptop asks again after about 2 s, then about 3.2 s (a little longer each time)', gaps[0] >= 1900 && gaps[0] <= 2500 && gaps[1] >= 3100 && gaps[1] <= 3800, `${gaps.join(' ms, ')} ms`);
+
+    // Try again while the laptop's own ask is out, and Try again fails; then the older ask answers.
+    await tryAgain();
+    await asked(4);
+    await answer(3, 'down');
+    await answer(2, 'ok');
+    await wait(500);
+    const a = await state();
+    check('…Try again fails while the laptop’s own ask is still out: that older ask’s late answer doesn’t overrule it, and the laptop keeps asking', a.phase === 'offline' && a.asking, JSON.stringify(a));
+
+    // Closed while a retry is out: whatever it hears, nothing starts behind the shut laptop, and nothing more is asked.
+    await asked(5);
+    await stand();
+    await answer(4, 'ok');
+    await wait(6000);
+    const b = await state();
+    check('…closed while a retry is out: its answer starts nothing, and nothing more is asked (6 s)', b.phase === 'offline' && b.asks === 5, JSON.stringify(b));
+
+    // Not signed in. Opened, closed and opened again before the office answers: the first fails late.
+    await sit();
+    await asked(6);
+    await stand();
+    await sit();
+    await asked(7);
+    await answer(5, 'down');
+    await wait(300);
+    await answer(6, 'setup');
+    const setup = await until(page, () => ({ done: document.querySelector('.sp-screen')?.dataset.phase === 'setup', error: document.querySelector('.sp-modal .sp-error')?.textContent ?? '' }), null, 8000);
+    check('…opened twice, not signed in, the first open fails late: the setup steps, without "can’t reach the office"', !!setup?.done && setup.error === '', JSON.stringify(setup));
+
+    // Signed in. Opened twice again: the newer open shows your library, then the older one fails late.
+    await stand();
+    await sit();
+    await asked(8);
+    await stand();
+    await sit();
+    await asked(9);
+    await answer(8, 'ok');
+    const back = await until(page, () => ({ done: document.querySelector('.sp-screen')?.dataset.phase === 'ready' && document.querySelectorAll('.sp-modal .sp-list').length === 6 }), null, 12_000);
+    await answer(7, 'down');
+    await wait(500);
+    const c = await state();
+    check('…opened twice, signed in: the newer open carries on to your library, and the older one’s late failure doesn’t knock it off', !!back?.done && c.phase === 'ready' && c.lists === 6 && c.asks === 9, JSON.stringify(c));
+    check('no page errors (#130 late answers)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+
   check('the demo office never talked to Spotify', outside.length === 0, outside.slice(0, 3).join(', '));
 
   // ------------------------------------------------------------------ the player frame (the real office page)
@@ -774,6 +911,44 @@ try {
     if (/didn’t load/.test(r.second)) console.log(`  (Spotify's SDK didn't load on the retry either, no network?: the #104 frame check is skipped: ${JSON.stringify(r)})`);
     else check('#104: Spotify’s SDK fails to load once: the next connect makes a fresh frame, the SDK loads and asks for its token', /error/.test(r.first) && !/still connecting|error/.test(r.second) && r.asked > 0 && r.frames === 1, JSON.stringify({ ...r, loads }));
     check('no page errors (#104 frame)', !errors(logs).length, errors(logs).join(' | '));
+    await page.close();
+  }
+  // ------------------------------------------------------------------ #130: an office whose server is older than this page
+  {
+    const older = { on: true, calls: 0 };
+    const { page, logs } = await openLive({ older });
+    await page.evaluate(AT_DESK);
+    await wait(400);
+    await pressE(page);
+    const off = await until(
+      page,
+      () => ({
+        done: document.querySelector('.sp-screen')?.dataset.phase === 'offline',
+        text: (document.querySelector('.sp-view')?.textContent ?? '').replace(/\s+/g, ' '),
+        asking: [...document.querySelectorAll('.sp-view p')].some((p) => !p.hidden && /keeps asking/.test(p.textContent)),
+      }),
+      null,
+      15_000,
+    );
+    // One quiet re-check (2 s), then nothing more on its own.
+    await wait(7000);
+    const after = await page.evaluate(() => ({
+      text: (document.querySelector('.sp-view')?.textContent ?? '').replace(/\s+/g, ' '),
+      asking: [...document.querySelectorAll('.sp-view p')].some((p) => !p.hidden && /keeps asking/.test(p.textContent)),
+      tryAgain: [...document.querySelectorAll('.sp-modal button')].some((b) => b.textContent.trim() === 'Try again'),
+    }));
+    const calls = older.calls;
+    check(
+      '#130: a 404 from the office says its server is older than this page (restart, then Try again), never that it keeps asking, re-checks once, then stops',
+      !!off?.done && !off.asking && /older than this page/.test(after.text) && /npm start/.test(after.text) && after.tryAgain && !after.asking && calls === 2,
+      JSON.stringify({ offline: !!off?.done, calls, askingAtFirst: off?.asking, asking: after.asking, text: after.text.slice(0, 160) }),
+    );
+    // The office restarted with the new server: Try again, and on to the setup steps.
+    older.on = false;
+    await page.evaluate(() => [...document.querySelectorAll('.sp-modal button')].find((b) => b.textContent.trim() === 'Try again')?.click());
+    const setup = await until(page, () => ({ done: document.querySelector('.sp-screen')?.dataset.phase === 'setup' }), null, 8000);
+    check('…restarted, Try again carries on to the setup steps', !!setup?.done, String(!!setup?.done));
+    check('no page errors (#130 older office)', !errors(logs).length, errors(logs).join(' | '));
     await page.close();
   }
 } catch (err) {
