@@ -99,22 +99,24 @@ function tmuxTarget(target: string): string {
 }
 
 /**
- * tmux's arguments for command `args` on `target`. On a pinned session the command runs inside
- * tmux, and only if the session with that id there is still on the same server under the same
- * name, checked in the same step; if not, nothing happens and nothing is printed. So a session
- * that has the id since (a new server's first, say: someone's own shell) is never touched.
+ * tmux's arguments for `commands` (each a command's words) on `target`, run in turn until one
+ * fails. On a pinned session they run inside tmux, and only if the session with that id there is
+ * still on the same server under the same name, checked in the same step; if not, nothing happens
+ * and nothing is printed. So a session that has the id since (a new server's first, say: someone's
+ * own shell) is never touched.
  */
-function guarded(target: string, args: string[]): string[] {
+function guarded(target: string, ...commands: string[][]): string[] {
   const p = unpin(target);
-  if (!p) return args;
+  // As on tmux's own command line: a lone ; between commands.
+  if (!p) return commands.flatMap((c, i) => (i ? [';', ...c] : c));
   // Single-quoted for tmux's command parser, which then takes each one as it is: one with a quote
   // or a line break in it wouldn't be.
-  if (args.some((a) => /['\n\r]/.test(a))) throw new Error('A quote or line break in a guarded tmux command');
-  return ['if-shell', '-F', '-t', `${p.id}:`, still(p), args.map((a) => `'${a}'`).join(' ')];
+  if (commands.flat().some((a) => /['\n\r]/.test(a))) throw new Error('A quote or line break in a guarded tmux command');
+  return ['if-shell', '-F', '-t', `${p.id}:`, still(p), commands.map((c) => c.map((a) => `'${a}'`).join(' ')).join(' ; ')];
 }
 
-/** Run tmux command `args` on `target` (see guarded). */
-const on = (target: string, args: string[]) => tmux(guarded(target, args));
+/** Run tmux `commands` on `target` (see guarded). */
+const on = (target: string, ...commands: string[][]) => tmux(guarded(target, ...commands));
 
 /** tmux's arguments to attach a client to `target` (see guarded). */
 export function attachArgs(target: string): string[] {
@@ -208,9 +210,9 @@ async function stamps(target: string): Promise<Map<string, string> | null> {
   return env;
 }
 
-/** Read back the session id / name / folder the office stamped on a tmux session, if any. */
-export async function readOfficeMeta(tmuxName: string): Promise<OfficeMeta | null> {
-  const env = await stamps(tmuxName);
+/** Read back the session id / name / folder the office stamped on a tmux session, by name or pinned, if any. */
+export async function readOfficeMeta(target: string): Promise<OfficeMeta | null> {
+  const env = await stamps(target);
   if (!env) return null;
   const sessionId = env.get('CLAUDE_OFFICE_SESSION');
   if (!sessionId || !UUID.test(sessionId)) return null;
@@ -494,12 +496,17 @@ export async function say(target: string, text: string, asking: (stage: 'paste' 
   const buffer = `office-say-${process.pid}-${randomUUID()}`;
   const load = await tmux(['load-buffer', '-b', buffer, '-'], { input: typing });
   if (load.code !== 0) throw new Error(load.stderr.trim() || 'tmux load-buffer failed');
-  const paste = await on(target, ['paste-buffer', '-p', '-d', '-b', buffer, '-t', `${tmuxTarget(target)}:`]);
-  // Pasted, -d has dropped the text from tmux. Still there, it wasn't pasted (it failed, or that's
-  // no longer the session pinned), and it mustn't stay there either.
-  const left = (await tmux(['delete-buffer', '-b', buffer])).code === 0;
+  // "pasted" is printed only once the paste is done: a failing command ends the list, and on a
+  // session that's no longer the one pinned neither runs.
+  const paste = await on(
+    target,
+    ['paste-buffer', '-p', '-d', '-b', buffer, '-t', `${tmuxTarget(target)}:`],
+    ['display-message', '-p', '-t', `${tmuxTarget(target)}:`, 'pasted'],
+  );
+  // Pasted, -d has dropped the text from tmux; not pasted, it mustn't stay there either.
+  await tmux(['delete-buffer', '-b', buffer]);
   if (paste.code !== 0) throw new Error(paste.stderr.trim() || 'tmux paste-buffer failed');
-  if (left) return 'not-pasted';
+  if (paste.stdout.trim() !== 'pasted') return 'not-pasted';
   // Give Claude Code's input a beat to take the paste, and up to a second more to draw it.
   for (let look = 0; ; look++) {
     await new Promise((r) => setTimeout(r, look ? 100 : 150));
