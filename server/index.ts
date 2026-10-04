@@ -22,7 +22,7 @@ import { run } from './exec';
 import { ShellKeeper } from './shells';
 import { SpotifyLink } from './spotify';
 import { ThoughtService } from './thoughts';
-import { AlreadyHere, assertDirectory, closeDesk, ensureDesk, ensureShell, hire, hireTakenElsewhere, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, pasteSafe, rehire, say, trustPromptUp } from './tmux';
+import { AlreadyHere, assertDirectory, closeDesk, ensureDesk, ensureShell, hire, initTmux, interrupt, kill, listDesks, NameTaken, newSessionId, ownHire, pasteSafe, rehire, say, trustPromptUp } from './tmux';
 
 const VERSION: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const DIST = join(ROOT, 'dist', 'client');
@@ -232,16 +232,16 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     }
     case '/api/fire': {
       const sessionId = uuidFrom(body.sessionId);
-      const tmuxName = await hiredHere(sessionId, 'Only people hired in the office can be let go from here');
-      await kill(tmuxName);
+      const id = await hiredHere(sessionId, 'Only people hired in the office can be let go from here');
+      if (id) await kill(id);
       void shells.close(sessionId);
       void roster.tick();
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/interrupt': {
       const sessionId = uuidFrom(body.sessionId);
-      const tmuxName = await hiredHere(sessionId, 'They work in your own terminal; interrupt them there');
-      await interrupt(tmuxName);
+      const id = await hiredHere(sessionId, 'They work in your own terminal; interrupt them there');
+      if (id) await interrupt(id);
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/adopt': {
@@ -263,12 +263,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const sessionId = uuidFrom(body.sessionId);
       const text = typeof body.text === 'string' ? pasteSafe(body.text.slice(0, MAX_TEXT)).trim() : '';
       if (!text) throw new HttpError(400, 'Say something');
-      const tmuxName = await hiredHere(sessionId, 'They work in your own terminal; talk to them there');
+      const id = await hiredHere(sessionId, 'They work in your own terminal; talk to them there');
+      if (!id) throw new HttpError(409, "Their terminal isn't at the prompt. Sit at their computer to see what's on it.");
       // With a question open, the Enter after the paste would answer it, and a permission
       // prompt's first choice is Yes. Claude can ask at any moment, so say() looks right before
       // it pastes and again right before Enter. `asked`: whether a question is what stopped it.
       let asked = false;
-      const said = await say(tmuxName, text, async () => (asked = await asking(sessionId, tmuxName)));
+      const said = await say(id, text, async () => (asked = await asking(sessionId, id)));
       if (said === 'not-pasted') throw new HttpError(409, asked ? 'They have a question open. Sit at their computer to answer it.' : "Their terminal isn't at the prompt. Sit at their computer to see what's on it.");
       if (said === 'draft') throw new HttpError(409, "There's unsent text in their box. Sit at their computer to send or clear it.");
       if (said === 'not-sent') throw new HttpError(409, asked ? 'They asked something just as you spoke: your message is in their box, not sent. Sit at their computer to answer them.' : "Your message didn't show up in their box. Sit at their computer to check it.");
@@ -297,18 +298,23 @@ function uuidFrom(v: unknown): string {
  * file can trail the dialog by a few frames, so say() reads the screen as well. Before it has a
  * registry file, a new hire meets the folder-trust prompt, which the roster flags a poll later.
  */
-async function asking(sessionId: string, tmuxName: string): Promise<boolean> {
+async function asking(sessionId: string, target: string): Promise<boolean> {
   const e = roster.find(sessionId);
   if (asks.forSession(sessionId) || e?.state === 'needs-you') return true;
-  if (!e?.pid) return trustPromptUp(tmuxName);
+  if (!e?.pid) return trustPromptUp(target);
   return (await sessionStatus(e.pid, sessionId)) === 'waiting';
 }
 
-/** The tmux session of someone this office hired, else 400 `refused`. Its stamp is read again here: the roster's map can be a poll old. */
-async function hiredHere(sessionId: string, refused: string): Promise<string> {
+/**
+ * The tmux session of someone this office hired, by the id read along with its stamp (see
+ * ownHire), else 400 `refused`; null if it isn't running any more. The stamp is read again
+ * here: the roster's map can be a poll old.
+ */
+async function hiredHere(sessionId: string, refused: string): Promise<string | null> {
   const tmuxName = roster.tmuxNameFor(sessionId);
-  if (!tmuxName || (await hireTakenElsewhere(tmuxName))) throw new HttpError(400, refused);
-  return tmuxName;
+  const id = tmuxName ? await ownHire(tmuxName) : null;
+  if (id === null) throw new HttpError(400, refused);
+  return id ?? null;
 }
 
 /** A hot desk's number from plain digits: a whole number 0 to 99 ("03", "+3", "3.0" and "1e1" are not), else null. */
@@ -520,10 +526,12 @@ server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
       const tmuxName = sessionId ? roster.tmuxNameFor(sessionId) : undefined;
       if (!tmuxName) ws.close(1008, 'Not an office session');
       else {
-        // Its stamp is read again first: the roster's map can be a poll old.
+        // Its stamp is read again first (the roster's map can be a poll old), and the id read with
+        // it is what gets attached.
         const ours = async () => {
-          if (await hireTakenElsewhere(tmuxName)) throw new Error('Not an office session');
-          return tmuxName;
+          const id = await ownHire(tmuxName);
+          if (!id) throw new Error(id === null ? 'Not an office session' : 'They have left');
+          return id;
         };
         openShell(ws, ours, cols, rows, 'No terminal');
       }
@@ -576,10 +584,10 @@ function openShell(ws: WebSocket, start: () => Promise<string>, cols: number, ro
   ws.on('message', hold);
   start()
     .then(
-      (tmuxName) => {
+      (target) => {
         ws.off('message', hold);
         if (ws.readyState !== ws.OPEN) return;
-        attachTerminal(ws, tmuxName, cols, rows);
+        attachTerminal(ws, target, cols, rows);
         for (const [data, binary] of early) ws.emit('message', data, binary);
       },
       (err: unknown) => {

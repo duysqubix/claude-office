@@ -8,7 +8,7 @@ import { projectName } from './archive';
 import { activeInterns } from './interns';
 import { assignNames, pickName } from './names';
 import { claudeProcessCount, readRegistry, type RegistryEntry } from './registry';
-import { AlreadyHere, capture, kill, listHosted, NameTaken, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
+import { AlreadyHere, capture, killDead, listHosted, NameTaken, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
 import { TranscriptTail } from './transcript';
 
 /** A hire we started that Claude hasn't registered yet. */
@@ -345,11 +345,12 @@ export class Roster extends EventEmitter {
     const signal = p.deadSignal && (/^\d+$/.test(p.deadSignal) ? `signal ${p.deadSignal}` : `SIG${p.deadSignal.toUpperCase()}`);
     const how = signal ? `stopped by ${signal}` : p.deadStatus ? `exit ${p.deadStatus}` : '';
     if (how) {
-      const lines = await capture(p.tmuxName, 6, 120);
+      const lines = await capture(p.id, 6, 120);
       const why = lines.filter((l) => !/^Pane is dead/.test(l)).slice(-2).join(' ').trim();
       this.notice('warn', `A hire in ${p.tmuxName} quit (${how})${why ? `: ${why}` : ''}`);
     }
-    await kill(p.tmuxName).catch(() => {});
+    // By id, and only while it's dead: a hire called back under the name since is someone else.
+    await killDead(p.id).catch(() => {});
   }
 }
 
