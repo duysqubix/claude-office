@@ -234,8 +234,10 @@ export function buildYard(world: WorldCtx): Outdoor {
       });
     }
   }
-  // The blanket south of the table, the basket and thermos at its back corner (the catalog's).
-  const blanketAt: [number, number] = [22.6, 21.55];
+  // The blanket south of the table, the basket and thermos at its back corner (the catalog's),
+  // with room to walk between it and the table's light posts: the way out from the table's
+  // south side.
+  const blanketAt: [number, number] = [22.6, 22.5];
   const blanketYaw = 0.08;
   const onBlanket = (x: number, z: number) => {
     const c = Math.cos(blanketYaw);
@@ -244,27 +246,39 @@ export function buildYard(world: WorldCtx): Outdoor {
   };
   const blanket = staticProp(ctx, 'picnic-blanket', (b) => buildPicnicBlanket(b), { at: blanketAt, yaw: blanketYaw });
   void swapModel(ctx, blanket, 'picnic_blanket');
-  // Only the basket and thermos are solid: people step onto the blanket to sit.
-  const basket = onBlanket(-0.375, -0.37);
-  ctx.colliders.push(footprint(basket.x, basket.z, 0.72, 0.44));
   // Its sit anchors, everyone facing the plate.
-  for (const [x, z] of [
-    [-0.56, 0.38],
-    [0.5, 0.4],
-    [0.64, -0.38],
-  ] as const) {
-    const out = Math.hypot(x, z);
+  const sits = (
+    [
+      [-0.56, 0.38],
+      [0.5, 0.4],
+      [0.64, -0.38],
+    ] as const
+  ).map(([x, z]) => ({ at: onBlanket(x, z), yaw: Math.atan2(0.1 - x, -0.02 - z) + blanketYaw }));
+  // Where they sit is solid, like a table: the three spots and the plate between them, 0.2 m
+  // round, so no walk is ever planned through someone sitting there (#88).
+  const xs = sits.map((s) => s.at.x);
+  const zs = sits.map((s) => s.at.z);
+  const zone = aabb(Math.min(...xs) - 0.2, Math.max(...xs) + 0.2, Math.min(...zs) - 0.2, Math.max(...zs) + 0.2);
+  ctx.colliders.push(zone);
+  for (const { at, yaw } of sits) {
+    // They sit down from straight behind their spot, 0.3 m out from the solid part (the nav's own
+    // margin): a short hop forward, as at the table.
+    const bx = -Math.sin(yaw);
+    const bz = -Math.cos(yaw);
+    const toX = bx < 0 ? (at.x - zone.minX + 0.3) / -bx : (zone.maxX + 0.3 - at.x) / bx;
+    const toZ = bz < 0 ? (at.z - zone.minZ + 0.3) / -bz : (zone.maxZ + 0.3 - at.z) / bz;
+    const back = Math.min(toX, toZ);
     seats.push({
       kind: 'blanket',
       pose: 'ground',
       group: 'blanket',
       lit: true,
-      position: onBlanket(x, z).setY(0.1),
-      yaw: Math.atan2(0.1 - x, -0.02 - z) + blanketYaw,
-      approach: onBlanket(x + (x / out) * 0.42, z + (z / out) * 0.42),
+      position: at.clone().setY(0.1),
+      yaw,
+      approach: new THREE.Vector3(at.x + bx * back, 0, at.z + bz * back),
     });
   }
-  plot.keepOut(aabb(21.4, 24.1, 17.0, 22.4));
+  plot.keepOut(aabb(21.4, 24.1, 17.0, 23.5));
   // String lights in an X over the table: two strands, each between its own pair of posts.
   const lights = buildStringLights(ctx, [
     [
@@ -343,14 +357,14 @@ export function buildYard(world: WorldCtx): Outdoor {
 
   // Two yoga mats side by side in the shade of the oak in the south-east corner.
   for (const [z, accent] of [
-    [23.3, '#5CC8FF'],
-    [24.15, '#FF9DCB'],
+    [24.25, '#5CC8FF'],
+    [25.1, '#FF9DCB'],
   ] as const) {
     const mat = staticProp(ctx, 'yoga-mat', (b) => buildYogaMat(b, accent), { at: [22.75, z], yaw: Math.PI });
     void swapModel(ctx, mat, 'yoga_mat', { tint: { Accent: accent } });
     stands.push({ position: new THREE.Vector3(22.75, 0, z), yaw: -Math.PI / 2, group: 'yoga' });
   }
-  plot.keepOut(aabb(21.6, 24.1, 22.75, 24.6));
+  plot.keepOut(aabb(21.6, 24.1, 23.5, 25.6));
 
   // Places to stand about, just off the trail, each looking at something; pairs face each other
   // for a chat, and some join a group of seats.
