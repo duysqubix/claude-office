@@ -5,16 +5,17 @@ import type { WebSocket } from 'ws';
 import type { TermClientMessage } from '../shared/protocol';
 import { HOME } from './config';
 import { cleanEnv } from './exec';
-import { isOfficeName, tmuxPath } from './tmux';
+import { isOfficeTarget, tmuxPath, tmuxTarget } from './tmux';
 
 const clampDim = (n: unknown, lo: number, hi: number, dflt: number) => {
   const v = Math.floor(Number(n));
   return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
 };
 
-export function attachTerminal(ws: WebSocket, tmuxName: string, cols: number, rows: number): void {
+/** Attach `ws` to one of the office's tmux sessions: a shell or desk by name, a hire by the id its stamp was read with. */
+export function attachTerminal(ws: WebSocket, target: string, cols: number, rows: number): void {
   ws.on('error', () => ws.terminate());
-  if (!isOfficeName(tmuxName)) {
+  if (!isOfficeTarget(target)) {
     ws.close(1008, 'not an office session');
     return;
   }
@@ -26,7 +27,7 @@ export function attachTerminal(ws: WebSocket, tmuxName: string, cols: number, ro
 
   let term: IPty;
   try {
-    term = pty.spawn(tmuxPath(), ['attach-session', '-t', `=${tmuxName}`], {
+    term = pty.spawn(tmuxPath(), ['attach-session', '-t', tmuxTarget(target)], {
       name: 'xterm-256color',
       cols: clampDim(cols, 20, 400, 120),
       rows: clampDim(rows, 5, 200, 36),
