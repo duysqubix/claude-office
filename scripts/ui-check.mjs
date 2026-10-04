@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const { officeBase } = await import('./ui-check/base.mjs');
 console.log(`ui kit at ${officeBase('UI_KIT_BASE')}, game at ${officeBase('GAME_BASE', 'UI_KIT_BASE')}`);
 
-const suites = ['kit', 'asks', 'chat', 'markdown', 'game', 'regulars', 'desks', 'crowd', 'yard', 'shell', 'hotdesk', 'audio', 'camera', 'spotify'];
+const suites = ['kit', 'asks', 'chat', 'markdown', 'game', 'regulars', 'desks', 'crowd', 'yard', 'shell', 'hotdesk', 'audio', 'camera', 'building', 'spotify'];
 let failed = 0;
 for (const s of suites) {
   const file = fileURLToPath(new URL(`./ui-check/${s}.mjs`, import.meta.url));

@@ -29,6 +29,22 @@ const SKIRT = '#D9B98F';
 const ROOF = '#C3CACE';
 /** Pieces that meet a neighbouring bay overlap it a little, which hides the rounded seam. */
 const SEAM = 0.05;
+/**
+ * How far the catalog window frame reaches past its opening: above and below, and at each side
+ * for the 2.2 m design width (the model stretches with the opening). Wall trims stop there.
+ */
+const WINDOW_FRAME_OUT = 0.11;
+/** Half the catalog door frame's width with its feet, and the top of its header. */
+const DOOR_FRAME_HALF = D.door.w / 2 + 0.14;
+const DOOR_FRAME_TOP = D.door.h + 0.24;
+/** Wall trims stop this far clear of a frame (never touching it) and sink this far into the wall. */
+const TRIM_GAP = 0.002;
+const TRIM_SINK = 0.05;
+/** The stone plinth round the outside: its height, and how far it stands proud of the walls. */
+const PLINTH_H = 0.32;
+const PLINTH_OUT = 0.04;
+/** The yard's stone (the flag pole's plinth, the stepping stones). */
+const STONE = '#D9D2C5';
 
 export interface Building {
   setDoorOpen(open: boolean): void;
@@ -135,6 +151,8 @@ export function buildBuilding(ctx: WorldCtx): Building {
   const glass: THREE.BufferGeometry[] = [];
   // Window trims are their own batch: the catalog window models replace them.
   const trims = new Batch();
+  // So are the skirting, band and cornices, which ui-check/building.mjs keeps out of the frames.
+  const wallTrims = new Batch();
   const windows: WindowSpot[] = [];
 
   // ---- Floor -------------------------------------------------------------------------------
@@ -195,10 +213,33 @@ export function buildBuilding(ctx: WorldCtx): Building {
         add(w0, w1, below, H, T, PALETTE.wall);
       }
     }
-    // Skirting board, mint band (also the window sill line) and a soft cornice at the ceiling.
-    add(u0, u1, 0, B.skirtingH, T + 0.05, SKIRT, 0.02, 'soft');
-    add(u0, u1, B.bandY0, B.bandY1, T + 0.06, PALETTE.wallAccent, 0.03);
-    add(u0, u1, H - 0.12, H, T + 0.08, TRIM, 0.04, 'soft');
+    // Skirting board, mint band (also the window sill line) and a soft cornice at the ceiling, on
+    // the inside face only, sunk into the wall so no back edge shows. Each one stops short of any
+    // window or door frame in its height range instead of running through it.
+    const keepOut: [number, number, number, number][] = [];
+    for (const [w, y0, y1] of [[win.main, SILL, HEAD], [win.high, C_SILL, C_HEAD]] as const) {
+      if (!w) continue;
+      const out = (WINDOW_FRAME_OUT * (w[1] - w[0])) / D.window.w + TRIM_GAP;
+      keepOut.push([w[0] - out, w[1] + out, y0 - WINDOW_FRAME_OUT, y1 + WINDOW_FRAME_OUT]);
+    }
+    if (side === 'south') keepOut.push([-DOOR_FRAME_HALF - TRIM_GAP, DOOR_FRAME_HALF + TRIM_GAP, 0, DOOR_FRAME_TOP]);
+    const inward = side === 'north' || side === 'west' ? 1 : -1;
+    // At the room's corners a trim runs on just as far into the side wall as it sinks into its own.
+    const reach = (side === 'north' || side === 'south' ? HW : HD) + TRIM_SINK;
+    const trim = (y0: number, y1: number, proud: number, color: string, r: number, finish: 'matte' | 'soft' = 'matte') => {
+      let runs: [number, number][] = [[Math.max(-reach, grow(u0, -1)), Math.min(reach, grow(u1, 1))]];
+      for (const [a, c, ky0, ky1] of keepOut) {
+        if (y1 <= ky0 || y0 >= ky1) continue;
+        runs = runs.flatMap(([s, e]): [number, number][] => [[s, Math.min(e, a)], [Math.max(s, c), e]]).filter(([s, e]) => e - s > 0.02);
+      }
+      for (const [s, e] of runs) {
+        const [w, h, d] = dims(side, e - s, y1 - y0, proud + TRIM_SINK);
+        wallTrims.box(w, h, d, color, { at: wallPoint(side, (s + e) / 2, (y0 + y1) / 2, inward * (T / 2 + (proud - TRIM_SINK) / 2)), r, finish });
+      }
+    };
+    trim(0, B.skirtingH, 0.025, SKIRT, 0.02, 'soft');
+    trim(B.bandY0, B.bandY1, 0.03, PALETTE.wallAccent, 0.03);
+    trim(H - 0.12, H, 0.04, TRIM, 0.04, 'soft');
   }
 
   // North wall: solid at eye level (whiteboard, Team Room screen, posters), clerestory up high.
@@ -248,8 +289,23 @@ export function buildBuilding(ctx: WorldCtx): Building {
   for (const u of [-9.6, -5.4, 5.4, 9.6]) pilaster('south', u);
   for (const side of ['east', 'west'] as const) for (const u of [-6, -2, 2, 6]) pilaster(side, u);
 
+  // A low stone plinth round the outside (the skirting, band and cornice are all indoors): it
+  // grounds the walls, runs on behind the pilasters and stops short of the door frame.
+  const plinth = new Batch();
+  const slab = (x0: number, x1: number, z0: number, z1: number) =>
+    plinth.box(x1 - x0, PLINTH_H, z1 - z0, STONE, { at: [(x0 + x1) / 2, PLINTH_H / 2, (z0 + z1) / 2], r: 0.02, finish: 'matte' });
+  const ex = HW + T + PLINTH_OUT;
+  const ez = HD + T + PLINTH_OUT;
+  const back = PLINTH_OUT + TRIM_SINK;
+  slab(-ex, ex, -ez, -ez + back);
+  slab(-ex, -DOOR_FRAME_HALF - TRIM_GAP, ez - back, ez);
+  slab(DOOR_FRAME_HALF + TRIM_GAP, ex, ez - back, ez);
+  slab(-ex, -ex + back, -ez, ez);
+  slab(ex - back, ex, -ez, ez);
+  ctx.root.add(plinth.build({ name: 'wall-plinth' }));
+
   // ---- Entrance ----------------------------------------------------------------------------
-  const door = buildDoor(ctx, DOOR);
+  const door = buildDoor(ctx, DOOR, wallTrims);
 
   // ---- Ceiling (inside) --------------------------------------------------------------------
   buildCeiling(ctx);
@@ -263,6 +319,7 @@ export function buildBuilding(ctx: WorldCtx): Building {
   const trimGroup = trims.build({ name: 'window-trims' });
   ctx.root.add(trimGroup);
   void swapWindows(ctx, windows, trimGroup);
+  ctx.root.add(wallTrims.build({ name: 'wall-trims' }));
 
   // ---- Camera blockers ---------------------------------------------------------------------
   const blockerMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -334,18 +391,18 @@ function mergeAll(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return out;
 }
 
-function buildDoor(ctx: WorldCtx, half: number) {
+function buildDoor(ctx: WorldCtx, half: number, wallTrims: Batch) {
   const zc = HD + T / 2;
   const frame = ctx.statics;
   const dark = PALETTE.doorFrame;
   const DH = OFFICE.doorH;
-  // Wall above the door up to the ceiling, with the same band and cornice as its neighbours. Its
-  // underside is buried 0.06 up inside the door header, catalog (DH..DH + 0.24) and fallback
-  // alike. Level with the header's own underside, the two downward faces shared a plane and
-  // z-fought overhead as you walked through.
+  // Wall above the door up to the ceiling, with the same cornice as its neighbours (inside only,
+  // like theirs). Its underside is buried 0.06 up inside the door header, catalog (DH..DH + 0.24)
+  // and fallback alike. Level with the header's own underside, the two downward faces shared a
+  // plane and z-fought overhead as you walked through.
   const lintel = DH + 0.06;
   frame.box(half * 2, H - lintel, T, PALETTE.wall, { at: [0, (H + lintel) / 2, zc], r: 0.03, finish: 'matte' });
-  frame.box(half * 2, 0.12, T + 0.08, TRIM, { at: [0, H - 0.06, zc], r: 0.04 });
+  wallTrims.box(half * 2, 0.12, 0.04 + TRIM_SINK, TRIM, { at: [0, H - 0.06, HD - (0.04 - TRIM_SINK) / 2], r: 0.04 });
   // Chunky dark frame: two posts and a header, and a threshold strip on the floor. Frame and
   // panels share a group centred in the doorway, like the catalog sliding_door that replaces them.
   const door = new THREE.Group();
