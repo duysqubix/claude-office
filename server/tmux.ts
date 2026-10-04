@@ -500,7 +500,36 @@ const flat = (s: string) => s.normalize('NFC').replace(/[\s\p{Cf}\p{Emoji_Modifi
 /** Whether the box shows exactly `typing` (however it wraps it), or for a paste long enough to fold (over 800 characters or 3 lines) only its "[Pasted text #N]". */
 function holds(typed: string, typing: string): boolean {
   const folds = typing.length > 800 || typing.split('\n').length > 3;
-  return reads(flat(typed), flat(typing)) || (folds && /^\[(?:Pasted text|\.\.\.Truncated text) #\d+[^\]]*\]$/.test(typed));
+  return reads(flat(typed), flat(typing)) || stale(typed, typing) || (folds && /^\[(?:Pasted text|\.\.\.Truncated text) #\d+[^\]]*\]$/.test(typed));
+}
+
+/**
+ * Whether one row of the box shows `typing` but for the cells of emoji the terminal didn't draw,
+ * which keep whatever was there before (tmux 3.3a leaves letters of the "Try …" placeholder in a
+ * new hire's box): each such emoji covers exactly its two cells, everything else matches exactly
+ * and in place, spaces too, and some of it is more than emoji and spaces.
+ */
+function stale(typed: string, typing: string): boolean {
+  if (typed.includes('\n') || /[\n\t]/.test(typing)) return false;
+  const cells = (s: string) => [...s.normalize('NFC').replace(/[\p{Cf}\p{Emoji_Modifier}\p{Variation_Selector}]/gu, '').replace(/\u00a0/g, ' ').trim()];
+  const shown = cells(typed);
+  const want = cells(typing);
+  if (!shown.length || !want.some((c) => c !== ' ' && !EMOJI.test(c))) return false;
+  let at = new Set([0]);
+  for (const c of want) {
+    const next = new Set<number>();
+    for (const i of at) {
+      if (shown[i] === c) next.add(i + 1);
+      if (EMOJI.test(c)) {
+        if (i + 2 <= shown.length && !EMOJI.test(shown[i]) && !EMOJI.test(shown[i + 1])) next.add(i + 2);
+        // Its cells at the end of the row, trimmed off with the row's trailing blanks.
+        if (i + 2 > shown.length) next.add(shown.length);
+      } else if (c === ' ' && i === shown.length) next.add(i);
+    }
+    if (!next.size) return false;
+    at = next;
+  }
+  return at.has(shown.length);
 }
 
 /** An emoji a terminal may not know how to draw: one newer than its tmux. */
