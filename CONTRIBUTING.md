@@ -39,7 +39,10 @@ sessions or your Claude Code login, and nothing they do shows up in your office.
   against an office that's already open (`PORT=4778 npm run smoke`).
 - **The browser checks** run `scripts/ui-check.mjs` against a dev-mode office. They need
   Chrome and a GPU: CI runs them on macOS, because with software WebGL the office draws about
-  one frame a second and the game suites time out.
+  one frame a second and the game suites time out. To run a suite against a dev office you
+  already have open, set `GAME_BASE` or `UI_KIT_BASE` (default `http://127.0.0.1:4778`):
+  `GAME_BASE=http://127.0.0.1:4778 node scripts/ui-check/game.mjs`. The suites refuse your own
+  game on 4777, even when you name it, unless you set `UI_CHECK_ALLOW_4777=1`.
 - **The compat check** runs your `claude` against a pretend Anthropic API on localhost: no
   login, nothing sent to Anthropic, no cost. It hires, answers questions, calls an intern, lets
   go and calls back through the office's own API, and checks every place the office reads or

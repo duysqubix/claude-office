@@ -58,7 +58,9 @@ try {
     await browser.close();
   }
 
+  // Every suite drives this office; nothing here may ever reach your own game on 4777.
   const env = { ...home.env, UI_KIT_BASE: office.base, GAME_BASE: office.base };
+  delete env.UI_CHECK_ALLOW_4777;
   code = spawnSync(process.execPath, [join(ROOT, 'scripts', 'ui-check.mjs')], { cwd: ROOT, env, stdio: 'inherit' }).status ?? 1;
 } catch (err) {
   console.error(`✘ ${err.message}`);

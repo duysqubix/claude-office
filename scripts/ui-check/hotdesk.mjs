@@ -17,7 +17,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const mod = await import(require.resolve('puppeteer-core'));
 const puppeteer = mod.default ?? mod;
-const BASE = process.env.GAME_BASE ?? process.env.UI_KIT_BASE ?? 'http://127.0.0.1:4777';
+const BASE = (await import('./base.mjs')).officeBase('GAME_BASE', 'UI_KIT_BASE');
 const LIVE = process.env.HOTDESK_LIVE ?? '';
 /** Your own office: real shells are never opened there. */
 const YOUR_GAME = '4777';
