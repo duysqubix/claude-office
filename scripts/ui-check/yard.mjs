@@ -6,6 +6,7 @@
 // - never staff: not in the roster, the store or the HUD, never at an office desk;
 // - E has a word from them; a regular sometimes takes their coffee outside and goes back in;
 // - a busy yard: nobody overlaps, nobody walks in place, nobody stuck, and home by the gate;
+// - the picnic corner (#88): up from the table and out past a full blanket, through nobody;
 // - cost: from the office the yard crowd is all but free (out of view, out of the scene);
 //   with all of them in view, within 1.5 ms a frame of an empty yard (both scaled to the machine).
 // Waits are on the office's own clock (on a slow machine it runs behind the wall clock);
@@ -102,7 +103,7 @@ const YARD = () => {
 
 try {
   // ------------------------------------------------------------------ lively, by day: one office for most of it
-  if (!ONLY || /count|nav|chat|busy/.test(ONLY)) {
+  if (!ONLY || /count|nav|chat|busy|corner/.test(ONLY)) {
     const { page, logs, yard } = await open(`${BASE}/?demo=1&quiet=1&debug=1&seed=11&regulars=lively&hour=14`);
     check('the world has a yard (world.yard)', yard);
     await wait(2500);
@@ -196,10 +197,20 @@ try {
       const sleep = (x) => new Promise((r) => setTimeout(r, x));
       // The boss walks the trail too (teleported along it, so there's someone to step round).
       const trail = o.world.yard.trail;
-      const W = { over: [], inPlace: [], worst: 0, pairs: new Set() };
+      const W = { over: [], inPlace: [], worst: 0, pairs: new Set(), closest: { over: 0, at: '' } };
       const open = new Map();
       const moved = new Map();
       const r = (c) => 0.3 * (c.rig?.root.scale.y ?? 1);
+      // Each pair's closest moment: who, doing what, where (so a failure names its spot).
+      const peak = new Map();
+      const what = (c) => {
+        const a = c.activity;
+        let doing = '';
+        if (a?.kind === 'seat') doing = ` on the ${a.seat.kind} (seat ${o.regulars.yard.seats.indexOf(a.seat)})`;
+        else if (a?.kind === 'stand') doing = ` at a stand${a.stand.group ? ` (${a.stand.group})` : ''}`;
+        else if (a) doing = ' strolling';
+        return `${c.name ?? 'boss'}${c === o.manager ? '' : ` ${c.phase}`}${doing} @${c.position.x.toFixed(1)},${c.position.z.toFixed(1)}`;
+      };
       let k = 0;
       const t0 = performance.now();
       const tick = () => {
@@ -213,9 +224,12 @@ try {
             if (A.atDesk && B.atDesk) continue;
             const over = r(A) + r(B) - Math.hypot(A.position.x - B.position.x, A.position.z - B.position.z);
             const key = `${A.name ?? 'boss'} + ${B.name}`;
+            // (And the closest anyone came all run, failing or not: where the tight spots are.)
+            if (over > W.closest.over) W.closest = { over, at: `${key} ${(over * 100) | 0} cm: ${what(A)} | ${what(B)}` };
             if (over > 0.1) {
               if (!open.has(key)) open.set(key, now);
               W.worst = Math.max(W.worst, over);
+              if (over > (peak.get(key)?.over ?? 0)) peak.set(key, { over, at: `${what(A)} | ${what(B)}` });
               if (now - open.get(key) > 300 && !W.over.includes(key)) W.over.push(key);
             } else open.delete(key);
           }
@@ -262,16 +276,119 @@ try {
       return {
         over: W.over,
         worst: +W.worst.toFixed(2),
+        where: W.over.slice(0, 2).map((key) => `${key} ${(peak.get(key).over * 100) | 0} cm: ${peak.get(key).at}`),
         inPlace: W.inPlace,
         long,
         here: o.regulars.visitors().length,
         chats: [...W.pairs],
+        closest: W.closest.at,
       };
     });
-    check('busy yard: nobody overlaps more than 10 cm for more than 0.3 s', !busy.over.length, `${busy.over.slice(0, 4).join(' | ')} worst ${(busy.worst * 100) | 0} cm`);
+    check('busy yard: nobody overlaps more than 10 cm for more than 0.3 s', !busy.over.length, `${busy.over.slice(0, 4).join(' | ')} worst ${(busy.worst * 100) | 0} cm${busy.where.length ? `; closest: ${busy.where.join('; ')}` : ''}`);
     check('busy yard: nobody walks in place', !busy.inPlace.length, busy.inPlace.join(', '));
     check('busy yard: nobody stuck on their way somewhere (40 s+)', !busy.long.length, JSON.stringify(busy.long));
     console.log(`      busy yard: chats ${busy.chats.slice(0, 4).join(', ') || 'none'}`);
+    console.log(`      busy yard: closest ${busy.closest || 'nobody touched'}`);
+
+    // The picnic corner (#88): the way out from the table's south side runs past the blanket.
+    // Someone on each of the blanket's seats and at the two table seats nearest it; then the two
+    // at the table get up and head for the trail, sit back down, and go again. The same scene
+    // every run, so a way out through someone sitting down fails every time, not now and then.
+    const corner = await page.evaluate(async () => {
+      const o = window.office;
+      const y = o.regulars.yard;
+      const trail = o.world.yard.trail;
+      const sleep = (x) => new Promise((r) => setTimeout(r, x));
+      const until = async (f, s) => {
+        const c0 = o.regulars.clock;
+        while (!f() && o.regulars.clock - c0 < s) await sleep(100);
+        return f();
+      };
+      const dist = (p, q) => Math.hypot(p.x - q.x, p.z - q.z);
+      const nearest = (p) => trail.reduce((b, q, i) => (dist(p, q) < dist(p, trail[b]) ? i : b), 0);
+      // How far off the trail's centre line (point to point, round the loop).
+      const offTrail = (p) => {
+        let best = Infinity;
+        trail.forEach((a, i) => {
+          const b = trail[(i + 1) % trail.length];
+          const dx = b.x - a.x;
+          const dz = b.z - a.z;
+          const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+          best = Math.min(best, Math.hypot(a.x + dx * t - p.x, a.z + dz * t - p.z));
+        });
+        return best;
+      };
+      const blanket = y.seats.filter((st) => st.kind === 'blanket');
+      const mid = { x: blanket.reduce((s, st) => s + st.slot.seat.x, 0) / blanket.length, z: blanket.reduce((s, st) => s + st.slot.seat.z, 0) / blanket.length };
+      const table = y.seats.filter((st) => st.kind === 'picnic').sort((a, b) => dist(a.slot.seat, mid) - dist(b.slot.seat, mid)).slice(0, 2);
+      const spots = [...blanket, ...table];
+      for (let i = 0; i < 5 && y.list().filter((v) => v.holdsDesk).length < spots.length; i++) y.spawn(true);
+      // Whoever's nearest, so it's a short walk there.
+      const people = y
+        .list()
+        .filter((v) => v.holdsDesk)
+        .sort((a, b) => dist(a.position, mid) - dist(b.position, mid))
+        .slice(0, spots.length);
+      if (!blanket.length || table.length < 2 || people.length < spots.length) return { error: 'no blanket or table, or not enough people', people: people.length };
+      const leavers = people.slice(blanket.length);
+      // The busy yard's rule, for any pair with one of them in it, and each pair's closest moment.
+      const W = { over: [], peak: new Map(), stop: false };
+      const open = new Map();
+      const r = (c) => 0.3 * (c.rig?.root.scale.y ?? 1);
+      const where = (c) => `${c.name} ${c.phase} @${c.position.x.toFixed(1)},${c.position.z.toFixed(1)}`;
+      const tick = () => {
+        const now = performance.now();
+        const ppl = o.regulars.visitors().filter((v) => v.phase !== 'gone' && v.opacity > 0.3);
+        for (const A of people)
+          for (const B of ppl) {
+            if (A === B || people.indexOf(B) > people.indexOf(A) || (A.atDesk && B.atDesk)) continue;
+            const over = r(A) + r(B) - dist(A.position, B.position);
+            const key = `${A.name} + ${B.name}`;
+            if (over > 0.1) {
+              if (!open.has(key)) open.set(key, now);
+              if (over > (W.peak.get(key)?.over ?? 0)) W.peak.set(key, { over, at: `${where(A)} | ${where(B)}` });
+              if (now - open.get(key) > 300 && !W.over.includes(key)) W.over.push(key);
+            } else open.delete(key);
+          }
+        if (!W.stop) requestAnimationFrame(tick);
+      };
+      // Every wait has its limit (office seconds), and whatever happens they're let go at the end.
+      try {
+        // Not off home halfway through; anyone else in those seats moves on.
+        for (const vis of y.visits) if (people.includes(vis.v)) vis.leaveAt = Math.max(vis.leaveAt, y.clock + 1000);
+        for (const st of spots) if (st.by && !people.includes(st.by)) st.by.go({ kind: 'stroll', trail, from: nearest(st.by.position), dir: 1, points: 6 });
+        spots.forEach((st, k) => people[k].go({ kind: 'seat', seat: st, seconds: 600 }));
+        if (!(await until(() => people.every((v, k) => v.seated && v.activity?.seat === spots[k]), 45))) return { error: 'not all sat down within 45 s', people: people.map(where) };
+        requestAnimationFrame(tick);
+        // Office seconds until each of them is on the trail (within 0.6 m of its centre line).
+        const out = [];
+        for (let c = 0; c < 2; c++) {
+          for (const v of leavers) v.go({ kind: 'stroll', trail, from: nearest(v.position), dir: 1, points: 4 });
+          // Their seats stay theirs while they're out: nobody else is sent there.
+          table.forEach((st, k) => (st.by = leavers[k]));
+          const c0 = o.regulars.clock;
+          const at = leavers.map(() => null);
+          await until(() => {
+            leavers.forEach((v, k) => {
+              if (at[k] === null && !v.atDesk && offTrail(v.position) < 0.6) at[k] = +(o.regulars.clock - c0).toFixed(1);
+            });
+            return !at.includes(null);
+          }, 20);
+          out.push(at);
+          if (at.includes(null)) break;
+          leavers.forEach((v, k) => v.go({ kind: 'seat', seat: table[k], seconds: 600 }));
+          if (!(await until(() => leavers.every((v, k) => v.seated && v.activity?.seat === table[k]), 25))) return { error: 'not back in their seats within 25 s', out, people: leavers.map(where) };
+        }
+        return { names: people.map((v) => v.name), over: W.over.map((key) => `${key} ${(W.peak.get(key).over * 100) | 0} cm: ${W.peak.get(key).at}`), out };
+      } finally {
+        W.stop = true;
+        // Back to their own devices, and no seat left held for someone who isn't in it.
+        for (const v of people) v.done = true;
+        for (const st of spots) if (st.by && st.by.activity?.seat !== st) st.by = null;
+      }
+    });
+    check('picnic corner: up from the table and out past a full blanket, nobody walks through anyone', !corner.error && !corner.over.length, corner.error ? JSON.stringify(corner) : corner.over.slice(0, 2).join('; '));
+    check('…and each of them out on the trail inside 20 s, both times', !corner.error && corner.out.length === 2 && corner.out.every((at) => !at.includes(null)), `seconds: ${JSON.stringify(corner.out ?? null)}`);
 
     // Two people on one bench (or at the table, on the blanket): before long, they're chatting.
     // Up to 90 office seconds (walking there and sitting down included), so it never just
@@ -333,10 +450,27 @@ try {
       for (const pose of ['lie', 'sit']) {
         // Seat someone (lying down on a lounger or the hammock, or sitting) and let them settle.
         const v = y.list().find((x) => x.holdsDesk && !x.atDesk && x.phase === 'away') ?? y.list().find((x) => x.holdsDesk);
-        const seat = y.seats.find((st) => !st.by && st.pose === pose);
+        // Ten people out there and three spots to lie on: they can all be taken (#88). Then whoever's
+        // on one is sent off along the trail first, and any that comes free will do (the crew may
+        // hand that one out again first).
+        const freeSpot = () => y.seats.find((st) => !st.by && st.pose === pose);
+        let seat = freeSpot();
+        const taken = seat ? null : y.seats.find((st) => st.pose === pose && st.by && st.by !== v);
+        if (taken) {
+          taken.by.go({ kind: 'stroll', trail: o.world.yard.trail, from: 0, dir: 1, points: 6 });
+          const c1 = o.regulars.clock;
+          while (!(seat = freeSpot()) && o.regulars.clock - c1 < 20) await sleep(100);
+        }
         const stand = y.stands.find((st) => !st.by);
         if (!v || !seat || !stand) {
-          out.push({ pose, error: 'nobody free, or no free seat or stand' });
+          // Who holds each of them, and whether they're using it: a leak isn't a full yard.
+          const holder = (st) => {
+            if (!st.by) return 'free';
+            if (st.by.activity?.seat === st) return `${st.by.name} on it`;
+            if (st.by.pending?.seat === st) return `${st.by.name} off to it`;
+            return `${st.by.name} ${st.by.phase}, NOT USING IT`;
+          };
+          out.push({ pose, error: 'nobody free, or no free seat or stand', free: !!v, seat: !!seat, stand: !!stand, holders: y.seats.filter((st) => st.pose === pose).map(holder) });
           continue;
         }
         v.go({ kind: 'seat', seat, seconds: 300 });
