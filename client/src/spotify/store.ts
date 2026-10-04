@@ -93,6 +93,8 @@ export class SpotifyStore {
   private waiters: Waiter[] = [];
   /** Which connect is the current one: a slower, older one's answer is ignored. */
   private connectGen = 0;
+  /** Which sign-in this is: songs and playlists that answer after a sign-out are dropped. */
+  private session = 0;
   private library = false;
   /** The player can't play for this account or browser (until you sign in again). */
   private broken: 'premium' | 'browser' | null = null;
@@ -195,11 +197,15 @@ export class SpotifyStore {
     const cached = this.cache.get(id) ?? null;
     this.set({ selected: id, tracks: cached, tracksError: '', loadingTracks: !cached && list.listable });
     if (cached || !list.listable) return;
+    const session = this.session;
     try {
       const page = await this.service.tracks(list);
+      // Signed out meanwhile: they're the old account's songs.
+      if (session !== this.session) return;
       this.cache.set(id, page);
       if (this.state.selected === id) this.set({ tracks: page, loadingTracks: false });
     } catch (err) {
+      if (session !== this.session) return;
       if (err instanceof SpotifyError && err.kind === 'signedout') return this.signedOut();
       if (this.state.selected !== id) return;
       // Spotify lists the songs only of playlists you own or collaborate on.
@@ -218,11 +224,14 @@ export class SpotifyStore {
     this.service.player.activate();
     this.set({ starting: true, notice: null });
     this.grace();
+    const session = this.session;
     try {
       let tracks = this.cache.get(list.id)?.tracks ?? [];
       // Liked Songs plays as a list of its songs: get them first.
       if (!list.uri && !tracks.length) {
         const page = await this.service.tracks(list);
+        // Signed out meanwhile: nothing to play, nothing to keep.
+        if (session !== this.session) return;
         this.cache.set(list.id, page);
         tracks = page.tracks;
       }
@@ -233,6 +242,7 @@ export class SpotifyStore {
       await this.whenReady();
       await this.service.player.play(req);
     } catch (err) {
+      if (session !== this.session) return;
       this.set({ starting: false });
       // The song that was playing (if any) plays on, and keeps the speakers.
       if (!this.playing) this.giveBack();
@@ -289,8 +299,10 @@ export class SpotifyStore {
   }
 
   private reset(): void {
-    // Whatever the last connect still says, it's over.
+    // Whatever the last connect, song list or playlist request still says, it's over.
     this.connectGen++;
+    this.session++;
+    for (const w of this.waiters.splice(0)) w.reject(new SpotifyError('Signed out', 'other'));
     window.clearTimeout(this.goneTimer);
     this.service.player.disconnect();
     this.cache.clear();
@@ -303,14 +315,17 @@ export class SpotifyStore {
     window.clearInterval(this.poll);
     this.set({ phase: 'ready', setupError: '', signInUrl: '' });
     this.connect();
+    const session = this.session;
     try {
       const me = await this.service.me();
       const playlists = await this.service.playlists(me);
+      // Signed out meanwhile: that was the old account's library.
+      if (session !== this.session) return;
       this.library = true;
       this.set({ user: me.name, playlists });
       if (!this.state.selected && playlists[0]) void this.select(playlists[0].id);
     } catch (err) {
-      this.fail(err);
+      if (session === this.session) this.fail(err);
     }
   }
 
@@ -425,6 +440,11 @@ export class SpotifyStore {
     // A refused token: once a minute, connect again with a fresh one before saying so.
     if (kind === 'auth' && performance.now() - this.authRetryAt > 60_000) {
       this.authRetryAt = performance.now();
+      // The player goes, and the song with it: say so, and the café band has the speakers until a
+      // new player plays again (onState takes them back then).
+      window.clearTimeout(this.goneTimer);
+      this.set({ now: null, starting: false });
+      this.giveBack();
       this.service.player.disconnect();
       this.set({ device: 'off' });
       this.connect();
