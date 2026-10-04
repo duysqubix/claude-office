@@ -226,6 +226,14 @@ async function measure({ id, plan, tol, minArea }) {
   for (const t of tris) mid.expandByPoint(t.A);
   const c0 = mid.getCenter(new THREE.Vector3());
   for (const t of tris) t.dl = t.n.dot(t.A.clone().sub(c0));
+  // The sort window. Two faces that count as parallel (normals within PARALLEL, so |n1 - n2| is
+  // at most √(2(1 - PARALLEL)) ≈ 0.032) and lie within tol where they overlap have offsets at most
+  // tol + 0.032 × (that spot's distance from c0) apart, so the window grows with the model's
+  // reach: a fixed 10 cm missed such pairs more than ~3 m out, on models over ~6 m wide.
+  const PARALLEL = 0.9995;
+  let reach = 0;
+  for (const t of tris) reach = Math.max(reach, t.A.distanceTo(c0), t.B.distanceTo(c0), t.C.distanceTo(c0));
+  const span = tol + Math.sqrt(2 * (1 - PARALLEL)) * reach * 1.01;
   // Where the overlap's centre lies on a triangle's plane (the axis `ax` coordinate dropped).
   const lift = (t, ax, u, v) => {
     const { n } = t;
@@ -241,8 +249,8 @@ async function measure({ id, plan, tol, minArea }) {
       const lower = tris[list[x]];
       for (let y = x + 1; y < list.length; y++) {
         const upper = tris[list[y]];
-        if (upper.dl - lower.dl > tol + 0.1) break;
-        if (lower.n.dot(upper.n) < 0.9995 || (!lower.writesDepth && !upper.writesDepth)) continue;
+        if (upper.dl - lower.dl > span) break;
+        if (lower.n.dot(upper.n) < PARALLEL || (!lower.writesDepth && !upper.writesDepth)) continue;
         const ax = axis(lower.n);
         const poly = clip([lower.A, lower.B, lower.C].map((p) => flat(p, ax)), [upper.A, upper.B, upper.C].map((p) => flat(p, ax)));
         if (poly.length < 3) continue;
