@@ -112,6 +112,12 @@ export interface Employee {
   adopting?: boolean;
   /** Hired by another office (a copy on another port): not hosted here, and can't be brought in. */
   otherOffice?: boolean;
+  /**
+   * Runs in another PID namespace than the office (its pidDomain, e.g. "linux::pid:[4026532829]"):
+   * the office in a container and Claude on the host, or the other way round. Its pid can't be
+   * checked from here, so it's shown until Claude Code removes its session file.
+   */
+  otherPidNamespace?: string;
 }
 
 /** Client → server over /ws. Tells the office someone is actually looking at it. */

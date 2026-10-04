@@ -1,6 +1,6 @@
 // Live sessions, straight from Claude Code's own registry: ~/.claude/sessions/<pid>.json.
 // Never read the sibling *.key files: they are secrets.
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, readlink } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { SESSIONS_DIR, THINK_DIR } from './config';
 import { run } from './exec';
@@ -22,6 +22,14 @@ export interface RegistryEntry {
   statusUpdatedAt?: number;
   updatedAt?: number;
   spare?: unknown;
+  /** The PID namespace the session runs in: "linux::pid:[4026531836]", or "darwin". */
+  pidDomain?: string;
+  /**
+   * Set by readRegistry, not Claude Code: the session runs in another PID namespace than this
+   * office (the office in a container, Claude on the host, or the other way round), so its pid
+   * means nothing here and can't be checked. It's shown until its registry file goes.
+   */
+  pidUnchecked?: boolean;
 }
 
 const REGISTRY_FILE = /^\d+\.json$/;
@@ -33,7 +41,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
   } catch {
     return [];
   }
-  const entries: RegistryEntry[] = [];
+  let entries: RegistryEntry[] = [];
   await Promise.all(
     files
       .filter((f) => REGISTRY_FILE.test(f))
@@ -48,6 +56,9 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
         }
       }),
   );
+  const own = await ownPidDomain();
+  const unchecked = entries.filter((e) => elsewhere(e.pidDomain, own)).map((e) => ({ ...e, pidUnchecked: true }));
+  entries = entries.filter((e) => !elsewhere(e.pidDomain, own));
   const live = await liveProcesses(entries.map((e) => e.pid));
   const digits = entries.filter((e) => /^\d+$/.test(String(e.procStart ?? '')));
   const most = digits.length ? await mostTicks() : null;
@@ -55,7 +66,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     await Promise.all(digits.filter((e) => most !== null && Number(e.procStart) <= most).map(async (e) => [e.pid, await startTicks(e.pid)] as const)),
   );
   const boot = await bootedAt();
-  return withGrace(entries.filter((e) => {
+  return withGrace([...unchecked, ...entries.filter((e) => {
     const p = live.get(e.pid);
     if (!p) return false;
     // Registry files can outlive their process, and pids get recycled. Claude records when the
@@ -70,7 +81,34 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     if (start && squash(start) === squash(p.lstart)) return true;
     if (boot !== null && (e.startedAt ?? Infinity) < boot) return false;
     return /claude/i.test(basename(p.comm));
-  }));
+  })]);
+}
+
+let ownDomain: string | null | undefined;
+
+/** This office's PID namespace, as Claude Code writes pidDomain: "linux::pid:[N]" (/proc/self/ns/pid) or "darwin". Null if unknown. */
+async function ownPidDomain(): Promise<string | null> {
+  if (ownDomain === undefined) {
+    if (process.platform === 'darwin') ownDomain = 'darwin';
+    else ownDomain = await readlink('/proc/self/ns/pid').then((ns) => `linux::${ns}`, () => null);
+  }
+  return ownDomain;
+}
+
+const NAMESPACE = /pid:\[(\d+)\]/;
+const OS = (domain: string) => /^(linux|darwin|win32)(?=::|$)/.exec(domain)?.[1];
+
+/**
+ * Whether a session's pidDomain is another PID namespace than this office's: another OS (a
+ * Linux container's session read on a Mac), or another Linux namespace. Unknown on either
+ * side (an older Claude Code writes none): no, so the pid gets the usual checks.
+ */
+function elsewhere(domain: unknown, own: string | null): boolean {
+  if (typeof domain !== 'string' || !domain || own === null) return false;
+  const [theirs, ours] = [OS(domain), OS(own)];
+  if (theirs && ours && theirs !== ours) return true;
+  const [a, b] = [NAMESPACE.exec(domain)?.[1], NAMESPACE.exec(own)?.[1]];
+  return !!a && !!b && a !== b;
 }
 
 /**

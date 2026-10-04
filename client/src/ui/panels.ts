@@ -449,9 +449,11 @@ export class PanelHost {
       if (!e.hosted) {
         note.textContent = e.otherOffice
           ? 'Hired in another office: you can watch them here, and talk to them there.'
-          : e.adopting
-            ? `Moving into the office: they walk in as soon as you type /exit in their terminal (pid ${e.pid}).`
-            : `Started in your own terminal (pid ${e.pid}).`;
+          : e.otherPidNamespace
+            ? `Can't check: different PID namespace. One of you runs in a container, so the office can't see their process (pid ${e.pid}): they stay here until Claude Code removes their session file.`
+            : e.adopting
+              ? `Moving into the office: they walk in as soon as you type /exit in their terminal (pid ${e.pid}).`
+              : `Started in your own terminal (pid ${e.pid}).`;
       }
     };
 

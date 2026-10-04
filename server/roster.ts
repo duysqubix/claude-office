@@ -171,7 +171,9 @@ export class Roster extends EventEmitter {
     }
     for (const name of [...this.officeMeta.keys()]) if (!livePaneNames.has(name)) this.officeMeta.delete(name);
     // After a server restart, recover hires that are still starting up from their tmux stamps.
-    const registeredPids = new Set(reg.map((e) => e.pid));
+    // Sessions in another PID namespace (pidUnchecked) don't count: their pids aren't this office's.
+    const local = reg.filter((e) => !e.pidUnchecked);
+    const registeredPids = new Set(local.map((e) => e.pid));
     const pendingPanes = new Set([...this.pending.values()].map((h) => h.tmuxName));
     for (const p of livePanes) {
       if (registeredPids.has(p.panePid) || pendingPanes.has(p.tmuxName)) continue;
@@ -189,7 +191,7 @@ export class Roster extends EventEmitter {
 
     // Adoptions: once the external process is gone, resume the session in the office. Someone
     // who turns up in another office's hire meanwhile (it resumed them first) stays there.
-    const inOtherOffices = new Set(reg.filter((e) => elsewhere.has(e.pid)).map((e) => e.sessionId));
+    const inOtherOffices = new Set(local.filter((e) => elsewhere.has(e.pid)).map((e) => e.sessionId));
     for (const [id, a] of this.adoptions) {
       if (now > a.until || inOtherOffices.has(id)) {
         if (now > a.until && a.blocked) this.notice('warn', `Couldn't bring ${a.displayName} in: ${a.blocked}`);
@@ -223,7 +225,7 @@ export class Roster extends EventEmitter {
 
     this.elsewhere = elsewhere;
     this.hostedBySession = new Map();
-    for (const e of reg) {
+    for (const e of local) {
       const name = paneByPid.get(e.pid);
       if (name) this.hostedBySession.set(e.sessionId, name);
     }
@@ -317,7 +319,8 @@ export class Roster extends EventEmitter {
       kind: e.kind ?? 'interactive',
       entrypoint: e.entrypoint,
       hosted: Boolean(tmuxName),
-      otherOffice: this.elsewhere.has(e.pid) || undefined,
+      otherOffice: (!e.pidUnchecked && this.elsewhere.has(e.pid)) || undefined,
+      otherPidNamespace: e.pidUnchecked ? e.pidDomain : undefined,
       state,
       stateSince: this.since(e.sessionId, state, sinceHint),
       waitingFor: state === 'needs-you' ? e.waitingFor || 'your input' : undefined,
