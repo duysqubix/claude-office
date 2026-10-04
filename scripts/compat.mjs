@@ -458,7 +458,10 @@ try {
     check('cwd is the folder they were hired in', reg.cwd === project, reg.cwd);
     check('status is busy, idle or waiting', ['busy', 'idle', 'waiting'].includes(reg.status), reg.status);
     check('name is the one they were hired with (-n), chosen by a person', reg.name === 'Compat Tester' && reg.nameSource === 'user', `${reg.name} / ${reg.nameSource}`);
-    check('kind and entrypoint', typeof reg.kind === 'string' && typeof reg.entrypoint === 'string', `${reg.kind} / ${reg.entrypoint}`, { note: true });
+    // The office leaves Claude Code's background kinds off the roster (server/registry.ts): a hire
+    // that registered as one of them would never walk in.
+    check('kind: not one the office leaves off the roster (bg, daemon, daemon-worker)', !['bg', 'daemon', 'daemon-worker'].includes(reg.kind), `${reg.kind} / ${reg.entrypoint}`);
+    check('kind "interactive", entrypoint "cli"', reg.kind === 'interactive' && reg.entrypoint === 'cli', `${reg.kind} / ${reg.entrypoint}`, { note: true });
     check('version is this Claude Code', reg.version === version, reg.version, { note: true });
     const lstart = spawnSync('ps', ['-o', 'lstart=', '-p', String(reg.pid)], { env: { ...process.env, TZ: 'UTC' }, encoding: 'utf8' }).stdout.replace(/\s+/g, ' ').trim();
     const squashed = String(reg.procStart ?? '').replace(/\s+/g, ' ').trim();
