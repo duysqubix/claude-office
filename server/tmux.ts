@@ -490,13 +490,45 @@ const PLACEHOLDER = /^(?:Try ".*"|Press (?:up|Enter) to (?:edit|select)\b.*)$/;
 /** The footer hint Claude Code shows under the box only while nothing is typed in it. */
 const EMPTY_HINT = /\? for shortcuts/;
 
-/** Text as the box shows it, to compare: Claude Code composes accents and drops zero-width characters, and wrapping adds spaces. */
-const flat = (s: string) => s.normalize('NFC').replace(/[\s\p{Cf}]/gu, '');
+/**
+ * Text as the box shows it, to compare: Claude Code composes accents and drops zero-width
+ * characters, a terminal can leave out emoji modifiers and variation selectors (tmux 3.3a draws
+ * 👍🏽 as 👍), and wrapping adds spaces.
+ */
+const flat = (s: string) => s.normalize('NFC').replace(/[\s\p{Cf}\p{Emoji_Modifier}\p{Variation_Selector}]/gu, '');
 
 /** Whether the box shows exactly `typing` (however it wraps it), or for a paste long enough to fold (over 800 characters or 3 lines) only its "[Pasted text #N]". */
 function holds(typed: string, typing: string): boolean {
   const folds = typing.length > 800 || typing.split('\n').length > 3;
-  return flat(typed) === flat(typing) || (folds && /^\[(?:Pasted text|\.\.\.Truncated text) #\d+[^\]]*\]$/.test(typed));
+  return reads(flat(typed), flat(typing)) || (folds && /^\[(?:Pasted text|\.\.\.Truncated text) #\d+[^\]]*\]$/.test(typed));
+}
+
+/** An emoji a terminal may not know how to draw: one newer than its tmux. */
+const EMOJI = /\p{Extended_Pictographic}/u;
+
+/**
+ * Whether `shown` reads as `want` (both flat), each emoji in `want` drawn as itself, as "_" or
+ * U+FFFD, or as blank cells (tmux 3.3a and Unicode 15's 🫨 🪿): one emoji stands for one
+ * character at most, never for text that isn't there.
+ */
+function reads(shown: string, want: string): boolean {
+  if (shown === want) return true;
+  if (!shown) return false;
+  const cells = [...shown];
+  let at = new Set([0]);
+  for (const c of want) {
+    const next = new Set<number>();
+    for (const i of at) {
+      if (cells[i] === c) next.add(i + 1);
+      if (EMOJI.test(c)) {
+        next.add(i);
+        if (cells[i] === '_' || cells[i] === '\ufffd') next.add(i + 1);
+      }
+    }
+    if (!next.size) return false;
+    at = next;
+  }
+  return at.has(cells.length);
 }
 
 /**
@@ -550,7 +582,10 @@ async function inputBox(target: string): Promise<{ typed: string; empty: boolean
     const known = PLACEHOLDER.test(box.map((row, i) => inside(row.text, i)).join('')) || rows.slice(bottom + 1).some((row) => EMPTY_HINT.test(row.text));
     const placeholder = !rows[top - 1].styled && atStart && known;
     const folded = FOLDED.test(box.map((row) => row.text).join('\n'));
-    return { typed: placeholder ? '' : typed, empty: !mode && !folded && (placeholder || !typed) };
+    // Blank cells before a cursor were typed too: what the terminal can't draw (tmux 3.3a and
+    // Unicode 15 emoji), which can leave a second cursor drawn further on.
+    const blanks = cursor === 0 && box[0].lastCursor > (BOX_HEAD.exec(box[0].text)?.[0].length ?? 0) + 1;
+    return { typed: placeholder ? '' : typed, empty: !mode && !folded && !blanks && (placeholder || !typed) };
   }
   return null;
 }
@@ -558,25 +593,26 @@ async function inputBox(target: string): Promise<{ typed: string; empty: boolean
 /**
  * `capture-pane -e` output as rows: `text` as drawn; `typed`, what's left once ghost text is out:
  * all the cells before the cursor (the first inverse cell, at `cursor`; -1 for none), the ones
- * after it unless drawn dim; `styled`, whether any cell is dim or coloured. Attributes carry
- * over from one row to the next, as tmux writes them.
+ * after it unless drawn dim; `lastCursor`, where the last inverse cell starts; `styled`, whether
+ * any cell is dim or coloured. Attributes carry over from one row to the next, as tmux writes them.
  */
-function screenRows(out: string): { text: string; typed: string; cursor: number; styled: boolean }[] {
-  const rows: { text: string; typed: string; cursor: number; styled: boolean }[] = [];
+function screenRows(out: string): { text: string; typed: string; cursor: number; lastCursor: number; styled: boolean }[] {
+  const rows: { text: string; typed: string; cursor: number; lastCursor: number; styled: boolean }[] = [];
   let text = '';
   let undim = '';
   let after = '';
   let cursor = -1;
+  let lastCursor = -1;
   let styled = false;
   let dim = false;
   let inverse = false;
   let colour = false;
-  const row = () => rows.push({ text: text.trimEnd(), typed: (cursor < 0 ? undim : text.slice(0, cursor) + after).trimEnd(), cursor, styled });
+  const row = () => rows.push({ text: text.trimEnd(), typed: (cursor < 0 ? undim : text.slice(0, cursor) + after).trimEnd(), cursor, lastCursor, styled });
   for (const [token, sgr] of out.matchAll(/\x1b\[([\d;:]*)m|\x1b\[[\d;:?<=>]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b.?|\n|[^\x1b\n]+/g)) {
     if (token === '\n') {
       row();
       text = undim = after = '';
-      cursor = -1;
+      cursor = lastCursor = -1;
       styled = false;
     } else if (sgr !== undefined) {
       const codes = sgr.split(';');
@@ -595,6 +631,7 @@ function screenRows(out: string): { text: string; typed: string; cursor: number;
       }
     } else if (token[0] !== '\x1b') {
       if (inverse && cursor < 0) cursor = text.length;
+      if (inverse) lastCursor = text.length;
       if (dim || colour) styled = true;
       text += token;
       if (!dim && !inverse) {
