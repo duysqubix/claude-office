@@ -3,7 +3,8 @@
 // post), it draws just those two, behind everything else in the office as occluders, through
 // the game's own camera and 24-bit depth buffer: from 2 to 22 m away, at three angles and three
 // eye heights, a few cm apart, in both draw orders. It reports the share of the front surface
-// the back one wins; 0% means no shimmer. One instance of each model is measured.
+// the back one wins; 0% means no shimmer. One instance of each model is measured, with its
+// animated parts held still in their time-0 pose.
 //   npm run depth-fight -- <model id|all> [url] [--quick] [--json]
 // url defaults to the dev office on :4778 (dev builds expose the scene with debug=1); --quick
 // uses fewer viewpoints (the default for `all`). Never reports presence. Prints; writes nothing.
@@ -81,6 +82,13 @@ try {
     last = n;
   }
   if (last < 0) throw new Error('window.office is missing: run against a dev build (debug=1)');
+  // Hold animated parts (a waving flag, a swinging hammock, a dog's tail) still in their time-0
+  // pose while measuring: caught mid-motion, they'd give different pairs on every run.
+  await page.evaluate(() => {
+    const { world } = window.office;
+    world.update(0, 0);
+    world.update = () => {};
+  });
 
   const ids =
     target === 'all'
@@ -216,9 +224,10 @@ async function measure({ id, plan, tol, minArea }) {
   };
   const buckets = new Map();
   tris.forEach((t, k) => {
-    const key = `${Math.round(t.n.x * 20)},${Math.round(t.n.y * 20)},${Math.round(t.n.z * 20)}`;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(k);
+    const q = [Math.round(t.n.x * 20), Math.round(t.n.y * 20), Math.round(t.n.z * 20)];
+    const key = q.join(',');
+    if (!buckets.has(key)) buckets.set(key, { q, list: [] });
+    buckets.get(key).list.push(k);
   });
   // Plane offsets from the model's own centre: faces up to 1.8° apart drift less over its size
   // than over the distance to the world origin, so the sort window below stays tight.
@@ -243,35 +252,47 @@ async function measure({ id, plan, tol, minArea }) {
     return new THREE.Vector3(u, v, (d - n.x * u - n.y * v) / n.z);
   };
   const groups = new Map();
-  for (const list of buckets.values()) {
-    list.sort((x, y) => tris[x].dl - tris[y].dl);
-    for (let x = 0; x < list.length; x++) {
-      const lower = tris[list[x]];
-      for (let y = x + 1; y < list.length; y++) {
-        const upper = tris[list[y]];
-        if (upper.dl - lower.dl > span) break;
-        if (lower.n.dot(upper.n) < PARALLEL || (!lower.writesDepth && !upper.writesDepth)) continue;
-        const ax = axis(lower.n);
-        const poly = clip([lower.A, lower.B, lower.C].map((p) => flat(p, ax)), [upper.A, upper.B, upper.C].map((p) => flat(p, ax)));
-        if (poly.length < 3) continue;
-        const ov = Math.abs(area2(poly));
-        if (ov < 1e-8) continue;
-        // How far apart they are where they overlap: nearly parallel faces can cross, so their
-        // offsets from any one origin don't say which is in front, or by how much.
-        const u = poly.reduce((s, p) => s + p[0], 0) / poly.length;
-        const v = poly.reduce((s, p) => s + p[1], 0) / poly.length;
-        const sep = lower.n.dot(lift(upper, ax, u, v).sub(lift(lower, ax, u, v)));
-        if (Math.abs(sep) > tol) continue;
-        const [front, back] = sep >= 0 ? [upper, lower] : [lower, upper];
-        const key = `${front.pi}:${front.d.toFixed(4)}|${back.pi}:${back.d.toFixed(4)}`;
-        let gr = groups.get(key);
-        if (!gr) groups.set(key, (gr = { front: new Map(), back: new Map(), gap: 0, overlap: 0, normal: back.n.clone(), opaque: front.writesDepth && back.writesDepth }));
-        gr.front.set(`${front.pi}:${front.i}`, front);
-        gr.back.set(`${back.pi}:${back.i}`, back);
-        gr.overlap += ov;
-        gr.gap = Math.max(gr.gap, Math.abs(sep));
-      }
-    }
+  const consider = (lower, upper) => {
+    if (lower.n.dot(upper.n) < PARALLEL || (!lower.writesDepth && !upper.writesDepth)) return;
+    const ax = axis(lower.n);
+    const poly = clip([lower.A, lower.B, lower.C].map((p) => flat(p, ax)), [upper.A, upper.B, upper.C].map((p) => flat(p, ax)));
+    if (poly.length < 3) return;
+    const ov = Math.abs(area2(poly));
+    if (ov < 1e-8) return;
+    // How far apart they are where they overlap: nearly parallel faces can cross, so their
+    // offsets from any one origin don't say which is in front, or by how much.
+    const u = poly.reduce((s, p) => s + p[0], 0) / poly.length;
+    const v = poly.reduce((s, p) => s + p[1], 0) / poly.length;
+    const sep = lower.n.dot(lift(upper, ax, u, v).sub(lift(lower, ax, u, v)));
+    if (Math.abs(sep) > tol) return;
+    const [front, back] = sep >= 0 ? [upper, lower] : [lower, upper];
+    const key = `${front.pi}:${front.d.toFixed(4)}|${back.pi}:${back.d.toFixed(4)}`;
+    let gr = groups.get(key);
+    if (!gr) groups.set(key, (gr = { front: new Map(), back: new Map(), gap: 0, overlap: 0, normal: back.n.clone(), opaque: front.writesDepth && back.writesDepth }));
+    gr.front.set(`${front.pi}:${front.i}`, front);
+    gr.back.set(`${back.pi}:${back.i}`, back);
+    gr.overlap += ov;
+    gr.gap = Math.max(gr.gap, Math.abs(sep));
+  };
+  for (const { list } of buckets.values()) list.sort((x, y) => tris[x].dl - tris[y].dl);
+  for (const [key, { q, list }] of buckets) {
+    for (let x = 0; x < list.length; x++)
+      for (let y = x + 1; y < list.length && tris[list[y]].dl - tris[list[x]].dl <= span; y++) consider(tris[list[x]], tris[list[y]]);
+    // Parallel faces can still round into neighbouring buckets (their normals' components
+    // differ by under one 1/20 step), so each neighbour bucket is compared once as well.
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dz = -1; dz <= 1; dz++) {
+          const near = `${q[0] + dx},${q[1] + dy},${q[2] + dz}`;
+          const other = near > key && buckets.get(near)?.list;
+          if (!other) continue;
+          let lo = 0;
+          for (const x of list) {
+            const a = tris[x];
+            while (lo < other.length && tris[other[lo]].dl < a.dl - span) lo++;
+            for (let y = lo; y < other.length && tris[other[y]].dl <= a.dl + span; y++) consider(a, tris[other[y]]);
+          }
+        }
   }
 
   // Occluders: everything opaque in the office except the pair itself (its model's other parts
