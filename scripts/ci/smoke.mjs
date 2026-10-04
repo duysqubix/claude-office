@@ -1,8 +1,9 @@
 // The smoke test (scripts/smoke.mjs) in an office of its own (scripts/ci/office.mjs), for CI
 // and for running it anywhere without touching your office: one pretend Claude session (a
-// running process, its ~/.claude/sessions entry and a transcript), one past session,
-// thought bubbles off, a private tmux server and a free port. No Claude Code or login needed;
-// the checks that would need them (hiring, answering, thoughts) are not part of the smoke test.
+// running process, its ~/.claude/sessions entry and a transcript), Claude Code's background
+// sessions that must stay off the roster, one past session, thought bubbles off, a private tmux
+// server and a free port. No Claude Code or login needed; the checks that would need them
+// (hiring, answering, thoughts) are not part of the smoke test.
 // Then it checks the office read the pretend session the way Claude Code writes it.
 //   npm run build && node scripts/ci/smoke.mjs     (serves dist/; without a build it uses dev mode)
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
@@ -37,6 +38,20 @@ writeFileSync(
   join(home.claudeHome, 'sessions', `${live.pid}.json`),
   JSON.stringify({ pid: live.pid, sessionId: LIVE_ID, cwd: project, startedAt: now - 60_000, procStart, version: 'fixture', kind: 'interactive', entrypoint: 'cli', name: 'Fixture Fran', nameSource: 'user', status: 'idle', statusUpdatedAt: now - 5000, updatedAt: now - 5000 }),
 );
+// Claude Code's own sessions, which its daemon runs out of sight (kind "bg", from its agents
+// view: ← on an empty prompt; "daemon" and "daemon-worker"), and one of a kind it may add later,
+// each a live process with a registry entry in the shape 2.1 writes. The first three must never
+// walk in; the new kind is shown, the way "interactive" is (server/registry.ts).
+const KINDS = { bg: '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e', daemon: '3c4d5e6f-7a8b-4c9d-8e1f-2a3b4c5d6e7f', 'daemon-worker': '4d5e6f7a-8b9c-4d0e-9f2a-3b4c5d6e7f8a', 'fixture-new': '5e6f7a8b-9c0d-4e1f-8a3b-4c5d6e7f8a9b' };
+const others = Object.entries(KINDS).map(([kind, sessionId]) => {
+  const p = spawn('sleep', ['3600'], { stdio: 'ignore' });
+  const start = execFileSync('ps', ['-o', 'lstart=', '-p', String(p.pid)], { env: { ...process.env, TZ: 'UTC' }, encoding: 'utf8' }).trim();
+  writeFileSync(
+    join(home.claudeHome, 'sessions', `${p.pid}.json`),
+    JSON.stringify({ pid: p.pid, sessionId, cwd: project, startedAt: now - 30_000, procStart: start, version: 'fixture', peerProtocol: 1, kind, entrypoint: 'cli', name: sessionId.slice(0, 8), status: 'idle', statusUpdatedAt: now - 5000, updatedAt: now - 5000 }),
+  );
+  return p;
+});
 const projectDir = join(home.claudeHome, 'projects', encodeCwd(project));
 mkdirSync(projectDir, { recursive: true });
 const turn = (sessionId, prompt, answer, ago) => [
@@ -89,6 +104,11 @@ try {
   check('registry entry → an employee, by the name they were given', me?.displayName === 'Fixture Fran' && me?.name === 'Fixture Fran', JSON.stringify(me?.displayName));
   check('status idle, just now → idle (not asleep yet)', me?.state === 'idle', me?.state);
   check('not hosted (they work in their own terminal)', me?.hosted === false && me?.pid === live.pid, `hosted=${me?.hosted}, pid=${me?.pid}`);
+  const roster = await api('/api/roster');
+  const walkedIn = (kind) => roster?.some?.((e) => e.sessionId === KINDS[kind]);
+  const seen = JSON.stringify(roster?.map?.((e) => `${e.displayName} (${e.kind})`));
+  check("Claude Code's background sessions (kind bg, daemon, daemon-worker) → nobody walks in", Array.isArray(roster) && !walkedIn('bg') && !walkedIn('daemon') && !walkedIn('daemon-worker'), seen);
+  check('a kind Claude Code adds later → shown, like interactive', walkedIn('fixture-new'), seen);
   check('ai-title → their title; the folder → their project', me?.title === 'Tidy the fixture desk' && me?.project === 'fixture-desk', `${me?.title} / ${me?.project}`);
   check('last assistant text and model from the transcript', me?.lastText === 'All tidy.' && me?.model === 'claude-fixture-1', `${me?.lastText} / ${me?.model}`);
   const chatter = await api(`/api/session/${LIVE_ID}/chatter`);
@@ -105,6 +125,7 @@ try {
 } finally {
   await office?.stop();
   live.kill();
+  for (const p of others) p.kill();
   home.cleanup();
 }
 

@@ -12,6 +12,7 @@ export interface RegistryEntry {
   startedAt?: number;
   procStart?: string;
   version?: string;
+  /** "interactive", "bg", "daemon" or "daemon-worker" (Claude Code 2.1; none before): see BACKGROUND. */
   kind?: string;
   entrypoint?: string;
   name?: string;
@@ -34,6 +35,21 @@ export interface RegistryEntry {
 
 const REGISTRY_FILE = /^\d+\.json$/;
 
+/**
+ * Claude Code's kinds of session that aren't anyone at work, so they never walk in. Its daemon
+ * runs them out of sight, with no terminal the office could open or type into: "bg" (the spares,
+ * forks and background jobs behind its agents view, ← on an empty prompt) and "daemon" /
+ * "daemon-worker" (its own). "interactive" is someone at a terminal: a hire, or a session you
+ * started yourself. A kind Claude Code adds later is shown, the way "interactive" is.
+ */
+const BACKGROUND = new Set(['bg', 'daemon', 'daemon-worker']);
+/** The kinds the office knows; one it doesn't is logged once. */
+const KNOWN = new Set(['interactive', ...BACKGROUND]);
+const newKinds = new Set<string>();
+
+/** Pids of the sessions the last read left out on purpose (spares, thought bubbles, BACKGROUND). */
+let leftOut = new Set<number>();
+
 export async function readRegistry(): Promise<RegistryEntry[]> {
   let files: string[];
   try {
@@ -42,20 +58,26 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     return [];
   }
   let entries: RegistryEntry[] = [];
+  const skipped = new Set<number>();
   await Promise.all(
     files
       .filter((f) => REGISTRY_FILE.test(f))
       .map(async (f) => {
         try {
           const e = JSON.parse(await readFile(join(SESSIONS_DIR, f), 'utf8')) as RegistryEntry;
-          if (typeof e.pid === 'number' && typeof e.sessionId === 'string' && typeof e.cwd === 'string' && !e.spare && e.cwd !== THINK_DIR) {
-            entries.push(e);
+          if (typeof e.pid !== 'number' || typeof e.sessionId !== 'string' || typeof e.cwd !== 'string') return;
+          if (typeof e.kind === 'string' && !KNOWN.has(e.kind) && !newKinds.has(e.kind)) {
+            newKinds.add(e.kind);
+            console.warn(`[registry] Claude Code writes a new kind of session, "${e.kind}": shown like "interactive"`);
           }
+          if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind))) skipped.add(e.pid);
+          else entries.push(e);
         } catch {
           // Being rewritten right now, or not ours to understand. Next poll will catch it.
         }
       }),
   );
+  leftOut = skipped;
   const own = await ownPidDomain();
   const unchecked = entries.filter((e) => elsewhere(e.pidDomain, own)).map((e) => ({ ...e, pidUnchecked: true }));
   entries = entries.filter((e) => !elsewhere(e.pidDomain, own));
@@ -200,8 +222,22 @@ async function liveProcesses(pids: number[]): Promise<Map<number, { lstart: stri
   return out;
 }
 
-/** How many Claude Code processes are running (to tell "nobody's here" from "can't read the registry"). */
+/** Claude Code's daemon and the helpers it runs: its processes, not sessions. */
+const DAEMON = /\sdaemon run\b|--bg-pty-host\b|--bg-spare\b/;
+
+/**
+ * How many Claude Code processes are running that the roster should show (to tell "nobody's
+ * here" from "can't read the registry"): not the sessions the last read left out on purpose,
+ * nor Claude Code's daemon and its helpers.
+ */
 export async function claudeProcessCount(): Promise<number> {
-  const r = await run('ps', ['-axo', 'comm=']);
-  return r.stdout.split('\n').filter((c) => /(^|\/)claude(\.exe)?$/i.test(c.trim())).length;
+  const r = await run('ps', ['-axo', 'pid=,comm=']);
+  const pids = r.stdout
+    .split('\n')
+    .map((l) => /^\s*(\d+)\s+(.+)$/.exec(l))
+    .filter((m): m is RegExpExecArray => !!m && /(^|\/)claude(\.exe)?$/i.test(m[2].trim()) && !leftOut.has(Number(m[1])))
+    .map((m) => m[1]);
+  if (!pids.length) return 0;
+  const args = await run('ps', ['-o', 'args=', '-p', pids.join(',')]);
+  return args.stdout.split('\n').filter((a) => a.trim() && !DAEMON.test(a)).length;
 }
