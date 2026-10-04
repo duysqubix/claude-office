@@ -13,16 +13,20 @@
 //                 Claude Code sends (hooks:install, office-hook.mjs) and the decision it takes back
 //   status line   the JSON Claude Code pipes to statusline-tap.mjs (statusline:install)
 //   terminal      the trust dialog spotted on screen, keys through /term, text through /api/say
+//   input box     what Say reads off the screen before it pastes and before Enter: drafts, ghost
+//                 text, dialogs, panels, themes (scripts/ci/say/: synthetic screens, then a real
+//                 Claude Code, each with a tmux server of its own)
 // Not checked: anything that needs a real login (plan usage limits) or real model replies.
 //   CLAUDE_BIN=$(command -v claude) node scripts/compat.mjs [--json report.json] [--markdown report.md]
-// Exit 1 if a check failed. "!" lines are notes: worth knowing, not a failure.
-import { spawnSync } from 'node:child_process';
+// Exit 1 if a check failed. "!" lines are notes: worth knowing, not a failure. COMPAT_SAY=0 skips
+// the input-box checks, which take a few minutes.
+import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import http from 'node:http';
 import { join } from 'node:path';
 import WebSocket from 'ws';
-import { freePort, makeHome, ROOT, startOffice, wait } from './ci/office.mjs';
+import { cleanEnv, freePort, makeHome, ROOT, startOffice, wait } from './ci/office.mjs';
+import { blocks, lastUser, startPretendApi, text } from './ci/pretend-api.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (name) => {
@@ -87,25 +91,20 @@ if (!CLAUDE) {
   process.exit(2);
 }
 
-// ── A pretend Anthropic API ──────────────────────────────────────────────────────────────
-// Answers /v1/messages the way the real one does (streamed or not), following a script keyed
-// by COMPAT:<step> in the latest user message: a Bash call, a question, a plan, an intern. A
-// tool result gets a short closing reply. Every request is kept for the checks.
+// ── A pretend Anthropic API (scripts/ci/pretend-api.mjs) ─────────────────────────────────
+// It answers following a script keyed by COMPAT:<step> in the latest user message: a Bash
+// call, a question, a plan, an intern. A tool result gets a short closing reply. Every
+// request is kept for the checks.
 const THOUGHT = 'This bug is hiding under the coffee machine again';
 const TITLE = 'Fix the flaky login test';
 const PLAN = '# Plan\n1. Write plan-ok.txt\n2. Stop there\n';
 const INTERN_MS = 6000;
 /** Requests seen, tool calls made (id → tool) and what to call once a result comes back. */
 const mock = { requests: [], issued: new Map(), then: new Map() };
-const text = (t) => ({ type: 'text', text: t });
 let toolN = 0;
 const toolUse = (name, input) => ({ type: 'tool_use', id: `toolu_compat_${++toolN}_${randomBytes(4).toString('hex')}`, name, input });
-const blocks = (m) => (typeof m?.content === 'string' ? [text(m.content)] : Array.isArray(m?.content) ? m.content : []);
 const systemText = (j) => (typeof j?.system === 'string' ? j.system : Array.isArray(j?.system) ? j.system.map((b) => b?.text ?? '').join('\n') : '');
 const resultText = (b) => (typeof b.content === 'string' ? b.content : Array.isArray(b.content) ? b.content.map((c) => c?.text ?? '').join(' ') : '');
-
-/** The latest user turn (Claude Code may put a system-role message after it). */
-const lastUser = (j) => (j?.messages ?? []).findLast((m) => m?.role === 'user');
 
 /** A value that fits a JSON schema (structured outputs, such as the session title Claude Code asks Haiku for). */
 function fit(schema) {
@@ -149,74 +148,24 @@ function script(j) {
   return { content: [text('Mock reply.')] };
 }
 
-function sse(res, msg) {
-  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'request-id': `req_${msg.id}` });
-  const ev = (type, data) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`);
-  ev('message_start', { message: { ...msg, content: [], stop_reason: null, usage: { ...msg.usage, output_tokens: 1 } } });
-  msg.content.forEach((b, index) => {
-    if (b.type === 'text') {
-      ev('content_block_start', { index, content_block: { type: 'text', text: '' } });
-      ev('content_block_delta', { index, delta: { type: 'text_delta', text: b.text } });
-    } else {
-      ev('content_block_start', { index, content_block: { type: 'tool_use', id: b.id, name: b.name, input: {} } });
-      ev('content_block_delta', { index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(b.input) } });
-    }
-    ev('content_block_stop', { index });
+/** Keep every request, and the tool calls made in answer, for the checks. */
+function record(j, headers, reply) {
+  for (const b of reply.content) if (b.type === 'tool_use') mock.issued.set(b.id, b.name);
+  const last = lastUser(j);
+  mock.requests.push({
+    at: Date.now(),
+    session: headers['x-claude-code-session-id'],
+    model: j.model,
+    stream: !!j.stream,
+    system: systemText(j),
+    tools: (j.tools ?? []).map((t) => t.name),
+    said: blocks(last).filter((b) => b?.type === 'text').map((b) => b.text).join('\n'),
+    // What a person (or the office) typed, without Claude Code's <system-reminder> blocks.
+    prompt: blocks(last).filter((b) => b?.type === 'text' && !b.text.trimStart().startsWith('<')).map((b) => b.text).join('\n'),
+    results: blocks(last).filter((b) => b?.type === 'tool_result').map((b) => ({ id: b.tool_use_id, text: resultText(b), isError: !!b.is_error })),
+    reply: reply.content.map((b) => (b.type === 'text' ? `text: ${b.text}` : `${b.name} ${b.id}`)),
   });
-  ev('message_delta', { delta: { stop_reason: msg.stop_reason, stop_sequence: null }, usage: { output_tokens: msg.usage.output_tokens } });
-  ev('message_stop', {});
-  res.end();
-}
-
-function startMock() {
-  let n = 0;
-  const server = http.createServer(async (req, res) => {
-    let body = '';
-    for await (const c of req) body += c;
-    const send = (status, v) => {
-      res.writeHead(status, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(v));
-    };
-    if (req.url.startsWith('/api/hello')) return send(200, {});
-    if (req.method !== 'POST' || !req.url.startsWith('/v1/messages')) return send(404, { type: 'error', error: { type: 'not_found_error', message: 'Not in the compat mock' } });
-    let j;
-    try {
-      j = JSON.parse(body);
-    } catch {
-      return send(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Bad JSON' } });
-    }
-    if (req.url.startsWith('/v1/messages/count_tokens')) return send(200, { input_tokens: 1534 });
-    const reply = script(j);
-    for (const b of reply.content) if (b.type === 'tool_use') mock.issued.set(b.id, b.name);
-    const last = lastUser(j);
-    mock.requests.push({
-      at: Date.now(),
-      session: req.headers['x-claude-code-session-id'],
-      model: j.model,
-      stream: !!j.stream,
-      system: systemText(j),
-      tools: (j.tools ?? []).map((t) => t.name),
-      said: blocks(last).filter((b) => b?.type === 'text').map((b) => b.text).join('\n'),
-      // What a person (or the office) typed, without Claude Code's <system-reminder> blocks.
-      prompt: blocks(last).filter((b) => b?.type === 'text' && !b.text.trimStart().startsWith('<')).map((b) => b.text).join('\n'),
-      results: blocks(last).filter((b) => b?.type === 'tool_result').map((b) => ({ id: b.tool_use_id, text: resultText(b), isError: !!b.is_error })),
-      reply: reply.content.map((b) => (b.type === 'text' ? `text: ${b.text}` : `${b.name} ${b.id}`)),
-    });
-    if (reply.delay) await wait(reply.delay);
-    const msg = {
-      id: `msg_compat_${++n}`,
-      type: 'message',
-      role: 'assistant',
-      model: j.model ?? 'claude-compat',
-      content: reply.content,
-      stop_reason: reply.content.some((b) => b.type === 'tool_use') ? 'tool_use' : 'end_turn',
-      stop_sequence: null,
-      usage: { input_tokens: 1234, cache_creation_input_tokens: 100, cache_read_input_tokens: 200, output_tokens: 20 },
-    };
-    if (j.stream) sse(res, msg);
-    else send(200, msg);
-  });
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ server, base: `http://127.0.0.1:${server.address().port}` })));
+  return reply;
 }
 /** The tool result Claude Code sent back for a tool call the mock made, once it has. */
 const resultFor = (id) => mock.requests.flatMap((r) => r.results).find((r) => r.id === id);
@@ -225,7 +174,7 @@ const issuedId = (name) => [...mock.issued].filter(([, n]) => n === name).map(([
 // ── An office of its own, and a Claude Code that talks to the mock ─────────────────────────
 const home = makeHome('office-compat-');
 const KEY = `sk-ant-api03-compat-${randomBytes(12).toString('hex')}`;
-const api = await startMock();
+const api = await startPretendApi((j, headers) => record(j, headers, script(j)), { usage: { input_tokens: 1234, cache_creation_input_tokens: 100, cache_read_input_tokens: 200, output_tokens: 20 } });
 const env = {
   ...home.env,
   ANTHROPIC_BASE_URL: api.base,
@@ -658,25 +607,68 @@ try {
   const failed = results.filter((r) => r.status === 'fail');
   if (failed.length && office) console.log(`\nOffice log (last 25 lines):\n${office.log().split('\n').slice(-25).join('\n')}`);
   await office?.stop();
-  api.server.close();
+  api.close();
   home.cleanup();
-
-  const report = {
-    claude: { version, path: CLAUDE },
-    platform: `${process.platform}-${process.arch}`,
-    node: process.version,
-    seconds: Math.round((Date.now() - t0) / 1000),
-    results,
-    notices,
-    // What the pretend API was asked, for working out a failure.
-    requests: mock.requests.map((r) => ({ session: r.session, model: r.model, tools: r.tools.length, prompt: short(r.prompt, 160), results: r.results.map((x) => ({ ...x, text: short(x.text, 160) })), reply: r.reply })),
-  };
-  if (opt('json')) writeFileSync(opt('json'), JSON.stringify(report, null, 2));
-  if (opt('markdown')) writeFileSync(opt('markdown'), markdown(report));
-  const notes = results.filter((r) => r.status === 'note').length;
-  console.log(`\n${failed.length ? `${failed.length} check(s) failed` : 'Compatible'}: ${results.length - failed.length - notes} passed, ${notes} note(s), Claude Code ${version || '?'}, ${report.seconds} s`);
-  process.exit(failed.length ? 1 : 0);
 }
+
+// ── The input box: Say (scripts/ci/say/) ─────────────────────────────────────────────────
+// Each in a process of its own: server/tmux.ts on synthetic screens, then a real Claude Code
+// through an office of its own. They print their results as JSON; a crash is a failed check.
+async function sayChecks(file, minutes) {
+  const child = spawn(process.execPath, ['--import', 'tsx', `scripts/ci/say/${file}`, '--json'], { cwd: ROOT, env: cleanEnv({ CLAUDE_BIN: CLAUDE }), stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '';
+  let err = '';
+  child.stdout.on('data', (d) => (out += d));
+  child.stderr.on('data', (d) => (err += d));
+  // Past its time, it's stopped, and still reports what it found (and that it was stopped).
+  let late = '';
+  const limit = setTimeout(() => {
+    late = `still going after ${minutes} min, so compat.mjs stopped it`;
+    child.kill('SIGINT');
+    setTimeout(() => child.kill('SIGKILL'), 60_000).unref();
+  }, minutes * 60_000);
+  const code = await new Promise((resolve) => child.on('close', resolve));
+  clearTimeout(limit);
+  try {
+    const got = JSON.parse(out.trim().split('\n').at(-1));
+    if (Array.isArray(got)) return late ? got.map((r) => (/^stopped from outside/.test(r.detail) ? { ...r, detail: late } : r)) : got;
+  } catch {
+    // reported below
+  }
+  return [{ group: `scripts/ci/say/${file}`, name: 'ran to the end', ok: false, detail: late || err.trim().split('\n').slice(-3).join(' / ') || `exit ${code}, no results` }];
+}
+if (process.env.COMPAT_SAY !== '0') {
+  section('Say on synthetic screens: what server/tmux.ts reads off the box (scripts/ci/say/synthetic.mjs)');
+  const synthetic = await sayChecks('synthetic.mjs', 2);
+  for (const group of new Set(synthetic.map((r) => r.group))) {
+    const rs = synthetic.filter((r) => r.group === group);
+    for (const r of rs.filter((x) => !x.ok)) check(`${group}: ${r.name}`, false, r.detail, { note: r.note });
+    const good = rs.filter((x) => x.ok).length;
+    if (good) check(`${group}: ${good === rs.length ? 'all' : 'the other'} ${good}`, true);
+  }
+  for (const r of await sayChecks('live.mjs', 8)) {
+    if (r.group !== area) section(r.group);
+    check(r.name, r.ok, r.detail, { note: r.note });
+  }
+}
+
+// ── The report ───────────────────────────────────────────────────────────────────────────
+const failed = results.filter((r) => r.status === 'fail');
+const report = {
+  claude: { version, path: CLAUDE },
+  platform: `${process.platform}-${process.arch}`,
+  node: process.version,
+  seconds: Math.round((Date.now() - t0) / 1000),
+  results,
+  notices,
+  // What the pretend API was asked, for working out a failure.
+  requests: mock.requests.map((r) => ({ session: r.session, model: r.model, tools: r.tools.length, prompt: short(r.prompt, 160), results: r.results.map((x) => ({ ...x, text: short(x.text, 160) })), reply: r.reply })),
+};
+if (opt('json')) writeFileSync(opt('json'), JSON.stringify(report, null, 2));
+if (opt('markdown')) writeFileSync(opt('markdown'), markdown(report));
+const notes = results.filter((r) => r.status === 'note').length;
+console.log(`\n${failed.length ? `${failed.length} check(s) failed` : 'Compatible'}: ${results.length - failed.length - notes} passed, ${notes} note(s), Claude Code ${version || '?'}, ${report.seconds} s`);
+process.exit(failed.length ? 1 : 0);
 
 function markdown(report) {
   const mark = { pass: 'pass', fail: '**FAIL**', note: 'note' };

@@ -1,9 +1,9 @@
 // An office of its own, for CI and for checks that must never touch yours: a throwaway HOME
 // (so its own ~/.claude), a private tmux server and a port nobody else uses. It never sees
 // your sessions, your tmux or your Claude login, and nothing in it shows up in your office.
-// Used by scripts/ci/smoke.mjs, scripts/ci/ui.mjs and scripts/compat.mjs.
+// Used by scripts/ci/smoke.mjs, scripts/ci/ui.mjs, scripts/compat.mjs and scripts/ci/say/live.mjs.
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -72,10 +72,54 @@ export function makeHome(prefix = 'office-ci-') {
       } catch {
         // no tmux server was started
       }
-      if (!process.env.KEEP) rmSync(dir, { recursive: true, force: true });
-      else console.log(`  (KEEP: left ${dir})`);
+      const left = strays(dir);
+      for (const pid of left.pids) {
+        try {
+          process.kill(pid, 'SIGKILL');
+        } catch {
+          // gone already
+        }
+      }
+      for (const folder of left.folders) rmSync(folder, { recursive: true, force: true });
+      if (process.env.KEEP) return console.log(`  (KEEP: left ${dir})`);
+      // Sessions on their way out may still write to their ~/.claude: remove it until it stays gone.
+      for (let i = 0; i < 5; i++) {
+        rmSync(dir, { recursive: true, force: true });
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200);
+        if (!existsSync(dir)) break;
+      }
     },
   };
+}
+
+/**
+ * What's still running for a throwaway home once its tmux server is gone: anything whose command
+ * line names its folder, and everything under those. Claude Code 2.1's daemon is one: its agents
+ * view starts it, and it outlives the session that did. Its children name the socket folder it
+ * keeps for this home outside it (/tmp/cc-daemon-<uid>/<hash>): `folders`.
+ */
+function strays(dir) {
+  let ps;
+  try {
+    ps = execFileSync('ps', ['-axo', 'pid=,ppid=,command='], { encoding: 'utf8', maxBuffer: 64 << 20 })
+      .split('\n')
+      .map((l) => /^(\d+)\s+(\d+)\s+(.*)$/.exec(l.trim()))
+      .filter(Boolean)
+      .map(([, pid, ppid, command]) => ({ pid: Number(pid), ppid: Number(ppid), command }));
+  } catch {
+    return { pids: [], folders: [] };
+  }
+  const found = new Set(ps.filter((p) => p.pid !== process.pid && p.command.includes(dir)).map((p) => p.pid));
+  for (let more = true; more; ) {
+    more = false;
+    for (const p of ps)
+      if (found.has(p.ppid) && !found.has(p.pid)) {
+        found.add(p.pid);
+        more = true;
+      }
+  }
+  const folders = new Set(ps.filter((p) => found.has(p.pid)).flatMap((p) => [...p.command.matchAll(/(\/[^\s'"]*\/cc-daemon-\d+\/[0-9a-f]+)\//g)].map((m) => m[1])));
+  return { pids: [...found], folders: [...folders] };
 }
 
 function get(port, path) {
@@ -96,7 +140,8 @@ function get(port, path) {
  */
 export async function startOffice({ home, port, dev = false, env = {}, readyMs = 90_000 }) {
   if (TAKEN.has(port)) throw new Error(`Refusing port ${port}: that's someone's office`);
-  const childEnv = { ...home.env, PORT: String(port), CLAUDE_OFFICE_THOUGHTS: '0', ...env };
+  // PORT last: a PORT in your shell (say 4777) rides along in home.env and `env`, and must lose.
+  const childEnv = { ...home.env, CLAUDE_OFFICE_THOUGHTS: '0', ...env, PORT: String(port) };
   if (dev) delete childEnv.NODE_ENV;
   else childEnv.NODE_ENV = 'production';
   const child = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts'], { cwd: ROOT, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
