@@ -35,5 +35,5 @@
     "DoorR": "glass panel; pivot at its bottom centre, x = +0.765 when closed; open by moving +X by 1.47"
   },
   "mount": "wall opening: origin at the floor centre of a 3.0 x 2.25 m opening, centred in the 0.3 m wall; +Z (front) faces outside. Panels slide into the wall.",
-  "notes": "Glass material is 'Glass' (alpha 0.35, shared by both panels); swap it for the game's glare glass by name. AO re-baked by Claude C\u00e9zanne, 2026-10-02: lib.bake_ao bakes models with named parts without a margin (no dark specks from one part's margin over another's)."
+  "notes": "Glass material is 'Glass' (alpha 0.35, shared by both panels); swap it for the game's glare glass by name."
 }
