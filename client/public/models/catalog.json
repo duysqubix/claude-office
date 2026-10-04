@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-04T02:58:30.354Z",
+  "generated": "2026-10-04T03:27:14.075Z",
   "totals": {
     "all": 253,
     "done": 253
@@ -2258,7 +2258,7 @@
         "poster_tokens"
       ],
       "textures": 1,
-      "bytes": 266084
+      "bytes": 266168
     },
     {
       "id": "rug_rect",

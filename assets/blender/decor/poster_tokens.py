@@ -39,8 +39,11 @@ def graph(M, face):
     y = face - r * 0.5
     mx = -0.07
     D.tube("Git_Main", [(mx, y, 0.37), (mx, y, -0.04)], r, M["cream"], verts=10, caps="round")
-    branch = [(mx, y, 0.27), (mx + 0.03, y, 0.24), (mx + 0.13, y, 0.2), (mx + 0.14, y, 0.12),
-              (mx + 0.13, y, 0.05), (mx + 0.03, y, 0.01), (mx, y, -0.01)]
+    # The branch sits 2.5 mm deeper than the main line: level with it, their front facets lay
+    # flush where they join and shimmered cream on cream (#107).
+    yb = y + 0.0025
+    branch = [(mx, yb, 0.27), (mx + 0.03, yb, 0.24), (mx + 0.13, yb, 0.2), (mx + 0.14, yb, 0.12),
+              (mx + 0.13, yb, 0.05), (mx + 0.03, yb, 0.01), (mx, yb, -0.01)]
     D.tube("Git_Branch", branch, r, M["cream"], verts=10, smooth=4, caps="round")
     for k, (x, z, key) in enumerate(((mx, 0.34, "yellow"), (mx, 0.15, "yellow"),
                                      (mx + 0.14, 0.12, "coral"), (mx, -0.03, "mint"))):
