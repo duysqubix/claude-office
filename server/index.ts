@@ -15,7 +15,7 @@ import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
 import { HOME, HOST, IS_PROD, PORT, ROOT, THINK_DIR } from './config';
 import { NAME_OK } from './nicknames';
-import { sessionStatus } from './registry';
+import { hiddenSessions, sessionStatus } from './registry';
 import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
@@ -152,7 +152,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     if (path === '/api/roster') return sendJson(res, 200, roster.employees);
     if (path === '/api/stats') return sendJson(res, 200, await stats.build(roster.employees, roster));
     if (path === '/api/projects') return sendJson(res, 200, await listProjects(roster.employees.map((e) => e.cwd)));
-    if (path === '/api/archive') return sendJson(res, 200, await listPastSessions(new Set(roster.employees.map((e) => e.sessionId))));
+    // Running sessions a program drives (hidden from the roster) aren't anyone to call back: left out.
+    if (path === '/api/archive') return sendJson(res, 200, (await listPastSessions(new Set(roster.employees.map((e) => e.sessionId)))).filter((s) => !hiddenSessions().has(s.sessionId)));
     const chatter = path.match(/^\/api\/session\/([0-9a-f-]{36})\/chatter$/i);
     if (chatter) {
       const n = Math.min(120, Math.max(1, Number(url.searchParams.get('n')) || (url.searchParams.has('after') ? 120 : 12)));
@@ -220,6 +221,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     case '/api/rehire': {
       const sessionId = uuidFrom(body.sessionId);
       if (roster.find(sessionId)) throw new HttpError(409, 'They are already in the office');
+      // Off the roster but still running (a program drives it): never a second copy.
+      if (hiddenSessions().has(sessionId)) throw new HttpError(409, 'That session is still running elsewhere (a program or Claude Code drives it)');
       const past = await findPastSession(sessionId);
       if (!past?.digest.cwd) throw new HttpError(404, 'No personnel file for that session');
       await assertDirectory(past.digest.cwd).catch(() => {

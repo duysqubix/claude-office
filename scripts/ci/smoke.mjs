@@ -53,6 +53,18 @@ const others = Object.entries(KINDS).map(([kind, sessionId]) => {
   );
   return p;
 });
+// Sessions a program drives through the Agent SDK (claude-mem's observers, say): Claude Code
+// registers them as "interactive" too, with entrypoint "sdk-cli" or "sdk-ts". Never walk in.
+const SDK = { 'sdk-cli': '6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d', 'sdk-ts': '7b8c9d0e-1f2a-4b3c-9d4e-5f6a7b8c9d0e' };
+for (const [entrypoint, sessionId] of Object.entries(SDK)) {
+  const p = spawn('sleep', ['3600'], { stdio: 'ignore' });
+  const start = execFileSync('ps', ['-o', 'lstart=', '-p', String(p.pid)], { env: { ...process.env, TZ: 'UTC' }, encoding: 'utf8' }).trim();
+  writeFileSync(
+    join(home.claudeHome, 'sessions', `${p.pid}.json`),
+    JSON.stringify({ pid: p.pid, sessionId, cwd: project, startedAt: now - 30_000, procStart: start, version: 'fixture', peerProtocol: 1, kind: 'interactive', entrypoint, name: sessionId.slice(0, 8), nameSource: 'derived', status: 'busy', statusUpdatedAt: now - 5000, updatedAt: now - 5000 }),
+  );
+  others.push(p);
+}
 // Sessions in other PID namespaces of this machine (WSL starts a new one each time it restarts),
 // with pidDomain the way Claude Code writes it: "linux:<machine id>:pid:[N]". Their pids can't
 // be checked, so they're shown, unless they started and were last written before the machine
@@ -93,6 +105,8 @@ const turn = (sessionId, prompt, answer, ago) => [
   },
 ];
 writeFileSync(join(projectDir, `${LIVE_ID}.jsonl`), jsonl([...turn(LIVE_ID, 'Tidy the fixture desk', 'All tidy.', 30_000), { type: 'ai-title', sessionId: LIVE_ID, aiTitle: 'Tidy the fixture desk' }]));
+// A running SDK session with a transcript: hidden, but never offered for a call-back.
+writeFileSync(join(projectDir, `${SDK['sdk-cli']}.jsonl`), jsonl(turn(SDK['sdk-cli'], 'Write a memory note', 'Noted.', 60_000)));
 writeFileSync(join(projectDir, `${PAST_ID}.jsonl`), jsonl(turn(PAST_ID, 'Water the office plant', 'Watered.', 86_400_000)));
 
 // POST JSON the way the page does (same origin: no Origin header).
@@ -149,6 +163,10 @@ try {
   const seen = JSON.stringify(roster?.map?.((e) => `${e.displayName} (${e.kind})`));
   check("Claude Code's background sessions (kind bg, daemon, daemon-worker) → nobody walks in", Array.isArray(roster) && !walkedIn('bg') && !walkedIn('daemon') && !walkedIn('daemon-worker'), seen);
   check('a kind Claude Code adds later → shown, like interactive', walkedIn('fixture-new'), seen);
+  check('Agent SDK sessions (entrypoint sdk-cli, sdk-ts: a plugin\'s helpers) → nobody walks in', Array.isArray(roster) && !roster.some((e) => Object.values(SDK).includes(e.sessionId)), seen);
+  const sdkPast = (await api('/api/archive'))?.find?.((s) => s.sessionId === SDK['sdk-cli']);
+  const sdkCall = await post('/api/rehire', { sessionId: SDK['sdk-cli'] });
+  check('…and while running: not in the archive, and a call-back is refused (409)', !sdkPast && sdkCall.status === 409, JSON.stringify({ inArchive: !!sdkPast, status: sdkCall.status }));
   if (BEFORE_BOOT) {
     const shown = (sessionId) => roster?.find?.((e) => e.sessionId === sessionId);
     check('another PID namespace on this machine, started and last written before boot → gone', Array.isArray(roster) && !shown(BEFORE_BOOT.gone), seen);

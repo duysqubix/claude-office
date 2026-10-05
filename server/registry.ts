@@ -14,6 +14,7 @@ export interface RegistryEntry {
   version?: string;
   /** "interactive", "bg", "daemon" or "daemon-worker" (Claude Code 2.1; none before): see BACKGROUND. */
   kind?: string;
+  /** How it was started: "cli" (someone at a terminal), or "sdk-cli" / "sdk-ts" (a program, through the Agent SDK): see isSdk. */
   entrypoint?: string;
   name?: string;
   nameSource?: string;
@@ -44,12 +45,36 @@ const REGISTRY_FILE = /^\d+\.json$/;
  * started yourself. A kind Claude Code adds later is shown, the way "interactive" is.
  */
 const BACKGROUND = new Set(['bg', 'daemon', 'daemon-worker']);
+/**
+ * Sessions a program drives through the Agent SDK (entrypoint "sdk-cli", "sdk-ts", ...), not
+ * someone at a terminal: a plugin's helpers (claude-mem's observers, which it starts all day),
+ * scripts, the office's own thought bubbles. Claude Code still registers them as "interactive",
+ * but there's no terminal to sit at and often no transcript, so they never walk in either.
+ */
+const isSdk = (e: RegistryEntry) => typeof e.entrypoint === 'string' && e.entrypoint.startsWith('sdk-');
 /** The kinds the office knows; one it doesn't is logged once. */
 const KNOWN = new Set(['interactive', ...BACKGROUND]);
 const newKinds = new Set<string>();
 
-/** Pids of the sessions the last read left out on purpose (spares, thought bubbles, BACKGROUND). */
+/** Pids of the sessions the last read left out on purpose (spares, thought bubbles, BACKGROUND, SDK sessions). */
 let leftOut = new Set<number>();
+/**
+ * Session ids of the hidden ones a program drives (Agent SDK) or Claude Code runs in the
+ * background: off the roster, but maybe running. The archive counts them as live and a call-back
+ * refuses them, so the office never starts a second copy of a session that's still going.
+ */
+let hiddenIds = new Set<string>();
+/**
+ * The same, by pid, with how many polls in a row each has gone unconfirmed (a file caught
+ * mid-rewrite, a failed ps): it keeps its id for HIDDEN_GRACE such polls, then goes.
+ */
+let hiddenByPid = new Map<number, { id: string; misses: number }>();
+const HIDDEN_GRACE = 2;
+
+/** Sessions left off the roster on purpose that may still be running (see hiddenIds). */
+export function hiddenSessions(): ReadonlySet<string> {
+  return hiddenIds;
+}
 
 export async function readRegistry(): Promise<RegistryEntry[]> {
   let files: string[];
@@ -60,6 +85,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
   }
   let entries: RegistryEntry[] = [];
   const skipped = new Set<number>();
+  let hiddenEntries: RegistryEntry[] = [];
   await Promise.all(
     files
       .filter((f) => REGISTRY_FILE.test(f))
@@ -71,8 +97,10 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
             newKinds.add(e.kind);
             console.warn(`[registry] Claude Code writes a new kind of session, "${e.kind}": shown like "interactive"`);
           }
-          if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind))) skipped.add(e.pid);
-          else entries.push(e);
+          if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind)) || isSdk(e)) {
+            skipped.add(e.pid);
+            if (BACKGROUND.has(String(e.kind)) || isSdk(e)) hiddenEntries.push(e);
+          } else entries.push(e);
         } catch {
           // Being rewritten right now, or not ours to understand. Next poll will catch it.
         }
@@ -92,13 +120,18 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     boot !== null && onThisMachine(e.pidDomain, machine) && (e.startedAt ?? Infinity) < boot && (e.updatedAt ?? e.startedAt ?? Infinity) < boot;
   const unchecked = entries.filter((e) => elsewhere(e.pidDomain, own) && !gone(e)).map((e) => ({ ...e, pidUnchecked: true }));
   entries = entries.filter((e) => !elsewhere(e.pidDomain, own));
-  const live = await liveProcesses(entries.map((e) => e.pid));
-  const digits = entries.filter((e) => /^\d+$/.test(String(e.procStart ?? '')));
+  // Hidden sessions (Agent SDK, background) get the same liveness checks, so only running ones
+  // keep their ids (see hiddenIds); in another namespace they count unless gone since boot.
+  const hiddenElsewhere = hiddenEntries.filter((e) => elsewhere(e.pidDomain, own) && !gone(e));
+  hiddenEntries = hiddenEntries.filter((e) => !elsewhere(e.pidDomain, own));
+  const checked = [...entries, ...hiddenEntries];
+  const live = await liveProcesses(checked.map((e) => e.pid));
+  const digits = checked.filter((e) => /^\d+$/.test(String(e.procStart ?? '')));
   const most = digits.length ? await mostTicks() : null;
   const ticks = new Map(
     await Promise.all(digits.filter((e) => most !== null && Number(e.procStart) <= most).map(async (e) => [e.pid, await startTicks(e.pid)] as const)),
   );
-  return withGrace([...unchecked, ...entries.filter((e) => {
+  const running = (e: RegistryEntry) => {
     const p = live.get(e.pid);
     if (!p) return false;
     // Registry files can outlive their process, and pids get recycled. Claude records when the
@@ -113,7 +146,17 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     if (start && squash(start) === squash(p.lstart)) return true;
     if (boot !== null && (e.startedAt ?? Infinity) < boot) return false;
     return /claude/i.test(basename(p.comm));
-  })]);
+  };
+  const nextHidden = new Map<number, { id: string; misses: number }>([...hiddenElsewhere, ...hiddenEntries.filter(running)].map((e) => [e.pid, { id: e.sessionId, misses: 0 }]));
+  // Hidden last poll but not confirmed this one (its file mid-rewrite, ps failing, or really
+  // gone): it stays for a couple of polls, so a hiccup never lets a call-back start a second copy,
+  // and a session that has ended is let go soon after.
+  for (const [pid, h] of hiddenByPid) {
+    if (!nextHidden.has(pid) && h.misses < HIDDEN_GRACE) nextHidden.set(pid, { id: h.id, misses: h.misses + 1 });
+  }
+  hiddenByPid = nextHidden;
+  hiddenIds = new Set([...nextHidden.values()].map((h) => h.id));
+  return withGrace([...unchecked, ...entries.filter(running)]);
 }
 
 let ownDomain: string | null | undefined;

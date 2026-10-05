@@ -284,6 +284,8 @@ entirely, remove it at [spotify.com/account/apps](https://www.spotify.com/accoun
   In-game, "sit at their computer" attaches an xterm.js terminal to that tmux session.
 - **Sessions you started yourself** in a normal terminal show up too. You can see what
   they're doing and what they said; to type into them, adopt them or use their own terminal.
+  Sessions a program drives through the Agent SDK (a plugin's helpers, like claude-mem's
+  observers) don't: nobody's at a terminal there.
 
 Nothing is installed into your Claude Code config unless you run one of the installs above.
 
