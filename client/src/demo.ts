@@ -170,6 +170,8 @@ export function createDemoBackend(params: URLSearchParams): Backend {
   const employees: Employee[] = [];
   /** Demo renames: everyone's name before their first one, for an empty rename to restore. */
   const usualNames = new Map<string, string>();
+  /** Demo renames by session, so a call-back comes back with theirs. */
+  const nicknames = new Map<string, string>();
   const chatter = new Map<string, ChatLine[]>();
   let chatSeq = 0;
   const line = (role: ChatLine['role'], text: string, tool?: string): ChatLine => ({ role, text, seq: ++chatSeq, ...(tool ? { tool } : {}) });
@@ -320,6 +322,9 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       window.setTimeout(() => {
         const e = make({ state: 'idle', project: past.project, hosted: true }, Date.now(), sessionId);
         e.title = past.title;
+        // A name you gave them comes back with them, as in the office.
+        const nick = nicknames.get(sessionId);
+        if (nick && !employees.some((x) => x.displayName.toLowerCase() === nick.toLowerCase())) e.displayName = nick;
         employees.push(e);
         emit();
       }, 1800);
@@ -336,6 +341,8 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       let given = want;
       for (let k = 2; employees.some((x) => x !== e && x.displayName.toLowerCase() === given.toLowerCase()); k++) given = `${want} ${k}`;
       e.displayName = given;
+      if (n) nicknames.set(e.sessionId, given);
+      else nicknames.delete(e.sessionId);
       emit();
       return { ok: true };
     },

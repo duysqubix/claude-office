@@ -195,12 +195,18 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       class: 'co-panel__rename-box',
       attrs: { type: 'text', value: e.displayName, maxlength: 32, 'aria-label': `New name for ${e.displayName}`, spellcheck: 'false', autocomplete: 'off' },
     });
+    const hint = el('span', { class: 'co-panel__rename-hint', attrs: { role: 'alert', hidden: true } });
+    box.addEventListener('input', () => {
+      box.classList.remove('is-bad');
+      box.removeAttribute('aria-invalid');
+      hint.hidden = true;
+    });
     renaming = box;
     // What the box opened with: a rename made elsewhere meanwhile isn't undone by leaving it untouched.
     const opened = e.displayName;
     shell.title.hidden = true;
     renameBtn.hidden = true;
-    shell.title.after(box);
+    shell.title.after(box, hint);
     box.focus();
     box.select();
     let done = false;
@@ -212,12 +218,23 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
         box.disabled = true;
         const res = await api.rename(id, name);
         if (!res.ok) {
-          systemLine(`Couldn't rename them: ${res.error ?? 'unknown error'}`, 'bad');
-        } else {
-          if (name) shell.title.textContent = name;
-          systemLine(name ? `You renamed them ${name}.` : 'They have their usual name back.');
+          // Refused (a name someone has, say): the box stays, with why, to fix it. The chat
+          // feed may be hidden (Terminal mode), so the reason goes on the box itself.
+          box.disabled = false;
+          box.classList.add('is-bad');
+          box.setAttribute('aria-invalid', 'true');
+          box.title = res.error ?? "Couldn't rename them";
+          hint.textContent = res.error ?? "Couldn't rename them";
+          hint.hidden = false;
+          done = false;
+          box.focus();
+          box.select();
+          return;
         }
+        // The title follows the roster, which carries the name (and any newer one) from here.
+        systemLine(name ? `You renamed them ${name}.` : 'They have their usual name back.');
       }
+      hint.remove();
       box.remove();
       renaming = null;
       shell.title.hidden = false;
@@ -233,7 +250,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
         void finish(false);
       }
     });
-    box.addEventListener('blur', () => void finish(true));
+    // Leaving a refused name cancels; leaving any other edit keeps it.
+    box.addEventListener('blur', () => void finish(!box.classList.contains('is-bad')));
   }
   renameBtn.addEventListener('click', startRename);
 

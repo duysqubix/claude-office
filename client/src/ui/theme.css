@@ -733,6 +733,21 @@
   color: var(--ink);
   font: 700 22px/30px var(--co-font);
 }
+.co-panel__rename-box.is-bad {
+  border-color: var(--danger, #d64545);
+}
+.co-panel__rename-hint {
+  position: absolute;
+  left: 92px;
+  right: 64px;
+  bottom: -26px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 600 13px/18px var(--co-font);
+}
 .co-panel__close {
   position: absolute;
   top: 50%;
