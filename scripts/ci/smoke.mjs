@@ -166,8 +166,8 @@ try {
   // Rename: a name of your own wins over Claude Code's, is saved, and can be cleared.
   const renamed = await post('/api/rename', { sessionId: LIVE_ID, name: 'Teapot Tess' });
   const after = (await api('/api/roster'))?.find?.((e) => e.sessionId === LIVE_ID);
-  const saved = (() => { try { return JSON.parse(readFileSync(join(home.home, '.claude-office', 'names.json'), 'utf8'))[LIVE_ID]?.name; } catch { return undefined; } })();
-  check('rename → their new name on the roster, saved in ~/.claude-office/names.json', renamed.status === 200 && after?.displayName === 'Teapot Tess' && saved === 'Teapot Tess', JSON.stringify({ status: renamed.status, name: after?.displayName, saved }));
+  const saved = (() => { try { return readFileSync(join(home.home, '.claude-office', 'names', LIVE_ID), 'utf8').trim(); } catch { return undefined; } })();
+  check('rename → their new name on the roster, saved in ~/.claude-office/names/<session id>', renamed.status === 200 && after?.displayName === 'Teapot Tess' && saved === 'Teapot Tess', JSON.stringify({ status: renamed.status, name: after?.displayName, saved }));
   const bad = await post('/api/rename', { sessionId: LIVE_ID, name: '<script>' });
   const nobody = await post('/api/rename', { sessionId: PAST_ID, name: 'Ghost' });
   check('rename refuses a bad name (400) and someone not in the office (404)', bad.status === 400 && nobody.status === 404, JSON.stringify([bad.status, nobody.status]));

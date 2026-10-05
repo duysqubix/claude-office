@@ -261,10 +261,7 @@ export class Roster extends EventEmitter {
 
     // A name the manager gave (Rename) wins over Claude Code's own and the office's pick.
     const nick = await this.nicknames.all();
-    const named = (n: { sessionId: string; startedAt?: number; name?: string; nameSource?: string }) => {
-      const mine = nick.get(n.sessionId);
-      return mine ? { ...n, name: mine, nameSource: 'user' } : n;
-    };
+    const named = (n: { sessionId: string; startedAt?: number; name?: string; nameSource?: string }) => ({ ...n, nick: nick.get(n.sessionId) });
     const names = assignNames([
       ...reg.map((e) => named({ sessionId: e.sessionId, startedAt: e.startedAt, name: e.name, nameSource: e.nameSource })),
       ...[...this.pending.values()].map((h) => named({ sessionId: h.sessionId, startedAt: h.startedAt, name: h.displayName, nameSource: 'user' })),

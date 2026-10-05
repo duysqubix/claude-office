@@ -106,6 +106,8 @@ const asks = new AskBroker();
 const roster = new Roster(asks);
 asks.on('change', () => roster.refresh());
 const stats = new StatsService();
+/** POST /api/rename runs one at a time (see there). */
+let renames: Promise<unknown> = Promise.resolve();
 const shells = new ShellKeeper();
 // Spotify on the manager's laptop (#28): the sign-in, and its tokens in ~/.claude-office (0600).
 // One per office, by port (like desks, shells and hires): each signs in at its own redirect URI,
@@ -242,12 +244,17 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       const sessionId = uuidFrom(body.sessionId);
       const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
       if (name && !NAME_OK.test(name)) throw new HttpError(400, 'Names can use letters, numbers, spaces and . \' - (max 32)');
-      const who = roster.find(sessionId);
-      if (!who) throw new HttpError(404, 'They are not in the office');
-      const clash = roster.employees.find((e) => e.sessionId !== sessionId && e.displayName.toLowerCase() === name.toLowerCase());
-      if (name && clash) throw new HttpError(409, `Someone called ${clash.displayName} already works here`);
-      await roster.nicknames.set(sessionId, name);
-      await roster.tick();
+      // One rename at a time: each checks the names as the one before left them.
+      const done = renames.then(async () => {
+        const who = roster.find(sessionId);
+        if (!who) throw new HttpError(404, 'They are not in the office');
+        const clash = roster.employees.find((e) => e.sessionId !== sessionId && e.displayName.toLowerCase() === name.toLowerCase());
+        if (name && clash) throw new HttpError(409, `Someone called ${clash.displayName} already works here`);
+        await roster.nicknames.set(sessionId, name);
+        await roster.tick();
+      });
+      renames = done.catch(() => undefined);
+      await done;
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/interrupt': {
