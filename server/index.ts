@@ -14,7 +14,7 @@ import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, Serve
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
 import { HOME, HOST, IS_PROD, PORT, ROOT, THINK_DIR } from './config';
-import { sessionStatus } from './registry';
+import { pruneRegistry, sessionStatus } from './registry';
 import { Roster } from './roster';
 import { StatsService } from './stats';
 import { attachTerminal } from './terminal';
@@ -476,6 +476,19 @@ const shellTimer = setInterval(() => {
   if (rosterIn) void shells.sweep(roster.employees).catch(() => {});
 }, 5000);
 
+// Claude Code leaves registry files behind when a session is killed or the machine restarts,
+// and nothing else removes them: clear the ones that are certainly gone, at startup and every
+// 10 minutes (registry.ts says what counts). CLAUDE_OFFICE_PRUNE=0 leaves them all alone.
+function prune(): void {
+  pruneRegistry()
+    .then((gone) => {
+      if (gone.length) console.log(`[registry] cleared ${gone.length} file(s) Claude Code left behind for sessions that are gone`);
+    })
+    .catch((err) => console.error('[registry] clearing stale files failed:', err));
+}
+const pruneTimer = process.env.CLAUDE_OFFICE_PRUNE === '0' ? null : setInterval(prune, 10 * 60_000);
+if (pruneTimer) prune();
+
 const heartbeat = setInterval(() => {
   for (const ws of rosterSockets.clients) {
     if (!alive.get(ws)) ws.terminate();
@@ -700,6 +713,7 @@ function shutdown(): void {
   clearInterval(statsTimer);
   clearInterval(shellTimer);
   clearInterval(deskTimer);
+  if (pruneTimer) clearInterval(pruneTimer);
   if (catalogTimer) clearInterval(catalogTimer);
   for (const ws of termSockets.clients) ws.close(1001, 'office closing');
   for (const ws of rosterSockets.clients) ws.close(1001, 'office closing');

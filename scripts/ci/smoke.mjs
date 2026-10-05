@@ -1,14 +1,15 @@
 // The smoke test (scripts/smoke.mjs) in an office of its own (scripts/ci/office.mjs), for CI
 // and for running it anywhere without touching your office: one pretend Claude session (a
 // running process, its ~/.claude/sessions entry and a transcript), Claude Code's background
-// sessions that must stay off the roster, sessions in other PID namespaces (Linux), one past
-// session, thought bubbles off, a private tmux server and a free port. No Claude Code or login
-// needed; the checks that would need them (hiring, answering, thoughts) are not part of the
-// smoke test.
+// sessions that must stay off the roster, sessions in other PID namespaces and leftovers to
+// clear (Linux), one past session, thought bubbles off, a private tmux server and a free port.
+// No Claude Code or login needed; the checks that would need them (hiring, answering,
+// thoughts) are not part of the smoke test.
 // Then it checks the office read the pretend session the way Claude Code writes it.
 //   npm run build && node scripts/ci/smoke.mjs     (serves dist/; without a build it uses dev mode)
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
+import { once } from 'node:events';
+import { existsSync, mkdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import { join } from 'node:path';
 import { freePort, makeHome, ROOT, startOffice } from './office.mjs';
@@ -64,9 +65,16 @@ const BEFORE_BOOT =
   ownNs && machineId && bootMs
     ? { gone: '6f7a8b9c-0d1e-4f2a-9b4c-5d6e7f8a9b0c', otherMachine: '7a8b9c0d-1e2f-4a3b-8c5d-6e7f8a9b0c1d', writtenSince: '8b9c0d1e-2f3a-4b4c-9d6e-7f8a9b0c1d2e' }
     : null;
+// At startup the office also deletes the registry files Claude Code can't have cleaned up
+// (pruneRegistry in server/registry.ts): PRUNE lists the files it must delete and must keep.
+// Files touched within the hour are never judged, so the ones to judge are aged past that.
+const PRUNE = { gone: [], kept: [] };
 if (BEFORE_BOOT) {
+  const sessions = join(home.claudeHome, 'sessions');
   const otherNs = `pid:[${Number(/\d+/.exec(ownNs)[0]) + 7}]`;
   const dayBefore = bootMs - 86_400_000;
+  const hoursAgo = now - 2 * 3_600_000;
+  const age = (f, ms) => utimesSync(join(sessions, f), ms / 1000, ms / 1000);
   [
     [BEFORE_BOOT.gone, machineId, dayBefore + 60_000],
     [BEFORE_BOOT.otherMachine, 'f'.repeat(32), dayBefore + 60_000],
@@ -74,10 +82,38 @@ if (BEFORE_BOOT) {
   ].forEach(([sessionId, id, updatedAt], i) => {
     const pid = 4_190_001 + i;
     writeFileSync(
-      join(home.claudeHome, 'sessions', `${pid}.json`),
+      join(sessions, `${pid}.json`),
       JSON.stringify({ pid, sessionId, cwd: project, startedAt: dayBefore, version: 'fixture', kind: 'interactive', entrypoint: 'cli', name: sessionId.slice(0, 8), status: 'idle', statusUpdatedAt: updatedAt, updatedAt, pidDomain: `linux:${id}:${otherNs}` }),
     );
+    age(`${pid}.json`, Math.min(updatedAt, hoursAgo));
   });
+  // Keys go by their pid: the gone session's, the live one's (kept), and one with no session at all.
+  const key = (pid, hex) => `${pid}.${hex.repeat(32)}.key`;
+  for (const [f, ms] of [[key(4_190_001, 'ab'), dayBefore], [key(live.pid, 'cd'), hoursAgo], [key(4_190_006, 'ef'), dayBefore]]) {
+    writeFileSync(join(sessions, f), 'fixture');
+    age(f, ms);
+  }
+  age(`${live.pid}.json`, hoursAgo);
+  // A file an unclean shutdown zero-filled, from before boot.
+  writeFileSync(join(sessions, '4190005.json'), Buffer.alloc(300));
+  age('4190005.json', dayBefore);
+  // Sessions in this namespace whose process has ended: one untouched for two hours (gone) and
+  // one touched just now (kept: too new to judge).
+  for (const [n, ms] of [[0, hoursAgo], [1, now]]) {
+    const p = spawn('sleep', ['3600'], { stdio: 'ignore' });
+    const stat = readFileSync(`/proc/${p.pid}/stat`, 'utf8');
+    const ticks = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+    p.kill();
+    await once(p, 'exit');
+    writeFileSync(
+      join(sessions, `${p.pid}.json`),
+      JSON.stringify({ pid: p.pid, sessionId: `9c0d1e2f-3a4b-4c5d-8e7f-00000000000${n}`, cwd: project, startedAt: ms - 60_000, procStart: ticks, version: 'fixture', kind: 'interactive', entrypoint: 'cli', name: `ended-${n}`, status: 'idle', statusUpdatedAt: ms, updatedAt: ms, pidDomain: `linux:${machineId}:${ownNs}` }),
+    );
+    age(`${p.pid}.json`, ms);
+    (n === 0 ? PRUNE.gone : PRUNE.kept).push(`${p.pid}.json`);
+  }
+  PRUNE.gone.push('4190001.json', key(4_190_001, 'ab'), key(4_190_006, 'ef'), '4190005.json');
+  PRUNE.kept.push(`${live.pid}.json`, key(live.pid, 'cd'), '4190002.json', '4190003.json');
 }
 const projectDir = join(home.claudeHome, 'projects', encodeCwd(project));
 mkdirSync(projectDir, { recursive: true });
@@ -141,6 +177,10 @@ try {
     check('another PID namespace on this machine, started and last written before boot → gone', Array.isArray(roster) && !shown(BEFORE_BOOT.gone), seen);
     check("…with another machine id (a container's own) → shown, its pid unchecked", !!shown(BEFORE_BOOT.otherMachine)?.otherPidNamespace, seen);
     check('…written since boot (a stepped clock can move boot later) → shown, its pid unchecked', !!shown(BEFORE_BOOT.writtenSince)?.otherPidNamespace, seen);
+    const present = (f) => existsSync(join(home.claudeHome, 'sessions', f));
+    for (let t = 0; t < 5000 && PRUNE.gone.some(present); t += 250) await new Promise((r) => setTimeout(r, 250));
+    check('registry leftovers → deleted: from before boot, an ended process, zero-filled, and their keys', PRUNE.gone.every((f) => !present(f)), PRUNE.gone.filter(present).join(', ') || `${PRUNE.gone.length} deleted`);
+    check('…but not a live session or its key, another machine id, one written since boot, or one touched within the hour', PRUNE.kept.every(present), PRUNE.kept.filter((f) => !present(f)).join(', ') || `${PRUNE.kept.length} kept`);
   }
   check('ai-title → their title; the folder → their project', me?.title === 'Tidy the fixture desk' && me?.project === 'fixture-desk', `${me?.title} / ${me?.project}`);
   check('last assistant text and model from the transcript', me?.lastText === 'All tidy.' && me?.model === 'claude-fixture-1', `${me?.lastText} / ${me?.model}`);

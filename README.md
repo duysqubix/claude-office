@@ -275,7 +275,10 @@ entirely, remove it at [spotify.com/account/apps](https://www.spotify.com/accoun
 
 - **Who's in the office.** Claude Code keeps a registry of live sessions in
   `~/.claude/sessions/<pid>.json` (pid, session id, cwd, name, status). The server
-  polls it and checks each pid is still a running `claude`.
+  polls it and checks each pid is still a running `claude`. Claude Code leaves these files
+  behind when a session is killed or the machine restarts, so on Linux and WSL the office
+  deletes the ones that are certainly gone, at startup and every 10 minutes
+  (`CLAUDE_OFFICE_PRUNE=0` turns that off).
 - **What they're doing.** The server tails each session's transcript
   (`~/.claude/projects/<project>/<session>.jsonl`) for the current tool, last message,
   title, branch and cost, and reads `subagents/*.meta.json` for interns.

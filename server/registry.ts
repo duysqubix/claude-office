@@ -1,6 +1,6 @@
 // Live sessions, straight from Claude Code's own registry: ~/.claude/sessions/<pid>.json.
 // Never read the sibling *.key files: they are secrets.
-import { readdir, readFile, readlink } from 'node:fs/promises';
+import { access, readdir, readFile, readlink, stat, unlink } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { SESSIONS_DIR, THINK_DIR } from './config';
 import { run } from './exec';
@@ -209,6 +209,90 @@ export async function sessionStatus(pid: number, sessionId: string): Promise<str
   } catch {
     return undefined;
   }
+}
+
+/** Registry files touched more recently than this are never pruned: a session just starting may not show its process yet. */
+const PRUNE_AFTER_MS = 60 * 60_000;
+const KEY_FILE = /^(\d+)\.[0-9a-f]+\.key$/;
+
+/**
+ * Deletes what Claude Code leaves in its registry when a session is killed or the machine
+ * restarts, which nothing else ever removes: entries from this machine whose process has ended
+ * or is now another process (exact on Linux, by start ticks), entries from any PID namespace
+ * that started and were last written before the machine booted, files an unclean shutdown left
+ * unreadable, and the *.key files that go with them (unlinked by name, never read). A key whose
+ * pid still has a kept entry stays. Linux only, where all of that can be proved; an entry it
+ * can't tie to this machine, or anything touched within the hour, is left alone. Returns the
+ * names of the files it removed.
+ */
+export async function pruneRegistry(): Promise<string[]> {
+  if (process.platform !== 'linux') return [];
+  const [own, machine, btime, most, files] = await Promise.all([ownPidDomain(), ownMachineId(), bootedAt(), mostTicks(), readdir(SESSIONS_DIR).catch(() => null)]);
+  if (own === null || machine === null || btime === null || files === null) return [];
+  // btime is now minus uptime, so a stepped clock moves it later than the real boot. /run is made
+  // at boot (or when the distro or container starts): the earlier of the two is never later than btime.
+  const runMade = await stat('/run').then((s) => s.birthtimeMs, () => 0);
+  const boot = runMade > 0 ? Math.min(btime, runMade) : btime;
+  const cutoff = Date.now() - PRUNE_AFTER_MS;
+  const alive = (pid: number) => access(`/proc/${pid}`).then(() => true, () => false);
+  const before = (t: number | undefined) => t !== undefined && t < boot;
+  const keep = new Set<number>();
+  const doomed: string[] = [];
+  const doomedPids = new Set<number>();
+  for (const f of files.filter((f) => REGISTRY_FILE.test(f))) {
+    const pid = Number.parseInt(f, 10);
+    const path = join(SESSIONS_DIR, f);
+    const mtime = await stat(path).then((s) => s.mtimeMs, () => null);
+    if (mtime === null) continue;
+    if (mtime > cutoff) {
+      keep.add(pid);
+      continue;
+    }
+    let e: RegistryEntry | null;
+    try {
+      e = JSON.parse(await readFile(path, 'utf8')) as RegistryEntry;
+    } catch {
+      e = null;
+    }
+    // Same pid, another process: the start ticks differ (when they're ticks, not some other format).
+    const reused = async (x: RegistryEntry) => {
+      const start = String(x.procStart ?? '');
+      if (!/^\d+$/.test(start) || most === null || Number(start) > most) return false;
+      const t = await startTicks(x.pid);
+      return t !== null && t !== start;
+    };
+    let gone: boolean;
+    // Unreadable (zero-filled by an unclean shutdown, say): only once it's from before boot.
+    if (!e) gone = mtime < boot && !(await alive(pid));
+    // A shape Claude Code may write one day: never judged by fields it might have renamed.
+    else if (typeof e.pid !== 'number' || e.pid !== pid || typeof e.sessionId !== 'string') gone = false;
+    else if (!e.pidDomain) gone = before(e.startedAt) && before(e.updatedAt ?? e.startedAt) && (!(await alive(e.pid)) || (await reused(e)));
+    else if (!onThisMachine(e.pidDomain, machine)) gone = false;
+    else if (elsewhere(e.pidDomain, own)) gone = before(e.startedAt) && before(e.updatedAt ?? e.startedAt);
+    else gone = !(await alive(e.pid)) || (await reused(e));
+    if (gone) {
+      doomed.push(f);
+      doomedPids.add(pid);
+    } else keep.add(pid);
+  }
+  for (const f of files) {
+    const m = KEY_FILE.exec(f);
+    if (!m || keep.has(Number(m[1]))) continue;
+    const pid = Number(m[1]);
+    const mtime = await stat(join(SESSIONS_DIR, f)).then((s) => s.mtimeMs, () => null);
+    if (mtime === null || mtime > cutoff) continue;
+    if (doomedPids.has(pid) || mtime < boot || !(await alive(pid))) doomed.push(f);
+  }
+  const removed: string[] = [];
+  for (const f of doomed) {
+    try {
+      await unlink(join(SESSIONS_DIR, f));
+      removed.push(f);
+    } catch {
+      // Gone already (the session exited, or another office got there first).
+    }
+  }
+  return removed;
 }
 
 /** Sessions on the last poll, and the ones missing from it for the first time. */
