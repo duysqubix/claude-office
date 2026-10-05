@@ -109,7 +109,11 @@ export class TerminalView {
     });
     const fitter = new FitAddon();
     term.loadAddon(fitter);
-    term.open(this.el);
+    // xterm's fit measures its parent's computed size, which under border-box includes the
+    // screen's padding and border: give it a bare box to measure, or the last row is cut off.
+    const box = el('div', { class: 'term-fit' });
+    this.el.append(box);
+    term.open(box);
     this.term = term;
     this.fitter = fitter;
     this.fit();
