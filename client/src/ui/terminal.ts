@@ -20,6 +20,37 @@ import { el } from './el';
 import { employeeFace } from './faces';
 import { icon } from './icons';
 
+const FULL_KEY = 'claude-office:term-full';
+
+/**
+ * "Full size" in a monitor's chin: the monitor fills the window (a bit of the room still shows
+ * round it), or goes back to its usual size. Remembered per browser; the terminal refits itself.
+ */
+export function sizeToggle(layer: HTMLElement): HTMLButtonElement {
+  let full = false;
+  try {
+    full = localStorage.getItem(FULL_KEY) === '1';
+  } catch {
+    // storage unavailable: usual size
+  }
+  const b = button('', { small: true, onClick: () => apply(!full, true) });
+  b.classList.add('term-size');
+  const apply = (on: boolean, save: boolean) => {
+    full = on;
+    layer.classList.toggle('is-full', on);
+    b.textContent = on ? 'Smaller' : 'Full size';
+    b.setAttribute('aria-pressed', String(on));
+    if (!save) return;
+    try {
+      localStorage.setItem(FULL_KEY, on ? '1' : '0');
+    } catch {
+      // this visit only
+    }
+  };
+  apply(full, false);
+  return b;
+}
+
 /** How long the bezel takes to grow in; keys reach the pty only after this. */
 export const OPEN_MS = 460;
 /** Dropped connections retry after these delays, then wait for "Try again". */
@@ -491,6 +522,8 @@ export class TerminalOverlay {
       this.timers.push(window.setTimeout(check, ENDED_MS));
     };
 
+    // Placeholder for the Full size button, which needs the layer it resizes (made below).
+    const size = el('span');
     const monitor = el(
       'div',
       { class: 'term-monitor' },
@@ -506,12 +539,14 @@ export class TerminalOverlay {
         hint,
         retry,
         fresh,
+        size,
         stand,
       ),
       el('div', { class: 'term-neck' }),
       el('div', { class: 'term-foot' }),
     );
     const layer = el('div', { class: 'term-modal', attrs: { role: 'dialog', 'aria-label': `${who.displayName}'s computer` } }, monitor);
+    size.replaceWith(sizeToggle(layer));
     // Clicks on the backdrop or the monitor itself (not a button, not the screen) keep the
     // keyboard where it was: in the terminal. They never close it.
     layer.addEventListener('pointerdown', (ev) => {
