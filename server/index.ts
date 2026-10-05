@@ -152,7 +152,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     if (path === '/api/roster') return sendJson(res, 200, roster.employees);
     if (path === '/api/stats') return sendJson(res, 200, await stats.build(roster.employees, roster));
     if (path === '/api/projects') return sendJson(res, 200, await listProjects(roster.employees.map((e) => e.cwd)));
-    if (path === '/api/archive') return sendJson(res, 200, await listPastSessions(new Set([...roster.employees.map((e) => e.sessionId), ...hiddenSessions()])));
+    // Running sessions a program drives (hidden from the roster) aren't anyone to call back: left out.
+    if (path === '/api/archive') return sendJson(res, 200, (await listPastSessions(new Set(roster.employees.map((e) => e.sessionId)))).filter((s) => !hiddenSessions().has(s.sessionId)));
     const chatter = path.match(/^\/api\/session\/([0-9a-f-]{36})\/chatter$/i);
     if (chatter) {
       const n = Math.min(120, Math.max(1, Number(url.searchParams.get('n')) || (url.searchParams.has('after') ? 120 : 12)));

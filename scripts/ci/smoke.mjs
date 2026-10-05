@@ -166,7 +166,7 @@ try {
   check('Agent SDK sessions (entrypoint sdk-cli, sdk-ts: a plugin\'s helpers) → nobody walks in', Array.isArray(roster) && !roster.some((e) => Object.values(SDK).includes(e.sessionId)), seen);
   const sdkPast = (await api('/api/archive'))?.find?.((s) => s.sessionId === SDK['sdk-cli']);
   const sdkCall = await post('/api/rehire', { sessionId: SDK['sdk-cli'] });
-  check('…but still running: the archive says live, and a call-back is refused (409)', (!sdkPast || sdkPast.live === true) && sdkCall.status === 409, JSON.stringify({ live: sdkPast?.live, status: sdkCall.status }));
+  check('…and while running: not in the archive, and a call-back is refused (409)', !sdkPast && sdkCall.status === 409, JSON.stringify({ inArchive: !!sdkPast, status: sdkCall.status }));
   if (BEFORE_BOOT) {
     const shown = (sessionId) => roster?.find?.((e) => e.sessionId === sessionId);
     check('another PID namespace on this machine, started and last written before boot → gone', Array.isArray(roster) && !shown(BEFORE_BOOT.gone), seen);

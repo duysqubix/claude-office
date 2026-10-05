@@ -64,6 +64,8 @@ let leftOut = new Set<number>();
  * refuses them, so the office never starts a second copy of a session that's still going.
  */
 let hiddenIds = new Set<string>();
+/** The same, by pid: a hidden session's file caught mid-rewrite keeps its id for that poll. */
+let hiddenByPid = new Map<number, string>();
 
 /** Sessions left off the roster on purpose that may still be running (see hiddenIds). */
 export function hiddenSessions(): ReadonlySet<string> {
@@ -79,7 +81,8 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
   }
   let entries: RegistryEntry[] = [];
   const skipped = new Set<number>();
-  const hidden = new Set<string>();
+  let hiddenEntries: RegistryEntry[] = [];
+  const unreadable = new Set<number>();
   await Promise.all(
     files
       .filter((f) => REGISTRY_FILE.test(f))
@@ -93,15 +96,15 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
           }
           if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind)) || isSdk(e)) {
             skipped.add(e.pid);
-            if (BACKGROUND.has(String(e.kind)) || isSdk(e)) hidden.add(e.sessionId);
+            if (BACKGROUND.has(String(e.kind)) || isSdk(e)) hiddenEntries.push(e);
           } else entries.push(e);
         } catch {
           // Being rewritten right now, or not ours to understand. Next poll will catch it.
+          unreadable.add(Number.parseInt(f, 10));
         }
       }),
   );
   leftOut = skipped;
-  hiddenIds = hidden;
   const own = await ownPidDomain();
   const boot = await bootedAt();
   const machine = await ownMachineId();
@@ -115,13 +118,18 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     boot !== null && onThisMachine(e.pidDomain, machine) && (e.startedAt ?? Infinity) < boot && (e.updatedAt ?? e.startedAt ?? Infinity) < boot;
   const unchecked = entries.filter((e) => elsewhere(e.pidDomain, own) && !gone(e)).map((e) => ({ ...e, pidUnchecked: true }));
   entries = entries.filter((e) => !elsewhere(e.pidDomain, own));
-  const live = await liveProcesses(entries.map((e) => e.pid));
-  const digits = entries.filter((e) => /^\d+$/.test(String(e.procStart ?? '')));
+  // Hidden sessions (Agent SDK, background) get the same liveness checks, so only running ones
+  // keep their ids (see hiddenIds); in another namespace they count unless gone since boot.
+  const hiddenElsewhere = hiddenEntries.filter((e) => elsewhere(e.pidDomain, own) && !gone(e));
+  hiddenEntries = hiddenEntries.filter((e) => !elsewhere(e.pidDomain, own));
+  const checked = [...entries, ...hiddenEntries];
+  const live = await liveProcesses(checked.map((e) => e.pid));
+  const digits = checked.filter((e) => /^\d+$/.test(String(e.procStart ?? '')));
   const most = digits.length ? await mostTicks() : null;
   const ticks = new Map(
     await Promise.all(digits.filter((e) => most !== null && Number(e.procStart) <= most).map(async (e) => [e.pid, await startTicks(e.pid)] as const)),
   );
-  return withGrace([...unchecked, ...entries.filter((e) => {
+  const running = (e: RegistryEntry) => {
     const p = live.get(e.pid);
     if (!p) return false;
     // Registry files can outlive their process, and pids get recycled. Claude records when the
@@ -136,7 +144,16 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     if (start && squash(start) === squash(p.lstart)) return true;
     if (boot !== null && (e.startedAt ?? Infinity) < boot) return false;
     return /claude/i.test(basename(p.comm));
-  })]);
+  };
+  const nextHidden = new Map<number, string>([...hiddenElsewhere, ...hiddenEntries.filter(running)].map((e) => [e.pid, e.sessionId]));
+  // A file caught mid-rewrite this poll: a session hidden last poll stays hidden-and-running.
+  for (const pid of unreadable) {
+    const id = hiddenByPid.get(pid);
+    if (id && !nextHidden.has(pid)) nextHidden.set(pid, id);
+  }
+  hiddenByPid = nextHidden;
+  hiddenIds = new Set(nextHidden.values());
+  return withGrace([...unchecked, ...entries.filter(running)]);
 }
 
 let ownDomain: string | null | undefined;
