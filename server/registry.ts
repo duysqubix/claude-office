@@ -213,65 +213,95 @@ export async function sessionStatus(pid: number, sessionId: string): Promise<str
 
 /** Registry files touched more recently than this are never pruned: a session just starting may not show its process yet. */
 const PRUNE_AFTER_MS = 60 * 60_000;
+/** Room for clock jitter when a time is compared with the boot. */
+const BOOT_SLACK_MS = 60_000;
 const KEY_FILE = /^(\d+)\.[0-9a-f]+\.key$/;
+/** pidDomain exactly as Claude Code writes it on Linux. Anything else is a shape the pruner doesn't judge. */
+const LINUX_DOMAIN = /^linux:([0-9a-f]+):pid:\[(\d+)\]$/;
+/** A time in ms since 1970 (Claude Code's startedAt and updatedAt), not seconds or junk. */
+const isMs = (t: unknown): t is number => typeof t === 'number' && Number.isFinite(t) && t > 1e12;
 
 /**
  * Deletes what Claude Code leaves in its registry when a session is killed or the machine
- * restarts, which nothing else ever removes: entries from this machine whose process has ended
- * or is now another process (exact on Linux, by start ticks), entries from any PID namespace
- * that started and were last written before the machine booted, files an unclean shutdown left
- * unreadable, and the *.key files that go with them (unlinked by name, never read). A key whose
- * pid still has a kept entry stays. Linux only, where all of that can be proved; an entry it
- * can't tie to this machine, or anything touched within the hour, is left alone. Returns the
- * names of the files it removed.
+ * restarts, which nothing else ever removes. Only entries it can prove are gone, and only ones
+ * whose pidDomain names this machine (it trusts /etc/machine-id to name one machine, as systemd
+ * requires): one that started and was last written before boot, in any PID namespace, and one in
+ * this office's namespace whose process has ended or is now another process (start ticks). Also
+ * files an unclean shutdown left unreadable, from before boot, and the *.key files that go with
+ * all of these (unlinked by name, never read). A key whose pid has a kept entry stays, and so
+ * does anything touched within the hour, any entry with no pidDomain or one in another shape,
+ * and everything off Linux. Each file is checked again right before it goes. Returns the names
+ * of the files it removed.
  */
 export async function pruneRegistry(): Promise<string[]> {
   if (process.platform !== 'linux') return [];
-  const [own, machine, btime, most, files] = await Promise.all([ownPidDomain(), ownMachineId(), bootedAt(), mostTicks(), readdir(SESSIONS_DIR).catch(() => null)]);
-  if (own === null || machine === null || btime === null || files === null) return [];
+  const [own, machine, btime, most, files, version, mounts] = await Promise.all([
+    ownPidDomain(),
+    ownMachineId(),
+    bootedAt(),
+    mostTicks(),
+    readdir(SESSIONS_DIR).catch(() => null),
+    readFile('/proc/version', 'utf8').catch(() => ''),
+    readFile('/proc/mounts', 'utf8').catch(() => null),
+  ]);
+  const ownNs = own === null ? undefined : NAMESPACE.exec(own)?.[1];
+  if (!ownNs || machine === null || btime === null || files === null) return [];
   // btime is now minus uptime, so a stepped clock moves it later than the real boot. /run is made
-  // at boot (or when the distro or container starts): the earlier of the two is never later than btime.
+  // at boot (or when the distro or container starts): the earlier of the two is never later.
   const runMade = await stat('/run').then((s) => s.birthtimeMs, () => 0);
-  const boot = runMade > 0 ? Math.min(btime, runMade) : btime;
+  const boot = (runMade > 0 ? Math.min(btime, runMade) : btime) - BOOT_SLACK_MS;
+  // WSL keeps each distro's files to itself, so every session that wrote here ran in this distro,
+  // which started when /run was made. Anywhere else a container or another kernel could share this
+  // folder and started before /run, so "before boot" also takes start ticks this boot hasn't
+  // reached yet, which no clock step can fake.
+  const wsl = /microsoft/i.test(version);
+  // hidepid hides other users' processes: then a pid missing from /proc proves nothing.
+  const pidsVisible = mounts !== null && !/^\S+ \/proc proc \S*hidepid=(?!0\b|off\b)/m.test(mounts);
   const cutoff = Date.now() - PRUNE_AFTER_MS;
   const alive = (pid: number) => access(`/proc/${pid}`).then(() => true, () => false);
-  const before = (t: number | undefined) => t !== undefined && t < boot;
+  const ticksPast = (e: RegistryEntry) => /^\d+$/.test(String(e.procStart ?? '')) && most !== null && Number(e.procStart) > most;
+  const beforeBoot = (e: RegistryEntry) => {
+    const written = e.updatedAt ?? e.startedAt;
+    return isMs(e.startedAt) && e.startedAt < boot && isMs(written) && written < boot && (wsl || ticksPast(e));
+  };
+  // Same pid, another process: the start ticks differ (when they're ticks, not some other format).
+  const reused = async (e: RegistryEntry) => {
+    const start = String(e.procStart ?? '');
+    if (!/^\d+$/.test(start) || most === null || Number(start) > most) return false;
+    const t = await startTicks(e.pid);
+    return t !== null && t !== start;
+  };
   const keep = new Set<number>();
-  const doomed: string[] = [];
+  const doomed: { f: string; ino: number; mtime: number; orphan: boolean }[] = [];
   const doomedPids = new Set<number>();
   for (const f of files.filter((f) => REGISTRY_FILE.test(f))) {
     const pid = Number.parseInt(f, 10);
     const path = join(SESSIONS_DIR, f);
-    const mtime = await stat(path).then((s) => s.mtimeMs, () => null);
-    if (mtime === null) continue;
-    if (mtime > cutoff) {
+    const st = await stat(path).catch(() => null);
+    if (!st) continue;
+    if (st.mtimeMs > cutoff) {
       keep.add(pid);
       continue;
     }
-    let e: RegistryEntry | null;
+    let e: unknown;
+    let unreadable = false;
     try {
-      e = JSON.parse(await readFile(path, 'utf8')) as RegistryEntry;
+      e = JSON.parse(await readFile(path, 'utf8'));
     } catch {
-      e = null;
+      unreadable = true;
     }
-    // Same pid, another process: the start ticks differ (when they're ticks, not some other format).
-    const reused = async (x: RegistryEntry) => {
-      const start = String(x.procStart ?? '');
-      if (!/^\d+$/.test(start) || most === null || Number(start) > most) return false;
-      const t = await startTicks(x.pid);
-      return t !== null && t !== start;
-    };
-    let gone: boolean;
-    // Unreadable (zero-filled by an unclean shutdown, say): only once it's from before boot.
-    if (!e) gone = mtime < boot && !(await alive(pid));
-    // A shape Claude Code may write one day: never judged by fields it might have renamed.
-    else if (typeof e.pid !== 'number' || e.pid !== pid || typeof e.sessionId !== 'string') gone = false;
-    else if (!e.pidDomain) gone = before(e.startedAt) && before(e.updatedAt ?? e.startedAt) && (!(await alive(e.pid)) || (await reused(e)));
-    else if (!onThisMachine(e.pidDomain, machine)) gone = false;
-    else if (elsewhere(e.pidDomain, own)) gone = before(e.startedAt) && before(e.updatedAt ?? e.startedAt);
-    else gone = !(await alive(e.pid)) || (await reused(e));
+    let gone = false;
+    if (unreadable) gone = st.mtimeMs < boot && pidsVisible && !(await alive(pid));
+    else if (e && typeof e === 'object' && (e as RegistryEntry).pid === pid && typeof (e as RegistryEntry).sessionId === 'string') {
+      const entry = e as RegistryEntry;
+      const domain = LINUX_DOMAIN.exec(typeof entry.pidDomain === 'string' ? entry.pidDomain : '');
+      if (domain && domain[1] === machine) {
+        if (beforeBoot(entry)) gone = true;
+        else if (domain[2] === ownNs && pidsVisible) gone = !(await alive(pid)) || (await reused(entry));
+      }
+    }
     if (gone) {
-      doomed.push(f);
+      doomed.push({ f, ino: st.ino, mtime: st.mtimeMs, orphan: false });
       doomedPids.add(pid);
     } else keep.add(pid);
   }
@@ -279,15 +309,22 @@ export async function pruneRegistry(): Promise<string[]> {
     const m = KEY_FILE.exec(f);
     if (!m || keep.has(Number(m[1]))) continue;
     const pid = Number(m[1]);
-    const mtime = await stat(join(SESSIONS_DIR, f)).then((s) => s.mtimeMs, () => null);
-    if (mtime === null || mtime > cutoff) continue;
-    if (doomedPids.has(pid) || mtime < boot || !(await alive(pid))) doomed.push(f);
+    const st = await stat(join(SESSIONS_DIR, f)).catch(() => null);
+    if (!st || st.mtimeMs > cutoff) continue;
+    if (doomedPids.has(pid)) doomed.push({ f, ino: st.ino, mtime: st.mtimeMs, orphan: false });
+    else if ((wsl && st.mtimeMs < boot) || (pidsVisible && !(await alive(pid)))) doomed.push({ f, ino: st.ino, mtime: st.mtimeMs, orphan: true });
   }
   const removed: string[] = [];
-  for (const f of doomed) {
+  for (const d of doomed) {
+    const path = join(SESSIONS_DIR, d.f);
+    // Judged a moment ago: skip it if it has changed since (a new session on a reused pid), or if a
+    // key with no entry has gained one.
+    const st = await stat(path).catch(() => null);
+    if (!st || st.ino !== d.ino || st.mtimeMs !== d.mtime) continue;
+    if (d.orphan && (await access(join(SESSIONS_DIR, `${Number.parseInt(d.f, 10)}.json`)).then(() => true, () => false))) continue;
     try {
-      await unlink(join(SESSIONS_DIR, f));
-      removed.push(f);
+      await unlink(path);
+      removed.push(d.f);
     } catch {
       // Gone already (the session exited, or another office got there first).
     }

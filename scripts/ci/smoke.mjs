@@ -75,6 +75,9 @@ if (BEFORE_BOOT) {
   const dayBefore = bootMs - 86_400_000;
   const hoursAgo = now - 2 * 3_600_000;
   const age = (f, ms) => utimesSync(join(sessions, f), ms / 1000, ms / 1000);
+  // Start ticks far past this boot's uptime: off WSL, "before boot" also needs these, which no
+  // clock step can fake.
+  const TICKS_PAST = '99999999999';
   [
     [BEFORE_BOOT.gone, machineId, dayBefore + 60_000],
     [BEFORE_BOOT.otherMachine, 'f'.repeat(32), dayBefore + 60_000],
@@ -83,10 +86,20 @@ if (BEFORE_BOOT) {
     const pid = 4_190_001 + i;
     writeFileSync(
       join(sessions, `${pid}.json`),
-      JSON.stringify({ pid, sessionId, cwd: project, startedAt: dayBefore, version: 'fixture', kind: 'interactive', entrypoint: 'cli', name: sessionId.slice(0, 8), status: 'idle', statusUpdatedAt: updatedAt, updatedAt, pidDomain: `linux:${id}:${otherNs}` }),
+      JSON.stringify({ pid, sessionId, cwd: project, startedAt: dayBefore, procStart: TICKS_PAST, version: 'fixture', kind: 'interactive', entrypoint: 'cli', name: sessionId.slice(0, 8), status: 'idle', statusUpdatedAt: updatedAt, updatedAt, pidDomain: `linux:${id}:${otherNs}` }),
     );
     age(`${pid}.json`, Math.min(updatedAt, hoursAgo));
   });
+  // Shapes the pruner must never judge, however old: a namespace written some other way, and no
+  // pidDomain at all (an older Claude Code, which could be on another machine).
+  for (const [pid, pidDomain] of [[4_190_007, `linux:${machineId}:pid:${Number(/\d+/.exec(ownNs)[0]) + 7}`], [4_190_008, undefined]]) {
+    writeFileSync(
+      join(sessions, `${pid}.json`),
+      JSON.stringify({ pid, sessionId: `ad1e2f3a-4b5c-4d6e-9f70-00000${pid}`, cwd: project, startedAt: dayBefore, procStart: TICKS_PAST, version: 'fixture', kind: 'interactive', entrypoint: 'cli', name: `shape-${pid}`, status: 'idle', statusUpdatedAt: dayBefore, updatedAt: dayBefore, pidDomain }),
+    );
+    age(`${pid}.json`, dayBefore);
+    PRUNE.kept.push(`${pid}.json`);
+  }
   // Keys go by their pid: the gone session's, the live one's (kept), and one with no session at all.
   const key = (pid, hex) => `${pid}.${hex.repeat(32)}.key`;
   for (const [f, ms] of [[key(4_190_001, 'ab'), dayBefore], [key(live.pid, 'cd'), hoursAgo], [key(4_190_006, 'ef'), dayBefore]]) {
@@ -180,7 +193,7 @@ try {
     const present = (f) => existsSync(join(home.claudeHome, 'sessions', f));
     for (let t = 0; t < 5000 && PRUNE.gone.some(present); t += 250) await new Promise((r) => setTimeout(r, 250));
     check('registry leftovers → deleted: from before boot, an ended process, zero-filled, and their keys', PRUNE.gone.every((f) => !present(f)), PRUNE.gone.filter(present).join(', ') || `${PRUNE.gone.length} deleted`);
-    check('…but not a live session or its key, another machine id, one written since boot, or one touched within the hour', PRUNE.kept.every(present), PRUNE.kept.filter((f) => !present(f)).join(', ') || `${PRUNE.kept.length} kept`);
+    check('…but not a live session or its key, another machine id, one written since boot, one touched within the hour, or a shape it doesn\'t know', PRUNE.kept.every(present), PRUNE.kept.filter((f) => !present(f)).join(', ') || `${PRUNE.kept.length} kept`);
   }
   check('ai-title → their title; the folder → their project', me?.title === 'Tidy the fixture desk' && me?.project === 'fixture-desk', `${me?.title} / ${me?.project}`);
   check('last assistant text and model from the transcript', me?.lastText === 'All tidy.' && me?.model === 'claude-fixture-1', `${me?.lastText} / ${me?.model}`);
