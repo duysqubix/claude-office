@@ -54,6 +54,8 @@ export interface OpenOptions {
 export interface ChatOpenOptions extends OpenOptions {
   /** Open straight into their live terminal (T). */
   mode?: ChatMode;
+  /** Open with their name ready to edit (the Rename on an arrival toast). */
+  rename?: boolean;
 }
 
 type SimplePanel = Exclude<PanelId, 'employee' | 'ask' | 'chat'>;
@@ -218,6 +220,7 @@ export class PanelHost {
     if (!chat) return;
     this.present(chat, opts);
     this.employeeId = sessionId;
+    if (opts.rename) this.chatView?.rename();
     coachDone('talk');
     if (opts.mode === 'terminal') coachDone('peek');
   }
@@ -712,6 +715,7 @@ export class PanelHost {
       openTerminal,
       interrupt: pretend,
       adopt: pretend,
+      rename: (sid, name) => backend.rename(sid, name),
     };
   }
 

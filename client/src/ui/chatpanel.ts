@@ -27,6 +27,8 @@ export interface ChatApi {
   chatter(sessionId: string, q: { n?: number; after?: number }): Promise<ChatLine[]>;
   /** POST /api/say (hosted only; 409 while they need you). */
   say(sessionId: string, text: string): Promise<ApiResult>;
+  /** POST /api/rename: a name of your own for them (empty: their usual one). */
+  rename(sessionId: string, name: string): Promise<ApiResult>;
   /** POST /api/interrupt: Esc in their terminal (hosted only). */
   interrupt(sessionId: string): Promise<ApiResult>;
   /** POST /api/adopt: bring an external session into the office once it exits its own terminal. */
@@ -68,6 +70,7 @@ export function httpChatApi(hooks: { sit(sessionId: string): void; onClose?(): v
     },
     say: (sessionId, text) => post('/api/say', { sessionId, text }),
     interrupt: (sessionId) => post('/api/interrupt', { sessionId }),
+    rename: (sessionId, name) => post('/api/rename', { sessionId, name }),
     adopt: (sessionId) => post('/api/adopt', { sessionId }),
     answer: (req) => post('/api/answer', req),
     sit: hooks.sit,
@@ -102,6 +105,8 @@ export interface ChatView {
   end(text: string): void;
   getMode(): ChatMode;
   setMode(mode: ChatMode): void;
+  /** Start renaming them: the name in the band becomes a text box. */
+  rename(): void;
   close(): void;
 }
 
@@ -179,6 +184,54 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   panel.classList.add('co-panel--chat');
   panel.setAttribute('aria-label', `Chat with ${e.displayName}`);
   panel.append(chatResizer(panel));
+
+  // Rename: the pencil by their name turns it into a text box (Enter keeps it, Esc doesn't).
+  const renameBtn = el('button', { class: 'co-panel__rename', attrs: { type: 'button', 'aria-label': 'Rename', title: 'Rename' }, html: icon('pencil', 16) });
+  shell.title.after(renameBtn);
+  let renaming: HTMLInputElement | null = null;
+  function startRename(): void {
+    if (renaming) return renaming.focus();
+    const box = el('input', {
+      class: 'co-panel__rename-box',
+      attrs: { type: 'text', value: e.displayName, maxlength: 32, 'aria-label': `New name for ${e.displayName}`, spellcheck: 'false', autocomplete: 'off' },
+    });
+    renaming = box;
+    shell.title.hidden = true;
+    renameBtn.hidden = true;
+    shell.title.after(box);
+    box.focus();
+    box.select();
+    let done = false;
+    const finish = async (keep: boolean) => {
+      if (done) return;
+      done = true;
+      const name = box.value.trim().replace(/\s+/g, ' ');
+      if (keep && name !== e.displayName) {
+        box.disabled = true;
+        const res = await api.rename(id, name);
+        if (!res.ok) {
+          systemLine(`Couldn't rename them: ${res.error ?? 'unknown error'}`, 'bad');
+        } else {
+          if (name) shell.title.textContent = name;
+          systemLine(name ? `You renamed them ${name}.` : 'They have their usual name back.');
+        }
+      }
+      box.remove();
+      renaming = null;
+      shell.title.hidden = false;
+      renameBtn.hidden = false;
+    };
+    box.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') void finish(true);
+      else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        void finish(false);
+      }
+    });
+    box.addEventListener('blur', () => void finish(true));
+  }
+  renameBtn.addEventListener('click', startRename);
 
   const stateChip = el('span', { class: 'co-chip co-chip--fill co-chat__state' });
   const where = el('span', { class: 'co-chat__where' });
@@ -879,6 +932,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
 
   const view: ChatView = {
     el: panel,
+    rename: startRename,
     update(next: Employee) {
       if (closed || next.sessionId !== id) return;
       // Back from the end, or moved into the office: their transcript starts over.

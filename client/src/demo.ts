@@ -317,6 +317,15 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       }, 1800);
       return { ok: true, sessionId };
     },
+    async rename(sessionId, name): Promise<ApiResult> {
+      const e = employees.find((x) => x.sessionId === sessionId);
+      if (!e) return { ok: false, error: 'Not here.' };
+      const n = name.trim();
+      if (n && employees.some((x) => x !== e && x.displayName.toLowerCase() === n.toLowerCase())) return { ok: false, error: `Someone called ${n} already works here` };
+      e.displayName = n || e.name || e.displayName;
+      emit();
+      return { ok: true };
+    },
     async fire(sessionId): Promise<ApiResult> {
       const e = employees.find((x) => x.sessionId === sessionId);
       if (!e) return { ok: false, error: 'Not here.' };

@@ -7,6 +7,7 @@ import { POLL_MS } from './config';
 import { projectName } from './archive';
 import { activeInterns } from './interns';
 import { assignNames, pickName } from './names';
+import { Nicknames } from './nicknames';
 import { claudeProcessCount, readRegistry, type RegistryEntry } from './registry';
 import { AlreadyHere, capture, killDead, listHosted, NameTaken, readOfficeMeta, rehire, type HostedPane, type OfficeMeta } from './tmux';
 import { TranscriptTail } from './transcript';
@@ -54,6 +55,9 @@ export class Roster extends EventEmitter {
    * `retryAt`: when to try again.
    */
   private adoptions = new Map<string, { cwd: string; displayName: string; until: number; blocked?: string; retryAt?: number }>();
+
+  /** Names the manager gave people (Rename). */
+  readonly nicknames = new Nicknames();
 
   constructor(private readonly asks?: AskSource) {
     super();
@@ -255,9 +259,15 @@ export class Roster extends EventEmitter {
       }),
     );
 
+    // A name the manager gave (Rename) wins over Claude Code's own and the office's pick.
+    const nick = await this.nicknames.all();
+    const named = (n: { sessionId: string; startedAt?: number; name?: string; nameSource?: string }) => {
+      const mine = nick.get(n.sessionId);
+      return mine ? { ...n, name: mine, nameSource: 'user' } : n;
+    };
     const names = assignNames([
-      ...reg.map((e) => ({ sessionId: e.sessionId, startedAt: e.startedAt, name: e.name, nameSource: e.nameSource })),
-      ...[...this.pending.values()].map((h) => ({ sessionId: h.sessionId, startedAt: h.startedAt, name: h.displayName, nameSource: 'user' })),
+      ...reg.map((e) => named({ sessionId: e.sessionId, startedAt: e.startedAt, name: e.name, nameSource: e.nameSource })),
+      ...[...this.pending.values()].map((h) => named({ sessionId: h.sessionId, startedAt: h.startedAt, name: h.displayName, nameSource: 'user' })),
     ]);
 
     const employees: Employee[] = reg.map((e) => this.toEmployee(e, names.get(e.sessionId) ?? 'Claude', now));

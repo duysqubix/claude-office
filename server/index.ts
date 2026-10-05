@@ -14,6 +14,7 @@ import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, Serve
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
 import { HOME, HOST, IS_PROD, PORT, ROOT, THINK_DIR } from './config';
+import { NAME_OK } from './nicknames';
 import { sessionStatus } from './registry';
 import { Roster } from './roster';
 import { StatsService } from './stats';
@@ -29,7 +30,6 @@ const DIST = join(ROOT, 'dist', 'client');
 const ALLOWED_HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
 const ALLOWED_ORIGINS = new Set([...ALLOWED_HOSTS].map((h) => `http://${h}`));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NAME_OK = /^[\p{L}\p{N}][\p{L}\p{N} .'-]{0,31}$/u;
 const MAX_BODY = 64 * 1024;
 /** Hook payloads carry full tool input (a Write can hold a whole file). */
 const MAX_HOOK_BODY = 4 * 1024 * 1024;
@@ -236,6 +236,18 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       if (id) await kill(id);
       void shells.close(sessionId);
       void roster.tick().catch((err) => console.error('[roster] tick failed:', err));
+      return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
+    }
+    case '/api/rename': {
+      const sessionId = uuidFrom(body.sessionId);
+      const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+      if (name && !NAME_OK.test(name)) throw new HttpError(400, 'Names can use letters, numbers, spaces and . \' - (max 32)');
+      const who = roster.find(sessionId);
+      if (!who) throw new HttpError(404, 'They are not in the office');
+      const clash = roster.employees.find((e) => e.sessionId !== sessionId && e.displayName.toLowerCase() === name.toLowerCase());
+      if (name && clash) throw new HttpError(409, `Someone called ${clash.displayName} already works here`);
+      await roster.nicknames.set(sessionId, name);
+      await roster.tick();
       return sendJson(res, 200, { ok: true, sessionId } satisfies ApiResult);
     }
     case '/api/interrupt': {
