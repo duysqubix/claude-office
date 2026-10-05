@@ -235,14 +235,18 @@ const isMs = (t: unknown): t is number => typeof t === 'number' && Number.isFini
  */
 export async function pruneRegistry(): Promise<string[]> {
   if (process.platform !== 'linux') return [];
-  const [own, machine, btime, most, files, version, mounts] = await Promise.all([
+  const exists = (path: string) => access(path).then(() => true, () => false);
+  const [own, machine, btime, most, files, mounts, interop, interopLate, dockerenv, containerenv] = await Promise.all([
     ownPidDomain(),
     ownMachineId(),
     bootedAt(),
     mostTicks(),
     readdir(SESSIONS_DIR).catch(() => null),
-    readFile('/proc/version', 'utf8').catch(() => ''),
     readFile('/proc/mounts', 'utf8').catch(() => null),
+    exists('/proc/sys/fs/binfmt_misc/WSLInterop'),
+    exists('/proc/sys/fs/binfmt_misc/WSLInterop-late'),
+    exists('/.dockerenv'),
+    exists('/run/.containerenv'),
   ]);
   const ownNs = own === null ? undefined : NAMESPACE.exec(own)?.[1];
   if (!ownNs || machine === null || btime === null || files === null) return [];
@@ -250,15 +254,17 @@ export async function pruneRegistry(): Promise<string[]> {
   // at boot (or when the distro or container starts): the earlier of the two is never later.
   const runMade = await stat('/run').then((s) => s.birthtimeMs, () => 0);
   const boot = (runMade > 0 ? Math.min(btime, runMade) : btime) - BOOT_SLACK_MS;
-  // WSL keeps each distro's files to itself, so every session that wrote here ran in this distro,
-  // which started when /run was made. Anywhere else a container or another kernel could share this
-  // folder and started before /run, so "before boot" also takes start ticks this boot hasn't
-  // reached yet, which no clock step can fake.
-  const wsl = /microsoft/i.test(version);
+  // In a WSL distro (its interop hook registered, and not a container on WSL's kernel, like Docker
+  // Desktop's) the sessions that write here with this machine id run in this distro, which started
+  // when it made /run: what started and was last written before that is gone. Anywhere else, or
+  // when /run has no birth time, a container sharing this folder may have started before /run, so
+  // "before boot" also takes start ticks this boot hasn't reached yet, which no clock step can fake.
+  // (Another kernel sharing the folder is ruled out by the machine id, not by either of these.)
+  const wsl = (interop || interopLate) && !dockerenv && !containerenv && runMade > 0;
   // hidepid hides other users' processes: then a pid missing from /proc proves nothing.
   const pidsVisible = mounts !== null && !/^\S+ \/proc proc \S*hidepid=(?!0\b|off\b)/m.test(mounts);
   const cutoff = Date.now() - PRUNE_AFTER_MS;
-  const alive = (pid: number) => access(`/proc/${pid}`).then(() => true, () => false);
+  const alive = (pid: number) => exists(`/proc/${pid}`);
   const ticksPast = (e: RegistryEntry) => /^\d+$/.test(String(e.procStart ?? '')) && most !== null && Number(e.procStart) > most;
   const beforeBoot = (e: RegistryEntry) => {
     const written = e.updatedAt ?? e.startedAt;
