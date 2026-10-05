@@ -950,10 +950,13 @@ html.co-calm .sp-eq i {
   text-overflow: ellipsis;
 }
 .mon-detail {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* Head, summary, then the chat takes the rest, never less than 300 px: on a short window
+     the whole column scrolls instead and the chat keeps room to read and type. */
+  grid-template-rows: auto auto minmax(300px, 1fr);
   min-width: 0;
   min-height: 0;
+  overflow-y: auto;
 }
 .mon-head {
   display: flex;
@@ -1006,14 +1009,20 @@ html.co-calm .sp-eq i {
   overflow-wrap: anywhere;
 }
 .mon-chat {
-  flex: 1;
-  min-height: 0;
   display: flex;
+  min-height: 0;
+}
+@media (max-height: 760px) {
+  .mon-summary {
+    max-height: 96px;
+  }
 }
 /* Their chat, inline: it fills the slot, without the panel's own frame, band or close. */
 .mon-chat .co-panel--chat {
+  flex: 1;
   width: 100%;
-  height: 100%;
+  height: auto;
+  min-height: 0;
   max-height: none;
   border: 0;
   border-radius: 0;

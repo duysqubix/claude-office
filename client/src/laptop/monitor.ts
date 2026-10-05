@@ -153,6 +153,11 @@ export function monitorView(deps: MonitorDeps): MonitorView {
     if (!all.length) {
       list.replaceChildren();
       listKey = '';
+      // Nobody left to watch: their chat stops asking for news.
+      chat?.dispose();
+      chat = null;
+      chatSlot.replaceChildren();
+      picked = null;
       return;
     }
     // Nobody picked yet, or they left: whoever needs you most.
@@ -163,6 +168,17 @@ export function monitorView(deps: MonitorDeps): MonitorView {
     renderList(all);
     renderDetail(store.get(picked)!);
   }
+
+  // T flips their chat between Chat and Terminal, as it does in the office (the game's own
+  // keys are off while you sit at the laptop). Not while typing.
+  root.addEventListener('keydown', (ev) => {
+    if (ev.key !== 't' && ev.key !== 'T') return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat || ev.isComposing || !chat) return;
+    if ((ev.target as Element | null)?.closest?.('input, textarea, select, [contenteditable], .xterm')) return;
+    chat.view.setMode(chat.view.getMode() === 'terminal' ? 'chat' : 'terminal');
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
 
   // Arrow keys move through the list.
   list.addEventListener('keydown', (ev) => {

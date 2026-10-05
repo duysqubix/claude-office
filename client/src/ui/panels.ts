@@ -701,12 +701,14 @@ export class PanelHost {
     if (!e) return null;
     const view = openChat(container, e, { ...this.chatApi(), sit, onClose: () => undefined }, { dock: false, now: () => store.now(), home: store.home });
     let ended = false;
+    let adopting = !!e.adopting;
     const unsub = store.subscribe(() => {
       const next = store.get(sessionId);
       if (next) {
+        adopting = !!next.adopting;
         ended = false;
         view.update(next);
-      } else if (!ended && !e.adopting) {
+      } else if (!ended && !adopting) {
         ended = true;
         view.end(`${e.displayName}'s session has ended.`);
       }
