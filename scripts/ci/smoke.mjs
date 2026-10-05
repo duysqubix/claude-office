@@ -105,6 +105,8 @@ const turn = (sessionId, prompt, answer, ago) => [
   },
 ];
 writeFileSync(join(projectDir, `${LIVE_ID}.jsonl`), jsonl([...turn(LIVE_ID, 'Tidy the fixture desk', 'All tidy.', 30_000), { type: 'ai-title', sessionId: LIVE_ID, aiTitle: 'Tidy the fixture desk' }]));
+// A running SDK session with a transcript: hidden, but never offered for a call-back.
+writeFileSync(join(projectDir, `${SDK['sdk-cli']}.jsonl`), jsonl(turn(SDK['sdk-cli'], 'Write a memory note', 'Noted.', 60_000)));
 writeFileSync(join(projectDir, `${PAST_ID}.jsonl`), jsonl(turn(PAST_ID, 'Water the office plant', 'Watered.', 86_400_000)));
 
 // POST JSON the way the page does (same origin: no Origin header).
@@ -162,6 +164,9 @@ try {
   check("Claude Code's background sessions (kind bg, daemon, daemon-worker) → nobody walks in", Array.isArray(roster) && !walkedIn('bg') && !walkedIn('daemon') && !walkedIn('daemon-worker'), seen);
   check('a kind Claude Code adds later → shown, like interactive', walkedIn('fixture-new'), seen);
   check('Agent SDK sessions (entrypoint sdk-cli, sdk-ts: a plugin\'s helpers) → nobody walks in', Array.isArray(roster) && !roster.some((e) => Object.values(SDK).includes(e.sessionId)), seen);
+  const sdkPast = (await api('/api/archive'))?.find?.((s) => s.sessionId === SDK['sdk-cli']);
+  const sdkCall = await post('/api/rehire', { sessionId: SDK['sdk-cli'] });
+  check('…but still running: the archive says live, and a call-back is refused (409)', (!sdkPast || sdkPast.live === true) && sdkCall.status === 409, JSON.stringify({ live: sdkPast?.live, status: sdkCall.status }));
   if (BEFORE_BOOT) {
     const shown = (sessionId) => roster?.find?.((e) => e.sessionId === sessionId);
     check('another PID namespace on this machine, started and last written before boot → gone', Array.isArray(roster) && !shown(BEFORE_BOOT.gone), seen);

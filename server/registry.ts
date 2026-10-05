@@ -58,6 +58,17 @@ const newKinds = new Set<string>();
 
 /** Pids of the sessions the last read left out on purpose (spares, thought bubbles, BACKGROUND, SDK sessions). */
 let leftOut = new Set<number>();
+/**
+ * Session ids of the hidden ones a program drives (Agent SDK) or Claude Code runs in the
+ * background: off the roster, but maybe running. The archive counts them as live and a call-back
+ * refuses them, so the office never starts a second copy of a session that's still going.
+ */
+let hiddenIds = new Set<string>();
+
+/** Sessions left off the roster on purpose that may still be running (see hiddenIds). */
+export function hiddenSessions(): ReadonlySet<string> {
+  return hiddenIds;
+}
 
 export async function readRegistry(): Promise<RegistryEntry[]> {
   let files: string[];
@@ -68,6 +79,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
   }
   let entries: RegistryEntry[] = [];
   const skipped = new Set<number>();
+  const hidden = new Set<string>();
   await Promise.all(
     files
       .filter((f) => REGISTRY_FILE.test(f))
@@ -79,14 +91,17 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
             newKinds.add(e.kind);
             console.warn(`[registry] Claude Code writes a new kind of session, "${e.kind}": shown like "interactive"`);
           }
-          if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind)) || isSdk(e)) skipped.add(e.pid);
-          else entries.push(e);
+          if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind)) || isSdk(e)) {
+            skipped.add(e.pid);
+            if (BACKGROUND.has(String(e.kind)) || isSdk(e)) hidden.add(e.sessionId);
+          } else entries.push(e);
         } catch {
           // Being rewritten right now, or not ours to understand. Next poll will catch it.
         }
       }),
   );
   leftOut = skipped;
+  hiddenIds = hidden;
   const own = await ownPidDomain();
   const boot = await bootedAt();
   const machine = await ownMachineId();
