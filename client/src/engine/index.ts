@@ -3,6 +3,7 @@ import type { Engine } from '../world/types';
 import { PALETTE } from '../style/palette';
 import { createSky } from './sky';
 import { createPost, type Post } from './post';
+import { GRAPHICS, onGraphics, readGraphics, type GraphicsPreset } from './graphics';
 
 /** Engine plus the extras the world builder (and debug tools) use. Plain `Engine` users can ignore them. */
 export interface OfficeEngine extends Engine {
@@ -13,6 +14,8 @@ export interface OfficeEngine extends Engine {
   /** Screen-space ambient occlusion (N8AO). Persists in localStorage. Bloom, grade and SMAA stay on either way. */
   setAO(on: boolean): void;
   readonly aoEnabled: boolean;
+  /** The graphics preset in use (engine/graphics.ts); the Help panel switches it live. */
+  readonly graphics: GraphicsPreset;
 }
 
 export function isOfficeEngine(engine: Engine): engine is OfficeEngine {
@@ -30,7 +33,10 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
   // No MSAA backbuffer: the scene renders into the composer's targets and SMAA (post.ts) does
   // the anti-aliasing, so a multisampled canvas would only cost memory and a resolve per frame.
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  let preset = readGraphics();
+  let gfx = GRAPHICS[preset];
+  const pixelRatio = () => Math.min(window.devicePixelRatio || 1, gfx.maxPixelRatio);
+  renderer.setPixelRatio(pixelRatio());
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -53,8 +59,8 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
   const ambient = new THREE.AmbientLight('#FFF6EA', 0.12);
   const sun = new THREE.DirectionalLight('#FFF1D6', 2.8);
   sun.name = 'sun';
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.castShadow = gfx.shadowMap > 0;
+  sun.shadow.mapSize.setScalar(gfx.shadowMap || 2048);
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.025;
   sun.shadow.radius = 3.5;
@@ -102,9 +108,9 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
 
   let postFailed = false;
   function ensurePost(): Post | null {
-    if (post || postFailed) return post;
+    if (post || postFailed || !gfx.post) return post;
     try {
-      post = createPost(renderer, scene, camera, aoEnabled);
+      post = createPost(renderer, scene, camera, aoEnabled, gfx);
       post.setSize(size.w, size.h, renderer.getPixelRatio());
     } catch (err) {
       console.warn('[engine] post-processing unavailable, rendering without it', err);
@@ -120,7 +126,7 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
   function resize(): void {
     size.w = Math.max(1, canvas.clientWidth || window.innerWidth);
     size.h = Math.max(1, canvas.clientHeight || window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(pixelRatio());
     renderer.setSize(size.w, size.h, false);
     camera.aspect = size.w / size.h;
     camera.updateProjectionMatrix();
@@ -134,6 +140,28 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
     }).observe(canvas);
   }
 
+  /** Switch preset live: the pixel ratio, the sun's shadow map and a rebuilt post pipeline. */
+  function applyGraphics(next: GraphicsPreset): void {
+    if (next === preset) return;
+    const was = gfx;
+    preset = next;
+    gfx = GRAPHICS[next];
+    if (gfx.shadowMap !== was.shadowMap) {
+      // Turning shadows on or off changes every lit material's program; three recompiles them on
+      // the next frame (a one-off hitch, only when the preset changes).
+      sun.castShadow = gfx.shadowMap > 0;
+      if (gfx.shadowMap > 0) sun.shadow.mapSize.setScalar(gfx.shadowMap);
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+      sun.shadow.needsUpdate = true;
+    }
+    post?.dispose();
+    post = null;
+    postFailed = false;
+    resize();
+  }
+  onGraphics(applyGraphics);
+
   const t0 = performance.now();
   return {
     renderer,
@@ -143,7 +171,10 @@ export function createEngine(canvas: HTMLCanvasElement): OfficeEngine {
     hemi,
     fitShadows,
     get aoEnabled() {
-      return aoEnabled;
+      return aoEnabled && gfx.ao !== 'off';
+    },
+    get graphics() {
+      return preset;
     },
     setAO(on: boolean) {
       aoEnabled = on;

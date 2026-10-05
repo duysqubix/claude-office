@@ -3,6 +3,7 @@
 // right; the world keeps running behind them.
 import type { ApiResult, Employee, EmployeeState, PastSession, ProjectInfo } from '../../../shared/protocol';
 import { employeeLooks } from '../chars/looks';
+import { GRAPHICS_PRESETS, readGraphics, setGraphics, type GraphicsPreset } from '../engine/graphics';
 import { REGULARS_PRESETS, readReceptionist, readRegularsDensity, setReceptionist, setRegularsDensity, type RegularsPreset } from '../chars/regulars-setting';
 import type { Backend, RosterStore } from '../net';
 import { renderAsk, type AskView } from './askpanel';
@@ -1117,6 +1118,25 @@ export class PanelHost {
         return el('label', { class: 'co-choice' }, input, el('span', null, presets[p][0], el('small', null, presets[p][1])));
       }),
     );
+    // Graphics presets (engine/graphics.ts), saved per browser; the engine switches live.
+    const gfxNow = readGraphics();
+    const gfxLabels: Record<GraphicsPreset, [string, string]> = {
+      potato: ['Potato', 'No shadows or effects'],
+      low: ['Low', 'Basic shadows'],
+      medium: ['Medium', 'Softer light'],
+      high: ['High', 'The full look'],
+      ultra: ['Ultra', 'Sharpest shadows'],
+    };
+    const graphics = el(
+      'div',
+      { class: 'co-graphics', attrs: { role: 'radiogroup', 'aria-label': 'Graphics' } },
+      ...GRAPHICS_PRESETS.map((p) => {
+        const input = el('input', { attrs: { type: 'radio', name: 'co-graphics', value: p } });
+        input.checked = gfxNow === p;
+        input.addEventListener('change', () => input.checked && setGraphics(p));
+        return el('label', { class: 'co-choice' }, input, el('span', null, gfxLabels[p][0], el('small', null, gfxLabels[p][1])));
+      }),
+    );
     // The receptionist has her own switch: Off above sends the crowd home, not her.
     const frontDesk = el('input', { attrs: { type: 'checkbox' } });
     frontDesk.checked = readReceptionist();
@@ -1139,6 +1159,9 @@ export class PanelHost {
       ),
       // Music and sound (audio/controls.ts): the café music, and the music and sound-effect volumes.
       soundSettings({ signal: sound.signal }),
+      el('h3', { class: 'co-section' }, 'Graphics'),
+      el('p', { class: 'co-muted' }, 'Lower settings run smoother on slower computers. It changes right away.'),
+      graphics,
       el('h3', { class: 'co-section' }, 'Office regulars'),
       el('p', { class: 'co-muted' }, 'Coworkers who aren’t Claude sessions fill the free desks, and give one up whenever a session needs it.'),
       regulars,
