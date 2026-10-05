@@ -8,7 +8,7 @@ import type { Backend } from '../net';
 import { button } from './components';
 import { el } from './el';
 import { managerFace } from './faces';
-import { OPEN_MS, STATUS_TEXT, TerminalOverlay, TerminalView, type TermStatus, type TerminalEvents } from './terminal';
+import { OPEN_MS, sizeToggle, STATUS_TEXT, TerminalOverlay, TerminalView, type TermStatus, type TerminalEvents } from './terminal';
 
 const isStandUp = (ev: KeyboardEvent) => ev.ctrlKey && (ev.code === 'BracketRight' || ev.key === ']');
 
@@ -91,6 +91,7 @@ export class DeskTerminal {
     };
     chrome();
 
+    const size = el('span');
     const monitor = el(
       'div',
       { class: 'term-monitor' },
@@ -106,6 +107,7 @@ export class DeskTerminal {
         el('span', { class: 'term-hint' }, 'Esc goes to the shell'),
         retry,
         fresh,
+        size,
         shut,
         stand,
       ),
@@ -113,6 +115,7 @@ export class DeskTerminal {
       el('div', { class: 'term-foot' }),
     );
     const layer = el('div', { class: 'term-modal', attrs: { role: 'dialog', 'aria-label': 'Hot desk' } }, monitor);
+    size.replaceWith(sizeToggle(layer));
     // Clicks on the backdrop or the monitor itself (not a button, not the screen) keep the
     // keyboard in the shell. They never close it.
     layer.addEventListener('pointerdown', (ev) => {
