@@ -14,6 +14,7 @@ export interface RegistryEntry {
   version?: string;
   /** "interactive", "bg", "daemon" or "daemon-worker" (Claude Code 2.1; none before): see BACKGROUND. */
   kind?: string;
+  /** How it was started: "cli" (someone at a terminal), or "sdk-cli" / "sdk-ts" (a program, through the Agent SDK): see isSdk. */
   entrypoint?: string;
   name?: string;
   nameSource?: string;
@@ -44,11 +45,18 @@ const REGISTRY_FILE = /^\d+\.json$/;
  * started yourself. A kind Claude Code adds later is shown, the way "interactive" is.
  */
 const BACKGROUND = new Set(['bg', 'daemon', 'daemon-worker']);
+/**
+ * Sessions a program drives through the Agent SDK (entrypoint "sdk-cli", "sdk-ts", ...), not
+ * someone at a terminal: a plugin's helpers (claude-mem's observers, which it starts all day),
+ * scripts, the office's own thought bubbles. Claude Code still registers them as "interactive",
+ * but there's no terminal to sit at and often no transcript, so they never walk in either.
+ */
+const isSdk = (e: RegistryEntry) => typeof e.entrypoint === 'string' && e.entrypoint.startsWith('sdk-');
 /** The kinds the office knows; one it doesn't is logged once. */
 const KNOWN = new Set(['interactive', ...BACKGROUND]);
 const newKinds = new Set<string>();
 
-/** Pids of the sessions the last read left out on purpose (spares, thought bubbles, BACKGROUND). */
+/** Pids of the sessions the last read left out on purpose (spares, thought bubbles, BACKGROUND, SDK sessions). */
 let leftOut = new Set<number>();
 
 export async function readRegistry(): Promise<RegistryEntry[]> {
@@ -71,7 +79,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
             newKinds.add(e.kind);
             console.warn(`[registry] Claude Code writes a new kind of session, "${e.kind}": shown like "interactive"`);
           }
-          if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind))) skipped.add(e.pid);
+          if (e.spare || e.cwd === THINK_DIR || BACKGROUND.has(String(e.kind)) || isSdk(e)) skipped.add(e.pid);
           else entries.push(e);
         } catch {
           // Being rewritten right now, or not ours to understand. Next poll will catch it.
