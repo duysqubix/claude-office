@@ -1457,7 +1457,7 @@ body.seated .co-edges {
 /* ------------------------------------------------------------------ chat (chatpanel.ts) */
 
 .co-panel--chat {
-  width: min(460px, calc(100vw - 32px));
+  width: min(var(--chat-w, 460px), calc(100vw - 32px));
   height: calc(100vh - 112px);
   max-height: none;
 }
@@ -1467,7 +1467,50 @@ body.seated .co-edges {
 }
 /* Terminal mode (T): the same panel, wide enough for a real terminal. */
 .co-panel--chat.co-panel--term {
-  width: min(max(60vw, 560px), calc(100vw - 32px));
+  width: min(max(60vw, 560px, var(--chat-w, 0px)), calc(100vw - 32px));
+}
+/* The left edge: drag it to make the chat wider (chatpanel.ts chatResizer). */
+.co-chat__resize {
+  position: absolute;
+  top: 72px;
+  bottom: 16px;
+  left: -10px;
+  z-index: 2;
+  width: 16px;
+  border-radius: 8px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.co-chat__resize::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  width: 6px;
+  height: 44px;
+  margin-top: -22px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--paper);
+  opacity: 0;
+  transition: opacity 120ms linear;
+}
+.co-panel--chat:hover .co-chat__resize::before,
+.co-chat__resize:focus-visible::before,
+.co-panel--chat.is-resizing .co-chat__resize::before {
+  opacity: 1;
+}
+.co-panel--chat.is-resizing {
+  user-select: none;
+}
+/* Terminal mode sizes itself: the chat's width isn't adjusted from there. */
+.co-panel--term .co-chat__resize {
+  display: none;
+}
+@media (max-width: 899px) {
+  .co-chat__resize {
+    display: none;
+  }
 }
 .co-seg {
   display: inline-flex;
