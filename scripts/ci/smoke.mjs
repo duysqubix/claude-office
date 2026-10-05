@@ -1,13 +1,14 @@
 // The smoke test (scripts/smoke.mjs) in an office of its own (scripts/ci/office.mjs), for CI
 // and for running it anywhere without touching your office: one pretend Claude session (a
 // running process, its ~/.claude/sessions entry and a transcript), Claude Code's background
-// sessions that must stay off the roster, one past session, thought bubbles off, a private tmux
-// server and a free port. No Claude Code or login needed; the checks that would need them
-// (hiring, answering, thoughts) are not part of the smoke test.
+// sessions that must stay off the roster, sessions in other PID namespaces (Linux), one past
+// session, thought bubbles off, a private tmux server and a free port. No Claude Code or login
+// needed; the checks that would need them (hiring, answering, thoughts) are not part of the
+// smoke test.
 // Then it checks the office read the pretend session the way Claude Code writes it.
 //   npm run build && node scripts/ci/smoke.mjs     (serves dist/; without a build it uses dev mode)
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import { join } from 'node:path';
 import { freePort, makeHome, ROOT, startOffice } from './office.mjs';
@@ -52,6 +53,32 @@ const others = Object.entries(KINDS).map(([kind, sessionId]) => {
   );
   return p;
 });
+// Sessions in other PID namespaces of this machine (WSL starts a new one each time it restarts),
+// with pidDomain the way Claude Code writes it: "linux:<machine id>:pid:[N]". Their pids can't
+// be checked, so they're shown, unless they started and were last written before the machine
+// booted. Linux only: the machine id, boot time and namespace come from /etc and /proc.
+const ownNs = process.platform === 'linux' ? readlinkSync('/proc/self/ns/pid') : '';
+const machineId = existsSync('/etc/machine-id') ? readFileSync('/etc/machine-id', 'utf8').trim() : '';
+const bootMs = process.platform === 'linux' ? Number(/^btime (\d+)$/m.exec(readFileSync('/proc/stat', 'utf8'))?.[1]) * 1000 : NaN;
+const BEFORE_BOOT =
+  ownNs && machineId && bootMs
+    ? { gone: '6f7a8b9c-0d1e-4f2a-9b4c-5d6e7f8a9b0c', otherMachine: '7a8b9c0d-1e2f-4a3b-8c5d-6e7f8a9b0c1d', writtenSince: '8b9c0d1e-2f3a-4b4c-9d6e-7f8a9b0c1d2e' }
+    : null;
+if (BEFORE_BOOT) {
+  const otherNs = `pid:[${Number(/\d+/.exec(ownNs)[0]) + 7}]`;
+  const dayBefore = bootMs - 86_400_000;
+  [
+    [BEFORE_BOOT.gone, machineId, dayBefore + 60_000],
+    [BEFORE_BOOT.otherMachine, 'f'.repeat(32), dayBefore + 60_000],
+    [BEFORE_BOOT.writtenSince, machineId, now - 5000],
+  ].forEach(([sessionId, id, updatedAt], i) => {
+    const pid = 4_190_001 + i;
+    writeFileSync(
+      join(home.claudeHome, 'sessions', `${pid}.json`),
+      JSON.stringify({ pid, sessionId, cwd: project, startedAt: dayBefore, version: 'fixture', kind: 'interactive', entrypoint: 'cli', name: sessionId.slice(0, 8), status: 'idle', statusUpdatedAt: updatedAt, updatedAt, pidDomain: `linux:${id}:${otherNs}` }),
+    );
+  });
+}
 const projectDir = join(home.claudeHome, 'projects', encodeCwd(project));
 mkdirSync(projectDir, { recursive: true });
 const turn = (sessionId, prompt, answer, ago) => [
@@ -109,6 +136,12 @@ try {
   const seen = JSON.stringify(roster?.map?.((e) => `${e.displayName} (${e.kind})`));
   check("Claude Code's background sessions (kind bg, daemon, daemon-worker) → nobody walks in", Array.isArray(roster) && !walkedIn('bg') && !walkedIn('daemon') && !walkedIn('daemon-worker'), seen);
   check('a kind Claude Code adds later → shown, like interactive', walkedIn('fixture-new'), seen);
+  if (BEFORE_BOOT) {
+    const shown = (sessionId) => roster?.find?.((e) => e.sessionId === sessionId);
+    check('another PID namespace on this machine, started and last written before boot → gone', Array.isArray(roster) && !shown(BEFORE_BOOT.gone), seen);
+    check("…with another machine id (a container's own) → shown, its pid unchecked", !!shown(BEFORE_BOOT.otherMachine)?.otherPidNamespace, seen);
+    check('…written since boot (a stepped clock can move boot later) → shown, its pid unchecked', !!shown(BEFORE_BOOT.writtenSince)?.otherPidNamespace, seen);
+  }
   check('ai-title → their title; the folder → their project', me?.title === 'Tidy the fixture desk' && me?.project === 'fixture-desk', `${me?.title} / ${me?.project}`);
   check('last assistant text and model from the transcript', me?.lastText === 'All tidy.' && me?.model === 'claude-fixture-1', `${me?.lastText} / ${me?.model}`);
   const chatter = await api(`/api/session/${LIVE_ID}/chatter`);
