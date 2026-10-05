@@ -64,7 +64,7 @@ export class Toasts {
       if (mine && Date.now() - mine.at < EXPECT_MS) {
         this.expected.delete(key);
         if (!mine.text) return;
-        this.show(mine.text(extras.who), 'good', ms, undefined, { who: extras.who });
+        this.show(mine.text(extras.who), 'good', ms, undefined, { who: extras.who, action: extras.action });
         return;
       }
     }
