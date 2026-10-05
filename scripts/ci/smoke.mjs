@@ -125,7 +125,10 @@ if (BEFORE_BOOT) {
     age(`${p.pid}.json`, ms);
     (n === 0 ? PRUNE.gone : PRUNE.kept).push(`${p.pid}.json`);
   }
-  PRUNE.gone.push('4190001.json', key(4_190_001, 'ab'), key(4_190_006, 'ef'), '4190005.json');
+  // A key with no entry goes only in a WSL distro (there "before boot" needs no start ticks).
+  const onWsl = ['WSLInterop', 'WSLInterop-late'].some((n) => existsSync(`/proc/sys/fs/binfmt_misc/${n}`)) && !existsSync('/.dockerenv') && !existsSync('/run/.containerenv');
+  PRUNE.gone.push('4190001.json', key(4_190_001, 'ab'), '4190005.json');
+  (onWsl ? PRUNE.gone : PRUNE.kept).push(key(4_190_006, 'ef'));
   PRUNE.kept.push(`${live.pid}.json`, key(live.pid, 'cd'), '4190002.json', '4190003.json');
 }
 const projectDir = join(home.claudeHome, 'projects', encodeCwd(project));
@@ -143,6 +146,19 @@ const turn = (sessionId, prompt, answer, ago) => [
 ];
 writeFileSync(join(projectDir, `${LIVE_ID}.jsonl`), jsonl([...turn(LIVE_ID, 'Tidy the fixture desk', 'All tidy.', 30_000), { type: 'ai-title', sessionId: LIVE_ID, aiTitle: 'Tidy the fixture desk' }]));
 writeFileSync(join(projectDir, `${PAST_ID}.jsonl`), jsonl(turn(PAST_ID, 'Water the office plant', 'Watered.', 86_400_000)));
+
+// POST JSON the way the page does (same origin: no Origin header).
+const post = (path, body) =>
+  new Promise((resolve) => {
+    const data = JSON.stringify(body);
+    const req = http.request({ host: '127.0.0.1', port, path, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, (res) => {
+      let text = '';
+      res.on('data', (c) => (text += c));
+      res.on('end', () => resolve({ status: res.statusCode, body: (() => { try { return JSON.parse(text); } catch { return undefined; } })() }));
+    });
+    req.on('error', () => resolve({ status: 0 }));
+    req.end(data);
+  });
 
 const api = (path) =>
   new Promise((resolve) => {
@@ -203,6 +219,17 @@ try {
   const past = archive?.find?.((s) => s.sessionId === PAST_ID);
   const here = archive?.find?.((s) => s.sessionId === LIVE_ID);
   check('archive: the past session (titled from its first prompt) and the live one marked live', past?.title === 'Water the office plant' && past?.live === false && here?.live === true, JSON.stringify({ past: past?.title, live: here?.live }));
+  // Rename: a name of your own wins over Claude Code's, is saved, and can be cleared.
+  const renamed = await post('/api/rename', { sessionId: LIVE_ID, name: 'Teapot Tess' });
+  const after = (await api('/api/roster'))?.find?.((e) => e.sessionId === LIVE_ID);
+  const saved = (() => { try { return readFileSync(join(home.home, '.claude-office', 'names', LIVE_ID), 'utf8').trim(); } catch { return undefined; } })();
+  check('rename → their new name on the roster, saved in ~/.claude-office/names/<session id>', renamed.status === 200 && after?.displayName === 'Teapot Tess' && saved === 'Teapot Tess', JSON.stringify({ status: renamed.status, name: after?.displayName, saved }));
+  const bad = await post('/api/rename', { sessionId: LIVE_ID, name: '<script>' });
+  const nobody = await post('/api/rename', { sessionId: PAST_ID, name: 'Ghost' });
+  check('rename refuses a bad name (400) and someone not in the office (404)', bad.status === 400 && nobody.status === 404, JSON.stringify([bad.status, nobody.status]));
+  const cleared = await post('/api/rename', { sessionId: LIVE_ID, name: '' });
+  const back = (await api('/api/roster'))?.find?.((e) => e.sessionId === LIVE_ID);
+  check('an empty rename gives them their usual name back', cleared.status === 200 && back?.displayName === 'Fixture Fran', JSON.stringify({ status: cleared.status, name: back?.displayName }));
   const stats = await api('/api/stats');
   const fill = stats?.context?.find?.((c) => c.sessionId === LIVE_ID);
   check('Team Room: context fill counts input + cache tokens', fill?.tokens === 2000, JSON.stringify(fill));

@@ -49,6 +49,7 @@ import { TerminalOverlay } from './ui/terminal';
 import { Toasts } from './ui/toasts';
 import { createWorld } from './world/index';
 import type { DeskSlot, Interactable } from './world/types';
+import { employeeFace } from './ui/faces';
 
 const params = new URLSearchParams(location.search);
 /** Deep-link debug params (panel, term, focus, near, pose, debug): dev builds only. */
@@ -112,7 +113,8 @@ function runOffice(): void {
     added(e, initial) {
       labels.attach(e);
       if (initial) return;
-      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800, undefined, { who: e.data });
+      const id = e.data.sessionId;
+      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800, undefined, { who: e.data, action: { label: 'Rename', run: () => panels.openChat(id, { rename: true }) } });
       sfx.chime();
     },
     leaving(e) {
@@ -550,6 +552,20 @@ function runOffice(): void {
   };
   deskTerm.events = terminal.events;
   laptop.events = terminal.events;
+  // Monitor on the laptop (#150): everyone in the office, and their chats, from your desk.
+  laptop.monitor = {
+    store,
+    face: (sid, size) => employeeFace(sid, store.get(sid)?.hosted ?? false, { size }),
+    chat: (container, sid) =>
+      panels.inlineChat(container, sid, (id) => {
+        laptop.close();
+        sitAt(id);
+      }),
+    goTo: (sid) => {
+      laptop.close();
+      walkTo(sid);
+    },
+  };
 
   labels.onBubbleClick = (e) => {
     if (sitting) return;

@@ -289,26 +289,41 @@ export async function pruneRegistry(): Promise<string[]> {
       keep.add(pid);
       continue;
     }
+    // A file we can't read (another user's, say) proves nothing: keep it. Only one we read and
+    // can't parse (an unclean shutdown's zeros) counts as unreadable.
+    let text: string;
+    try {
+      text = await readFile(path, 'utf8');
+    } catch {
+      keep.add(pid);
+      continue;
+    }
     let e: unknown;
     let unreadable = false;
     try {
-      e = JSON.parse(await readFile(path, 'utf8'));
+      e = JSON.parse(text);
     } catch {
       unreadable = true;
     }
     let gone = false;
-    if (unreadable) gone = st.mtimeMs < boot && pidsVisible && !(await alive(pid));
+    // Keys go only with an entry proven gone since before this boot: any session that has run
+    // since, in any namespace sharing this folder, wrote its own <pid>.json when it started.
+    let keysToo = false;
+    if (unreadable) gone = keysToo = st.mtimeMs < boot && pidsVisible && !(await alive(pid));
     else if (e && typeof e === 'object' && (e as RegistryEntry).pid === pid && typeof (e as RegistryEntry).sessionId === 'string') {
       const entry = e as RegistryEntry;
       const domain = LINUX_DOMAIN.exec(typeof entry.pidDomain === 'string' ? entry.pidDomain : '');
       if (domain && domain[1] === machine) {
-        if (beforeBoot(entry)) gone = true;
+        if (beforeBoot(entry)) gone = keysToo = true;
         else if (domain[2] === ownNs && pidsVisible) gone = !(await alive(pid)) || (await reused(entry));
       }
     }
     if (gone) {
       doomed.push({ f, ino: st.ino, mtime: st.mtimeMs, orphan: false });
-      doomedPids.add(pid);
+      // A dead session in this namespace keeps its key: the same pid in another namespace may
+      // have a key of its own. It goes after the next boot, with the rest.
+      if (keysToo) doomedPids.add(pid);
+      else keep.add(pid);
     } else keep.add(pid);
   }
   for (const f of files) {
@@ -317,8 +332,11 @@ export async function pruneRegistry(): Promise<string[]> {
     const pid = Number(m[1]);
     const st = await stat(join(SESSIONS_DIR, f)).catch(() => null);
     if (!st || st.mtimeMs > cutoff) continue;
+    // Only keys from before this boot: no session alive now can have written them.
+    if (st.mtimeMs >= boot) continue;
     if (doomedPids.has(pid)) doomed.push({ f, ino: st.ino, mtime: st.mtimeMs, orphan: false });
-    else if ((wsl && st.mtimeMs < boot) || (pidsVisible && !(await alive(pid)))) doomed.push({ f, ino: st.ino, mtime: st.mtimeMs, orphan: true });
+    // A key with no entry at all: only in a WSL distro, where "before boot" is sure without start ticks.
+    else if (wsl) doomed.push({ f, ino: st.ino, mtime: st.mtimeMs, orphan: true });
   }
   const removed: string[] = [];
   for (const d of doomed) {
