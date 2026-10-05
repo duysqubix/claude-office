@@ -1,4 +1,4 @@
-**Graphics presets: pick how good the office looks, or how smoothly it runs.**
+**Graphics presets, and a much faster office on Windows (WSL).**
 
 ## New in v1.2.3
 
@@ -13,6 +13,9 @@
 | Ultra | Sharper shadows and finer shading, at the highest resolution your screen has |
 
 For screenshots and tests, `?gfx=potato` (or any preset name) picks one for a single visit.
+
+## Fixed in v1.2.3
+- **No more ghost sessions on WSL:** every time WSL restarted, the sessions it cut off came back as employees. On one machine that was 1,348 people, only 4 to 6 of them real, and the office became too slow to use. Sessions from before the machine started are now left out, so only your live sessions show and the office is fast again.
 
 ## Upgrade
 ```bash
