@@ -2553,12 +2553,14 @@ body.seated .co-edges {
   align-items: center;
 }
 /* Help: Off / Some / Lively for the office regulars, side by side. */
-.co-regulars {
+.co-regulars,
+.co-graphics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
-.co-regulars .co-choice {
+.co-regulars .co-choice,
+.co-graphics .co-choice {
   padding: 8px 10px 8px 8px;
   gap: 8px;
 }
