@@ -2,7 +2,8 @@
 // one small file per session in ~/.claude-office/names/ (0600), named by its session id. One
 // file each means two offices renaming different people never overwrite each other. A
 // nickname wins over Claude Code's own name and the office's pick, through restarts,
-// call-backs and moves.
+// call-backs and moves. Nothing is ever pruned: each file is a name (tens of bytes), and
+// deleting another office's fresh save is the one race one-file-per-person can't rule out.
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { HOME } from './config';
@@ -10,9 +11,6 @@ import { HOME } from './config';
 /** Letters, numbers, spaces and . ' - (the hire panel's rule), up to 32. */
 export const NAME_OK = /^[\p{L}\p{N}][\p{L}\p{N} .'-]{0,31}$/u;
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-/** Past this many, names untouched for PRUNE_AGE_MS are tidied away. */
-const MAX = 500;
-const PRUNE_AGE_MS = 90 * 86_400_000;
 
 let tmpSeq = 0;
 
@@ -65,17 +63,6 @@ export class Nicknames {
       await writeFile(tmp, `${name}\n`, { mode: 0o600 });
       await rename(tmp, file);
       this.names.delete(sessionId);
-      // Keep the folder small: past MAX, names nobody has touched in 90 days go. Each is
-      // checked again right before it goes, so a name another office just saved stays.
-      const files = (await readdir(this.dir).catch(() => [] as string[])).filter((f) => SESSION.test(f));
-      if (files.length > MAX) {
-        const old = Date.now() - PRUNE_AGE_MS;
-        for (const f of files) {
-          const p = join(this.dir, f);
-          const m = await stat(p).then((s) => s.mtimeMs, () => Infinity);
-          if (m < old && (await stat(p).then((s) => s.mtimeMs, () => Infinity)) === m) await rm(p, { force: true });
-        }
-      }
     });
   }
 }

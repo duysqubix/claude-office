@@ -180,7 +180,13 @@ export function createDemoBackend(params: URLSearchParams): Backend {
     const hex = (n: number, w: number) => n.toString(16).padStart(w, '0');
     return `de${hex(serial * 2654435761 % 0xffffff, 6)}-${hex(serial * 97, 4)}-4${hex(serial * 31, 3)}-a${hex(serial * 7, 3)}-${hex(serial * 1103515245 % 0xffffffffffff, 12)}`;
   };
-  const nextName = () => NAMES[nameIdx++ % NAMES.length] + (nameIdx > NAMES.length ? ` ${Math.ceil(nameIdx / NAMES.length)}` : '');
+  /** The next name in the cast, skipping any someone already has (a rename, say). */
+  const nextName = (): string => {
+    for (;;) {
+      const n = NAMES[nameIdx++ % NAMES.length] + (nameIdx > NAMES.length ? ` ${Math.ceil(nameIdx / NAMES.length)}` : '');
+      if (!employees.some((x) => x.displayName.toLowerCase() === n.toLowerCase())) return n;
+    }
+  };
   const activity = (kind: ActivityKind) => {
     const [tool, label] = pickR(ACTIVITIES[kind]);
     return { tool, kind, label };

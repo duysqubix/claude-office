@@ -242,7 +242,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     }
     case '/api/rename': {
       const sessionId = uuidFrom(body.sessionId);
-      const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+      if (typeof body.name !== 'string') throw new HttpError(400, 'Send the new name ("" for their usual one)');
+      const name = body.name.trim().replace(/\s+/g, ' ');
       if (name && !NAME_OK.test(name)) throw new HttpError(400, 'Names can use letters, numbers, spaces and . \' - (max 32)');
       // One rename at a time: each checks the names as the one before left them.
       const done = renames.then(async () => {

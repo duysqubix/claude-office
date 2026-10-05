@@ -196,6 +196,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       attrs: { type: 'text', value: e.displayName, maxlength: 32, 'aria-label': `New name for ${e.displayName}`, spellcheck: 'false', autocomplete: 'off' },
     });
     renaming = box;
+    // What the box opened with: a rename made elsewhere meanwhile isn't undone by leaving it untouched.
+    const opened = e.displayName;
     shell.title.hidden = true;
     renameBtn.hidden = true;
     shell.title.after(box);
@@ -206,7 +208,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       if (done) return;
       done = true;
       const name = box.value.trim().replace(/\s+/g, ' ');
-      if (keep && name !== e.displayName) {
+      if (keep && name !== opened) {
         box.disabled = true;
         const res = await api.rename(id, name);
         if (!res.ok) {
