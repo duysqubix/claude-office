@@ -325,7 +325,11 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       const n = name.trim();
       if (n && employees.some((x) => x !== e && x.displayName.toLowerCase() === n.toLowerCase())) return { ok: false, error: `Someone called ${n} already works here` };
       if (!usualNames.has(e.sessionId)) usualNames.set(e.sessionId, e.displayName);
-      e.displayName = n || usualNames.get(e.sessionId) || e.displayName;
+      const want = n || usualNames.get(e.sessionId) || e.displayName;
+      // Like the office: never two the same (a restored name that's taken gets " 2").
+      let given = want;
+      for (let k = 2; employees.some((x) => x !== e && x.displayName.toLowerCase() === given.toLowerCase()); k++) given = `${want} ${k}`;
+      e.displayName = given;
       emit();
       return { ok: true };
     },

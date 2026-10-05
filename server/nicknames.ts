@@ -10,8 +10,9 @@ import { HOME } from './config';
 /** Letters, numbers, spaces and . ' - (the hire panel's rule), up to 32. */
 export const NAME_OK = /^[\p{L}\p{N}][\p{L}\p{N} .'-]{0,31}$/u;
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-/** Kept for the most recently named sessions only. */
+/** Past this many, names untouched for PRUNE_AGE_MS are tidied away. */
 const MAX = 500;
+const PRUNE_AGE_MS = 90 * 86_400_000;
 
 let tmpSeq = 0;
 
@@ -64,11 +65,16 @@ export class Nicknames {
       await writeFile(tmp, `${name}\n`, { mode: 0o600 });
       await rename(tmp, file);
       this.names.delete(sessionId);
-      // Keep the folder small: the oldest names go past MAX.
+      // Keep the folder small: past MAX, names nobody has touched in 90 days go. Each is
+      // checked again right before it goes, so a name another office just saved stays.
       const files = (await readdir(this.dir).catch(() => [] as string[])).filter((f) => SESSION.test(f));
       if (files.length > MAX) {
-        const aged = await Promise.all(files.map(async (f) => [f, await stat(join(this.dir, f)).then((s) => s.mtimeMs, () => 0)] as const));
-        for (const [f] of aged.sort((a, b) => a[1] - b[1]).slice(0, files.length - MAX)) await rm(join(this.dir, f), { force: true });
+        const old = Date.now() - PRUNE_AGE_MS;
+        for (const f of files) {
+          const p = join(this.dir, f);
+          const m = await stat(p).then((s) => s.mtimeMs, () => Infinity);
+          if (m < old && (await stat(p).then((s) => s.mtimeMs, () => Infinity)) === m) await rm(p, { force: true });
+        }
       }
     });
   }
