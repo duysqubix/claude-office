@@ -23,6 +23,8 @@ export interface MonitorDeps {
 export interface MonitorView {
   el: HTMLElement;
   focus(): void;
+  /** Esc, before it stands you up: out of a text box (the draft stays) or back from Terminal mode. True if it did. */
+  escape(): boolean;
   dispose(): void;
 }
 
@@ -83,6 +85,8 @@ export function monitorView(deps: MonitorDeps): MonitorView {
   const root = el('div', { class: 'mon' }, el('aside', { class: 'mon-side' }, el('h3', { class: 'mon-side__title' }, 'Everyone'), list), detail, empty);
 
   let picked: string | null = null;
+  /** The picked person was moving into the office when last seen: a gap in the roster is them on the way. */
+  let pickedAdopting = false;
   let chat: { view: ChatView; dispose(): void } | null = null;
   let listKey = '';
   let headKey = '';
@@ -160,13 +164,16 @@ export function monitorView(deps: MonitorDeps): MonitorView {
       picked = null;
       return;
     }
-    // Nobody picked yet, or they left: whoever needs you most.
-    if (!picked || !store.get(picked)) {
+    const cur = picked ? store.get(picked) : undefined;
+    if (cur) pickedAdopting = !!cur.adopting;
+    // Nobody picked yet, or they left (not just on their way in): whoever needs you most.
+    if (!picked || (!cur && !pickedAdopting)) {
+      pickedAdopting = false;
       pick(all[0].sessionId);
       return;
     }
     renderList(all);
-    renderDetail(store.get(picked)!);
+    if (cur) renderDetail(cur);
   }
 
   // T flips their chat between Chat and Terminal, as it does in the office (the game's own
@@ -200,6 +207,20 @@ export function monitorView(deps: MonitorDeps): MonitorView {
     el: root,
     focus() {
       list.querySelector<HTMLElement>('.mon-row.is-picked')?.focus({ preventScroll: true });
+    },
+    escape() {
+      if (!chat) return false;
+      const at = document.activeElement as HTMLElement | null;
+      if (at && root.contains(at) && at.closest('input, textarea, select, [contenteditable]')) {
+        at.blur();
+        list.querySelector<HTMLElement>('.mon-row.is-picked')?.focus({ preventScroll: true });
+        return true;
+      }
+      if (chat.view.getMode() === 'terminal') {
+        chat.view.setMode('chat');
+        return true;
+      }
+      return false;
     },
     dispose() {
       unsub();

@@ -989,7 +989,7 @@ html.co-calm .sp-eq i {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 2px 12px;
-  max-height: 34%;
+  max-height: 160px;
   margin: 0;
   padding: 8px 14px;
   overflow-y: auto;

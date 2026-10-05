@@ -141,6 +141,8 @@ export class LaptopApp {
       if (ev.key === 'Escape' || isStandUp(ev)) {
         ev.preventDefault();
         ev.stopPropagation();
+        // In Monitor, Esc first leaves a text box (keeping the draft) or Terminal mode; Ctrl+] always stands you up.
+        if (ev.key === 'Escape' && this.showing() === 'monitor' && this.mon?.escape()) return;
         if (!ev.repeat) this.close();
         return;
       }
