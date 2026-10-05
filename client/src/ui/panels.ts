@@ -691,6 +691,35 @@ export class PanelHost {
     };
   }
 
+  /**
+   * Someone's chat inline in `container` (the laptop's Monitor): the same conversation, answers
+   * and composer as the docked one, following the roster. `sit` replaces Sit at their computer.
+   */
+  inlineChat(container: HTMLElement, sessionId: string, sit: (sessionId: string) => void): { view: ChatView; dispose(): void } | null {
+    const { store } = this.deps;
+    const e = store.get(sessionId);
+    if (!e) return null;
+    const view = openChat(container, e, { ...this.chatApi(), sit, onClose: () => undefined }, { dock: false, now: () => store.now(), home: store.home });
+    let ended = false;
+    const unsub = store.subscribe(() => {
+      const next = store.get(sessionId);
+      if (next) {
+        ended = false;
+        view.update(next);
+      } else if (!ended && !e.adopting) {
+        ended = true;
+        view.end(`${e.displayName}'s session has ended.`);
+      }
+    });
+    return {
+      view,
+      dispose: () => {
+        unsub();
+        view.close();
+      },
+    };
+  }
+
   /** The chat's endpoints: the backend's where it has them, so the demo office can talk too. */
   private chatApi(): ChatApi {
     const { backend, actions } = this.deps;

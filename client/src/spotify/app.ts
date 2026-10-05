@@ -10,6 +10,7 @@ import { button } from '../ui/components';
 import { el, markup, type Markup } from '../ui/el';
 import { icon } from '../ui/icons';
 import { TerminalOverlay } from '../ui/terminal';
+import { monitorView, type MonitorDeps, type MonitorView } from '../laptop/monitor';
 import type { LaptopState, Phase, SpotifyStore } from './store';
 import { LIKED, type Playlist, type Track } from './types';
 import './laptop.css';
@@ -18,6 +19,16 @@ const isStandUp = (ev: KeyboardEvent) => ev.ctrlKey && (ev.code === 'BracketRigh
 /** Where Space types (text fields): everywhere else on the laptop it plays and pauses. */
 const TYPING = 'input:not([type="range"]), textarea, select';
 const DASHBOARD = 'https://developer.spotify.com/dashboard';
+/** The laptop's apps: Spotify, and Monitor (everyone in the office, #150). The last one used opens. */
+type LaptopAppId = 'spotify' | 'monitor';
+const APP_KEY = 'claude-office:laptop-app';
+const readApp = (): LaptopAppId => {
+  try {
+    return localStorage.getItem(APP_KEY) === 'monitor' ? 'monitor' : 'spotify';
+  } catch {
+    return 'spotify';
+  }
+};
 
 const INK = '#2B2D42';
 const svg = (body: string, size = 24, view = 24): Markup => markup(`<svg class="co-icon" viewBox="0 0 ${view} ${view}" width="${size}" height="${size}" aria-hidden="true">${body}</svg>`);
@@ -65,6 +76,11 @@ interface View {
 
 export class LaptopApp {
   events: { onClose?(): void } = {};
+  /** What Monitor needs from the office (main.ts sets it); without it, the laptop is Spotify only. */
+  monitor: MonitorDeps | null = null;
+  private app: LaptopAppId = readApp();
+  private mon: MonitorView | null = null;
+  private tabs: Record<LaptopAppId, HTMLButtonElement> | null = null;
   private layer: HTMLElement | null = null;
   private laptop: HTMLElement | null = null;
   private screen: HTMLElement | null = null;
@@ -90,10 +106,18 @@ export class LaptopApp {
     const screen = el('div', { class: 'sp-screen', attrs: { tabindex: -1 } });
     const stand = button('Stand up', { small: true, key: 'Ctrl+]', onClick: () => this.close() });
     stand.classList.add('sp-stand');
+    // The apps along the top of the screen (only with Monitor available).
+    const tab = (id: LaptopAppId, label: string, glyph: Markup) => {
+      const b = el('button', { class: 'sp-app', attrs: { type: 'button', role: 'tab', 'aria-selected': 'false', 'data-app': id } }, el('span', { html: glyph }), label);
+      b.addEventListener('click', () => this.setApp(id));
+      return b;
+    };
+    this.tabs = this.monitor ? { spotify: tab('spotify', 'Spotify', ICON.logo(20)), monitor: tab('monitor', 'Monitor', icon('staff', 20)) } : null;
+    const apps = this.tabs ? el('div', { class: 'sp-apps', attrs: { role: 'tablist', 'aria-label': 'Laptop apps' } }, this.tabs.spotify, this.tabs.monitor) : null;
     const laptop = el(
       'div',
       { class: 'sp-laptop' },
-      el('div', { class: 'sp-lid' }, el('i', { class: 'sp-cam', attrs: { 'aria-hidden': 'true' } }), screen),
+      el('div', { class: 'sp-lid' }, el('i', { class: 'sp-cam', attrs: { 'aria-hidden': 'true' } }), apps, screen),
       el(
         'div',
         { class: 'sp-deck' },
@@ -102,7 +126,7 @@ export class LaptopApp {
         stand,
       ),
     );
-    const layer = el('div', { class: 'sp-modal', attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Your laptop: Spotify' } }, laptop);
+    const layer = el('div', { class: 'sp-modal', attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Your laptop' } }, laptop);
     // Clicks on the backdrop never stand you up (Esc, Ctrl+] and the button do).
     layer.addEventListener('pointerdown', (ev) => {
       if (ev.target === layer) ev.preventDefault();
@@ -111,7 +135,7 @@ export class LaptopApp {
     // keyboard is (a song you just clicked, a playlist), except in a text field; Enter still
     // presses the button it's on.
     const space = (ev: KeyboardEvent) =>
-      ev.code === 'Space' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && this.store.state.phase === 'ready' && !(ev.target as Element | null)?.closest?.(TYPING);
+      ev.code === 'Space' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && this.showing() === 'spotify' && this.store.state.phase === 'ready' && !(ev.target as Element | null)?.closest?.(TYPING);
     const keys = (ev: KeyboardEvent) => {
       if (this.layer !== layer || ev.defaultPrevented || ev.isComposing) return;
       if (ev.key === 'Escape' || isStandUp(ev)) {
@@ -164,6 +188,9 @@ export class LaptopApp {
     const layer = this.layer;
     const laptop = this.laptop;
     this.view?.dispose?.();
+    this.mon?.dispose();
+    this.mon = null;
+    this.tabs = null;
     this.layer = null;
     this.laptop = null;
     this.screen = null;
@@ -176,9 +203,47 @@ export class LaptopApp {
     this.events.onClose?.();
   }
 
+  /** The app on screen: Monitor only when the office provides it. */
+  private showing(): LaptopAppId {
+    return this.monitor && this.app === 'monitor' ? 'monitor' : 'spotify';
+  }
+
+  /** Switch apps (the tabs along the top); remembered for next time. */
+  setApp(id: LaptopAppId): void {
+    if (this.app === id && this.screen?.dataset.app === id) return;
+    this.app = id;
+    try {
+      localStorage.setItem(APP_KEY, id);
+    } catch {
+      // this visit only
+    }
+    this.render();
+  }
+
   private render(): void {
     const screen = this.screen;
     if (!screen) return;
+    const app = this.showing();
+    if (this.tabs) for (const [id, b] of Object.entries(this.tabs)) b.setAttribute('aria-selected', String(id === app));
+    if (app === 'monitor') {
+      if (this.mon && screen.dataset.app === 'monitor') return;
+      this.view?.dispose?.();
+      this.view = null;
+      this.phase = null;
+      screen.dataset.app = 'monitor';
+      delete screen.dataset.phase;
+      this.mon = monitorView(this.monitor!);
+      screen.replaceChildren(this.mon.el);
+      screen.focus({ preventScroll: true });
+      this.mon.focus();
+      return;
+    }
+    if (this.mon) {
+      this.mon.dispose();
+      this.mon = null;
+      this.view = null;
+    }
+    screen.dataset.app = 'spotify';
     const s = this.store.state;
     if (s.phase !== this.phase || !this.view) {
       this.view?.dispose?.();
