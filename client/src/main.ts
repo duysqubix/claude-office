@@ -114,7 +114,12 @@ function runOffice(): void {
       labels.attach(e);
       if (initial) return;
       const id = e.data.sessionId;
-      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800, undefined, { who: e.data, action: { label: 'Rename', run: () => panels.openChat(id, { rename: true }) } });
+      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800, undefined, { who: e.data, action: {
+          label: 'Rename',
+          // Seated, their chat would open under the computer: say how instead (like Go, which waits too).
+          run: () => (sitting ? toasts.show('Stand up first (Esc), then rename them from their chat.', 'info', 4000) : panels.openChat(id, { rename: true })),
+        },
+      });
       sfx.chime();
     },
     leaving(e) {
