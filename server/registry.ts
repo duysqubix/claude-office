@@ -64,8 +64,12 @@ let leftOut = new Set<number>();
  * refuses them, so the office never starts a second copy of a session that's still going.
  */
 let hiddenIds = new Set<string>();
-/** The same, by pid: a hidden session's file caught mid-rewrite keeps its id for that poll. */
-let hiddenByPid = new Map<number, string>();
+/**
+ * The same, by pid, with how many polls in a row each has gone unconfirmed (a file caught
+ * mid-rewrite, a failed ps): it keeps its id for HIDDEN_GRACE such polls, then goes.
+ */
+let hiddenByPid = new Map<number, { id: string; misses: number }>();
+const HIDDEN_GRACE = 2;
 
 /** Sessions left off the roster on purpose that may still be running (see hiddenIds). */
 export function hiddenSessions(): ReadonlySet<string> {
@@ -82,7 +86,6 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
   let entries: RegistryEntry[] = [];
   const skipped = new Set<number>();
   let hiddenEntries: RegistryEntry[] = [];
-  const unreadable = new Set<number>();
   await Promise.all(
     files
       .filter((f) => REGISTRY_FILE.test(f))
@@ -100,7 +103,6 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
           } else entries.push(e);
         } catch {
           // Being rewritten right now, or not ours to understand. Next poll will catch it.
-          unreadable.add(Number.parseInt(f, 10));
         }
       }),
   );
@@ -145,14 +147,15 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
     if (boot !== null && (e.startedAt ?? Infinity) < boot) return false;
     return /claude/i.test(basename(p.comm));
   };
-  const nextHidden = new Map<number, string>([...hiddenElsewhere, ...hiddenEntries.filter(running)].map((e) => [e.pid, e.sessionId]));
-  // A file caught mid-rewrite this poll: a session hidden last poll stays hidden-and-running.
-  for (const pid of unreadable) {
-    const id = hiddenByPid.get(pid);
-    if (id && !nextHidden.has(pid)) nextHidden.set(pid, id);
+  const nextHidden = new Map<number, { id: string; misses: number }>([...hiddenElsewhere, ...hiddenEntries.filter(running)].map((e) => [e.pid, { id: e.sessionId, misses: 0 }]));
+  // Hidden last poll but not confirmed this one (its file mid-rewrite, ps failing, or really
+  // gone): it stays for a couple of polls, so a hiccup never lets a call-back start a second copy,
+  // and a session that has ended is let go soon after.
+  for (const [pid, h] of hiddenByPid) {
+    if (!nextHidden.has(pid) && h.misses < HIDDEN_GRACE) nextHidden.set(pid, { id: h.id, misses: h.misses + 1 });
   }
   hiddenByPid = nextHidden;
-  hiddenIds = new Set(nextHidden.values());
+  hiddenIds = new Set([...nextHidden.values()].map((h) => h.id));
   return withGrace([...unchecked, ...entries.filter(running)]);
 }
 
