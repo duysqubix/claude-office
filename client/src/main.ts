@@ -112,7 +112,8 @@ function runOffice(): void {
     added(e, initial) {
       labels.attach(e);
       if (initial) return;
-      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800, undefined, { who: e.data });
+      const id = e.data.sessionId;
+      toasts.show(`${e.data.displayName} clocked in for ${e.data.project}`, 'arrive', 3800, undefined, { who: e.data, action: { label: 'Rename', run: () => panels.openChat(id, { rename: true }) } });
       sfx.chime();
     },
     leaving(e) {

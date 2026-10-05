@@ -779,6 +779,11 @@ root.append(
         await wait(120);
         return q.after !== undefined ? store.filter((l) => l.seq > q.after!) : store.slice(-(q.n ?? 60));
       },
+      async rename(_id, name) {
+        console.info(`[ui-kit] POST /api/rename ${JSON.stringify(name)}`);
+        await wait(200);
+        return { ok: true };
+      },
       async say(_id, text) {
         console.info(`[ui-kit] POST /api/say ${JSON.stringify(text)}`);
         await wait(350);

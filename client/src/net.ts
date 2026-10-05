@@ -52,6 +52,8 @@ export interface Backend {
   hire(cwd: string, prompt?: string, name?: string): Promise<ApiResult>;
   rehire(sessionId: string): Promise<ApiResult>;
   fire(sessionId: string): Promise<ApiResult>;
+  /** Give someone a name of your own (empty: back to their usual one). */
+  rename(sessionId: string, name: string): Promise<ApiResult>;
   say(sessionId: string, text: string): Promise<ApiResult>;
   /** Answer an open Ask in-game. */
   answer(req: AnswerRequest): Promise<ApiResult>;
@@ -134,6 +136,7 @@ export function createBackend(): Backend {
     hire: (cwd, prompt, name) => postApi('/api/hire', { cwd, ...(prompt ? { prompt } : {}), ...(name ? { name: name.slice(0, 32) } : {}) }),
     rehire: (sessionId) => postApi('/api/rehire', { sessionId }),
     fire: (sessionId) => postApi('/api/fire', { sessionId }),
+    rename: (sessionId, name) => postApi('/api/rename', { sessionId, name }),
     say: (sessionId, text) => postApi('/api/say', { sessionId, text }),
     answer: (req) => postApi('/api/answer', req),
     closeDesk: (desk) => postApi('/api/desk/close', { desk }),

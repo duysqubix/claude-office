@@ -168,6 +168,10 @@ export function createDemoBackend(params: URLSearchParams): Backend {
   let nameIdx = 0;
   let internSerial = 0;
   const employees: Employee[] = [];
+  /** Demo renames: everyone's name before their first one, for an empty rename to restore. */
+  const usualNames = new Map<string, string>();
+  /** Demo renames by session, so a call-back comes back with theirs. */
+  const nicknames = new Map<string, string>();
   const chatter = new Map<string, ChatLine[]>();
   let chatSeq = 0;
   const line = (role: ChatLine['role'], text: string, tool?: string): ChatLine => ({ role, text, seq: ++chatSeq, ...(tool ? { tool } : {}) });
@@ -178,7 +182,13 @@ export function createDemoBackend(params: URLSearchParams): Backend {
     const hex = (n: number, w: number) => n.toString(16).padStart(w, '0');
     return `de${hex(serial * 2654435761 % 0xffffff, 6)}-${hex(serial * 97, 4)}-4${hex(serial * 31, 3)}-a${hex(serial * 7, 3)}-${hex(serial * 1103515245 % 0xffffffffffff, 12)}`;
   };
-  const nextName = () => NAMES[nameIdx++ % NAMES.length] + (nameIdx > NAMES.length ? ` ${Math.ceil(nameIdx / NAMES.length)}` : '');
+  /** The next name in the cast, skipping any someone already has (a rename, say). */
+  const nextName = (): string => {
+    for (;;) {
+      const n = NAMES[nameIdx++ % NAMES.length] + (nameIdx > NAMES.length ? ` ${Math.ceil(nameIdx / NAMES.length)}` : '');
+      if (!employees.some((x) => x.displayName.toLowerCase() === n.toLowerCase())) return n;
+    }
+  };
   const activity = (kind: ActivityKind) => {
     const [tool, label] = pickR(ACTIVITIES[kind]);
     return { tool, kind, label };
@@ -312,10 +322,29 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       window.setTimeout(() => {
         const e = make({ state: 'idle', project: past.project, hosted: true }, Date.now(), sessionId);
         e.title = past.title;
+        // A name you gave them comes back with them, as in the office.
+        const nick = nicknames.get(sessionId);
+        if (nick && !employees.some((x) => x.displayName.toLowerCase() === nick.toLowerCase())) e.displayName = nick;
         employees.push(e);
         emit();
       }, 1800);
       return { ok: true, sessionId };
+    },
+    async rename(sessionId, name): Promise<ApiResult> {
+      const e = employees.find((x) => x.sessionId === sessionId);
+      if (!e) return { ok: false, error: 'Not here.' };
+      const n = name.trim();
+      if (n && employees.some((x) => x !== e && x.displayName.toLowerCase() === n.toLowerCase())) return { ok: false, error: `Someone called ${n} already works here` };
+      if (!usualNames.has(e.sessionId)) usualNames.set(e.sessionId, e.displayName);
+      const want = n || usualNames.get(e.sessionId) || e.displayName;
+      // Like the office: never two the same (a restored name that's taken gets " 2").
+      let given = want;
+      for (let k = 2; employees.some((x) => x !== e && x.displayName.toLowerCase() === given.toLowerCase()); k++) given = `${want} ${k}`;
+      e.displayName = given;
+      if (n) nicknames.set(e.sessionId, given);
+      else nicknames.delete(e.sessionId);
+      emit();
+      return { ok: true };
     },
     async fire(sessionId): Promise<ApiResult> {
       const e = employees.find((x) => x.sessionId === sessionId);
