@@ -178,6 +178,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   const panel = shell.el;
   panel.classList.add('co-panel--chat');
   panel.setAttribute('aria-label', `Chat with ${e.displayName}`);
+  panel.append(chatResizer(panel));
 
   const stateChip = el('span', { class: 'co-chip co-chip--fill co-chat__state' });
   const where = el('span', { class: 'co-chat__where' });
@@ -925,4 +926,85 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     },
   };
   return view;
+}
+
+const CHAT_W_KEY = 'claude-office:chat-w';
+/** The chat's usual width, and the narrowest and widest a drag can make it (px). */
+const CHAT_W = 460;
+const CHAT_MIN = 380;
+const CHAT_WIDE = () => Math.round(window.innerWidth * 0.55);
+const chatMax = () => window.innerWidth - 32;
+
+/**
+ * The chat's left edge: drag it left for more room to read and type (the terminal mode keeps its
+ * own width). Double-click flips between the usual width and wide. Remembered per browser.
+ */
+function chatResizer(panel: HTMLElement): HTMLElement {
+  const clamp = (w: number) => Math.round(Math.max(CHAT_MIN, Math.min(chatMax(), w)));
+  const set = (w: number, save: boolean) => {
+    const v = clamp(w);
+    panel.style.setProperty('--chat-w', `${v}px`);
+    handle.setAttribute('aria-valuenow', String(v));
+    if (!save) return;
+    try {
+      localStorage.setItem(CHAT_W_KEY, String(v));
+    } catch {
+      // storage unavailable: this visit only
+    }
+  };
+  const current = () => panel.getBoundingClientRect().width;
+  const handle = el('div', {
+    class: 'co-chat__resize',
+    attrs: {
+      role: 'separator',
+      'aria-orientation': 'vertical',
+      'aria-label': 'Chat width: drag, or use the arrow keys',
+      'aria-valuemin': String(CHAT_MIN),
+      tabindex: 0,
+      title: 'Drag to make the chat wider · double-click for wide',
+    },
+  });
+  let saved = NaN;
+  try {
+    saved = Number(localStorage.getItem(CHAT_W_KEY));
+  } catch {
+    // ignore
+  }
+  if (saved > 0) set(saved, false);
+  // A second press on the edge within DOUBLE_MS flips between the usual width and wide (the
+  // pointer capture below keeps browsers from ever sending a dblclick here).
+  const DOUBLE_MS = 350;
+  let lastDown = 0;
+  handle.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    if (ev.timeStamp - lastDown < DOUBLE_MS) {
+      lastDown = 0;
+      set(current() > CHAT_W + 40 ? CHAT_W : CHAT_WIDE(), true);
+      return;
+    }
+    lastDown = ev.timeStamp;
+    handle.setPointerCapture(ev.pointerId);
+    const x0 = ev.clientX;
+    const w0 = current();
+    panel.classList.add('is-resizing');
+    const move = (m: PointerEvent) => set(w0 + (x0 - m.clientX), false);
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      panel.classList.remove('is-resizing');
+      set(current(), true);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up, { once: true });
+    handle.addEventListener('pointercancel', up, { once: true });
+  });
+  handle.addEventListener('keydown', (ev) => {
+    const step = ev.shiftKey ? 120 : 40;
+    if (ev.key === 'ArrowLeft') set(current() + step, true);
+    else if (ev.key === 'ArrowRight') set(current() - step, true);
+    else return;
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
+  return handle;
 }
