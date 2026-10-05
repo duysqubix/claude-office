@@ -932,7 +932,7 @@ const CHAT_W_KEY = 'claude-office:chat-w';
 /** The chat's usual width, and the narrowest and widest a drag can make it (px). */
 const CHAT_W = 460;
 const CHAT_MIN = 380;
-const CHAT_WIDE = () => Math.round(window.innerWidth * 0.55);
+const CHAT_WIDE = () => Math.max(Math.round(window.innerWidth * 0.55), CHAT_W + 160);
 const chatMax = () => window.innerWidth - 32;
 
 /**
@@ -945,6 +945,7 @@ function chatResizer(panel: HTMLElement): HTMLElement {
     const v = clamp(w);
     panel.style.setProperty('--chat-w', `${v}px`);
     handle.setAttribute('aria-valuenow', String(v));
+    handle.setAttribute('aria-valuemax', String(Math.max(CHAT_MIN, chatMax())));
     if (!save) return;
     try {
       localStorage.setItem(CHAT_W_KEY, String(v));
@@ -960,6 +961,8 @@ function chatResizer(panel: HTMLElement): HTMLElement {
       'aria-orientation': 'vertical',
       'aria-label': 'Chat width: drag, or use the arrow keys',
       'aria-valuemin': String(CHAT_MIN),
+      'aria-valuemax': String(Math.max(CHAT_MIN, chatMax())),
+      'aria-valuenow': String(CHAT_W),
       tabindex: 0,
       title: 'Drag to make the chat wider · double-click for wide',
     },
@@ -980,7 +983,8 @@ function chatResizer(panel: HTMLElement): HTMLElement {
     ev.preventDefault();
     if (ev.timeStamp - lastDown < DOUBLE_MS) {
       lastDown = 0;
-      set(current() > CHAT_W + 40 ? CHAT_W : CHAT_WIDE(), true);
+      // Nearer wide than usual: back to usual; otherwise wide.
+      set(current() > (CHAT_W + CHAT_WIDE()) / 2 ? CHAT_W : CHAT_WIDE(), true);
       return;
     }
     lastDown = ev.timeStamp;
@@ -988,8 +992,14 @@ function chatResizer(panel: HTMLElement): HTMLElement {
     const x0 = ev.clientX;
     const w0 = current();
     panel.classList.add('is-resizing');
-    const move = (m: PointerEvent) => set(w0 + (x0 - m.clientX), false);
+    let moved = false;
+    const move = (m: PointerEvent) => {
+      if (Math.abs(m.clientX - x0) > 4) moved = true;
+      set(w0 + (x0 - m.clientX), false);
+    };
     const up = () => {
+      // A drag never counts as the first half of a double-click.
+      if (moved) lastDown = 0;
       handle.removeEventListener('pointermove', move);
       panel.classList.remove('is-resizing');
       set(current(), true);

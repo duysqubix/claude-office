@@ -1503,6 +1503,10 @@ body.seated .co-edges {
 .co-panel--chat.is-resizing {
   user-select: none;
 }
+/* Terminal mode sizes itself: the chat's width isn't adjusted from there. */
+.co-panel--term .co-chat__resize {
+  display: none;
+}
 @media (max-width: 899px) {
   .co-chat__resize {
     display: none;
