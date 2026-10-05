@@ -168,6 +168,8 @@ export function createDemoBackend(params: URLSearchParams): Backend {
   let nameIdx = 0;
   let internSerial = 0;
   const employees: Employee[] = [];
+  /** Demo renames: everyone's name before their first one, for an empty rename to restore. */
+  const usualNames = new Map<string, string>();
   const chatter = new Map<string, ChatLine[]>();
   let chatSeq = 0;
   const line = (role: ChatLine['role'], text: string, tool?: string): ChatLine => ({ role, text, seq: ++chatSeq, ...(tool ? { tool } : {}) });
@@ -322,7 +324,8 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       if (!e) return { ok: false, error: 'Not here.' };
       const n = name.trim();
       if (n && employees.some((x) => x !== e && x.displayName.toLowerCase() === n.toLowerCase())) return { ok: false, error: `Someone called ${n} already works here` };
-      e.displayName = n || e.name || e.displayName;
+      if (!usualNames.has(e.sessionId)) usualNames.set(e.sessionId, e.displayName);
+      e.displayName = n || usualNames.get(e.sessionId) || e.displayName;
       emit();
       return { ok: true };
     },

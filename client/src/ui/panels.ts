@@ -220,7 +220,8 @@ export class PanelHost {
     if (!chat) return;
     this.present(chat, opts);
     this.employeeId = sessionId;
-    if (opts.rename) this.chatView?.rename();
+    // After present()'s own focus (next frame) has landed, or it would take the name box's.
+    if (opts.rename) requestAnimationFrame(() => requestAnimationFrame(() => this.chatView?.rename()));
     coachDone('talk');
     if (opts.mode === 'terminal') coachDone('peek');
   }

@@ -223,6 +223,8 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     };
     box.addEventListener('keydown', (ev) => {
       ev.stopPropagation();
+      // Enter and Esc inside an IME (Chinese, Japanese…) belong to the IME.
+      if (ev.isComposing || ev.keyCode === 229) return;
       if (ev.key === 'Enter') void finish(true);
       else if (ev.key === 'Escape') {
         ev.preventDefault();
