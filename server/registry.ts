@@ -23,12 +23,13 @@ export interface RegistryEntry {
   statusUpdatedAt?: number;
   updatedAt?: number;
   spare?: unknown;
-  /** The PID namespace the session runs in: "linux::pid:[4026531836]", or "darwin". */
+  /** The PID namespace the session runs in: "linux:<machine id>:pid:[4026531836]", or "darwin". */
   pidDomain?: string;
   /**
    * Set by readRegistry, not Claude Code: the session runs in another PID namespace than this
    * office (the office in a container, Claude on the host, or the other way round), so its pid
-   * means nothing here and can't be checked. It's shown until its registry file goes.
+   * means nothing here and can't be checked. It's shown until its registry file goes, unless it
+   * ran on this machine and started before the machine booted: then it's gone.
    */
   pidUnchecked?: boolean;
 }
@@ -79,7 +80,17 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
   );
   leftOut = skipped;
   const own = await ownPidDomain();
-  const unchecked = entries.filter((e) => elsewhere(e.pidDomain, own)).map((e) => ({ ...e, pidUnchecked: true }));
+  const boot = await bootedAt();
+  const machine = await ownMachineId();
+  // Every PID namespace on this machine runs on its one kernel, so a session here that started
+  // before the kernel booted is gone, whichever namespace it ran in. WSL starts a new namespace
+  // each time it restarts, and the sessions a restart cut off never remove their files. Boot
+  // time is now minus uptime, so a stepped clock (a VM after its host slept) can move it later
+  // than the real boot: the entry must also have been written before it, as a live session
+  // rewrites its entry when it works.
+  const gone = (e: RegistryEntry) =>
+    boot !== null && onThisMachine(e.pidDomain, machine) && (e.startedAt ?? Infinity) < boot && (e.updatedAt ?? e.startedAt ?? Infinity) < boot;
+  const unchecked = entries.filter((e) => elsewhere(e.pidDomain, own) && !gone(e)).map((e) => ({ ...e, pidUnchecked: true }));
   entries = entries.filter((e) => !elsewhere(e.pidDomain, own));
   const live = await liveProcesses(entries.map((e) => e.pid));
   const digits = entries.filter((e) => /^\d+$/.test(String(e.procStart ?? '')));
@@ -87,7 +98,6 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
   const ticks = new Map(
     await Promise.all(digits.filter((e) => most !== null && Number(e.procStart) <= most).map(async (e) => [e.pid, await startTicks(e.pid)] as const)),
   );
-  const boot = await bootedAt();
   return withGrace([...unchecked, ...entries.filter((e) => {
     const p = live.get(e.pid);
     if (!p) return false;
@@ -108,7 +118,7 @@ export async function readRegistry(): Promise<RegistryEntry[]> {
 
 let ownDomain: string | null | undefined;
 
-/** This office's PID namespace, as Claude Code writes pidDomain: "linux::pid:[N]" (/proc/self/ns/pid) or "darwin". Null if unknown. */
+/** This office's PID namespace, in pidDomain's terms: "linux::pid:[N]" (/proc/self/ns/pid; no machine id, as elsewhere() never compares it) or "darwin". Null if unknown. */
 async function ownPidDomain(): Promise<string | null> {
   if (ownDomain === undefined) {
     if (process.platform === 'darwin') ownDomain = 'darwin';
@@ -117,8 +127,24 @@ async function ownPidDomain(): Promise<string | null> {
   return ownDomain;
 }
 
+let ownMachine: string | null | undefined;
+
+/** This machine's id (/etc/machine-id), which Claude Code writes into pidDomain. Null if unknown. */
+async function ownMachineId(): Promise<string | null> {
+  if (ownMachine === undefined) ownMachine = await readFile('/etc/machine-id', 'utf8').then((id) => id.trim() || null, () => null);
+  return ownMachine;
+}
+
+/**
+ * Whether a pidDomain names this machine: Claude Code writes "linux:<machine id>:pid:[N]". One
+ * with no id, or another id (a container's own), can't be tied to this kernel's boot.
+ */
+function onThisMachine(domain: unknown, machine: string | null): boolean {
+  return machine !== null && typeof domain === 'string' && /^linux:([^:]+):/.exec(domain)?.[1] === machine;
+}
+
 const NAMESPACE = /pid:\[(\d+)\]/;
-const OS = (domain: string) => /^(linux|darwin|win32)(?=::|$)/.exec(domain)?.[1];
+const OS = (domain: string) => /^(linux|darwin|win32)(?=:|$)/.exec(domain)?.[1];
 
 /**
  * Whether a session's pidDomain is another PID namespace than this office's: another OS (a
