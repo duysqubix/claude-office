@@ -228,17 +228,19 @@ body.seated .co-needs .co-key {
   animation: monitor-in 420ms var(--spring-soft);
 }
 /* Full size (the chin's toggle): the monitor fills the window; its stand tucks away. */
+/* The top strip stays clear for the "needs you" chip, and the width stays under the 400
+   columns the office's terminals allow (server/terminal.ts). */
 .term-modal.is-full {
-  padding: 12px;
+  padding: 64px 12px 12px;
 }
 .term-modal.is-full .term-monitor {
-  width: calc(100vw - 24px);
+  width: min(calc(100vw - 24px), 3200px);
 }
 .term-modal.is-full .term-screen {
-  height: calc(100vh - 160px);
+  height: calc(100vh - 212px);
 }
 .term-modal.is-full .term-bezel:not(:has(> .term-tabbar)) > .term-screen {
-  height: calc(100vh - 136px);
+  height: calc(100vh - 188px);
 }
 .term-modal.is-full .term-neck,
 .term-modal.is-full .term-foot {

@@ -195,6 +195,8 @@ export class TerminalView {
   }
 
   fit(): void {
+    // A hidden tab has no box: fitting it would shrink a session that's still running.
+    if (!this.el.isConnected || this.el.offsetParent === null || this.el.clientWidth === 0) return;
     try {
       this.fitter?.fit();
     } catch {
