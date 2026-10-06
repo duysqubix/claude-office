@@ -172,6 +172,12 @@ try {
   await page.keyboard.press('Enter');
   await wait(400);
   const sentFull = await page.evaluate(() => [...document.querySelectorAll('.co-msg--user .co-msg__body')].map((b) => b.textContent).at(-1));
+  await type(page, '/release');
+  const exact = await look(page, DOCK);
+  await page.keyboard.press('Enter');
+  await wait(400);
+  const sentExact = await page.evaluate(() => [...document.querySelectorAll('.co-msg--user .co-msg__body')].map((b) => b.textContent).at(-1));
+  check('the exact name ranks first: /release (not /release-notes) is sent', exact.names[0] === 'release' && exact.active === 'release' && sentExact === '/release', JSON.stringify({ names: exact.names, sentExact }));
   check('a name typed in full: Enter sends it at once, as in Claude Code', typedFull.open && sentFull === '/cost', JSON.stringify({ open: typedFull.open, sentFull }));
   await page.keyboard.press('Escape');
   await wait(200);
@@ -191,7 +197,7 @@ try {
   }, hosted.id);
   await wait(900);
   await page.focus(MBOX);
-  await type(page, '/re');
+  await type(page, '/rev');
   const mon = await look(page, MON);
   check('Monitor: "/" opens the picker in their chat on the laptop', mon.open && mon.names[0] === 'review', JSON.stringify(mon.names));
   await page.screenshot({ path: `${SNAPS}/151-monitor-picker.png` });

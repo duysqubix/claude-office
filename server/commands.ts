@@ -86,17 +86,20 @@ async function build(cwd: string): Promise<SlashCommand[]> {
   const linkable = await real([HOME, CLAUDE_HOME, cwd, ...(repo ? [repo] : [])]);
   // A .claude/ further up may also point anywhere in its own folder.
   const bounds = async (p: string) => [...linkable, ...(await real([p]))];
-  // Nearest first: a folder's own .claude/ wins over one further up.
+  const builtIns = BUILT_IN_COMMANDS.map(([name, description]): SlashCommand => ({ name, description, source: 'built-in', kind: 'command' }));
+  // One per name, the one Claude Code runs (code.claude.com/docs/en/skills, "Resolve skills that
+  // share a name"): a skill over a command file or a built-in, yours over the project's (nearest
+  // folder first). Plugins' are namespaced, so they never clash.
   const groups = await Promise.all([
-    ...folders.map(async (p) => commandsIn(join(p, '.claude', 'commands'), 'project', await bounds(p))),
-    commandsIn(join(CLAUDE_HOME, 'commands'), 'user', linkable),
-    ...folders.map(async (p) => skillsIn(join(p, '.claude', 'skills'), 'project', await bounds(p))),
     skillsIn(join(CLAUDE_HOME, 'skills'), 'user', linkable),
-    pluginCommands(cwd),
+    ...folders.map(async (p) => skillsIn(join(p, '.claude', 'skills'), 'project', await bounds(p))),
+    builtIns,
+    commandsIn(join(CLAUDE_HOME, 'commands'), 'user', linkable),
+    ...folders.map(async (p) => commandsIn(join(p, '.claude', 'commands'), 'project', await bounds(p))),
+    pluginCommands(cwd, repo),
   ]);
-  const out: SlashCommand[] = BUILT_IN_COMMANDS.map(([name, description]) => ({ name, description, source: 'built-in', kind: 'command' }));
-  // One per name: built-ins win, then the project's, then yours, then plugins'.
-  const seen = new Set(out.map((c) => c.name));
+  const out: SlashCommand[] = [];
+  const seen = new Set<string>();
   for (const c of groups.flat()) {
     if (out.length >= MAX_LIST) break;
     if (seen.has(c.name)) continue;
@@ -209,7 +212,7 @@ async function oneSkill(folder: string, linkable: string[], origin: Origin): Pro
 }
 
 /** `user-invocable: false`: for Claude to use, kept out of the "/" menu (commands and skills alike). */
-const hidden = (meta: Record<string, string>) => meta['user-invocable']?.toLowerCase() === 'false';
+const hidden = (meta: Record<string, string>) => /^(false|no|off|0)$/i.test(meta['user-invocable'] ?? '');
 
 /** A YAML scalar's value: quotes off, or a trailing ` # comment` off. */
 function scalar(v: string): string {
@@ -277,6 +280,27 @@ async function readJson(file: string): Promise<unknown> {
   }
 }
 
+/**
+ * Where Claude Code keeps .claude/settings.local.json in a repository (code.claude.com/docs/en/
+ * settings): at its top, or in a worktree the main checkout's. Not when that's your home.
+ */
+async function localSettingsRoot(repo: string | null): Promise<string | null> {
+  if (!repo) return null;
+  let root = repo;
+  const git = join(repo, '.git');
+  if ((await stat(git).catch(() => null))?.isFile()) {
+    // A worktree: ".git" says "gitdir: <main>/.git/worktrees/<name>", whose commondir is <main>/.git.
+    const text = (await readFile(git, 'utf8').catch(() => '')).slice(0, 4096);
+    const gitdir = /^gitdir:\s*(.+)$/m.exec(text)?.[1].trim();
+    if (!gitdir) return null;
+    const dir = resolve(repo, gitdir);
+    const common = (await readFile(join(dir, 'commondir'), 'utf8').catch(() => '')).slice(0, 4096).trim();
+    root = common ? dirname(resolve(dir, common)) : repo;
+  }
+  const home = await realpath(HOME).catch(() => HOME);
+  return (await realpath(root).catch(() => root)) === home ? null : root;
+}
+
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /**
@@ -285,13 +309,18 @@ const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v =
  * enabled in settings (enabledPlugins: yours, then the project's shared and local settings).
  * A plugin's own manifest can name more command or skill folders.
  */
-async function pluginCommands(cwd: string): Promise<SlashCommand[]> {
+async function pluginCommands(cwd: string, repo: string | null): Promise<SlashCommand[]> {
   const root = await realpath(join(CLAUDE_HOME, 'plugins')).catch(() => null);
   if (!root) return [];
   const installed = await readJson(join(root, 'installed_plugins.json'));
   const plugins = isRecord(installed) && isRecord(installed.plugins) ? installed.plugins : {};
   const enabled: Record<string, unknown> = {};
-  for (const file of [join(CLAUDE_HOME, 'settings.json'), join(cwd, '.claude', 'settings.json'), join(cwd, '.claude', 'settings.local.json')]) {
+  // Yours, the project's shared file (in their folder), then its local one: in their folder (where
+  // older Claude Code kept it), then at the repository's top, which wins.
+  const local = await localSettingsRoot(repo);
+  const files = [join(CLAUDE_HOME, 'settings.json'), join(cwd, '.claude', 'settings.json'), join(cwd, '.claude', 'settings.local.json')];
+  if (local && local !== cwd) files.push(join(local, '.claude', 'settings.local.json'));
+  for (const file of files) {
     const s = await readJson(file);
     if (isRecord(s) && isRecord(s.enabledPlugins)) Object.assign(enabled, s.enabledPlugins);
   }

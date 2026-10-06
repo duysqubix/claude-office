@@ -8,8 +8,9 @@
 // Then it checks the office read the pretend session the way Claude Code writes it.
 //   npm run build && node scripts/ci/smoke.mjs     (serves dist/; without a build it uses dev mode)
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { freePort, makeHome, ROOT, startOffice } from './office.mjs';
 
@@ -117,7 +118,8 @@ const put = (path, text) => {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, text);
 };
-const outside = join(home.dir, 'outside');
+// Outside this office's whole folder (the folder above the home is a repository below).
+const outside = mkdtempSync(join(realpathSync(tmpdir()), 'office-smoke-outside-'));
 put(join(outside, 'secret.md'), '---\ndescription: never shown\n---\n');
 put(join(outside, 'escape', 'SKILL.md'), '---\nname: escaped\ndescription: never shown\n---\n');
 put(join(home.claudeHome, 'commands', 'tidy.md'), '---\ndescription: "Tidy the desk"\nargument-hint: <where>\n---\nTidy $ARGUMENTS.\n');
@@ -148,8 +150,24 @@ put(join(pluginAt('kettle'), 'commands', 'boil.md'), '---\ndescription: Boil the
 put(join(pluginAt('kettle'), 'skills', 'steep', 'SKILL.md'), '---\nname: steep\ndescription: Steep for three minutes\n---\n');
 put(join(pluginAt('mug'), 'commands', 'drink.md'), '---\ndescription: never shown (disabled)\n---\n');
 const installed = (name) => [{ scope: 'user', installPath: pluginAt(name), version: '1.0.0' }];
-put(join(home.claudeHome, 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'kettle@shelf': installed('kettle'), 'mug@shelf': installed('mug') } }));
-put(join(home.claudeHome, 'settings.json'), JSON.stringify({ enabledPlugins: { 'kettle@shelf': true, 'mug@shelf': false } }));
+put(join(pluginAt('teapot'), 'commands', 'pour.md'), '---\ndescription: never shown (off in the main checkout)\n---\n');
+put(join(home.claudeHome, 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'kettle@shelf': installed('kettle'), 'mug@shelf': installed('mug'), 'teapot@shelf': installed('teapot') } }));
+put(join(home.claudeHome, 'settings.json'), JSON.stringify({ enabledPlugins: { 'kettle@shelf': true, 'mug@shelf': false, 'teapot@shelf': true } }));
+// The folder above the home is a git worktree, so the session works in a subfolder of it: its
+// settings.local.json lives in the main checkout, and turning teapot off there wins.
+const main = join(home.dir, 'main-checkout');
+put(join(main, '.git', 'worktrees', 'desk', 'commondir'), '../..\n');
+put(join(home.dir, '.git'), `gitdir: ${join(main, '.git', 'worktrees', 'desk')}\n`);
+put(join(main, '.claude', 'settings.local.json'), JSON.stringify({ enabledPlugins: { 'teapot@shelf': false } }));
+// Names that clash: the one Claude Code runs is kept. A skill over a command file and over a
+// built-in, yours over the project's.
+put(join(project, '.claude', 'commands', 'stage.md'), '---\ndescription: The command file\n---\n');
+put(join(project, '.claude', 'skills', 'stage', 'SKILL.md'), '---\nname: stage\ndescription: The skill\n---\n');
+put(join(project, '.claude', 'skills', 'pack', 'SKILL.md'), '---\nname: pack\ndescription: The project one\n---\n');
+put(join(home.claudeHome, 'skills', 'pack', 'SKILL.md'), '---\nname: pack\ndescription: Yours\n---\n');
+put(join(home.claudeHome, 'skills', 'bug', 'SKILL.md'), '---\nname: bug\ndescription: Your own bug skill\n---\n');
+// user-invocable's other ways of saying false.
+for (const no of ['no', 'Off', '0']) put(join(home.claudeHome, 'skills', `hush-${no}`, 'SKILL.md'), `---\nname: hush-${no}\nuser-invocable: ${no}\n---\n`);
 
 // POST JSON the way the page does (same origin: no Origin header).
 const post = (path, body) =>
@@ -259,6 +277,9 @@ try {
   check("…a .claude/ in a folder above theirs counts as the project's", has('upstairs', 'project', 'command', 'From the folder above'), names);
   check('…a skill folder in commands/ is one command; its other files are not commands', has('release', 'project', 'skill', 'Cut a release') && !byName.has('release:reference') && !byName.has('release:SKILL'), names);
   check('…user-invocable: false hides commands too (yours and a plugin manifest\'s), with a comment or quotes', !byName.has('internal') && !byName.has('kettle:hush') && has('kettle:pour', 'plugin', 'command', 'Pour a cup') && !byName.has('hush-comment') && !byName.has('hush-quoted') && has('said', 'user', 'skill', 'Quoted, kept'), names);
+  check('clashing names: a skill beats a command file and a built-in; yours beats the project\'s', has('stage', 'project', 'skill', 'The skill') && has('pack', 'user', 'skill', 'Yours') && has('bug', 'user', 'skill', 'Your own bug skill'), names);
+  check("a plugin turned off in the main checkout's settings.local.json (a worktree, from a subfolder) → hidden", !byName.has('teapot:pour') && has('kettle:boil', 'plugin', 'command'), names);
+  check('user-invocable: no / Off / 0 hide it too', !byName.has('hush-no') && !byName.has('hush-Off') && !byName.has('hush-0'), names);
   check('…links leading out of their folders are never followed', !byName.has('leak') && !byName.has('escaped') && !byName.has('escape') && !JSON.stringify(cmds.body ?? '').includes('never shown'), names);
   const [badId, notHere] = await Promise.all([getWith('/api/session/not-a-session/commands'), getWith(`/api/session/${PAST_ID}/commands`)]);
   check('commands: a bad id gets 400, someone not in the office 404', badId.status === 400 && notHere.status === 404, JSON.stringify([badId.status, notHere.status]));
@@ -272,6 +293,7 @@ try {
   live.kill();
   for (const p of others) p.kill();
   home.cleanup();
+  rmSync(outside, { recursive: true, force: true });
 }
 
 console.log(failed || code ? `\nsmoke failed (smoke.mjs exit ${code}, ${failed} fixture check(s) failed)` : '\nsmoke: all good');

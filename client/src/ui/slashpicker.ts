@@ -29,7 +29,7 @@ const TYPING_NAME = /^\/([^\s/]*)$/;
 const SOURCE_ORDER: Record<SlashCommand['source'], number> = { 'built-in': 0, project: 1, user: 2, plugin: 3 };
 
 /**
- * The commands for `query` (what follows "/"), best first: the name starts with it, then a
+ * The commands for `query` (what follows "/"), best first: the name itself, then it starts with it, then a
  * part after ":" does, then it's somewhere in the name, then its letters are, in order.
  */
 export function rankCommands(all: SlashCommand[], query: string): SlashCommand[] {
@@ -38,7 +38,8 @@ export function rankCommands(all: SlashCommand[], query: string): SlashCommand[]
   for (const c of all) {
     const n = c.name.toLowerCase();
     let score: number;
-    if (!q || n.startsWith(q)) score = 0;
+    if (q && n === q) score = -1;
+    else if (!q || n.startsWith(q)) score = 0;
     else if (n.split(':').some((part) => part.startsWith(q))) score = 1;
     else if (n.includes(q)) score = 2;
     else if (fuzzy(n, q)) score = 3;
