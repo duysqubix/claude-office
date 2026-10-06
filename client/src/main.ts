@@ -43,6 +43,8 @@ import { DeskTerminal } from './ui/deskterm';
 import { h, truncate, waitingText } from './ui/dom';
 import { Hud } from './ui/hud';
 import { LabelLayer } from './ui/labels';
+import { plainText } from './ui/markdown';
+import { baseline, finishedAt, isReady, markSeen, onReadyChange, readyChimeOn } from './ui/ready';
 import { PanelHost, type PanelId } from './ui/panels';
 import { Sfx } from './ui/sfx';
 import { TerminalOverlay } from './ui/terminal';
@@ -133,6 +135,7 @@ function runOffice(): void {
     stateChanged(e, prev) {
       // Answered (here or in their own terminal): one pop-up, and the reminders stop.
       if (prev === 'needs-you') sfx.answered(e.data.sessionId);
+      if (e.state === 'idle' && prev !== 'sleeping') finished(e);
       if (e.state !== 'needs-you') return;
       sfx.ding(e.data.sessionId);
       toasts.show(`${e.data.displayName} needs you`, 'warn', 6000, e.data.ask?.title ?? waitingText(e.data), {
@@ -152,6 +155,40 @@ function runOffice(): void {
     internAdded: (i) => labels.attachIntern(i),
     internRemoved: (i) => labels.detachIntern(i),
   });
+
+  /**
+   * They just finished their turn (#162). Unless you were already looking (their chat open, at
+   * their computer, Monitor on them: those mark it seen first), they're ready for you: a soft
+   * chime and a toast with their last line.
+   */
+  function finished(e: EmployeeChar): void {
+    const id = e.data.sessionId;
+    if (!isReady(e.data)) return;
+    if (readyChimeOn()) sfx.play('ready');
+    const last = e.data.lastText ? truncate(plainText(e.data.lastText), 90) : undefined;
+    toasts.show(`${e.data.displayName} finished`, 'info', 7000, last, {
+      who: e.data,
+      actions: [
+        {
+          label: 'Go',
+          run: () => {
+            if (!sitting) walkTo(id);
+          },
+        },
+        {
+          label: 'Open chat',
+          // Seated, their chat would open under the computer: say how instead.
+          run: () => (sitting ? toasts.show('Stand up first (Esc), then open their chat.', 'info', 4000) : panels.openChat(id)),
+        },
+      ],
+    });
+  }
+
+  /** Who is ready for you, onto their characters (pose, labels, edge faces). */
+  function refreshReady(): void {
+    for (const e of director.list()) e.readyForYou = isReady(e.data);
+  }
+  onReadyChange(refreshReady);
 
   // Regulars: NPC coworkers at the desks no session is using (chars/regulars.ts). Never in the
   // roster, stats, toasts or Q; E gets a quip, never a panel. `?regulars=` and `?seed=` for tests.
@@ -197,6 +234,7 @@ function runOffice(): void {
     uiRoot,
     {
       needsYou: () => goToNextNeedsYou(),
+      ready: () => goToNextReady(),
       stats: () => panels.toggle('stats'),
       roster: () => panels.toggle('roster'),
       hire: () => panels.toggle('hire'),
@@ -231,8 +269,14 @@ function runOffice(): void {
   let offlineTimer = 0;
   backend.onHello = (home) => (store.home = home);
   backend.onRoster = (list, now) => {
+    // A first visit starts from here: whoever is already done isn't news (ready.ts). The demo
+    // office skips it, so its idle cast shows the cue straight away.
+    if (!backend.demo) baseline(list);
     store.set(list, now);
+    // At their computer as they finish: you saw it (their chat and Monitor mark it themselves).
+    if (sitting && sitting.phase !== 'walking') markSeen(store.get(sitting.id));
     director.sync(list);
+    refreshReady();
     hud.setStats(director.stats());
   };
   backend.onNotice = (level, text) => toasts.show(text, level === 'warn' ? 'warn' : 'info', 6000);
@@ -331,19 +375,42 @@ function runOffice(): void {
     return best?.data.sessionId;
   }
 
-  /** Q / N / the chip: the next person with their hand up, longest-waiting first. */
+  /** Everyone ready for you (#162), whoever finished first first. */
+  function readyPeople(): EmployeeChar[] {
+    return director
+      .list()
+      .filter((e) => e.phase !== 'leaving' && e.phase !== 'gone' && !e.handUp && isReady(e.data))
+      .sort((a, b) => finishedAt(a.data)! - finishedAt(b.data)!);
+  }
+
+  /** Go to the one after whoever you're heading for now (round again at the end). */
+  function goToNextOf(list: EmployeeChar[]): void {
+    const i = goingTo ? list.findIndex((e) => e.data.sessionId === goingTo) : -1;
+    panels.close();
+    walkTo(list[(i + 1) % list.length].data.sessionId);
+  }
+
+  /**
+   * Q / N / the chip: the next person with their hand up, longest-waiting first; then whoever is
+   * ready for you, first finished first.
+   */
   function goToNextNeedsYou(): void {
     const waiting = director
       .list()
       .filter((e) => e.handUp && e.phase !== 'leaving' && e.phase !== 'gone')
       .sort((a, b) => a.data.stateSince - b.data.stateSince);
-    if (!waiting.length) {
+    const all = [...waiting, ...readyPeople()];
+    if (!all.length) {
       toasts.show('Nobody needs you right now', 'good', 2200);
       return;
     }
-    const i = goingTo ? waiting.findIndex((e) => e.data.sessionId === goingTo) : -1;
-    panels.close();
-    walkTo(waiting[(i + 1) % waiting.length].data.sessionId);
+    goToNextOf(all);
+  }
+
+  /** The ready chip: just the ready ones. */
+  function goToNextReady(): void {
+    const ready = readyPeople();
+    if (ready.length) goToNextOf(ready);
   }
 
   // These four only need the desk: someone's (sitAt) or an empty one's (sitAtDesk).
@@ -426,6 +493,8 @@ function runOffice(): void {
     // timers must leave that one alone.
     const me = sitting;
     me.phase = 'easing';
+    // Sitting down at their computer: you see how their turn ended.
+    markSeen(e.data);
     manager.frozen = true;
     manager.face(e.desk.yaw);
     hud.setPrompt(null);

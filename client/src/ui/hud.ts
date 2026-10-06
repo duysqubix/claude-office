@@ -7,16 +7,19 @@ import { audio } from '../audio';
 import type { OfficeStats } from '../world/types';
 import { bus } from './bus';
 import { coachDone, coachPrompt } from './coach';
-import { hudButton, internChip, keyCap, needsChip, stateChip } from './components';
+import { hudButton, internChip, keyCap, needsChip, readyChip, stateChip } from './components';
 import { waitingLines } from './dom';
 import { el } from './el';
 import { logoSvg, setTabAlert } from './faces';
 import { icon } from './icons';
+import { onReadyChange, readyList } from './ready';
 import { planMeter } from './teamstats';
 
 export interface HudHandlers {
   /** Clicked the needs-you chip (= Q). */
   needsYou(): void;
+  /** Clicked the ready chip: the first one who finished. */
+  ready(): void;
   /** Clicked the plan meter. */
   stats(): void;
   roster(): void;
@@ -37,6 +40,8 @@ export class Hud {
   private staff: HTMLElement;
   private demo: HTMLElement;
   private needsSlot: HTMLElement;
+  private readySlot: HTMLElement;
+  private readyKey = '';
   private counts: HTMLElement;
   private meterSlot: HTMLElement;
   private soundBtn: HTMLButtonElement;
@@ -87,9 +92,10 @@ export class Hud {
       el('span', null, el('span', { class: 'co-hud-box__title' }, 'Claude Office'), el('span', { class: 'co-hud-box__meta' }, this.sky, this.clock, this.staff, this.demo)),
     );
     this.needsSlot = el('div', { class: 'co-hud__needs' });
+    this.readySlot = el('div', { class: 'co-hud__ready' });
     this.counts = el('div', { class: 'co-hud__counts' });
     this.meterSlot = el('span', { class: 'co-hud__meter', attrs: { hidden: true } });
-    const left = el('div', { class: 'co-hud__left' }, badge, this.needsSlot, el('div', { class: 'co-hud__row' }, this.counts, this.meterSlot));
+    const left = el('div', { class: 'co-hud__left' }, badge, el('div', { class: 'co-hud__alerts' }, this.needsSlot, this.readySlot), el('div', { class: 'co-hud__row' }, this.counts, this.meterSlot));
 
     this.soundBtn = hudButton('sound', 'Sound', 'M', () => {
       // The press that unlocked the speakers turns sound on, as the dot promised: it doesn't mute.
@@ -138,6 +144,8 @@ export class Hud {
       window.setTimeout(() => cap?.classList.remove('is-down'), 140);
     });
     store?.subscribe(() => this.renderPeople());
+    // Seen someone, or flipped the switch in Help: the ready chip follows.
+    onReadyChange(() => this.renderPeople());
     this.renderPeople();
     this.tick();
     // The speakers (audio/): the dot until the browser lets the page play, and M or another
@@ -294,6 +302,7 @@ export class Hud {
       if (hadFocus) (chip.matches('button') ? chip : document.getElementById('scene'))?.focus({ preventScroll: true });
     }
     this.updateRing();
+    this.renderReady(people);
 
     const counts = this.store
       ? COUNTED.map((s) => [s, byState(s)] as const)
@@ -319,6 +328,25 @@ export class Hud {
       }
     }
     this.waiting = now;
+  }
+
+  /** The ready chip (#162): "2 ready", or nothing. */
+  private renderReady(people: Employee[]): void {
+    const n = this.store ? readyList(people).length : 0;
+    if (String(n) === this.readyKey) return;
+    const grew = n > Number(this.readyKey || 0);
+    this.readyKey = String(n);
+    const hadFocus = this.readySlot.contains(document.activeElement);
+    if (!n) {
+      this.readySlot.replaceChildren();
+      if (hadFocus) document.getElementById('scene')?.focus({ preventScroll: true });
+      return;
+    }
+    const chip = readyChip(n, () => this.on.ready());
+    // One more finished: a little bump, so the change is seen.
+    if (grew) chip.classList.add('is-bumped');
+    this.readySlot.replaceChildren(chip);
+    if (hadFocus) chip.focus({ preventScroll: true });
   }
 
   /** How much time the soonest open ask has left, 0–1 (null: no ask open). */

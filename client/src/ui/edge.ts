@@ -1,7 +1,8 @@
 // Off-screen faces (UX.md §2.1): people who need you but are outside the safe part of the screen
 // (or behind the camera) get their portrait pinned to the screen edge, with an amber ring, a "!"
-// and a notch pointing at them. Click = go to them. Markers within 60 px merge into one with a
-// count; positions glide (damped) so they never jitter.
+// and a notch pointing at them. People ready for you (finished, unseen) get a calmer mint ring
+// and a tick. Click = go to them. Markers within 60 px merge into one with a count; positions
+// glide (damped) so they never jitter.
 import * as THREE from 'three';
 import { el, markup, type Markup } from './el';
 import './theme.css';
@@ -14,6 +15,8 @@ export interface EdgeTarget {
   faceSvg: Markup;
   /** Needs-you: amber ring + "!". Otherwise a paper ring (e.g. whoever you're walking to). */
   urgent: boolean;
+  /** Ready for you (#162): a mint ring and a tick, calmer than needs-you. */
+  ready?: boolean;
   name?: string;
   /** Hover text and accessible name. Default "Go to <name>". */
   tooltip?: string;
@@ -108,6 +111,7 @@ interface Marker {
   y: number;
   face: Markup | '';
   urgent: boolean | null;
+  ready: boolean | null;
   leadId: string;
 }
 
@@ -186,7 +190,7 @@ export class EdgeIndicators {
       el('span', { class: 'co-edge__bob' }, el('span', { class: 'co-edge__float' }, aim, disc, badge)),
       name,
     );
-    const m: Marker = { btn, aim, disc, badge, name, x: at.x, y: at.y, face: '', urgent: null, leadId: t.id };
+    const m: Marker = { btn, aim, disc, badge, name, x: at.x, y: at.y, face: '', urgent: null, ready: null, leadId: t.id };
     btn.addEventListener('click', () => this.onGo(m.leadId));
     this.root.append(btn);
     return m;
@@ -205,13 +209,18 @@ export class EdgeIndicators {
       m.aim.innerHTML = notch(t.urgent);
     }
     m.btn.classList.toggle('co-edge--calm', !t.urgent);
+    const ready = !t.urgent && !!t.ready;
+    if (m.ready !== ready) {
+      m.ready = ready;
+      m.btn.classList.toggle('co-edge--ready', ready);
+    }
     m.btn.classList.toggle('is-late', t.urgent && t.since !== undefined && wallNow - t.since > LATE_MS);
     const label = (t.tooltip ?? `Go to ${t.name ?? 'them'}`) + (count > 1 ? ` (and ${count - 1} more waiting)` : '');
     if (m.btn.getAttribute('aria-label') !== label) {
       m.btn.setAttribute('aria-label', label);
       m.btn.title = label;
     }
-    const badgeText = count > 1 ? String(count) : t.urgent ? '!' : '';
+    const badgeText = count > 1 ? String(count) : t.urgent ? '!' : t.ready ? '\u2713' : '';
     if (m.badge.textContent !== badgeText) m.badge.textContent = badgeText;
     m.badge.hidden = !badgeText;
     m.badge.classList.toggle('co-edge__badge--count', count > 1);

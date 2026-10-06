@@ -1,6 +1,6 @@
 // Monitor, the laptop's second app (#150): see everyone in the office from your desk, the way
 // your computer could remote into theirs. A list of everyone, the ones who need you first, then
-// the busy ones; pick someone for a summary of where they are (what they're on, what they're
+// the ones ready for you (finished, unseen: ui/ready.ts), then the busy ones; pick someone for a summary of where they are (what they're on, what they're
 // doing right now, what you last asked, what they last said, their interns) above their live
 // conversation: their own chat, so you can read along, answer their question or talk to them
 // without walking over. "Go to them" stands you up and walks you there.
@@ -9,7 +9,8 @@ import type { RosterStore } from '../net';
 import type { ChatView } from '../ui/chatpanel';
 import { button } from '../ui/components';
 import { el, type Markup } from '../ui/el';
-import { icon, stateBadge, STATE_WORD } from '../ui/icons';
+import { icon, readyBadge, stateBadge, STATE_WORD } from '../ui/icons';
+import { finishedAt, isReady, onReadyChange } from '../ui/ready';
 
 export interface MonitorDeps {
   store: RosterStore;
@@ -28,8 +29,11 @@ export interface MonitorView {
   dispose(): void;
 }
 
-/** Who comes first in the list: whoever needs you, then the busy ones. */
-const ORDER: Record<EmployeeState, number> = { 'needs-you': 0, working: 1, starting: 2, idle: 3, sleeping: 4 };
+/** Who comes first in the list: whoever needs you, then whoever is ready for you, then the busy ones. */
+const ORDER: Record<EmployeeState, number> = { 'needs-you': 0, working: 2, starting: 3, idle: 4, sleeping: 5 };
+const rank = (e: Employee) => (isReady(e) ? 1 : ORDER[e.state]);
+/** Within a group, longest waiting first (a ready one by when they finished). */
+const since = (e: Employee) => (isReady(e) ? finishedAt(e)! : e.stateSince);
 
 const ago = (ms: number) => {
   const m = Math.max(0, Math.round(ms / 60_000));
@@ -43,6 +47,7 @@ const clip = (s: string | undefined, n: number) => (!s ? '' : s.length > n ? `${
 /** One line on where they are, for the list. */
 function lineFor(e: Employee): string {
   if (e.state === 'needs-you') return `Needs you: ${e.waitingFor ?? 'your input'}`;
+  if (isReady(e)) return `Ready for you: ${clip(e.lastText, 60)}`;
   if (e.state === 'working') return e.activity?.label ?? 'Working';
   if (e.state === 'starting') return 'Just walked in';
   return clip(e.title ?? e.lastText, 60) || STATE_WORD[e.state];
@@ -91,7 +96,7 @@ export function monitorView(deps: MonitorDeps): MonitorView {
   let listKey = '';
   let headKey = '';
 
-  const people = () => [...store.employees].sort((a, b) => ORDER[a.state] - ORDER[b.state] || a.stateSince - b.stateSince || a.displayName.localeCompare(b.displayName));
+  const people = () => [...store.employees].sort((a, b) => rank(a) - rank(b) || since(a) - since(b) || a.displayName.localeCompare(b.displayName));
 
   function pick(id: string, focus = false): void {
     if (picked === id && chat) return;
@@ -106,7 +111,7 @@ export function monitorView(deps: MonitorDeps): MonitorView {
 
   function renderList(all: Employee[]): void {
     const now = store.now();
-    const key = all.map((e) => `${e.sessionId}|${e.state}|${e.displayName}|${lineFor(e)}|${Math.floor((now - e.stateSince) / 60_000)}|${e.sessionId === picked}`).join('\n');
+    const key = all.map((e) => `${e.sessionId}|${e.state}|${isReady(e)}|${e.displayName}|${lineFor(e)}|${Math.floor((now - e.stateSince) / 60_000)}|${e.sessionId === picked}`).join('\n');
     if (key === listKey) return;
     listKey = key;
     const had = list.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.id : undefined;
@@ -116,13 +121,13 @@ export function monitorView(deps: MonitorDeps): MonitorView {
           'button',
           {
             class: `mon-row${e.sessionId === picked ? ' is-picked' : ''}`,
-            attrs: { type: 'button', role: 'option', 'aria-selected': String(e.sessionId === picked), 'data-id': e.sessionId, 'data-state': e.state },
+            attrs: { type: 'button', role: 'option', 'aria-selected': String(e.sessionId === picked), 'data-id': e.sessionId, 'data-state': e.state, 'data-ready': isReady(e) ? '' : undefined },
           },
           el('span', { class: 'mon-row__face', html: deps.face(e.sessionId, 36) }),
           el(
             'span',
             { class: 'mon-row__text' },
-            el('span', { class: 'mon-row__name' }, el('span', { html: stateBadge(e.state) }), e.displayName, el('small', null, ago(now - e.stateSince))),
+            el('span', { class: 'mon-row__name' }, el('span', { html: isReady(e) ? readyBadge() : stateBadge(e.state) }), e.displayName, el('small', null, ago(now - e.stateSince))),
             el('span', { class: 'mon-row__line' }, lineFor(e)),
           ),
         );
@@ -199,6 +204,8 @@ export function monitorView(deps: MonitorDeps): MonitorView {
   });
 
   const unsub = store.subscribe(() => render());
+  // Seen someone (here, in the office) or the switch in Help: the order and badges follow.
+  const unsubReady = onReadyChange(() => render());
   // The minutes move on between roster updates.
   const tick = window.setInterval(() => render(), 15_000);
   render();
@@ -224,6 +231,7 @@ export function monitorView(deps: MonitorDeps): MonitorView {
     },
     dispose() {
       unsub();
+      unsubReady();
       window.clearInterval(tick);
       chat?.dispose();
       chat = null;

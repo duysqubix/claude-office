@@ -139,6 +139,13 @@ const RECIPES: Record<SfxName, Recipe> = {
     vib.stop(t + 0.8);
     return 0.72;
   },
+  // Someone finished their turn (#162): two soft rising notes, gentler than the needs-you ding.
+  ready: (k, t) => {
+    k.tone(784, t, 0.3, 'sine', 0.09);
+    k.tone(1175, t + 0.11, 0.42, 'sine', 0.08);
+    k.tone(2350, t + 0.11, 0.2, 'sine', 0.012);
+    return 0.53;
+  },
   slurp: (k, t) => {
     const src = k.noise(t, 0.25);
     const bp = k.filter('bandpass', 900, 1.2);

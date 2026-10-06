@@ -14,6 +14,8 @@ export interface ToastRequest {
   /** Portrait (faces.ts) or icon (icons.ts) shown on the left. */
   face?: Markup;
   action?: { label: string; run: () => void };
+  /** More buttons after `action` (a finished turn's Go and Open chat). */
+  actions?: { label: string; run: () => void }[];
   /** Default: 3.5 s, 6 s with an action, 7 s for 'bad'. */
   ms?: number;
   /** Toasts with the same key within 2 s merge into one… */
@@ -45,7 +47,8 @@ export type SfxName =
   | 'error'
   | 'pip'
   | 'wahwah'
-  | 'slurp';
+  | 'slurp'
+  | 'ready';
 
 export interface OfficeEvents {
   /** Someone walked in. `how` says why: their own terminal, hired here, called back, or a resync after reconnecting. */

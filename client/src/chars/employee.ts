@@ -124,6 +124,11 @@ export class EmployeeChar implements Bumpable {
   private thankT = -1;
   /** The ask that answer was for: only that one stays hidden while the roster catches up. */
   private answeredAskId: string | undefined;
+  /**
+   * Ready for you (ui/ready.ts, set by main.ts): finished their turn and you haven't looked yet.
+   * A calm hand up with the odd wave, instead of lounging or dozing off.
+   */
+  readyForYou = false;
   /** A short line they say out loud (shown as their bubble), and until when. */
   quipText = '';
   quipUntil = 0;
@@ -269,6 +274,8 @@ export class EmployeeChar implements Bumpable {
   private get poseState(): EmployeeState {
     const ask = this.data.ask;
     const catchingUp = this.thankT >= 0 && this.thankT < 2.5 && this.data.state === 'needs-you' && (!ask || ask.id === this.answeredAskId);
+    // Ready and unseen: still sitting up waiting for you, not asleep on the desk.
+    if (this.readyForYou && this.data.state === 'sleeping') return 'idle';
     return catchingUp ? 'working' : this.data.state;
   }
 
@@ -527,7 +534,8 @@ export class EmployeeChar implements Bumpable {
   }
 
   private lookAtManager(managerHead: THREE.Vector3, dist: number): void {
-    const st = this.state;
+    // A ready sleeper is still sitting up, waiting for you.
+    const st = this.readyForYou && this.state === 'sleeping' ? 'idle' : this.state;
     if (st === 'sleeping') return;
     const range = st === 'needs-you' ? 12 : 4;
     if (dist > range) return;
@@ -643,6 +651,10 @@ export class EmployeeChar implements Bumpable {
       }
       case 'idle': {
         this.glance.update(dt);
+        if (this.readyForYou) {
+          this.readyPose(tt);
+          break;
+        }
         T.lean -= 0.22;
         // Every so often: a big lazy yawn-and-stretch.
         const yawnT = (tt + this.idleStyle * 4) % 15;
@@ -705,6 +717,36 @@ export class EmployeeChar implements Bumpable {
         this.workingPose(tt, this.kind ?? 'thinking');
         break;
     }
+  }
+
+  /**
+   * Ready for you: the left hand up by the ear, relaxed and bent (needs-you's is the right arm,
+   * straight up and stretched), the other on the desk, a content face, and a little wave every
+   * few seconds.
+   */
+  private readyPose(tt: number): void {
+    const b = this.body;
+    const T = b.target;
+    const O = b.over;
+    T.armLRoll += 1.95;
+    T.armLPitch += 0.35;
+    T.elbowL += 0.75;
+    T.armLStretch += 0.12;
+    this.handsOnDesk(T, 'R');
+    T.lean -= 0.1;
+    T.side += 0.08;
+    T.headRoll += 0.08;
+    T.brow += 0.3;
+    // A wave (1.3 s) every 6 s; between them the hand just sways.
+    const w = (tt + this.idleStyle * 1.5) % 6;
+    const wave = w < 1.3 ? Math.sin((w / 1.3) * Math.PI) : 0;
+    O.elbowL += Math.sin(tt * 8.5) * 0.4 * wave;
+    O.armLRoll += Math.sin(tt * 1.3) * 0.05 + Math.sin(tt * 8.5 + 0.7) * 0.08 * wave;
+    O.crouch += Math.abs(Math.sin(tt * 1.7)) * 0.012;
+    if (wave > 0.5) b.say('open', 0.1);
+    b.heading.setTarget(this.desk.yaw + Math.sin(tt * 0.45) * 0.12);
+    T.headYaw += this.glance.yaw;
+    T.headPitch += this.glance.pitch - 0.08;
   }
 
   /** Forearms resting on the desk edge. */

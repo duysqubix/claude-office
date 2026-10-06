@@ -33,6 +33,9 @@ export const STATE_WORD: Record<EmployeeState, string> = {
   starting: 'Starting',
 };
 
+/** Ready for you (ready.ts): a raised open hand, the calm cousin of needs-you's "!". */
+const READY_GLYPH = `<rect x="6.6" y="6.2" width="2.7" height="8.6" rx="1.35" fill="${INK}"/><rect x="9.6" y="3.4" width="2.7" height="10" rx="1.35" fill="${INK}"/><rect x="12.6" y="3.9" width="2.7" height="9.6" rx="1.35" fill="${INK}"/><rect x="15.6" y="6.2" width="2.5" height="8" rx="1.25" fill="${INK}"/><path d="M6.6 11.5h11.5v3.8a6 6 0 0 1-6 6h-.6a4.9 4.9 0 0 1-3.9-1.9L4.3 15.4a1.6 1.6 0 0 1 2.3-2.2z" fill="${INK}"/>`;
+
 export function stateGlyph(state: EmployeeState, size = 12): Markup {
   return markup(`<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${GLYPHS[state] ?? GLYPHS.starting}</svg>`);
 }
@@ -42,6 +45,14 @@ export function stateBadge(state: EmployeeState, large = false): Markup {
   const word = STATE_WORD[state] ?? 'Unknown';
   return markup(
     `<span class="co-badge${large ? ' co-badge--lg' : ''}" data-state="${esc(state)}" role="img" aria-label="${word}">${stateGlyph(state, large ? 14 : 12)}</span>`,
+  );
+}
+
+/** The ready-for-you badge: the same round badge as the states, mint with the raised hand. */
+export function readyBadge(large = false): Markup {
+  const size = large ? 14 : 12;
+  return markup(
+    `<span class="co-badge${large ? ' co-badge--lg' : ''}" data-state="ready" role="img" aria-label="Ready for you"><svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${READY_GLYPH}</svg></span>`,
   );
 }
 

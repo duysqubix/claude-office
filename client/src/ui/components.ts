@@ -8,7 +8,7 @@
 import type { EmployeeState } from '../../../shared/protocol';
 import type { ToastRequest } from './bus';
 import { el, markup, type Child, type Markup } from './el';
-import { icon, stateBadge, STATE_WORD, type IconName } from './icons';
+import { icon, readyBadge, stateBadge, STATE_WORD, type IconName } from './icons';
 import './theme.css';
 
 export type ButtonKind = 'primary' | 'secondary' | 'danger' | 'ghost' | 'danger-text';
@@ -113,6 +113,22 @@ export function needsChip(count: number, opts: { left?: number; seated?: boolean
   return b;
 }
 
+/**
+ * The ready-for-you chip (#162), beside the needs-you one: "2 ready", calm mint, no key cap (Q
+ * reaches them after anyone with a question). Click: go to whoever finished first.
+ */
+export function readyChip(count: number, onClick?: () => void): HTMLButtonElement {
+  const b = el(
+    'button',
+    { class: 'co-chip co-ready', attrs: { type: 'button', 'data-state': 'ready', 'aria-label': `${count} ${count === 1 ? 'person is' : 'people are'} ready for you. Go to the first` } },
+    el('span', { html: readyBadge() }),
+    el('b', null, String(count)),
+    'ready',
+  );
+  if (onClick) b.addEventListener('click', onClick);
+  return b;
+}
+
 export function promptPill(text: string, key = 'E'): HTMLElement {
   return el('div', { class: 'co-prompt', attrs: { role: 'status' } }, keyCap(key, true), text);
 }
@@ -141,6 +157,11 @@ export function speech(opts: { text?: string; line1?: string; line2?: string; co
 
 export function bangMarker(kind: 'needs' | 'bump' = 'needs'): HTMLElement {
   return el('div', { class: `co-bang${kind === 'bump' ? ' co-bang--bump' : ''}`, attrs: { 'aria-hidden': 'true' } }, '!');
+}
+
+/** Over someone ready for you: a little "Done!" card with a tick, held up and gently swaying. */
+export function doneCard(): HTMLElement {
+  return el('div', { class: 'co-bang co-bang--ready', attrs: { 'aria-hidden': 'true' } }, el('span', { html: icon('check', 18) }), 'Done!');
 }
 
 export function zzz(): HTMLElement {
@@ -197,15 +218,17 @@ export function toastEl(req: ToastRequest, onAction?: () => void): HTMLElement {
     { class: `co-toast${kind === 'info' ? '' : ` co-toast--${kind}`}${req.slam ? ' co-toast--slam' : ''}` },
     req.face ? el('span', { class: 'co-toast__face', html: req.face }) : null,
     el('span', { class: 'co-toast__text' }, req.text, req.sub ? el('span', { class: 'co-toast__sub' }, req.sub) : null),
-    req.action
-      ? button(req.action.label, {
-          small: true,
-          onClick: () => {
-            req.action!.run();
-            onAction?.();
-          },
-        })
-      : null,
+    ...[req.action, ...(req.actions ?? [])].map((a) =>
+      a
+        ? button(a.label, {
+            small: true,
+            onClick: () => {
+              a.run();
+              onAction?.();
+            },
+          })
+        : null,
+    ),
   );
 }
 
@@ -275,7 +298,7 @@ export class ToastStack {
   }
 
   private arm(node: HTMLElement, req: ToastRequest): void {
-    const ms = req.ms ?? (req.kind === 'bad' ? 7000 : req.action ? 6000 : 3500);
+    const ms = req.ms ?? (req.kind === 'bad' ? 7000 : req.action || req.actions?.length ? 6000 : 3500);
     let t = window.setTimeout(() => this.dismiss(node), ms);
     const pause = () => window.clearTimeout(t);
     const resume = () => {

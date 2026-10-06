@@ -497,6 +497,32 @@ export function createDemoBackend(params: URLSearchParams): Backend {
     emit();
   }
 
+  // Dev builds with ?debug=1: checks can move the cast along, quiet or not
+  // (window.officeDemo.finish('Klaus') ends their turn: the ready-for-you cue, #162).
+  if (import.meta.env.DEV && params.has('debug')) {
+    const find = (who: string) => employees.find((e) => e.sessionId === who || e.displayName.toLowerCase() === who.toLowerCase());
+    Object.assign(window, {
+      officeDemo: {
+        finish(who: string, said = pickR(LAST_TEXT)): boolean {
+          const e = find(who);
+          if (!e) return false;
+          e.lastText = said;
+          chatter.get(e.sessionId)?.push(line('assistant', said));
+          setState(e, 'idle');
+          emit();
+          return true;
+        },
+        work(who: string): boolean {
+          const e = find(who);
+          if (!e) return false;
+          setState(e, 'working', 'typing');
+          emit();
+          return true;
+        },
+      },
+    });
+  }
+
   let ticks = 0;
   function tick(): void {
     ticks++;

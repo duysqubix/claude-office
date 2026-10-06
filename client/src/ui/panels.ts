@@ -16,11 +16,12 @@ import { confetti } from './confetti';
 import { ago, doingText, tildify, truncate, waitingLines } from './dom';
 import { el, fmtDuration, fmtMoney, fmtTokens, fmtWait, type Child } from './el';
 import { employeeFace, internFace } from './faces';
-import { icon, stateBadge, STATE_WORD, type IconName } from './icons';
+import { icon, readyBadge, stateBadge, STATE_WORD, type IconName } from './icons';
 import type { Sfx } from './sfx';
 import type { Panel, PanelId } from './shell';
 import { enhanceMarkdown, plainText, renderMarkdown } from './markdown';
 import { markNoteSeen, noteSeen } from './notes';
+import { isReady, markSeen, onReadyChange, readyChimeOn, readyCueOn, readyList, setReadyChime, setReadyCue } from './ready';
 import { holdDisabled, isOffline, needsServer, releaseDisabled, setServerTip } from './offline';
 import { HIGH_CONTEXT, renderTeamStats } from './teamstats';
 import { setThoughtsOn, thoughtsOn, wireThoughts } from './thoughts';
@@ -218,6 +219,8 @@ export class PanelHost {
   openChat(sessionId: string, opts: ChatOpenOptions = {}): void {
     const chat = this.chat(sessionId, opts.mode ?? 'chat');
     if (!chat) return;
+    // Their chat shows how their turn ended: that's seen (ready.ts).
+    markSeen(this.deps.store.get(sessionId));
     this.present(chat, opts);
     this.employeeId = sessionId;
     // After present()'s own focus (next frame) has landed, or it would take the name box's.
@@ -662,6 +665,8 @@ export class PanelHost {
         adopting = !!next.adopting;
         ended = false;
         view.update(next);
+        // Chatting with them as they finish: you saw it happen.
+        markSeen(next);
       } else if (!adopting && !ended) {
         // Moving into the office leaves the roster for a moment; anything else is the end.
         ended = true;
@@ -700,6 +705,8 @@ export class PanelHost {
     const e = store.get(sessionId);
     if (!e) return null;
     const view = openChat(container, e, { ...this.chatApi(), sit, onClose: () => undefined }, { dock: false, now: () => store.now(), home: store.home });
+    // Monitor showing them counts as seeing them, now and as they finish (ready.ts).
+    markSeen(e);
     let ended = false;
     let adopting = !!e.adopting;
     const unsub = store.subscribe(() => {
@@ -708,6 +715,7 @@ export class PanelHost {
         adopting = !!next.adopting;
         ended = false;
         view.update(next);
+        markSeen(next);
       } else if (!ended && !adopting) {
         ended = true;
         view.end(`${e.displayName}'s session has ended.`);
@@ -731,7 +739,11 @@ export class PanelHost {
       if (r.ok && req.choice !== 'terminal') actions.answered(req.sessionId, req.choice);
       return r;
     };
-    const say: ChatApi['say'] = (sid, text) => backend.say(sid, text);
+    const say: ChatApi['say'] = (sid, text) => {
+      // Saying something to them: you've seen how they finished.
+      markSeen(this.deps.store.get(sid));
+      return backend.say(sid, text);
+    };
     const openTerminal: ChatApi['openTerminal'] = (sid, o) => new TerminalView(backend, sid, o);
     if (!backend.demo) return { ...http, say, answer, openTerminal };
     const pretend = async (): Promise<ApiResult> => ({ ok: false, error: 'the demo office has no real sessions' });
@@ -1040,7 +1052,7 @@ export class PanelHost {
     };
     const render = () => {
       const people = [...store.employees].sort((a, b) => a.displayName.localeCompare(b.displayName));
-      const key = people.map((e) => `${e.sessionId}|${e.state}|${e.hosted}|${e.displayName}|${e.project}|${lineFor(e)}|${e.interns.filter((i) => i.active).length}`).join('\n');
+      const key = people.map((e) => `${e.sessionId}|${e.state}|${isReady(e)}|${e.hosted}|${e.displayName}|${e.project}|${lineFor(e)}|${e.interns.filter((i) => i.active).length}`).join('\n');
       if (key === shownKey) return tickTimes();
       shownKey = key;
       const focused = shell.body.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.session : undefined;
@@ -1051,11 +1063,18 @@ export class PanelHost {
         return;
       }
       const kids: Child[] = [];
+      // Ready for you (#162) gets its own group right after needs-you, out of free and asleep.
+      const groups: ['ready' | EmployeeState, Employee[]][] = [];
       for (const state of STATE_ORDER) {
-        const group = people.filter((e) => e.state === state);
-        if (!group.length) continue;
+        const group = people.filter((e) => e.state === state && !isReady(e));
         if (state === 'needs-you') group.sort((a, b) => a.stateSince - b.stateSince);
-        kids.push(el('h3', { class: 'co-section co-section--state' }, el('span', { html: stateBadge(state, true) }), `${STATE_WORD[state]} (${group.length})`));
+        groups.push([state, group]);
+        if (state === 'needs-you') groups.push(['ready', readyList(people)]);
+      }
+      for (const [state, group] of groups) {
+        if (!group.length) continue;
+        const ready = state === 'ready';
+        kids.push(el('h3', { class: 'co-section co-section--state' }, el('span', { html: ready ? readyBadge(true) : stateBadge(state, true) }), `${ready ? 'Ready for you' : STATE_WORD[state]} (${group.length})`));
         kids.push(
           el(
             'div',
@@ -1076,7 +1095,7 @@ export class PanelHost {
                 },
               });
               row.dataset.session = e.sessionId;
-              row.setAttribute('aria-label', `Go to ${e.displayName}, ${STATE_WORD[e.state].toLowerCase()}: ${lineFor(e)}`);
+              row.setAttribute('aria-label', `Go to ${e.displayName}, ${ready ? 'ready for you' : STATE_WORD[e.state].toLowerCase()}: ${lineFor(e)}`);
               return row;
             }),
           ),
@@ -1088,12 +1107,14 @@ export class PanelHost {
     };
     render();
     const unsub = store.subscribe(render);
+    const unsubReady = onReadyChange(render);
     const tick = window.setInterval(tickTimes, 1000);
     return {
       id: 'roster',
       el: shell.el,
       dispose: () => {
         unsub();
+        unsubReady();
         window.clearInterval(tick);
       },
     };
@@ -1115,7 +1136,7 @@ export class PanelHost {
       [['E'], 'Talk to someone, answer them, use reception, the files, the boards, the coffee'],
       [['E'], 'At an empty desk: use the computer, your own shell in your home folder'],
       [['E'], 'At the boss desk: your laptop plays your Spotify on the office speakers'],
-      [['Q'], 'Go to whoever has needed you longest'],
+      [['Q'], 'Go to whoever has needed you longest, then whoever finished first'],
       [['T'], "Look at someone's live terminal, right where you stand"],
       [['R'], 'Roster'],
       [['H'], 'Hire someone'],
@@ -1134,6 +1155,13 @@ export class PanelHost {
     const calm = el('input', { attrs: { type: 'checkbox' } });
     calm.checked = document.documentElement.classList.contains('co-calm');
     calm.addEventListener('change', () => applyCalm(calm.checked));
+    // Ready for you (#162): the cue and its chime, saved per browser.
+    const readyCue = el('input', { attrs: { type: 'checkbox' } });
+    readyCue.checked = readyCueOn();
+    readyCue.addEventListener('change', () => setReadyCue(readyCue.checked));
+    const readyChime = el('input', { attrs: { type: 'checkbox' } });
+    readyChime.checked = readyChimeOn();
+    readyChime.addEventListener('change', () => setReadyChime(readyChime.checked));
     const thoughts = el('input', { attrs: { type: 'checkbox' } });
     thoughts.checked = thoughtsOn();
     thoughts.addEventListener('change', () => setThoughtsOn(thoughts.checked));
@@ -1184,9 +1212,27 @@ export class PanelHost {
         'dl',
         { class: 'co-rows co-legend' },
         ...states.map(([s, what]) => el('div', { class: 'co-row' }, el('dt', null, el('span', { html: stateBadge(s, true) }), STATE_WORD[s]), el('dd', null, what))),
+        el(
+          'div',
+          { class: 'co-row' },
+          el('dt', null, el('span', { html: readyBadge(true) }), 'Ready'),
+          el('dd', null, "Finished their turn and you haven't looked yet: a \u201cDone!\u201d card and a hand up until you open their chat, sit at their computer, see them in Monitor or say something"),
+        ),
       ),
       el('p', { class: 'co-muted' }, '“Hot desk” on a nameplate: your shell is still running at that desk. Press E there to pick up where you left off; Shut down ends it.'),
       el('label', { class: 'co-choice co-choice--toggle' }, calm, el('span', null, 'Calmer motion', el('small', null, 'No bobbing, breathing, wiggles or confetti; pops become fades.'))),
+      el(
+        'label',
+        { class: 'co-choice co-choice--toggle' },
+        readyCue,
+        el('span', null, 'Ready for you', el('small', null, 'Someone who finished their turn holds up a \u201cDone!\u201d card, with a chip, a toast and Q, until you look. Off: they just go free.')),
+      ),
+      el(
+        'label',
+        { class: 'co-choice co-choice--toggle' },
+        readyChime,
+        el('span', null, 'Ready chime', el('small', null, 'A soft chime when someone finishes their turn.')),
+      ),
       el(
         'label',
         { class: 'co-choice co-choice--toggle' },

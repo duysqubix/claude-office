@@ -1,20 +1,21 @@
 // Labels over people (UX.md §2.1), drawn with CSS2DRenderer: a name pill (click = go to them),
 // a glass speech bubble when you're close, the amber needs-you bubble and bouncing "!" always,
-// Z z z for sleepers, thinking dots, a "!" pop when you bump someone, and "<type> for <boss>"
-// pills over interns. Also drives the off-screen faces for people who need you.
+// Z z z for sleepers, thinking dots, a "!" pop when you bump someone, a "Done!" card over
+// whoever is ready for you (ready.ts), and "<type> for <boss>" pills over interns. Also drives
+// the off-screen faces for people who need you, and (calmer, after them) people who are ready.
 import * as THREE from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import type { EmployeeChar } from '../chars/employee';
 import type { InternChar } from '../chars/intern';
 import type { RegularChar } from '../chars/npc';
 import { bus } from './bus';
-import { bangMarker, zzz } from './components';
+import { bangMarker, doneCard, zzz } from './components';
 import { truncate, waitingLines } from './dom';
 import { createEdgeIndicators, type EdgeTarget, type EdgeViewport } from './edge';
 import { el, type Markup } from './el';
 import { plainText, visibleText } from './markdown';
 import { employeeFace, faceSvg } from './faces';
-import { stateBadge, STATE_WORD } from './icons';
+import { readyBadge, stateBadge, STATE_WORD } from './icons';
 import { coachWalk } from './coach';
 import { daydream, thoughtsOn } from './thoughts';
 
@@ -132,6 +133,8 @@ class Tag {
   readonly target: EdgeTarget;
   private root: HTMLElement;
   private bang: HTMLElement;
+  /** The "Done!" card (ready for you). */
+  private done: HTMLElement;
   private bump: HTMLElement;
   private zzz: HTMLElement;
   private bubble: HTMLElement;
@@ -158,6 +161,8 @@ class Tag {
     this.bang.hidden = true;
     this.bump = bangMarker('bump');
     this.bump.hidden = true;
+    this.done = doneCard();
+    this.done.hidden = true;
     this.zzz = zzz();
     this.zzz.hidden = true;
     this.bubble = el('div', { class: 'co-bubble', attrs: { hidden: true } });
@@ -170,7 +175,7 @@ class Tag {
     this.pillName = el('span');
     this.pill = el('button', { class: 'co-pill', attrs: { type: 'button', tabindex: -1 } }, this.pillBadge, this.pillName);
     this.pill.addEventListener('click', () => bus.emit('go-to', { id: this.e.data.sessionId }));
-    this.root = el('div', { class: 'co-tagstack' }, this.bang, this.bump, this.zzz, this.thought, this.cloud.el, this.bubble, this.pill);
+    this.root = el('div', { class: 'co-tagstack' }, this.bang, this.done, this.bump, this.zzz, this.thought, this.cloud.el, this.bubble, this.pill);
     this.obj = new CSS2DObject(this.root);
     this.obj.center.set(0.5, 1);
     e.labelAnchor.add(this.obj);
@@ -247,18 +252,21 @@ class Tag {
     const d = e.data;
     const st = d.state;
     const needs = e.handUp;
+    // Ready for you (#162): finished, unseen. Needing you wins.
+    const ready = e.readyForYou && !needs;
     const walking = e.phase === 'entering' || e.phase === 'leaving';
 
     this.set('name', d.displayName, () => {
       this.pillName.textContent = d.displayName;
       this.pill.setAttribute('aria-label', `Go to ${d.displayName}`);
     });
-    this.set('state', st, () => {
-      this.pillBadge.innerHTML = stateBadge(st);
+    this.set('state', `${st}|${ready}`, () => {
+      this.pillBadge.innerHTML = ready ? readyBadge() : stateBadge(st);
       this.root.dataset.state = st;
-      this.pill.title = `${d.displayName}: ${STATE_WORD[st].toLowerCase()}`;
+      this.root.classList.toggle('is-ready', ready);
+      this.pill.title = `${d.displayName}: ${ready ? 'ready for you' : STATE_WORD[st].toLowerCase()}`;
     });
-    const fade = needs ? 1 : Math.round(pillFade * 20) / 20;
+    const fade = needs || ready ? 1 : Math.round(pillFade * 20) / 20;
     this.set('pill', fade, () => {
       this.pill.style.opacity = fade >= 1 ? '' : String(fade);
       this.pill.hidden = fade <= 0.01;
@@ -267,6 +275,9 @@ class Tag {
     // Off the screen, their edge face is the marker: no 3D "!" pulled in beside it.
     const bang = needs && e.phase !== 'leaving' && onScreen;
     this.set('bang', bang, () => (this.bang.hidden = !bang));
+    // The "Done!" card: at their desk, on screen (off it, their edge face says it).
+    const done = ready && e.seated && onScreen;
+    this.set('done', done, () => (this.done.hidden = !done));
     // Someone who needs you is drawn over everyone else's labels, nearer ones included.
     this.obj.renderOrder = needs ? 1 : 0;
 
@@ -333,7 +344,7 @@ class Tag {
 
     const thinking = onScreen && e.seated && st === 'working' && d.activity?.kind === 'thinking' && this.bubble.hidden && !thinkAloud && camDist < 18;
     this.set('thought', thinking, () => (this.thought.hidden = !thinking));
-    const sleeping = e.seated && st === 'sleeping' && camDist < 26;
+    const sleeping = e.seated && st === 'sleeping' && !ready && camDist < 26;
     this.set('zzz', sleeping, () => (this.zzz.hidden = !sleeping));
     // Walking people carry their labels a little higher.
     this.set('lift', walking, () => this.root.classList.toggle('is-walking', walking));
@@ -586,8 +597,9 @@ export class LabelLayer {
       t.e.labelAnchor.getWorldPosition(_p);
       t.head.copy(_p);
       const camDist = _p.distanceTo(_cam);
-      const fade = t.e.handUp ? 1 : pills < MAX_PILLS ? THREE.MathUtils.clamp((reach - d) / 3, 0, 1) : 0;
-      if (fade > 0 && !t.e.handUp) pills++;
+      const flagged = t.e.handUp || t.e.readyForYou;
+      const fade = flagged ? 1 : pills < MAX_PILLS ? THREE.MathUtils.clamp((reach - d) / 3, 0, 1) : 0;
+      if (fade > 0 && !flagged) pills++;
       const chatty = !t.e.handUp && !t.thoughtOk && bubbles < MAX_BUBBLES && d < BUBBLE_RANGE;
       if (chatty) bubbles++;
       t.update(camDist, d, fade, chatty, d <= reach, this.onScreen(_p, camera));
@@ -600,6 +612,18 @@ export class LabelLayer {
         tg.name = e.data.displayName;
         tg.tooltip = `Go to ${e.data.displayName} (${fact.charAt(0).toLowerCase()}${fact.slice(1).replace(/[.!?]+$/, '')})`;
         tg.since = e.data.stateSince;
+        tg.urgent = true;
+        tg.ready = false;
+        targets.push(tg);
+      } else if (e.readyForYou && e.seated) {
+        // Ready for you: a calm mint face, after anyone who needs you.
+        const tg = t.target;
+        tg.faceSvg = t.face();
+        tg.name = e.data.displayName;
+        tg.tooltip = `Go to ${e.data.displayName} (finished, ready for you)`;
+        tg.since = e.data.stateSince;
+        tg.urgent = false;
+        tg.ready = true;
         targets.push(tg);
       }
     }
@@ -643,8 +667,8 @@ export class LabelLayer {
         }
       }
     }
-    // Longest waiting first: they win when markers merge.
-    if (targets.length > 1) targets.sort((a, b) => (a.since ?? 0) - (b.since ?? 0));
+    // Whoever needs you, then whoever is ready; longest waiting first. Earlier ones win a merge.
+    if (targets.length > 1) targets.sort((a, b) => Number(b.urgent) - Number(a.urgent) || (a.since ?? 0) - (b.since ?? 0));
     if (now - this.insetAt > 250) {
       this.insetAt = now;
       this.measureInset();
@@ -679,7 +703,7 @@ export class LabelLayer {
     if (now - this.zonesAt > 500) {
       this.zonesAt = now;
       this.zones = [];
-      for (const z of document.querySelectorAll<HTMLElement>('.co-hud__badge, .co-hud__needs > *, .co-hud__row, .co-hud__right, .co-hud__banner')) {
+      for (const z of document.querySelectorAll<HTMLElement>('.co-hud__badge, .co-hud__needs > *, .co-hud__ready > *, .co-hud__row, .co-hud__right, .co-hud__banner')) {
         if (z.hidden) continue;
         const r = z.getBoundingClientRect();
         // The buttons' key caps hang below them.
@@ -718,14 +742,16 @@ export class LabelLayer {
     // Someone who needs you always wins: another person's chatter or thought that would sit on
     // their bubble or their "!" steps aside until it's clear. (A speech bubble that has just
     // turned into its owner's needs-you bubble drops the class here too.)
-    const needs = placed.filter((p) => p.el.classList.contains('co-bubble--needs') || (p.el.classList.contains('co-bang') && !p.el.classList.contains('co-bang--bump')));
+    const needs = placed.filter((p) => p.el.classList.contains('co-bubble--needs') || (p.el.classList.contains('co-bang') && !p.el.classList.contains('co-bang--bump') && !p.el.classList.contains('co-bang--ready')));
     for (const p of placed) {
       const chatter = p.el.classList.contains('co-thought') || (p.el.classList.contains('co-bubble') && !p.el.classList.contains('co-bubble--needs'));
       const under = chatter && needs.some((n) => n.root !== p.root && n.box.l < p.box.r && p.box.l < n.box.r && n.box.t < p.box.b && p.box.t < n.box.b);
       if (under !== p.el.classList.contains('is-yielding')) p.el.classList.toggle('is-yielding', under);
     }
     this.bangSeen.clear();
-    for (const p of needs) if (p.tag && p.el.classList.contains('co-bang') && this.clear(p.box)) this.bangSeen.add(p.tag.target);
+    for (const p of placed) {
+      if (p.tag && p.el.classList.contains('co-bang') && !p.el.classList.contains('co-bang--bump') && this.clear(p.box)) this.bangSeen.add(p.tag.target);
+    }
   }
 
   /** Whole in the window, and off the HUD and the panel (which would hide it). */

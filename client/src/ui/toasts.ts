@@ -14,6 +14,8 @@ export interface ToastExtras {
   who?: Employee;
   /** One small button, e.g. { label: 'Go', run: () => walkTo(id) }. */
   action?: { label: string; run: () => void };
+  /** More buttons after `action`. */
+  actions?: { label: string; run: () => void }[];
   /** Slam in, for the big moments ("Interview went great!"). */
   slam?: boolean;
 }
@@ -75,8 +77,9 @@ export class Toasts {
       kind: crowd ? 'info' : kind,
       face: extras.who ? employeeFace(extras.who.sessionId, extras.who.hosted, { size: 32 }) : kind === 'good' ? icon('check', 32) : crowd ? icon('staff', 32) : undefined,
       action: extras.action,
+      actions: extras.actions,
       // At least 7 s for errors and 6 s with a button (UX.md §2); otherwise the caller's choice.
-      ms: Math.max(ms ?? 3500, kind === 'bad' ? 7000 : extras.action ? 6000 : 0),
+      ms: Math.max(ms ?? 3500, kind === 'bad' ? 7000 : extras.action || extras.actions?.length ? 6000 : 0),
       slam: extras.slam,
       key: crowd ? kind : undefined,
       merged: kind === 'arrive' ? (n) => `${n} people clocked in` : kind === 'leave' ? (n) => `${n} people clocked out` : undefined,
