@@ -13,6 +13,7 @@ import { HIRE_PERMISSION_MODES, MAX_HOT_DESK } from '../shared/protocol';
 import type { AnswerRequest, ApiResult, ClientMessage, HirePermissionMode, ServerMessage } from '../shared/protocol';
 import { findPastSession, listPastSessions, listProjects } from './archive';
 import { AskBroker, type HookPayload } from './asks';
+import { listCommands } from './commands';
 import { HOME, HOST, IS_PROD, PORT, ROOT, THINK_DIR } from './config';
 import { NAME_OK } from './nicknames';
 import { hiddenSessions, sessionStatus } from './registry';
@@ -164,6 +165,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
       if (!live && roster.find(chatter[1])) return sendJson(res, 200, []);
       const lines = live ? live.chatter : (await findPastSession(chatter[1]))?.digest.chatter ?? [];
       return sendJson(res, 200, Number.isFinite(after) && url.searchParams.has('after') ? lines.filter((l) => l.seq > after).slice(-n) : lines.slice(-n));
+    }
+    // What "/" offers them in the chat (#151): read from their folder and yours, never run.
+    const commands = path.match(/^\/api\/session\/([^/]+)\/commands$/);
+    if (commands) {
+      const who = roster.find(uuidFrom(commands[1]));
+      if (!who) throw new HttpError(404, 'They are not in the office');
+      return sendJson(res, 200, await listCommands(who.cwd));
     }
     throw new HttpError(404, 'Not found');
   }

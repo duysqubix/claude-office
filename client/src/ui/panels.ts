@@ -745,6 +745,7 @@ export class PanelHost {
       say,
       answer,
       openTerminal,
+      commands: (sid) => backend.commands(sid),
       interrupt: pretend,
       adopt: pretend,
       rename: (sid, name) => backend.rename(sid, name),
