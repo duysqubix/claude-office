@@ -3,7 +3,9 @@
 // they said with Go and Open chat, and the roster groups them after needs-you. Opening their chat
 // clears it; finishing while you already have their chat open never raises it. Q visits whoever
 // needs you first, then the ready ones (first finished first). Monitor lists them right after
-// needs-you. Help switches the cue off and on. The frame time doesn't move with the cue on.
+// needs-you. Help switches the cue off and on. A quick turn between two polls still counts; a
+// chat open in a background tab sees nothing until you come back; office tabs share what's been
+// seen (and never overwrite each other's). The frame time doesn't move with the cue on.
 //   GAME_BASE=http://127.0.0.1:4778 node scripts/ui-check/ready.mjs
 import { existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -167,6 +169,39 @@ try {
     check('chime switch saves', chimeOff === false && stored === '0', String(stored));
     await toggle('Ready chime');
     await page.evaluate(() => window.office.panels.close());
+    await wait(300);
+
+    // A quick turn between two polls: still free, stateSince unchanged, but a new finish.
+    const sinceBefore = await page.evaluate(() => window.office.director.list().find((e) => e.data.displayName === 'Klaus').data.stateSince);
+    await page.evaluate(() => window.officeDemo.finish('Klaus', 'Quick one: renamed the variable.'));
+    await wait(600);
+    const quick = await look(page);
+    const sinceAfter = await page.evaluate(() => window.office.director.list().find((e) => e.data.displayName === 'Klaus').data.stateSince);
+    check('a quick turn (stateSince unchanged) is news again', sinceBefore === sinceAfter && quick.ready.includes('Klaus'), `since ${sinceBefore === sinceAfter ? 'same' : 'moved'}, ready ${JSON.stringify(quick.ready)}`);
+    check('...with its toast', quick.toasts.some((t) => t.text.startsWith('Klaus finished') && t.text.includes('renamed the variable')), JSON.stringify(quick.toasts.map((t) => t.text)));
+
+    // Their chat open, but the tab in the background as they finish: still news. Coming back
+    // to the tab with the chat open is when you see it.
+    await page.evaluate((id) => window.office.panels.openChat(id), klausId);
+    await wait(400);
+    await page.evaluate(() => window.officeDemo.work('Klaus'));
+    await wait(300);
+    const setVisible = (v) =>
+      page.evaluate((v) => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (v ? 'visible' : 'hidden') });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, v);
+    await setVisible(false);
+    await page.evaluate(() => window.officeDemo.finish('Klaus', 'Finished while you were away.'));
+    await wait(600);
+    const away = await look(page);
+    check('chat open in a background tab: still ready', away.ready.includes('Klaus'), JSON.stringify(away.ready));
+    check('...and the toast still comes', away.toasts.some((t) => t.text.includes('Finished while you were away')), JSON.stringify(away.toasts.map((t) => t.text)));
+    await setVisible(true);
+    await wait(400);
+    const returned = await look(page);
+    check('back to the tab with their chat open: seen', !returned.ready.includes('Klaus'), JSON.stringify(returned.ready));
+    await page.evaluate(() => window.office.panels.close());
     check('no page errors', logs.length === 0, logs.join(' | '));
     await page.close();
   }
@@ -240,6 +275,51 @@ try {
     await page.close();
   }
 
+  // --- Office tabs share what's been seen ---------------------------------------------------
+  {
+    const A = await open();
+    const B = await open();
+    const readyIn = (page) => look(page).then((l) => l.ready);
+    const before = await readyIn(A.page);
+    // B opens Claudine's chat: A hears of it through the 'storage' event.
+    const claudine = await idOf(B.page, 'Claudine');
+    await B.page.evaluate((id) => window.office.panels.openChat(id), claudine);
+    await wait(800);
+    const after = await readyIn(A.page);
+    check('another tab opening their chat clears the cue here', before.includes('Claudine') && !after.includes('Claudine'), `${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+    // A's copy is stale (a tab never hears its own writes, so slip one in behind its back): its
+    // next write must keep it.
+    await A.page.evaluate(() => {
+      const m = JSON.parse(localStorage.getItem('claude-office:ready-seen') ?? '{}');
+      m['zz-from-another-tab'] = 123;
+      localStorage.setItem('claude-office:ready-seen', JSON.stringify(m));
+    });
+    const claudia = await idOf(A.page, 'Claudia');
+    await A.page.evaluate((id) => window.office.panels.openChat(id), claudia);
+    await wait(500);
+    const saved = await A.page.evaluate(() => JSON.parse(localStorage.getItem('claude-office:ready-seen') ?? '{}'));
+    check("a write keeps the other tabs' sessions", saved['zz-from-another-tab'] === 123 && typeof saved[claudia] === 'number' && typeof saved[claudine] === 'number', JSON.stringify(Object.keys(saved)));
+    // And the switch in Help follows across tabs too.
+    await B.page.evaluate(() => window.office.panels.close());
+    await B.page.evaluate(() => window.office.panels.open('help'));
+    await wait(300);
+    await B.page.evaluate(() => {
+      const l = [...document.querySelectorAll('.co-choice--toggle')].find((x) => x.textContent.trim().startsWith('Ready for you'));
+      l.querySelector('input').click();
+    });
+    await wait(600);
+    const offA = await look(A.page);
+    check('switching the cue off in another tab hides it here', offA.ready.length === 0 && offA.chip === '', `${JSON.stringify(offA.ready)} chip=${offA.chip}`);
+    // Back on for whatever runs next in this browser.
+    await B.page.evaluate(() => {
+      const l = [...document.querySelectorAll('.co-choice--toggle')].find((x) => x.textContent.trim().startsWith('Ready for you'));
+      l.querySelector('input').click();
+    });
+    check('no page errors (tabs)', A.logs.length === 0 && B.logs.length === 0, [...A.logs, ...B.logs].join(' | '));
+    await A.page.close();
+    await B.page.close();
+  }
+
   // --- Frame time: the same with the cue on as off ------------------------------------------
   {
     const { page } = await open();
@@ -280,7 +360,8 @@ try {
     const off = await measure();
     const fmt = (m) => `${m.frameMs.toFixed(2)} ms/frame, script ${m.scriptMsPerFrame.toFixed(2)} ms`;
     console.log(`  cue on:  ${fmt(on)}\n  cue off: ${fmt(off)}`);
-    check('frame time with the cue on is within 10% (or 0.5 ms) of off', on.frameMs <= Math.max(off.frameMs * 1.1, off.frameMs + 0.5), `${fmt(on)} vs ${fmt(off)}`);
+    // Loose enough for a slow runner's jitter (the nightly one draws 23-31 fps), tight enough to catch a real cost.
+    check('frame time with the cue on is within 15% (or 2 ms) of off', on.frameMs <= Math.max(off.frameMs * 1.15, off.frameMs + 2), `${fmt(on)} vs ${fmt(off)}`);
     await page.close();
   }
 } finally {

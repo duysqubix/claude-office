@@ -4,8 +4,10 @@
 // at their computer, have Monitor show them, or Say something to them. Walking past never counts.
 //
 // What you've seen is kept per session in this browser: the moment their last turn finished
-// (server clock). A turn that finishes later than that is news again. Help has two switches:
-// the cue itself, and its chime.
+// (server clock). A turn that finishes later than that is news again. Every office tab shares it
+// (merged on each write, followed through 'storage' events). Looking only counts while the page
+// is visible: a chat left open in a background tab sees nothing until you come back to it.
+// Help has two switches: the cue itself, and its chime.
 import type { Employee } from '../../../shared/protocol';
 import { SLEEP_AFTER_MS } from '../../../shared/protocol';
 
@@ -14,7 +16,7 @@ const CUE_KEY = 'claude-office:ready-cue';
 const CHIME_KEY = 'claude-office:ready-chime';
 /** Sessions remembered at most (the newest finishes win). */
 const KEEP = 300;
-/** Slack for clocks: a sleeper's finish is worked out from when they fell asleep. */
+/** Slack for clocks, when the server sends no turnEndedAt and a sleeper's finish is worked out from when they fell asleep. */
 const SLACK_MS = 2000;
 
 /** Session id → the finish (server ms) you've seen. Null until loaded. */
@@ -23,22 +25,45 @@ let seen: Map<string, number> | null = null;
 let fresh = false;
 const subs = new Set<() => void>();
 
-function load(): Map<string, number> {
-  if (seen) return seen;
-  seen = new Map();
+/** What's saved (null if nothing is, or storage is unavailable or garbled). */
+function stored(): Map<string, number> | null {
   try {
     const raw = localStorage.getItem(SEEN_KEY);
-    if (raw === null) fresh = true;
-    else for (const [id, at] of Object.entries(JSON.parse(raw) as Record<string, number>)) if (typeof at === 'number') seen.set(id, at);
+    if (raw === null) return null;
+    const m = new Map<string, number>();
+    for (const [id, at] of Object.entries(JSON.parse(raw) as Record<string, number>)) if (typeof at === 'number') m.set(id, at);
+    return m;
   } catch {
-    // Storage unavailable (or garbled): remember for this visit only.
-    fresh = true;
+    return null;
   }
+}
+
+/** Fold `from` into `into`, keeping the later finish per session. True if anything moved. */
+function merge(into: Map<string, number>, from: Map<string, number>): boolean {
+  let moved = false;
+  for (const [id, at] of from) {
+    if (at > (into.get(id) ?? -Infinity)) {
+      into.set(id, at);
+      moved = true;
+    }
+  }
+  return moved;
+}
+
+function load(): Map<string, number> {
+  if (seen) return seen;
+  const s = stored();
+  // Nothing saved yet (or no storage): the first roster is the starting line (baseline).
+  fresh = s === null;
+  seen = s ?? new Map();
   return seen;
 }
 
 function save(): void {
   const m = load();
+  // Another tab may have seen someone since we loaded: keep theirs too (the later finish wins).
+  const s = stored();
+  if (s) merge(m, s);
   if (m.size > KEEP) {
     const keep = [...m].sort((a, b) => b[1] - a[1]).slice(0, KEEP);
     m.clear();
@@ -79,6 +104,16 @@ export const setReadyCue = (on: boolean): void => writeFlag(CUE_KEY, on);
 export const readyChimeOn = (): boolean => readFlag(CHIME_KEY);
 export const setReadyChime = (on: boolean): void => writeFlag(CHIME_KEY, on);
 
+// Another office tab saw someone, or flipped a switch in Help: this one follows.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === SEEN_KEY) {
+      const s = stored();
+      if (s && merge(load(), s)) changed();
+    } else if (ev.key === CUE_KEY || ev.key === CHIME_KEY || ev.key === null) changed();
+  });
+}
+
 /** Something changed: what you've seen, or a switch. */
 export function onReadyChange(fn: () => void): () => void {
   subs.add(fn);
@@ -91,10 +126,10 @@ export function onReadyChange(fn: () => void): () => void {
  * A sleeper finished SLEEP_AFTER_MS before they nodded off (server/roster.ts).
  */
 export function finishedAt(e: Employee): number | null {
-  if (!e.lastText) return null;
-  if (e.state === 'idle') return e.stateSince;
-  if (e.state === 'sleeping') return e.stateSince - SLEEP_AFTER_MS;
-  return null;
+  if (!e.lastText || (e.state !== 'idle' && e.state !== 'sleeping')) return null;
+  // The server's per-turn mark: stateSince stays put across a quick turn between two polls.
+  if (e.turnEndedAt !== undefined) return e.turnEndedAt;
+  return e.state === 'idle' ? e.stateSince : e.stateSince - SLEEP_AFTER_MS;
 }
 
 /** Finished, and you haven't seen it (whatever the switch says). */
@@ -102,7 +137,8 @@ function unseen(e: Employee): boolean {
   const at = finishedAt(e);
   if (at === null) return false;
   const was = load().get(e.sessionId);
-  return was === undefined || at > was + SLACK_MS;
+  // The server's per-turn mark is exact: any later one is a new turn, however quick.
+  return was === undefined || at > was + (e.turnEndedAt !== undefined ? 0 : SLACK_MS);
 }
 
 /** Ready for you: they finished their turn and you haven't looked yet (and the cue is on). */
@@ -116,6 +152,35 @@ export function markSeen(e: Employee | undefined): void {
   load().set(e.sessionId, finishedAt(e)!);
   save();
   changed();
+}
+
+/** The page is on screen (a background tab sees nothing). */
+const visible = (): boolean => typeof document === 'undefined' || document.visibilityState === 'visible';
+
+/**
+ * You're looking at them without doing anything (their chat or computer open as they finish,
+ * Monitor on them): seen, but only while the page is visible.
+ */
+export function seenIfVisible(e: Employee | undefined): void {
+  if (visible()) markSeen(e);
+}
+
+const watchers = new Set<() => Employee | undefined>();
+
+/**
+ * A view that shows someone (their chat, their computer, Monitor): `who` says whom, right now.
+ * Coming back to the tab with it still open, you see how they finished. Returns the unwatch.
+ */
+export function watch(who: () => Employee | undefined): () => void {
+  watchers.add(who);
+  return () => watchers.delete(who);
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!visible()) return;
+    for (const who of [...watchers]) markSeen(who());
+  });
 }
 
 /**
@@ -145,7 +210,11 @@ if (import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParam
     officeReady: {
       reset() {
         load().clear();
-        save();
+        try {
+          localStorage.setItem(SEEN_KEY, '{}');
+        } catch {
+          // storage unavailable: nothing to clear
+        }
         changed();
       },
     },

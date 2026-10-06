@@ -21,7 +21,7 @@ import type { Sfx } from './sfx';
 import type { Panel, PanelId } from './shell';
 import { enhanceMarkdown, plainText, renderMarkdown } from './markdown';
 import { markNoteSeen, noteSeen } from './notes';
-import { isReady, markSeen, onReadyChange, readyChimeOn, readyCueOn, readyList, setReadyChime, setReadyCue } from './ready';
+import { isReady, markSeen, onReadyChange, readyChimeOn, readyCueOn, readyList, seenIfVisible, setReadyChime, setReadyCue, watch } from './ready';
 import { holdDisabled, isOffline, needsServer, releaseDisabled, setServerTip } from './offline';
 import { HIGH_CONTEXT, renderTeamStats } from './teamstats';
 import { setThoughtsOn, thoughtsOn, wireThoughts } from './thoughts';
@@ -665,14 +665,16 @@ export class PanelHost {
         adopting = !!next.adopting;
         ended = false;
         view.update(next);
-        // Chatting with them as they finish: you saw it happen.
-        markSeen(next);
+        // Chatting with them as they finish: you saw it happen (unless the tab is in the background).
+        seenIfVisible(next);
       } else if (!adopting && !ended) {
         // Moving into the office leaves the roster for a moment; anything else is the end.
         ended = true;
         view.end(`${e.displayName}'s session has ended.`);
       }
     });
+    // Back to the tab with their chat still open: now you've seen how they finished.
+    const unwatch = watch(() => store.get(id));
     return {
       id: 'chat',
       el: view.el,
@@ -690,6 +692,7 @@ export class PanelHost {
       },
       dispose: () => {
         unsub();
+        unwatch();
         if (this.chatView === view) this.chatView = null;
         view.close();
       },
@@ -705,8 +708,9 @@ export class PanelHost {
     const e = store.get(sessionId);
     if (!e) return null;
     const view = openChat(container, e, { ...this.chatApi(), sit, onClose: () => undefined }, { dock: false, now: () => store.now(), home: store.home });
-    // Monitor showing them counts as seeing them, now and as they finish (ready.ts).
-    markSeen(e);
+    // Monitor showing them counts as seeing them, now and as they finish, while the tab is visible (ready.ts).
+    seenIfVisible(e);
+    const unwatch = watch(() => store.get(sessionId));
     let ended = false;
     let adopting = !!e.adopting;
     const unsub = store.subscribe(() => {
@@ -715,7 +719,7 @@ export class PanelHost {
         adopting = !!next.adopting;
         ended = false;
         view.update(next);
-        markSeen(next);
+        seenIfVisible(next);
       } else if (!ended && !adopting) {
         ended = true;
         view.end(`${e.displayName}'s session has ended.`);
@@ -725,6 +729,7 @@ export class PanelHost {
       view,
       dispose: () => {
         unsub();
+        unwatch();
         view.close();
       },
     };

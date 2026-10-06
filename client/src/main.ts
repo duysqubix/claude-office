@@ -44,7 +44,7 @@ import { h, truncate, waitingText } from './ui/dom';
 import { Hud } from './ui/hud';
 import { LabelLayer } from './ui/labels';
 import { plainText } from './ui/markdown';
-import { baseline, finishedAt, isReady, markSeen, onReadyChange, readyChimeOn } from './ui/ready';
+import { baseline, finishedAt, isReady, markSeen, onReadyChange, readyChimeOn, seenIfVisible, watch } from './ui/ready';
 import { PanelHost, type PanelId } from './ui/panels';
 import { Sfx } from './ui/sfx';
 import { TerminalOverlay } from './ui/terminal';
@@ -135,7 +135,6 @@ function runOffice(): void {
     stateChanged(e, prev) {
       // Answered (here or in their own terminal): one pop-up, and the reminders stop.
       if (prev === 'needs-you') sfx.answered(e.data.sessionId);
-      if (e.state === 'idle' && prev !== 'sleeping') finished(e);
       if (e.state !== 'needs-you') return;
       sfx.ding(e.data.sessionId);
       toasts.show(`${e.data.displayName} needs you`, 'warn', 6000, e.data.ask?.title ?? waitingText(e.data), {
@@ -155,6 +154,24 @@ function runOffice(): void {
     internAdded: (i) => labels.attachIntern(i),
     internRemoved: (i) => labels.detachIntern(i),
   });
+
+  /** Each session's last finish (ready.ts finishedAt), to spot a new one, quick turns included. */
+  const lastFinish = new Map<string, number | null>();
+
+  /** After each roster: whoever's last turn ended since the one before (not on arrival) just finished. */
+  function spotFinishes(): void {
+    const here = new Set<string>();
+    for (const e of director.list()) {
+      const id = e.data.sessionId;
+      here.add(id);
+      const at = finishedAt(e.data);
+      const was = lastFinish.get(id);
+      lastFinish.set(id, at);
+      // Free now (not just nodding off), and a different turn from last time.
+      if (was !== undefined && at !== null && at !== was && e.state === 'idle') finished(e);
+    }
+    for (const id of lastFinish.keys()) if (!here.has(id)) lastFinish.delete(id);
+  }
 
   /**
    * They just finished their turn (#162). Unless you were already looking (their chat open, at
@@ -183,6 +200,11 @@ function runOffice(): void {
       ],
     });
   }
+
+  /** Whose computer you're sitting at (or sitting down at), if anyone's. */
+  const atComputer = () => (sitting && sitting.phase !== 'walking' ? store.get(sitting.id) : undefined);
+  // Back to the tab still at their computer: now you've seen how they finished.
+  watch(atComputer);
 
   /** Who is ready for you, onto their characters (pose, labels, edge faces). */
   function refreshReady(): void {
@@ -273,9 +295,11 @@ function runOffice(): void {
     // office skips it, so its idle cast shows the cue straight away.
     if (!backend.demo) baseline(list);
     store.set(list, now);
-    // At their computer as they finish: you saw it (their chat and Monitor mark it themselves).
-    if (sitting && sitting.phase !== 'walking') markSeen(store.get(sitting.id));
+    // At their computer as they finish: you saw it, if the tab is visible (their chat and Monitor
+    // mark it themselves).
+    seenIfVisible(atComputer());
     director.sync(list);
+    spotFinishes();
     refreshReady();
     hud.setStats(director.stats());
   };

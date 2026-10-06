@@ -246,6 +246,9 @@ export function createDemoBackend(params: URLSearchParams): Backend {
     };
     if (seed.state === 'needs-you' && !seed.waitingFor) e.waitingFor = pickR(WAITING);
     if (seed.state === 'needs-you') e.ask = demoAsk('permission', at);
+    // As the server does: free and asleep people say when their last turn ended.
+    if (seed.state === 'idle') e.turnEndedAt = e.stateSince;
+    if (seed.state === 'sleeping') e.turnEndedAt = e.stateSince - 15 * 60_000;
     e.screen = screenFor(e);
     chatter.set(e.sessionId, [
       line('user', e.lastPrompt ?? 'hello'),
@@ -475,6 +478,9 @@ export function createDemoBackend(params: URLSearchParams): Backend {
 
   function setState(e: Employee, state: EmployeeState, kind?: ActivityKind): void {
     if (e.state !== state) e.stateSince = Date.now();
+    // A turn ends on every move to free, even from free (a quick turn between two polls).
+    if (state === 'idle') e.turnEndedAt = Date.now();
+    else if (state !== 'sleeping') e.turnEndedAt = undefined;
     e.state = state;
     e.activity = state === 'working' ? activity(kind ?? pickR(WORK_KINDS)) : undefined;
     e.waitingFor = state === 'needs-you' ? pickR(WAITING) : undefined;
@@ -503,6 +509,7 @@ export function createDemoBackend(params: URLSearchParams): Backend {
     const find = (who: string) => employees.find((e) => e.sessionId === who || e.displayName.toLowerCase() === who.toLowerCase());
     Object.assign(window, {
       officeDemo: {
+        // Already free: a quick turn that started and ended between two polls (stateSince stays put).
         finish(who: string, said = pickR(LAST_TEXT)): boolean {
           const e = find(who);
           if (!e) return false;
