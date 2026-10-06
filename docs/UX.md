@@ -218,7 +218,10 @@ visible, game input in the last 2 min (`presence` goes out on visibility changes
   assistant text as rich markdown (`markdown.ts`: GFM tables, task lists ☐/☑, code with colours and Copy; raw HTML stays
   text, links are http(s)/mailto only, images become links), tool steps as chips (3+ collapse to "5 steps, last: …"), a
   time label after 10-minute gaps. Enter sends, Shift+Enter adds a line, slash commands pass through, Esc hands the keys
-  back to the game; your message shows at once ("Sending…", "Sent", or why it failed with Try again / Edit) and
+  back to the game. "/" at the start opens a picker above the box (`slashpicker.ts`, as in Claude Code's prompt): the
+  built-ins, their project's and your commands and skills, and enabled plugins' (`GET /api/session/:id/commands`), each
+  with where it's from and its line; typing filters (prefix, then fuzzy), Up/Down move, Enter or Tab fill in "/name ",
+  Esc closes only the picker (in Monitor too); your message shows at once ("Sending…", "Sent", or why it failed with Try again / Edit) and
   reconciles with the feed. Working: a typing indicator with `activity.label`. Needs you: the ask card inline, scrolled
   to its question, and sending waits ("Answer their question above first."). Header: Interrupt (Esc in their terminal),
   Sit at their computer. Started elsewhere: read-only history and "Bring into the office" (`/api/adopt`; "Type /exit in

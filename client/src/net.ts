@@ -9,6 +9,7 @@ import type {
   PastSession,
   ProjectInfo,
   ServerMessage,
+  SlashCommand,
   TeamStats,
   TermClientMessage,
 } from '../../shared/protocol';
@@ -49,6 +50,8 @@ export interface Backend {
   projects(): Promise<ProjectInfo[]>;
   archive(): Promise<PastSession[]>;
   chatter(sessionId: string): Promise<ChatLine[]>;
+  /** What "/" offers them in the chat: built-ins, their commands and skills, plugins'. */
+  commands(sessionId: string): Promise<SlashCommand[]>;
   hire(cwd: string, prompt?: string, name?: string): Promise<ApiResult>;
   rehire(sessionId: string): Promise<ApiResult>;
   fire(sessionId: string): Promise<ApiResult>;
@@ -133,6 +136,7 @@ export function createBackend(): Backend {
     projects: () => getJSON<ProjectInfo[]>('/api/projects'),
     archive: () => getJSON<PastSession[]>('/api/archive'),
     chatter: (id) => getJSON<ChatLine[]>(`/api/session/${encodeURIComponent(id)}/chatter`),
+    commands: (id) => getJSON<SlashCommand[]>(`/api/session/${encodeURIComponent(id)}/commands`),
     hire: (cwd, prompt, name) => postApi('/api/hire', { cwd, ...(prompt ? { prompt } : {}), ...(name ? { name: name.slice(0, 32) } : {}) }),
     rehire: (sessionId) => postApi('/api/rehire', { sessionId }),
     fire: (sessionId) => postApi('/api/fire', { sessionId }),

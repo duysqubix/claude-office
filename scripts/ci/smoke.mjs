@@ -8,9 +8,10 @@
 // Then it checks the office read the pretend session the way Claude Code writes it.
 //   npm run build && node scripts/ci/smoke.mjs     (serves dist/; without a build it uses dev mode)
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
-import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { freePort, makeHome, ROOT, startOffice } from './office.mjs';
 
 let failed = 0;
@@ -109,6 +110,65 @@ writeFileSync(join(projectDir, `${LIVE_ID}.jsonl`), jsonl([...turn(LIVE_ID, 'Tid
 writeFileSync(join(projectDir, `${SDK['sdk-cli']}.jsonl`), jsonl(turn(SDK['sdk-cli'], 'Write a memory note', 'Noted.', 60_000)));
 writeFileSync(join(projectDir, `${PAST_ID}.jsonl`), jsonl(turn(PAST_ID, 'Water the office plant', 'Watered.', 86_400_000)));
 
+// What "/" offers in the chat (#151): custom commands (a subfolder is a namespace), skills (one a
+// link into ~/.agents, the way skill managers install them; one hidden from the menu), the
+// project's own, and an enabled plugin's (a disabled one's never). Two links lead out of the
+// folders they sit in, to files outside this home: neither is read.
+const put = (path, text) => {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
+};
+// Outside this office's whole folder (the folder above the home is a repository below).
+const outside = mkdtempSync(join(realpathSync(tmpdir()), 'office-smoke-outside-'));
+put(join(outside, 'secret.md'), '---\ndescription: never shown\n---\n');
+put(join(outside, 'escape', 'SKILL.md'), '---\nname: escaped\ndescription: never shown\n---\n');
+put(join(home.claudeHome, 'commands', 'tidy.md'), '---\ndescription: "Tidy the desk"\nargument-hint: <where>\n---\nTidy $ARGUMENTS.\n');
+put(join(home.claudeHome, 'commands', 'git', 'sync.md'), '# Sync with main\n\nPull and rebase.\n');
+symlinkSync(join(outside, 'secret.md'), join(home.claudeHome, 'commands', 'leak.md'));
+put(join(home.claudeHome, 'skills', 'brew', 'SKILL.md'), '---\nname: brew-tea\ndescription: >\n  Brew a pot of tea\n  for the team\n---\n# Brew\n');
+put(join(home.claudeHome, 'skills', 'quiet', 'SKILL.md'), '---\nname: quiet\ndescription: model only\nuser-invocable: false\n---\n');
+put(join(home.home, '.agents', 'skills', 'linked', 'SKILL.md'), '---\nname: linked\ndescription: Installed by a skill manager\n---\n');
+symlinkSync(join(home.home, '.agents', 'skills', 'linked'), join(home.claudeHome, 'skills', 'linked'));
+symlinkSync(join(outside, 'escape'), join(home.claudeHome, 'skills', 'escape'));
+put(join(project, '.claude', 'commands', 'deploy.md'), '---\ndescription: Ship the fixture desk\n---\n');
+put(join(project, '.claude', 'skills', 'ship', 'SKILL.md'), '---\nname: ship\ndescription: Project skill\n---\n');
+const pluginAt = (name) => join(home.claudeHome, 'plugins', 'cache', 'shelf', name, '1.0.0');
+put(join(pluginAt('kettle'), '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'kettle', version: '1.0.0', commands: ['./extra/pour.md', './extra/hush.md'] }));
+put(join(pluginAt('kettle'), 'extra', 'pour.md'), '---\ndescription: Pour a cup\n---\n');
+put(join(pluginAt('kettle'), 'extra', 'hush.md'), '---\nuser-invocable: false\n---\nModel only.\n');
+// Hidden from "/" however the YAML says it (a comment after it, quoted), on command files too.
+put(join(home.claudeHome, 'commands', 'internal.md'), '---\nuser-invocable: false\n---\nModel only.\n');
+put(join(home.claudeHome, 'skills', 'hush-comment', 'SKILL.md'), '---\nname: hush-comment\nuser-invocable: false # internal only\n---\n');
+put(join(home.claudeHome, 'skills', 'hush-quoted', 'SKILL.md'), "---\nname: hush-quoted\ndescription: 'Quoted' # not part of it\nuser-invocable: \"false\"\n---\n");
+put(join(home.claudeHome, 'skills', 'said', 'SKILL.md'), "---\nname: said\ndescription: 'Quoted, kept' # not part of it\n---\n");
+// A skill's folder inside commands/ is one command ("/release"), its other files its own.
+put(join(project, '.claude', 'commands', 'release', 'SKILL.md'), '---\ndescription: Cut a release\n---\n');
+put(join(project, '.claude', 'commands', 'release', 'reference.md'), '# Notes for the release skill\n');
+// A .claude/ further up (a monorepo's, above packages/web): the project's too.
+put(join(home.dir, '.claude', 'commands', 'upstairs.md'), '---\ndescription: From the folder above\n---\n');
+put(join(pluginAt('kettle'), 'commands', 'boil.md'), '---\ndescription: Boil the water\n---\n');
+put(join(pluginAt('kettle'), 'skills', 'steep', 'SKILL.md'), '---\nname: steep\ndescription: Steep for three minutes\n---\n');
+put(join(pluginAt('mug'), 'commands', 'drink.md'), '---\ndescription: never shown (disabled)\n---\n');
+const installed = (name) => [{ scope: 'user', installPath: pluginAt(name), version: '1.0.0' }];
+put(join(pluginAt('teapot'), 'commands', 'pour.md'), '---\ndescription: never shown (off in the main checkout)\n---\n');
+put(join(home.claudeHome, 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'kettle@shelf': installed('kettle'), 'mug@shelf': installed('mug'), 'teapot@shelf': installed('teapot') } }));
+put(join(home.claudeHome, 'settings.json'), JSON.stringify({ enabledPlugins: { 'kettle@shelf': true, 'mug@shelf': false, 'teapot@shelf': true } }));
+// The folder above the home is a git worktree, so the session works in a subfolder of it: its
+// settings.local.json lives in the main checkout, and turning teapot off there wins.
+const main = join(home.dir, 'main-checkout');
+put(join(main, '.git', 'worktrees', 'desk', 'commondir'), '../..\n');
+put(join(home.dir, '.git'), `gitdir: ${join(main, '.git', 'worktrees', 'desk')}\n`);
+put(join(main, '.claude', 'settings.local.json'), JSON.stringify({ enabledPlugins: { 'teapot@shelf': false } }));
+// Names that clash: the one Claude Code runs is kept. A skill over a command file and over a
+// built-in, yours over the project's.
+put(join(project, '.claude', 'commands', 'stage.md'), '---\ndescription: The command file\n---\n');
+put(join(project, '.claude', 'skills', 'stage', 'SKILL.md'), '---\nname: stage\ndescription: The skill\n---\n');
+put(join(project, '.claude', 'skills', 'pack', 'SKILL.md'), '---\nname: pack\ndescription: The project one\n---\n');
+put(join(home.claudeHome, 'skills', 'pack', 'SKILL.md'), '---\nname: pack\ndescription: Yours\n---\n');
+put(join(home.claudeHome, 'skills', 'bug', 'SKILL.md'), '---\nname: bug\ndescription: Your own bug skill\n---\n');
+// user-invocable's other ways of saying false.
+for (const no of ['no', 'Off', '0']) put(join(home.claudeHome, 'skills', `hush-${no}`, 'SKILL.md'), `---\nname: hush-${no}\nuser-invocable: ${no}\n---\n`);
+
 // POST JSON the way the page does (same origin: no Origin header).
 const post = (path, body) =>
   new Promise((resolve) => {
@@ -120,6 +180,16 @@ const post = (path, body) =>
     });
     req.on('error', () => resolve({ status: 0 }));
     req.end(data);
+  });
+
+/** GET, with its status. */
+const getWith = (path) =>
+  new Promise((resolve) => {
+    http.get({ host: '127.0.0.1', port, path }, (res) => {
+      let text = '';
+      res.on('data', (c) => (text += c));
+      res.on('end', () => resolve({ status: res.statusCode, body: (() => { try { return JSON.parse(text); } catch { return undefined; } })() }));
+    }).on('error', () => resolve({ status: 0 }));
   });
 
 const api = (path) =>
@@ -192,6 +262,27 @@ try {
   const cleared = await post('/api/rename', { sessionId: LIVE_ID, name: '' });
   const back = (await api('/api/roster'))?.find?.((e) => e.sessionId === LIVE_ID);
   check('an empty rename gives them their usual name back', cleared.status === 200 && back?.displayName === 'Fixture Fran', JSON.stringify({ status: cleared.status, name: back?.displayName }));
+  const cmds = await getWith(`/api/session/${LIVE_ID}/commands`);
+  const byName = new Map((Array.isArray(cmds.body) ? cmds.body : []).map((c) => [c.name, c]));
+  const has = (name, source, kind, description) => {
+    const c = byName.get(name);
+    return c?.source === source && c?.kind === kind && (description === undefined || c?.description === description);
+  };
+  const names = JSON.stringify([...byName.keys()].filter((n) => !['clear', 'compact', 'help', 'model', 'cost', 'context', 'memory', 'review', 'init', 'resume', 'rename', 'agents', 'mcp', 'permissions', 'status', 'config', 'add-dir', 'bug', 'doctor', 'exit', 'hooks', 'login', 'logout', 'pr-comments', 'release-notes', 'terminal-setup', 'vim'].includes(n)));
+  check('commands: the built-ins, with descriptions', cmds.status === 200 && has('clear', 'built-in', 'command') && !!byName.get('compact')?.description && has('vim', 'built-in', 'command'), `${cmds.status} ${byName.size} listed`);
+  check('…your commands, a subfolder as a namespace, described by frontmatter or the first line', has('tidy', 'user', 'command', 'Tidy the desk') && has('git:sync', 'user', 'command', 'Sync with main'), names);
+  check('…your skills by their frontmatter name (one a link into ~/.agents); user-invocable: false left out', has('brew-tea', 'user', 'skill', 'Brew a pot of tea for the team') && has('linked', 'user', 'skill') && !byName.has('quiet'), names);
+  check("…the project's own command and skill", has('deploy', 'project', 'command', 'Ship the fixture desk') && has('ship', 'project', 'skill'), names);
+  check("…an enabled plugin's as plugin:name; a disabled plugin's never", has('kettle:boil', 'plugin', 'command', 'Boil the water') && byName.get('kettle:steep')?.plugin === 'kettle' && has('kettle:steep', 'plugin', 'skill') && !byName.has('mug:drink'), names);
+  check("…a .claude/ in a folder above theirs counts as the project's", has('upstairs', 'project', 'command', 'From the folder above'), names);
+  check('…a skill folder in commands/ is one command; its other files are not commands', has('release', 'project', 'skill', 'Cut a release') && !byName.has('release:reference') && !byName.has('release:SKILL'), names);
+  check('…user-invocable: false hides commands too (yours and a plugin manifest\'s), with a comment or quotes', !byName.has('internal') && !byName.has('kettle:hush') && has('kettle:pour', 'plugin', 'command', 'Pour a cup') && !byName.has('hush-comment') && !byName.has('hush-quoted') && has('said', 'user', 'skill', 'Quoted, kept'), names);
+  check('clashing names: a skill beats a command file and a built-in; yours beats the project\'s', has('stage', 'project', 'skill', 'The skill') && has('pack', 'user', 'skill', 'Yours') && has('bug', 'user', 'skill', 'Your own bug skill'), names);
+  check("a plugin turned off in the main checkout's settings.local.json (a worktree, from a subfolder) → hidden", !byName.has('teapot:pour') && has('kettle:boil', 'plugin', 'command'), names);
+  check('user-invocable: no / Off / 0 hide it too', !byName.has('hush-no') && !byName.has('hush-Off') && !byName.has('hush-0'), names);
+  check('…links leading out of their folders are never followed', !byName.has('leak') && !byName.has('escaped') && !byName.has('escape') && !JSON.stringify(cmds.body ?? '').includes('never shown'), names);
+  const [badId, notHere] = await Promise.all([getWith('/api/session/not-a-session/commands'), getWith(`/api/session/${PAST_ID}/commands`)]);
+  check('commands: a bad id gets 400, someone not in the office 404', badId.status === 400 && notHere.status === 404, JSON.stringify([badId.status, notHere.status]));
   const stats = await api('/api/stats');
   const fill = stats?.context?.find?.((c) => c.sessionId === LIVE_ID);
   check('Team Room: context fill counts input + cache tokens', fill?.tokens === 2000, JSON.stringify(fill));
@@ -202,6 +293,7 @@ try {
   live.kill();
   for (const p of others) p.kill();
   home.cleanup();
+  rmSync(outside, { recursive: true, force: true });
 }
 
 console.log(failed || code ? `\nsmoke failed (smoke.mjs exit ${code}, ${failed} fixture check(s) failed)` : '\nsmoke: all good');

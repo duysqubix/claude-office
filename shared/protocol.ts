@@ -272,6 +272,20 @@ export interface ChatLine {
   tool?: string;
 }
 
+/** Something they can run by typing "/" in the chat (#151): GET /api/session/:id/commands. */
+export interface SlashCommand {
+  /** Without the slash: "clear", "frontend:deploy" (a subfolder), "my-plugin:review" (a plugin's). */
+  name: string;
+  /** One line (≤ 200 chars); may be empty. */
+  description: string;
+  /** Claude Code's own, their project's .claude/, your ~/.claude/, or an enabled plugin's. */
+  source: 'built-in' | 'project' | 'user' | 'plugin';
+  /** A custom command (commands/*.md) or a skill (skills/<name>/SKILL.md); built-ins are commands. */
+  kind: 'command' | 'skill';
+  /** source 'plugin': the plugin's name. */
+  plugin?: string;
+}
+
 export interface ApiResult {
   ok: boolean;
   error?: string;
@@ -294,6 +308,8 @@ export interface ApiResult {
 //   POST /api/adopt {sessionId}     -> ApiResult      (external session: resume it in the office as soon as it
 //                                                      exits its own terminal; Employee.adopting until then)
 //   GET  /api/session/:id/chatter?after=<seq>&n=<count> -> ChatLine[]  (incremental chat feed, n ≤ 120)
+//   GET  /api/session/:id/commands -> SlashCommand[]  (what "/" offers them: built-ins, their project's and your
+//                                                      commands and skills, enabled plugins'; read-only, ~30 s cache)
 //   POST /api/hook   <Claude Code hook stdin JSON>    (from scripts/office-hook.mjs only; long-polls for the answer)
 //   POST /api/desk/close {desk}     -> ApiResult      (shut down this office's shell at that desk; desk: 0 to MAX_HOT_DESK)
 //

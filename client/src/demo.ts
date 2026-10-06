@@ -1,7 +1,7 @@
 // `?demo=1`: a pretend office with no server. Exercises every state and activity, walks
 // people in and out, churns interns, and fakes every REST call plus a toy terminal.
 // `&quiet=1` freezes the cast (no arrivals, departures or state changes) for screenshots.
-import type { ActivityKind, ApiResult, Ask, ChatLine, Employee, EmployeeState, Intern, PastSession, ProjectInfo, TeamStats } from '../../shared/protocol';
+import type { ActivityKind, ApiResult, Ask, ChatLine, Employee, EmployeeState, Intern, PastSession, ProjectInfo, SlashCommand, TeamStats } from '../../shared/protocol';
 import type { Backend, TermLink } from './net';
 
 const HOME = '/Users/you';
@@ -52,6 +52,30 @@ const PROMPTS = [
   'can you tidy up the README',
 ];
 const TITLES = ['Spring tuning', 'Door sensor bug', 'Coffee machine API', 'Flaky roster test', 'README polish', 'Desk monitor redesign'];
+/** What "/" offers in the demo chat: a few of Claude Code's own, and some of each kind of custom one. */
+const COMMANDS: SlashCommand[] = [
+  ...(
+    [
+      ['clear', 'Clear conversation history and free up context'],
+      ['compact', 'Clear conversation history but keep a summary in context'],
+      ['context', 'Visualize current context usage'],
+      ['cost', 'Show the total cost and duration of the current session'],
+      ['help', 'Show help and available commands'],
+      ['init', 'Initialize a new CLAUDE.md file with codebase documentation'],
+      ['model', 'Set the AI model for Claude Code'],
+      ['release-notes', 'View release notes'],
+      ['review', 'Review a pull request'],
+    ] as const
+  ).map(([name, description]): SlashCommand => ({ name, description, source: 'built-in', kind: 'command' })),
+  { name: 'deploy', description: 'Build and ship to the staging box', source: 'project', kind: 'command' },
+  { name: 'release', description: 'Tag and publish a release', source: 'project', kind: 'skill' },
+  { name: 'test', description: 'Run the tests for what you changed', source: 'project', kind: 'command' },
+  { name: 'frontend:storybook', description: 'Open the component gallery for a component', source: 'project', kind: 'command' },
+  { name: 'tidy-imports', description: 'Sort and prune imports in the files you changed', source: 'user', kind: 'command' },
+  { name: 'changelog', description: 'Draft a changelog entry from the commits since the last tag', source: 'user', kind: 'skill' },
+  { name: 'garden:water', description: 'Water every plant in the office', source: 'plugin', plugin: 'garden', kind: 'command' },
+  { name: 'garden:repot', description: 'Move a plant to a bigger pot', source: 'plugin', plugin: 'garden', kind: 'skill' },
+];
 const INTERN_TYPES: [string, string][] = [
   ['Explore', 'Find every caller of findPath'],
   ['oh-my-claudecode:executor', 'Implement the hire panel'],
@@ -300,6 +324,7 @@ export function createDemoBackend(params: URLSearchParams): Backend {
       PROJECTS.map((name, i) => ({ cwd: `${HOME}/${name}`, name, lastActive: start - i * 5_000_000, sessionCount: 3 + ((i * 7) % 20) })),
     archive: async () => archive.map((a) => ({ ...a, live: employees.some((e) => e.sessionId === a.sessionId) })),
     chatter: async (id) => [...(chatter.get(id) ?? [])].slice(-12),
+    commands: async () => COMMANDS.map((c) => ({ ...c })),
     async hire(cwd, prompt, name): Promise<ApiResult> {
       if (!cwd.trim()) return { ok: false, error: 'Pick a project first.' };
       const project = cwd.replace(/\/+$/, '').split('/').pop() || '~';

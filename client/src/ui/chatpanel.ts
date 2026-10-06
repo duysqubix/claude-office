@@ -5,7 +5,7 @@
 //
 //   const view = openChat(container, employee, httpChatApi({ sit: (id) => sitDown(id), onClose }));
 //   store.onChange(() => view.update(store.get(id)!));   …   view.close();
-import type { AnswerRequest, ApiResult, ChatLine, Employee } from '../../../shared/protocol';
+import type { AnswerRequest, ApiResult, ChatLine, Employee, SlashCommand } from '../../../shared/protocol';
 import { renderAsk, type AskView } from './askpanel';
 import { bus } from './bus';
 import type { TermKind } from '../net';
@@ -20,6 +20,7 @@ import { icon, stateGlyph, STATE_WORD, type IconName } from './icons';
 import { enhanceMarkdown, renderMarkdown } from './markdown';
 import { markNoteSeen, noteSeen } from './notes';
 import { holdDisabled, isOffline, needsServer, releaseDisabled } from './offline';
+import { slashPicker } from './slashpicker';
 import './theme.css';
 
 export interface ChatApi {
@@ -27,6 +28,8 @@ export interface ChatApi {
   chatter(sessionId: string, q: { n?: number; after?: number }): Promise<ChatLine[]>;
   /** POST /api/say (hosted only; 409 while they need you). */
   say(sessionId: string, text: string): Promise<ApiResult>;
+  /** GET /api/session/:id/commands: what "/" offers them. Without it, "/" opens no picker. */
+  commands?(sessionId: string): Promise<SlashCommand[]>;
   /** POST /api/rename: a name of your own for them (empty: their usual one). */
   rename(sessionId: string, name: string): Promise<ApiResult>;
   /** POST /api/interrupt: Esc in their terminal (hosted only). */
@@ -68,6 +71,11 @@ export function httpChatApi(hooks: { sit(sessionId: string): void; onClose?(): v
       if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
       return (await r.json()) as ChatLine[];
     },
+    async commands(sessionId) {
+      const r = await fetch(`/api/session/${encodeURIComponent(sessionId)}/commands`, { headers: { Accept: 'application/json' } });
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return (await r.json()) as SlashCommand[];
+    },
     say: (sessionId, text) => post('/api/say', { sessionId, text }),
     interrupt: (sessionId) => post('/api/interrupt', { sessionId }),
     rename: (sessionId, name) => post('/api/rename', { sessionId, name }),
@@ -107,6 +115,8 @@ export interface ChatView {
   setMode(mode: ChatMode): void;
   /** Start renaming them: the name in the band becomes a text box. */
   rename(): void;
+  /** Esc caught before it reaches the composer (the laptop's): closes the "/" picker. True if it did. */
+  escape(): boolean;
   close(): void;
 }
 
@@ -338,7 +348,9 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
   });
   const sendBtn = needsServer(el('button', { class: 'co-btn co-btn--primary co-chat__send', attrs: { type: 'button', 'aria-label': 'Send', disabled: true }, html: icon('send', 22) }));
   const hint = el('p', { class: 'co-chat__hint' });
-  const composer = el('div', { class: 'co-chat__composer' }, el('div', { class: 'co-chat__row' }, input, sendBtn), hint);
+  // "/" at the start opens their slash commands and skills above the box (#151).
+  const picker = api.commands ? slashPicker(input, () => api.commands!(id)) : null;
+  const composer = el('div', { class: 'co-chat__composer' }, picker?.el, el('div', { class: 'co-chat__row' }, input, sendBtn), hint);
   const adoptBtn = needsServer(button('Bring into the office', { kind: 'primary', onClick: () => void adopt() }));
   const adoptText = el('p', { class: 'co-chat__adopt-text' });
   const adoptCard = el('div', { class: 'co-chat__adopt' }, adoptText, adoptBtn);
@@ -713,7 +725,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     if (isOffline()) hint.textContent = "Offline: the office server isn't reachable. Your draft waits here.";
     else if (e.state === 'needs-you') hint.textContent = e.ask ? 'Answer their question above first.' : 'They need you in their terminal first. Sit at their computer to answer.';
     else if (e.state === 'working') hint.textContent = "They'll read it after this step. Enter sends, Shift+Enter adds a line.";
-    else hint.textContent = 'Enter sends, Shift+Enter adds a line. Slash commands work too.';
+    else hint.textContent = picker ? 'Enter sends, Shift+Enter adds a line. Type / for their commands.' : 'Enter sends, Shift+Enter adds a line. Slash commands work too.';
     hint.classList.toggle('is-blocked', e.state === 'needs-you');
   }
 
@@ -727,7 +739,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     syncComposer();
   });
   input.addEventListener('keydown', (ev) => {
-    if (ev.isComposing) return;
+    if (ev.isComposing || picker?.key(ev)) return;
     if (ev.key === 'Enter' && !ev.shiftKey) {
       ev.preventDefault();
       void send();
@@ -760,6 +772,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
       pending.push(p);
       msgs.append(node);
       input.value = '';
+      picker?.sync();
       grow();
       syncComposer();
       scrollToEnd(true);
@@ -989,6 +1002,7 @@ export function openChat(container: HTMLElement, employee: Employee, api: ChatAp
     },
     getMode: () => mode,
     setMode,
+    escape: () => picker?.close() ?? false,
     close() {
       if (closed) return;
       closed = true;
