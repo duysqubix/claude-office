@@ -2010,6 +2010,80 @@ body.seated .co-edges {
   color: var(--ink);
   font-weight: 600;
 }
+/* "/" in the composer: their slash commands and skills, above the box (#151). */
+.co-slash {
+  box-sizing: border-box;
+  max-height: 232px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 3px 0 var(--shade);
+}
+.co-slash__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.co-slash__row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) 1fr;
+  align-items: baseline;
+  column-gap: 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.co-slash__row:hover {
+  background: var(--paper-2);
+}
+.co-slash__row[aria-selected='true'] {
+  background: var(--primary-tint);
+  box-shadow: inset 3px 0 0 var(--primary-shade);
+}
+.co-slash__name {
+  overflow: hidden;
+  font: 600 14px/20px var(--co-mono);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.co-slash__source {
+  justify-self: end;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font: 600 11px/18px var(--co-font);
+  white-space: nowrap;
+}
+.co-slash__source--built-in {
+  background: var(--primary-tint);
+  color: var(--ink);
+}
+.co-slash__source--plugin {
+  background: #efe4ff;
+  color: var(--ink);
+}
+.co-slash__desc {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--ink-2);
+  font: 400 13px/17px var(--co-font);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.co-slash__desc:empty {
+  display: none;
+}
+.co-slash__note {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--ink-2);
+  font: 400 13px/17px var(--co-font);
+}
 .co-chat__adopt {
   gap: 10px;
 }

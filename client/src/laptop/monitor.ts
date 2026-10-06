@@ -23,7 +23,7 @@ export interface MonitorDeps {
 export interface MonitorView {
   el: HTMLElement;
   focus(): void;
-  /** Esc, before it stands you up: out of a text box (the draft stays) or back from Terminal mode. True if it did. */
+  /** Esc, before it stands you up: closes the "/" picker, leaves a text box (the draft stays) or Terminal mode. True if it did. */
   escape(): boolean;
   dispose(): void;
 }
@@ -210,6 +210,8 @@ export function monitorView(deps: MonitorDeps): MonitorView {
     },
     escape() {
       if (!chat) return false;
+      // The "/" picker first: Esc closes only it, and the cursor stays in the box.
+      if (chat.view.escape()) return true;
       const at = document.activeElement as HTMLElement | null;
       if (at && root.contains(at) && at.closest('input, textarea, select, [contenteditable]')) {
         at.blur();

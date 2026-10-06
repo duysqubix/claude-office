@@ -8,9 +8,9 @@
 // Then it checks the office read the pretend session the way Claude Code writes it.
 //   npm run build && node scripts/ci/smoke.mjs     (serves dist/; without a build it uses dev mode)
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { freePort, makeHome, ROOT, startOffice } from './office.mjs';
 
 let failed = 0;
@@ -109,6 +109,36 @@ writeFileSync(join(projectDir, `${LIVE_ID}.jsonl`), jsonl([...turn(LIVE_ID, 'Tid
 writeFileSync(join(projectDir, `${SDK['sdk-cli']}.jsonl`), jsonl(turn(SDK['sdk-cli'], 'Write a memory note', 'Noted.', 60_000)));
 writeFileSync(join(projectDir, `${PAST_ID}.jsonl`), jsonl(turn(PAST_ID, 'Water the office plant', 'Watered.', 86_400_000)));
 
+// What "/" offers in the chat (#151): custom commands (a subfolder is a namespace), skills (one a
+// link into ~/.agents, the way skill managers install them; one hidden from the menu), the
+// project's own, and an enabled plugin's (a disabled one's never). Two links lead out of the
+// folders they sit in, to files outside this home: neither is read.
+const put = (path, text) => {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
+};
+const outside = join(home.dir, 'outside');
+put(join(outside, 'secret.md'), '---\ndescription: never shown\n---\n');
+put(join(outside, 'escape', 'SKILL.md'), '---\nname: escaped\ndescription: never shown\n---\n');
+put(join(home.claudeHome, 'commands', 'tidy.md'), '---\ndescription: "Tidy the desk"\nargument-hint: <where>\n---\nTidy $ARGUMENTS.\n');
+put(join(home.claudeHome, 'commands', 'git', 'sync.md'), '# Sync with main\n\nPull and rebase.\n');
+symlinkSync(join(outside, 'secret.md'), join(home.claudeHome, 'commands', 'leak.md'));
+put(join(home.claudeHome, 'skills', 'brew', 'SKILL.md'), '---\nname: brew-tea\ndescription: >\n  Brew a pot of tea\n  for the team\n---\n# Brew\n');
+put(join(home.claudeHome, 'skills', 'quiet', 'SKILL.md'), '---\nname: quiet\ndescription: model only\nuser-invocable: false\n---\n');
+put(join(home.home, '.agents', 'skills', 'linked', 'SKILL.md'), '---\nname: linked\ndescription: Installed by a skill manager\n---\n');
+symlinkSync(join(home.home, '.agents', 'skills', 'linked'), join(home.claudeHome, 'skills', 'linked'));
+symlinkSync(join(outside, 'escape'), join(home.claudeHome, 'skills', 'escape'));
+put(join(project, '.claude', 'commands', 'deploy.md'), '---\ndescription: Ship the fixture desk\n---\n');
+put(join(project, '.claude', 'skills', 'ship', 'SKILL.md'), '---\nname: ship\ndescription: Project skill\n---\n');
+const pluginAt = (name) => join(home.claudeHome, 'plugins', 'cache', 'shelf', name, '1.0.0');
+put(join(pluginAt('kettle'), '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'kettle', version: '1.0.0' }));
+put(join(pluginAt('kettle'), 'commands', 'boil.md'), '---\ndescription: Boil the water\n---\n');
+put(join(pluginAt('kettle'), 'skills', 'steep', 'SKILL.md'), '---\nname: steep\ndescription: Steep for three minutes\n---\n');
+put(join(pluginAt('mug'), 'commands', 'drink.md'), '---\ndescription: never shown (disabled)\n---\n');
+const installed = (name) => [{ scope: 'user', installPath: pluginAt(name), version: '1.0.0' }];
+put(join(home.claudeHome, 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'kettle@shelf': installed('kettle'), 'mug@shelf': installed('mug') } }));
+put(join(home.claudeHome, 'settings.json'), JSON.stringify({ enabledPlugins: { 'kettle@shelf': true, 'mug@shelf': false } }));
+
 // POST JSON the way the page does (same origin: no Origin header).
 const post = (path, body) =>
   new Promise((resolve) => {
@@ -120,6 +150,16 @@ const post = (path, body) =>
     });
     req.on('error', () => resolve({ status: 0 }));
     req.end(data);
+  });
+
+/** GET, with its status. */
+const getWith = (path) =>
+  new Promise((resolve) => {
+    http.get({ host: '127.0.0.1', port, path }, (res) => {
+      let text = '';
+      res.on('data', (c) => (text += c));
+      res.on('end', () => resolve({ status: res.statusCode, body: (() => { try { return JSON.parse(text); } catch { return undefined; } })() }));
+    }).on('error', () => resolve({ status: 0 }));
   });
 
 const api = (path) =>
@@ -192,6 +232,21 @@ try {
   const cleared = await post('/api/rename', { sessionId: LIVE_ID, name: '' });
   const back = (await api('/api/roster'))?.find?.((e) => e.sessionId === LIVE_ID);
   check('an empty rename gives them their usual name back', cleared.status === 200 && back?.displayName === 'Fixture Fran', JSON.stringify({ status: cleared.status, name: back?.displayName }));
+  const cmds = await getWith(`/api/session/${LIVE_ID}/commands`);
+  const byName = new Map((Array.isArray(cmds.body) ? cmds.body : []).map((c) => [c.name, c]));
+  const has = (name, source, kind, description) => {
+    const c = byName.get(name);
+    return c?.source === source && c?.kind === kind && (description === undefined || c?.description === description);
+  };
+  const names = JSON.stringify([...byName.keys()].filter((n) => !['clear', 'compact', 'help', 'model', 'cost', 'context', 'memory', 'review', 'init', 'resume', 'rename', 'agents', 'mcp', 'permissions', 'status', 'config', 'add-dir', 'bug', 'doctor', 'exit', 'hooks', 'login', 'logout', 'pr-comments', 'release-notes', 'terminal-setup', 'vim'].includes(n)));
+  check('commands: the built-ins, with descriptions', cmds.status === 200 && has('clear', 'built-in', 'command') && !!byName.get('compact')?.description && has('vim', 'built-in', 'command'), `${cmds.status} ${byName.size} listed`);
+  check('…your commands, a subfolder as a namespace, described by frontmatter or the first line', has('tidy', 'user', 'command', 'Tidy the desk') && has('git:sync', 'user', 'command', 'Sync with main'), names);
+  check('…your skills by their frontmatter name (one a link into ~/.agents); user-invocable: false left out', has('brew-tea', 'user', 'skill', 'Brew a pot of tea for the team') && has('linked', 'user', 'skill') && !byName.has('quiet'), names);
+  check("…the project's own command and skill", has('deploy', 'project', 'command', 'Ship the fixture desk') && has('ship', 'project', 'skill'), names);
+  check("…an enabled plugin's as plugin:name; a disabled plugin's never", has('kettle:boil', 'plugin', 'command', 'Boil the water') && byName.get('kettle:steep')?.plugin === 'kettle' && has('kettle:steep', 'plugin', 'skill') && !byName.has('mug:drink'), names);
+  check('…links leading out of their folders are never followed', !byName.has('leak') && !byName.has('escaped') && !byName.has('escape') && !JSON.stringify(cmds.body ?? '').includes('never shown'), names);
+  const [badId, notHere] = await Promise.all([getWith('/api/session/not-a-session/commands'), getWith(`/api/session/${PAST_ID}/commands`)]);
+  check('commands: a bad id gets 400, someone not in the office 404', badId.status === 400 && notHere.status === 404, JSON.stringify([badId.status, notHere.status]));
   const stats = await api('/api/stats');
   const fill = stats?.context?.find?.((c) => c.sessionId === LIVE_ID);
   check('Team Room: context fill counts input + cache tokens', fill?.tokens === 2000, JSON.stringify(fill));
