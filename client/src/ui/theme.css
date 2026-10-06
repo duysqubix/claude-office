@@ -20,6 +20,8 @@
   --st-idle: #60a5fa;
   --st-sleeping: #a78bfa;
   --st-starting: #cbd5e1;
+  --st-ready: #8fe0c8;
+  --st-ready-shade: #4fb39a;
   --band-hire: #ffc94a;
   --band-files: #f6b76e;
   --band-roster: #8fe0c8;
@@ -293,6 +295,10 @@
 }
 :is(.co-badge, .co-chip, .co-chat__state)[data-state='starting'] {
   --c: var(--st-starting);
+}
+/* Ready for you (ready.ts): not a server state, a cue on top of free or asleep. */
+:is(.co-badge, .co-chip)[data-state='ready'] {
+  --c: var(--st-ready);
 }
 
 .co-tag {
@@ -1109,6 +1115,40 @@
   animation: co-pop 300ms var(--spring-pop) both;
 }
 
+/* Ready for you (#162): a "Done!" card held up over their head. Calm: mint, a slow sway, no hop. */
+.co-bang--ready {
+  display: inline-flex;
+  gap: 4px;
+  width: auto;
+  height: 34px;
+  padding: 0 10px 0 6px;
+  border-width: 3px;
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 0 0 3px var(--st-ready) inset, 0 3px 0 var(--shade);
+  font: 700 16px/1 var(--co-font);
+  white-space: nowrap;
+  transform-origin: 50% 100%;
+  animation: co-pop 300ms var(--spring-pop) both, co-sway 2600ms ease-in-out 300ms infinite;
+}
+.co-bang--ready svg {
+  display: block;
+}
+.co-ready {
+  cursor: pointer;
+  pointer-events: auto;
+  background: var(--st-ready);
+  box-shadow: 0 3px 0 var(--st-ready-shade);
+  font-family: var(--co-font);
+}
+.co-ready:focus-visible {
+  outline: 3px solid transparent;
+  box-shadow: var(--focus-ring);
+}
+.co-ready:hover {
+  filter: brightness(1.04);
+}
+
 .co-zzz {
   position: relative;
   width: 44px;
@@ -1208,6 +1248,15 @@ body.seated .co-edges {
 }
 .co-edge--calm .co-edge__disc {
   box-shadow: 0 0 0 4px var(--paper), 0 0 0 6px var(--ink), 0 5px 0 6px var(--shade);
+}
+.co-edge--ready .co-edge__disc {
+  box-shadow: 0 0 0 4px var(--st-ready), 0 0 0 6px var(--ink), 0 5px 0 6px var(--shade);
+}
+.co-edge--ready .co-edge__badge:not(.co-edge__badge--count) {
+  background: var(--st-ready);
+}
+.co-edge--ready .co-edge__float {
+  animation-duration: 2400ms;
 }
 .co-edge__disc svg {
   display: block;
@@ -3122,6 +3171,15 @@ html.co-calm .co-thought.is-out {
   100% {
     opacity: 0;
     transform: scale(0);
+  }
+}
+@keyframes co-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
   }
 }
 @keyframes co-edge-bob {

@@ -43,6 +43,8 @@ import { DeskTerminal } from './ui/deskterm';
 import { h, truncate, waitingText } from './ui/dom';
 import { Hud } from './ui/hud';
 import { LabelLayer } from './ui/labels';
+import { plainText } from './ui/markdown';
+import { baseline, finishedAt, isReady, markSeen, onReadyChange, readyChimeOn, seenIfVisible, watch } from './ui/ready';
 import { PanelHost, type PanelId } from './ui/panels';
 import { Sfx } from './ui/sfx';
 import { TerminalOverlay } from './ui/terminal';
@@ -153,6 +155,63 @@ function runOffice(): void {
     internRemoved: (i) => labels.detachIntern(i),
   });
 
+  /** Each session's last finish (ready.ts finishedAt), to spot a new one, quick turns included. */
+  const lastFinish = new Map<string, number | null>();
+
+  /** After each roster: whoever's last turn ended since the one before (not on arrival) just finished. */
+  function spotFinishes(): void {
+    const here = new Set<string>();
+    for (const e of director.list()) {
+      const id = e.data.sessionId;
+      here.add(id);
+      const at = finishedAt(e.data);
+      const was = lastFinish.get(id);
+      lastFinish.set(id, at);
+      // Free now (not just nodding off), and a different turn from last time.
+      if (was !== undefined && at !== null && at !== was && e.state === 'idle') finished(e);
+    }
+    for (const id of lastFinish.keys()) if (!here.has(id)) lastFinish.delete(id);
+  }
+
+  /**
+   * They just finished their turn (#162). Unless you were already looking (their chat open, at
+   * their computer, Monitor on them: those mark it seen first), they're ready for you: a soft
+   * chime and a toast with their last line.
+   */
+  function finished(e: EmployeeChar): void {
+    const id = e.data.sessionId;
+    if (!isReady(e.data)) return;
+    if (readyChimeOn()) sfx.play('ready');
+    const last = e.data.lastText ? truncate(plainText(e.data.lastText), 90) : undefined;
+    toasts.show(`${e.data.displayName} finished`, 'info', 7000, last, {
+      who: e.data,
+      actions: [
+        {
+          label: 'Go',
+          run: () => {
+            if (!sitting) walkTo(id);
+          },
+        },
+        {
+          label: 'Open chat',
+          // Seated, their chat would open under the computer: say how instead.
+          run: () => (sitting ? toasts.show('Stand up first (Esc), then open their chat.', 'info', 4000) : panels.openChat(id)),
+        },
+      ],
+    });
+  }
+
+  /** Whose computer you're sitting at (or sitting down at), if anyone's. */
+  const atComputer = () => (sitting && sitting.phase !== 'walking' ? store.get(sitting.id) : undefined);
+  // Back to the tab still at their computer: now you've seen how they finished.
+  watch(atComputer);
+
+  /** Who is ready for you, onto their characters (pose, labels, edge faces). */
+  function refreshReady(): void {
+    for (const e of director.list()) e.readyForYou = isReady(e.data);
+  }
+  onReadyChange(refreshReady);
+
   // Regulars: NPC coworkers at the desks no session is using (chars/regulars.ts). Never in the
   // roster, stats, toasts or Q; E gets a quip, never a panel. `?regulars=` and `?seed=` for tests.
   const regulars = new Regulars(world, scene, director, {
@@ -197,6 +256,7 @@ function runOffice(): void {
     uiRoot,
     {
       needsYou: () => goToNextNeedsYou(),
+      ready: () => goToNextReady(),
       stats: () => panels.toggle('stats'),
       roster: () => panels.toggle('roster'),
       hire: () => panels.toggle('hire'),
@@ -231,8 +291,16 @@ function runOffice(): void {
   let offlineTimer = 0;
   backend.onHello = (home) => (store.home = home);
   backend.onRoster = (list, now) => {
+    // A first visit starts from here: whoever is already done isn't news (ready.ts). The demo
+    // office skips it, so its idle cast shows the cue straight away.
+    if (!backend.demo) baseline(list);
     store.set(list, now);
+    // At their computer as they finish: you saw it, if the tab is visible (their chat and Monitor
+    // mark it themselves).
+    seenIfVisible(atComputer());
     director.sync(list);
+    spotFinishes();
+    refreshReady();
     hud.setStats(director.stats());
   };
   backend.onNotice = (level, text) => toasts.show(text, level === 'warn' ? 'warn' : 'info', 6000);
@@ -331,19 +399,42 @@ function runOffice(): void {
     return best?.data.sessionId;
   }
 
-  /** Q / N / the chip: the next person with their hand up, longest-waiting first. */
+  /** Everyone ready for you (#162), whoever finished first first. */
+  function readyPeople(): EmployeeChar[] {
+    return director
+      .list()
+      .filter((e) => e.phase !== 'leaving' && e.phase !== 'gone' && !e.handUp && isReady(e.data))
+      .sort((a, b) => finishedAt(a.data)! - finishedAt(b.data)!);
+  }
+
+  /** Go to the one after whoever you're heading for now (round again at the end). */
+  function goToNextOf(list: EmployeeChar[]): void {
+    const i = goingTo ? list.findIndex((e) => e.data.sessionId === goingTo) : -1;
+    panels.close();
+    walkTo(list[(i + 1) % list.length].data.sessionId);
+  }
+
+  /**
+   * Q / N / the chip: the next person with their hand up, longest-waiting first; then whoever is
+   * ready for you, first finished first.
+   */
   function goToNextNeedsYou(): void {
     const waiting = director
       .list()
       .filter((e) => e.handUp && e.phase !== 'leaving' && e.phase !== 'gone')
       .sort((a, b) => a.data.stateSince - b.data.stateSince);
-    if (!waiting.length) {
+    const all = [...waiting, ...readyPeople()];
+    if (!all.length) {
       toasts.show('Nobody needs you right now', 'good', 2200);
       return;
     }
-    const i = goingTo ? waiting.findIndex((e) => e.data.sessionId === goingTo) : -1;
-    panels.close();
-    walkTo(waiting[(i + 1) % waiting.length].data.sessionId);
+    goToNextOf(all);
+  }
+
+  /** The ready chip: just the ready ones. */
+  function goToNextReady(): void {
+    const ready = readyPeople();
+    if (ready.length) goToNextOf(ready);
   }
 
   // These four only need the desk: someone's (sitAt) or an empty one's (sitAtDesk).
@@ -426,6 +517,8 @@ function runOffice(): void {
     // timers must leave that one alone.
     const me = sitting;
     me.phase = 'easing';
+    // Sitting down at their computer: you see how their turn ended.
+    markSeen(e.data);
     manager.frozen = true;
     manager.face(e.desk.yaw);
     hud.setPrompt(null);

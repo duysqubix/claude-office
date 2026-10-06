@@ -91,8 +91,17 @@ kbd {
   margin-left: 2px;
   font-size: 13px;
 }
+.co-hud__alerts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
 .co-hud__needs {
   position: relative;
+}
+.co-hud__ready:empty {
+  display: none;
 }
 .co-hud__row {
   display: flex;
@@ -173,6 +182,10 @@ body.seated .co-hud__badge {
 }
 body.seated .co-hud__needs {
   z-index: 35;
+}
+/* Seated, only the needs-you chip stays: ready can wait until you stand up. */
+body.seated .co-hud__ready {
+  visibility: hidden;
 }
 body.seated .co-needs {
   pointer-events: none;

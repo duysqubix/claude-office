@@ -93,6 +93,12 @@ export interface Employee {
   state: EmployeeState;
   /** Epoch ms when `state` last changed. */
   stateSince: number;
+  /**
+   * Free or asleep: epoch ms their last turn ended (the registry's own timestamp). Unlike
+   * stateSince it moves with every turn, even one that started and finished between two polls,
+   * so "ready for you" (client ui/ready.ts) can tell a new finish from one you've seen.
+   */
+  turnEndedAt?: number;
   /** Why Claude is blocked when state is "needs-you", e.g. "permission", "dialog open". */
   waitingFor?: string;
   activity?: Activity;

@@ -338,6 +338,8 @@ export class Roster extends EventEmitter {
       otherPidNamespace: e.pidUnchecked ? e.pidDomain : undefined,
       state,
       stateSince: this.since(e.sessionId, state, sinceHint),
+      // since() keeps stateSince while idle holds, so a quick turn between polls wouldn't show in it.
+      turnEndedAt: state === 'idle' || state === 'sleeping' ? e.statusUpdatedAt : undefined,
       waitingFor: state === 'needs-you' ? e.waitingFor || 'your input' : undefined,
       activity: busy ? s.activity : undefined,
       lastText: s.lastText,

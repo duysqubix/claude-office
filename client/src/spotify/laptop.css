@@ -915,6 +915,9 @@ html.co-calm .sp-eq i {
 .mon-row[data-state='needs-you']:not(.is-picked) {
   background: #fff1cc;
 }
+.mon-row[data-ready]:not(.is-picked) {
+  background: #e3f7f0;
+}
 .mon-row:focus-visible {
   outline: 3px solid transparent;
   box-shadow: var(--focus-ring);
