@@ -131,7 +131,19 @@ symlinkSync(join(outside, 'escape'), join(home.claudeHome, 'skills', 'escape'));
 put(join(project, '.claude', 'commands', 'deploy.md'), '---\ndescription: Ship the fixture desk\n---\n');
 put(join(project, '.claude', 'skills', 'ship', 'SKILL.md'), '---\nname: ship\ndescription: Project skill\n---\n');
 const pluginAt = (name) => join(home.claudeHome, 'plugins', 'cache', 'shelf', name, '1.0.0');
-put(join(pluginAt('kettle'), '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'kettle', version: '1.0.0' }));
+put(join(pluginAt('kettle'), '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'kettle', version: '1.0.0', commands: ['./extra/pour.md', './extra/hush.md'] }));
+put(join(pluginAt('kettle'), 'extra', 'pour.md'), '---\ndescription: Pour a cup\n---\n');
+put(join(pluginAt('kettle'), 'extra', 'hush.md'), '---\nuser-invocable: false\n---\nModel only.\n');
+// Hidden from "/" however the YAML says it (a comment after it, quoted), on command files too.
+put(join(home.claudeHome, 'commands', 'internal.md'), '---\nuser-invocable: false\n---\nModel only.\n');
+put(join(home.claudeHome, 'skills', 'hush-comment', 'SKILL.md'), '---\nname: hush-comment\nuser-invocable: false # internal only\n---\n');
+put(join(home.claudeHome, 'skills', 'hush-quoted', 'SKILL.md'), "---\nname: hush-quoted\ndescription: 'Quoted' # not part of it\nuser-invocable: \"false\"\n---\n");
+put(join(home.claudeHome, 'skills', 'said', 'SKILL.md'), "---\nname: said\ndescription: 'Quoted, kept' # not part of it\n---\n");
+// A skill's folder inside commands/ is one command ("/release"), its other files its own.
+put(join(project, '.claude', 'commands', 'release', 'SKILL.md'), '---\ndescription: Cut a release\n---\n');
+put(join(project, '.claude', 'commands', 'release', 'reference.md'), '# Notes for the release skill\n');
+// A .claude/ further up (a monorepo's, above packages/web): the project's too.
+put(join(home.dir, '.claude', 'commands', 'upstairs.md'), '---\ndescription: From the folder above\n---\n');
 put(join(pluginAt('kettle'), 'commands', 'boil.md'), '---\ndescription: Boil the water\n---\n');
 put(join(pluginAt('kettle'), 'skills', 'steep', 'SKILL.md'), '---\nname: steep\ndescription: Steep for three minutes\n---\n');
 put(join(pluginAt('mug'), 'commands', 'drink.md'), '---\ndescription: never shown (disabled)\n---\n');
@@ -244,6 +256,9 @@ try {
   check('…your skills by their frontmatter name (one a link into ~/.agents); user-invocable: false left out', has('brew-tea', 'user', 'skill', 'Brew a pot of tea for the team') && has('linked', 'user', 'skill') && !byName.has('quiet'), names);
   check("…the project's own command and skill", has('deploy', 'project', 'command', 'Ship the fixture desk') && has('ship', 'project', 'skill'), names);
   check("…an enabled plugin's as plugin:name; a disabled plugin's never", has('kettle:boil', 'plugin', 'command', 'Boil the water') && byName.get('kettle:steep')?.plugin === 'kettle' && has('kettle:steep', 'plugin', 'skill') && !byName.has('mug:drink'), names);
+  check("…a .claude/ in a folder above theirs counts as the project's", has('upstairs', 'project', 'command', 'From the folder above'), names);
+  check('…a skill folder in commands/ is one command; its other files are not commands', has('release', 'project', 'skill', 'Cut a release') && !byName.has('release:reference') && !byName.has('release:SKILL'), names);
+  check('…user-invocable: false hides commands too (yours and a plugin manifest\'s), with a comment or quotes', !byName.has('internal') && !byName.has('kettle:hush') && has('kettle:pour', 'plugin', 'command', 'Pour a cup') && !byName.has('hush-comment') && !byName.has('hush-quoted') && has('said', 'user', 'skill', 'Quoted, kept'), names);
   check('…links leading out of their folders are never followed', !byName.has('leak') && !byName.has('escaped') && !byName.has('escape') && !JSON.stringify(cmds.body ?? '').includes('never shown'), names);
   const [badId, notHere] = await Promise.all([getWith('/api/session/not-a-session/commands'), getWith(`/api/session/${PAST_ID}/commands`)]);
   check('commands: a bad id gets 400, someone not in the office 404', badId.status === 400 && notHere.status === 404, JSON.stringify([badId.status, notHere.status]));

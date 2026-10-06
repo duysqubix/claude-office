@@ -67,6 +67,7 @@ const COMMANDS: SlashCommand[] = [
     ] as const
   ).map(([name, description]): SlashCommand => ({ name, description, source: 'built-in', kind: 'command' })),
   { name: 'deploy', description: 'Build and ship to the staging box', source: 'project', kind: 'command' },
+  { name: 'test', description: 'Run the tests for what you changed', source: 'project', kind: 'command' },
   { name: 'frontend:storybook', description: 'Open the component gallery for a component', source: 'project', kind: 'command' },
   { name: 'tidy-imports', description: 'Sort and prune imports in the files you changed', source: 'user', kind: 'command' },
   { name: 'changelog', description: 'Draft a changelog entry from the commits since the last tag', source: 'user', kind: 'skill' },

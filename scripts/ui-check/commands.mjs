@@ -117,6 +117,14 @@ try {
   await type(page, '/tdyim');
   const fz = await look(page, DOCK);
   check('…then fuzzy: /tdyim → tidy-imports', fz.names[0] === 'tidy-imports', JSON.stringify(fz.names));
+  await clear(page, BOX);
+  await type(page, '/te');
+  await page.keyboard.press('ArrowDown');
+  await type(page, 'st');
+  const narrowed = await look(page, DOCK);
+  check('a new query starts at its best match (not the row picked for the last one)', narrowed.names[0] === 'test' && narrowed.active === 'test', JSON.stringify({ names: narrowed.names, active: narrowed.active }));
+  await clear(page, BOX);
+  await type(page, '/tdyim');
   await type(page, 'zzz');
   const none = await look(page, DOCK);
   check('nothing matches → the picker steps aside', !none.open && none.expanded === 'false', JSON.stringify(none));

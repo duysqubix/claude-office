@@ -5,7 +5,7 @@
 // folder may itself be a symlink (skill managers install them that way), to somewhere in your
 // home or their project. Cached per folder for CACHE_MS.
 import { open, readdir, readFile, realpath, stat } from 'node:fs/promises';
-import { basename, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import type { SlashCommand } from '../shared/protocol';
 import { CLAUDE_HOME, HOME } from './config';
 
@@ -47,6 +47,8 @@ const MAX_CACHED = 64;
 const MAX_PER_ROOT = 300;
 const MAX_PLUGINS = 64;
 const MAX_DEPTH = 4;
+/** Folders looked in above theirs for a .claude/ of the project's. */
+const MAX_ANCESTORS = 32;
 /** Most folder entries looked at in one commands folder (however few of them are .md). */
 const MAX_ENTRIES = 2000;
 /** The most of the list sent back. */
@@ -77,13 +79,18 @@ export function listCommands(cwd: string): Promise<SlashCommand[]> {
 }
 
 async function build(cwd: string): Promise<SlashCommand[]> {
-  const project = join(cwd, '.claude');
-  // A skill folder may be a link to somewhere in your home or their project (never outside both).
-  const linkable = (await Promise.all([HOME, cwd].map((p) => realpath(p).catch(() => null)))).filter((p): p is string => !!p);
+  const { folders, repo } = await projectRoots(cwd);
+  const real = async (paths: string[]) => (await Promise.all(paths.map((p) => realpath(p).catch(() => null)))).filter((p): p is string => !!p);
+  // A skill folder may be a link to somewhere in your home, your Claude folder or their project
+  // (its repository, if it has one; never outside all of them).
+  const linkable = await real([HOME, CLAUDE_HOME, cwd, ...(repo ? [repo] : [])]);
+  // A .claude/ further up may also point anywhere in its own folder.
+  const bounds = async (p: string) => [...linkable, ...(await real([p]))];
+  // Nearest first: a folder's own .claude/ wins over one further up.
   const groups = await Promise.all([
-    commandsIn(join(project, 'commands'), 'project', linkable),
+    ...folders.map(async (p) => commandsIn(join(p, '.claude', 'commands'), 'project', await bounds(p))),
     commandsIn(join(CLAUDE_HOME, 'commands'), 'user', linkable),
-    skillsIn(join(project, 'skills'), 'project', linkable),
+    ...folders.map(async (p) => skillsIn(join(p, '.claude', 'skills'), 'project', await bounds(p))),
     skillsIn(join(CLAUDE_HOME, 'skills'), 'user', linkable),
     pluginCommands(cwd),
   ]);
@@ -97,6 +104,21 @@ async function build(cwd: string): Promise<SlashCommand[]> {
     out.push(c);
   }
   return out;
+}
+
+/**
+ * Their folder and the ones above it, up to the repository's top (the first with .git) or the
+ * last below /, the way Claude Code finds a project's .claude/ from packages/web. Your own
+ * ~/.claude is yours, not a project's: a folder whose .claude/ it is is left out.
+ */
+async function projectRoots(cwd: string): Promise<{ folders: string[]; repo: string | null }> {
+  const mine = await realpath(CLAUDE_HOME).catch(() => resolve(CLAUDE_HOME));
+  const folders: string[] = [];
+  for (let at = resolve(cwd), n = 0; n < MAX_ANCESTORS && dirname(at) !== at; at = dirname(at), n++) {
+    if ((await realpath(join(at, '.claude')).catch(() => null)) !== mine) folders.push(at);
+    if (await stat(join(at, '.git')).catch(() => null)) return { folders, repo: at };
+  }
+  return { folders, repo: null };
 }
 
 const inside = (root: string, p: string) => p === root || p.startsWith(root + sep);
@@ -135,12 +157,18 @@ async function commandsIn(dir: string, source: SlashCommand['source'], bounds: s
       const s = real ? await stat(real).catch(() => null) : null;
       if (!real || !s) continue;
       if (s.isDirectory()) {
-        if (depth < MAX_DEPTH && SEGMENT.test(name)) await walk(real, [...ns, name], depth + 1);
+        if (!SEGMENT.test(name)) continue;
+        // A skill's folder (deploy/SKILL.md) is one command, "/deploy"; its other files are its own.
+        const skill = await within(join(real, 'SKILL.md'), [real]);
+        if (skill && (await stat(skill).catch(() => null))?.isFile()) {
+          const { meta, firstLine } = await readHead(skill);
+          if (!hidden(meta)) out.push(entry([...(plugin ? [plugin] : []), ...ns, name].join(':'), meta.description || firstLine, 'skill', origin));
+        } else if (depth < MAX_DEPTH) await walk(real, [...ns, name], depth + 1);
       } else if (s.isFile() && name.endsWith('.md')) {
         const stem = name.slice(0, -3);
         if (!SEGMENT.test(stem)) continue;
         const { meta, firstLine } = await readHead(real);
-        out.push(entry([...(plugin ? [plugin] : []), ...ns, stem].join(':'), meta.description || firstLine, 'command', origin));
+        if (!hidden(meta)) out.push(entry([...(plugin ? [plugin] : []), ...ns, stem].join(':'), meta.description || firstLine, 'command', origin));
       }
     }
   };
@@ -174,10 +202,20 @@ async function oneSkill(folder: string, linkable: string[], origin: Origin): Pro
   const file = await within(join(real, 'SKILL.md'), [real]);
   if (!file || !(await stat(file).catch(() => null))?.isFile()) return null;
   const { meta, firstLine } = await readHead(file);
-  if (meta['user-invocable'] === 'false') return null;
+  if (hidden(meta)) return null;
   const name = SEGMENT.test(meta.name ?? '') ? meta.name! : basename(folder);
   if (!SEGMENT.test(name)) return null;
   return entry(origin.plugin ? `${origin.plugin}:${name}` : name, meta.description || firstLine, 'skill', origin);
+}
+
+/** `user-invocable: false`: for Claude to use, kept out of the "/" menu (commands and skills alike). */
+const hidden = (meta: Record<string, string>) => meta['user-invocable']?.toLowerCase() === 'false';
+
+/** A YAML scalar's value: quotes off, or a trailing ` # comment` off. */
+function scalar(v: string): string {
+  const quoted = /^(['"])(.*?)\1(\s+#.*)?$/.exec(v);
+  if (quoted) return quoted[2];
+  return v.replace(/(^|\s+)#.*$/, '').trim();
 }
 
 function entry(name: string, description: string, kind: SlashCommand['kind'], origin: Origin): SlashCommand {
@@ -220,7 +258,7 @@ async function readHead(file: string): Promise<{ meta: Record<string, string>; f
           const more: string[] = [];
           while (i + 1 < end && /^\s+\S|^\s*$/.test(lines[i + 1])) more.push(lines[++i].trim());
           v = more.join(' ');
-        } else if (/^(['"]).*\1$/.test(v)) v = v.slice(1, -1);
+        } else v = scalar(v);
         meta[m[1]] = v;
       }
     }
@@ -283,7 +321,7 @@ async function pluginCommands(cwd: string): Promise<SlashCommand[]> {
         const file = await within(p, [dir]);
         if (!file || !SEGMENT.test(basename(p, '.md')) || !(await stat(file).catch(() => null))?.isFile()) continue;
         const { meta, firstLine } = await readHead(file);
-        out.push(entry(`${named}:${basename(p, '.md')}`, meta.description || firstLine, 'command', origin));
+        if (!hidden(meta)) out.push(entry(`${named}:${basename(p, '.md')}`, meta.description || firstLine, 'command', origin));
       } else out.push(...(await commandsIn(p, 'plugin', [dir], named)));
     }
     for (const rel of new Set(['skills', ...extra('skills')])) {

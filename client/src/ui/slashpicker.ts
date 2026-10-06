@@ -84,6 +84,8 @@ export function slashPicker(input: HTMLTextAreaElement, load: () => Promise<Slas
   let retryAt = 0;
   let shown: SlashCommand[] = [];
   let active = 0;
+  /** The query `shown` was ranked for: the active row is kept only while it stays the same. */
+  let shownFor: string | null = null;
   let isOpen = false;
   /** Esc closed it for this text: it stays shut until the text changes. */
   let dismissed: string | null = null;
@@ -139,8 +141,10 @@ export function slashPicker(input: HTMLTextAreaElement, load: () => Promise<Slas
       return;
     }
     note.hidden = true;
-    const kept = shown.findIndex((c) => c.name === prev);
-    active = kept >= 0 && m[1] ? kept : 0;
+    // A new query starts at its best match; a refresh of the same one keeps your place.
+    const kept = m[1] === shownFor ? shown.findIndex((c) => c.name === prev) : -1;
+    active = kept >= 0 ? kept : 0;
+    shownFor = m[1];
     render();
     setOpen(true);
   }
